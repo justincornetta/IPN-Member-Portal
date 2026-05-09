@@ -51,7 +51,9 @@ app/
 
 ## Planning context
 
-This repo holds the build. The planning materials (requirements, platform decision, meeting transcripts, etc.) live in the IPN Workspace repo at `projects/IPN Member Portal/`. See [`CLAUDE.md`](https://github.com/justincornetta/IPN-Member-Portal) at that path for the full project context: stack rationale, v1.0 build queue, working assumptions, and cross-project dependencies.
+**Start here:** [`docs/PLANNING.md`](docs/PLANNING.md) — what we're building, the stack, the v1.0 build queue, working assumptions, and dependencies. Plus links to the canonical Notion pages and Justin's workspace planning docs.
+
+If you're a new contributor: read PLANNING.md first, then come back here for the local-dev setup above.
 
 ## Deploy
 
