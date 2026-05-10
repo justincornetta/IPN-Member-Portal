@@ -49,7 +49,7 @@ jobs:
           DIFF=$(git show --no-color --unified=2 "$COMMIT_SHA" | head -150)
 
           PROMPT=$(cat <<EOF
-          You are summarizing a code change for a non-technical observer in a Slack notification.
+          You are writing a one-line plain-English description of a code change for a non-technical observer in a Slack notification.
 
           Commit message:
           $COMMIT_MESSAGE
@@ -60,13 +60,23 @@ jobs:
           Sample of the diff (truncated):
           $DIFF
 
-          Write 1-2 plain-English sentences describing what changed and why it matters. Skip technical jargon when possible. If the change is unclear from the diff, fall back to summarizing the commit message intent. Output ONLY the summary text — no preamble, no bullets, no markdown.
+          STRICT FORMAT RULES — follow exactly:
+          - Output 1 to 2 sentences. Maximum 40 words total. Hard cap.
+          - Plain prose only. NO markdown, NO bullets, NO headings, NO bold, NO emojis, NO line breaks.
+          - Skip technical jargon. Imagine explaining to a non-technical teammate.
+          - Do not preface with "This commit…" or "The change…" — just describe the effect.
+
+          Example good outputs:
+          "Updated the events page to pull live data from the database instead of hardcoded examples. Members can now see real upcoming events."
+          "Fixed a bug where the daily data refresh was overwriting member records with stale info."
+
+          Now write the summary:
           EOF
           )
 
           REQUEST=$(jq -n --arg prompt "$PROMPT" '{
             model: "claude-haiku-4-5",
-            max_tokens: 200,
+            max_tokens: 100,
             messages: [{ role: "user", content: $prompt }]
           }')
 
