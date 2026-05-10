@@ -43,10 +43,15 @@ jobs:
 
           # ─────────────────────────────────────────────────────────
           # Build context for Claude: file stats + truncated diff.
-          # Cap diff at ~100 lines to keep API costs predictable.
+          # Cap diff at ~150 lines to keep API costs predictable.
+          # Toggle pipefail off because `head` closes its stdin early,
+          # which sends SIGPIPE to `git show` (exit 141) when the diff
+          # exceeds the head limit. We don't care — we have what we need.
           # ─────────────────────────────────────────────────────────
+          set +o pipefail
           STAT=$(git show --stat --no-color "$COMMIT_SHA" | head -30)
           DIFF=$(git show --no-color --unified=2 "$COMMIT_SHA" | head -150)
+          set -o pipefail
 
           PROMPT=$(cat <<EOF
           You are writing a one-line plain-English description of a code change for a non-technical observer in a Slack notification.
