@@ -89,6 +89,45 @@ From the Notion Requirements Prioritization page. Build in roughly this order:
 
 ---
 
+## Slack notifications
+
+Two GitHub Actions workflows post to the private `#github-updates` Slack channel (`C0AQX8U0V0W`):
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| [`.github/workflows/slack-notify.yml`](../.github/workflows/slack-notify.yml) | Push to `main` | Posts a "IPN Member Portal Updated" message with the commit SHA, message, and author. Mirrors the same pattern used in `justincornetta/ipn-dashboard`. |
+| [`.github/workflows/slack-pr-review.yml`](../.github/workflows/slack-pr-review.yml) | PR `review_requested` | Posts a "PR Review Requested" message that **@-mentions the reviewer in Slack** so they get a real notification. Includes PR title, author, size (files / lines changed), a 2–4 sentence summary pulled from the PR description, and two action buttons: open the PR on GitHub, and open the Vercel preview deployment for the branch. |
+
+**Setup requirements:**
+
+- Repo secret `SLACK_WEBHOOK_URL` must be set. Find the existing webhook value in the Slack app at https://api.slack.com/apps (under the app that owns it → Incoming Webhooks). Set it via:
+  ```bash
+  gh secret set SLACK_WEBHOOK_URL -R justincornetta/IPN-Member-Portal
+  ```
+
+**Adding new contributors to the @-mention mapping:**
+
+Edit `.github/workflows/slack-pr-review.yml` and add to the `SLACK_USER_MAP` associative array:
+
+```bash
+declare -A SLACK_USER_MAP=(
+  ["justincornetta"]="U061Z7YC3DX"
+  ["lukestrong47"]="U0A9VJCD3AT"
+  ["new-github-username"]="U0XXXXXXXX"  # ← add new entry
+)
+```
+
+Find a Slack user ID by clicking their profile in Slack → "View full profile" → "..." menu → "Copy member ID".
+
+**PR description tip for reviewers' sake:** the first paragraph of your PR description becomes the Slack notification summary. Aim for 2–4 sentences describing what the PR does, what it touches, and any caveats. That's enough for the reviewer to decide whether to context-switch right away or batch the review later.
+
+**Skipped events** (workflow exits early without posting):
+- Draft PRs (lets you open drafts to get the Vercel preview without spamming Slack)
+- Self-review requests (when the PR author requests their own review)
+- Team-review requests (we only handle individual reviewers; teams not used here yet)
+
+---
+
 ## Source citations
 
 This file synthesizes:

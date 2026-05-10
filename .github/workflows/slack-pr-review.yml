@@ -1,0 +1,148 @@
+name: Slack PR Review Notification
+
+on:
+  pull_request:
+    types: [review_requested]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  notify-reviewer:
+    runs-on: ubuntu-latest
+    # Skip drafts, team-requests (we only handle individual reviewers), and self-review
+    if: |
+      github.event.pull_request.draft == false
+      && github.event.requested_reviewer != null
+      && github.event.requested_reviewer.login != github.event.pull_request.user.login
+    steps:
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          # Read user-controlled inputs via env (safer than direct ${{ }} interpolation in shell)
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_FILES: ${{ github.event.pull_request.changed_files }}
+          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
+          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
+          REVIEWER_GH: ${{ github.event.requested_reviewer.login }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          # Vercel project + team slug for constructing the preview URL
+          VERCEL_PROJECT: ipn-member-portal
+          VERCEL_TEAM_SLUG: ipn-s-projects
+        run: |
+          set -euo pipefail
+
+          # ─────────────────────────────────────────────────────────
+          # 1. Map GitHub username → Slack user ID for @-mention
+          #    Add new contributors here. Find Slack IDs in Slack
+          #    by clicking a user's profile → "View full profile"
+          #    → "..." menu → "Copy member ID".
+          # ─────────────────────────────────────────────────────────
+          declare -A SLACK_USER_MAP=(
+            ["justincornetta"]="U061Z7YC3DX"
+            ["lukestrong47"]="U0A9VJCD3AT"
+          )
+
+          REVIEWER_SLACK_ID="${SLACK_USER_MAP[$REVIEWER_GH]:-}"
+          if [ -n "$REVIEWER_SLACK_ID" ]; then
+            REVIEWER_MENTION="<@${REVIEWER_SLACK_ID}>"
+          else
+            REVIEWER_MENTION="${REVIEWER_GH} _(no Slack mapping — add to slack-pr-review.yml)_"
+          fi
+
+          # ─────────────────────────────────────────────────────────
+          # 2. Compute Vercel preview URL from branch name
+          #    Pattern: <project>-git-<branch>-<team-slug>.vercel.app
+          #    Vercel converts slashes → dashes and lowercases.
+          # ─────────────────────────────────────────────────────────
+          BRANCH_SLUG=$(echo "$PR_BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          PREVIEW_URL="https://${VERCEL_PROJECT}-git-${BRANCH_SLUG}-${VERCEL_TEAM_SLUG}.vercel.app"
+
+          # ─────────────────────────────────────────────────────────
+          # 3. Extract first paragraph of PR body, truncate to 400 chars
+          #    Falls back to a placeholder if PR has no description.
+          # ─────────────────────────────────────────────────────────
+          if [ -z "${PR_BODY:-}" ]; then
+            SUMMARY="_No description provided — open the PR for context._"
+          else
+            # First paragraph = everything up to first blank line
+            FIRST_PARA=$(echo "$PR_BODY" | awk 'BEGIN {RS=""} {print; exit}')
+            # Truncate to 400 chars with ellipsis
+            if [ ${#FIRST_PARA} -gt 400 ]; then
+              SUMMARY="${FIRST_PARA:0:400}…"
+            else
+              SUMMARY="$FIRST_PARA"
+            fi
+          fi
+
+          # ─────────────────────────────────────────────────────────
+          # 4. Build size string: "5 files · +120 −47"
+          # ─────────────────────────────────────────────────────────
+          SIZE="${PR_FILES} files · +${PR_ADDITIONS} −${PR_DELETIONS}"
+
+          # ─────────────────────────────────────────────────────────
+          # 5. Build the Slack JSON payload using jq for safe escaping
+          #    of PR title and summary (which can contain quotes,
+          #    backticks, etc).
+          # ─────────────────────────────────────────────────────────
+          PAYLOAD=$(jq -n \
+            --arg mention "$REVIEWER_MENTION" \
+            --arg pr_num "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            --arg pr_url "$PR_URL" \
+            --arg pr_author "$PR_AUTHOR" \
+            --arg size "$SIZE" \
+            --arg summary "$SUMMARY" \
+            --arg preview_url "$PREVIEW_URL" \
+            --arg repo_name "$REPO_NAME" \
+            '{
+              text: ("\($mention) — review requested on PR #\($pr_num) in \($repo_name)"),
+              blocks: [
+                {
+                  type: "header",
+                  text: { type: "plain_text", text: "PR Review Requested — IPN Member Portal", emoji: true }
+                },
+                {
+                  type: "section",
+                  fields: [
+                    { type: "mrkdwn", text: ("*PR:*\n<\($pr_url)|#\($pr_num) — \($pr_title)>") },
+                    { type: "mrkdwn", text: ("*Opened by:*\n\($pr_author)") }
+                  ]
+                },
+                {
+                  type: "section",
+                  fields: [
+                    { type: "mrkdwn", text: ("*Reviewer:*\n\($mention)") },
+                    { type: "mrkdwn", text: ("*Size:*\n\($size)") }
+                  ]
+                },
+                {
+                  type: "section",
+                  text: { type: "mrkdwn", text: ("*Summary:*\n\($summary)") }
+                },
+                {
+                  type: "actions",
+                  elements: [
+                    {
+                      type: "button",
+                      text: { type: "plain_text", text: "Review PR" },
+                      url: $pr_url
+                    },
+                    {
+                      type: "button",
+                      text: { type: "plain_text", text: "Open Live Preview" },
+                      url: $preview_url
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "$PAYLOAD"
