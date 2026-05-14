@@ -1,0 +1,552 @@
+"use client"
+
+import { useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import icon from "../../../assets/IPN Icon.webp"
+import { signUp } from "@/lib/auth/actions"
+import {
+  PERSONA_OPTIONS,
+  FIELD_OPTIONS,
+  FIELD_STATUS_OPTIONS,
+  BARRIER_OPTIONS,
+  REFERRAL_OPTIONS,
+  STEPS,
+} from "@/lib/constants/registration"
+import {
+  COUNTRIES,
+  US_STATES,
+  CANADIAN_PROVINCES,
+} from "@/lib/constants/locations"
+
+type FormData = {
+  first_name: string
+  last_name: string
+  email: string
+  password: string
+  confirm_password: string
+  affiliation: string
+  country: string
+  state: string
+  city: string
+  persona: string
+  persona_other: string
+  field: string
+  field_status: string
+  barriers: string[]
+  barriers_other: string
+  role_and_goals: string
+  inspiration: string
+  referral_source: string
+}
+
+const EMPTY: FormData = {
+  first_name: "", last_name: "", email: "", password: "", confirm_password: "",
+  affiliation: "", country: "", state: "", city: "",
+  persona: "", persona_other: "", field: "", field_status: "",
+  barriers: [], barriers_other: "",
+  role_and_goals: "", inspiration: "", referral_source: "",
+}
+
+// ── Shared primitives ────────────────────────────────────────────────────────
+
+function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="text-sm font-medium text-zinc-700">
+      {children}
+    </label>
+  )
+}
+
+function TextInput({
+  id, name, type = "text", value, onChange, placeholder, required, autoComplete,
+}: {
+  id: string; name: string; type?: string; value: string
+  onChange: (v: string) => void; placeholder?: string
+  required?: boolean; autoComplete?: string
+}) {
+  return (
+    <input
+      id={id} name={name} type={type} value={value} required={required}
+      autoComplete={autoComplete} placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+    />
+  )
+}
+
+function Select({
+  id, name, value, onChange, options, placeholder, required,
+}: {
+  id: string; name: string; value: string
+  onChange: (v: string) => void; options: readonly string[]
+  placeholder?: string; required?: boolean
+}) {
+  return (
+    <select
+      id={id} name={name} value={value} required={required}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  )
+}
+
+function Textarea({
+  id, name, value, onChange, placeholder, rows = 4,
+}: {
+  id: string; name: string; value: string
+  onChange: (v: string) => void; placeholder?: string; rows?: number
+}) {
+  return (
+    <textarea
+      id={id} name={name} value={value} rows={rows} placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 resize-none"
+    />
+  )
+}
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null
+  return <p className="text-xs text-red-600">{msg}</p>
+}
+
+// ── Step components ──────────────────────────────────────────────────────────
+
+function StepAccount({
+  data, update, errors,
+}: {
+  data: FormData
+  update: (k: keyof FormData, v: string) => void
+  errors: Record<string, string>
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="first_name">First name</Label>
+          <TextInput id="first_name" name="first_name" value={data.first_name}
+            onChange={(v) => update("first_name", v)} required autoComplete="given-name" />
+          <FieldError msg={errors.first_name} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="last_name">Last name</Label>
+          <TextInput id="last_name" name="last_name" value={data.last_name}
+            onChange={(v) => update("last_name", v)} required autoComplete="family-name" />
+          <FieldError msg={errors.last_name} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="email">Email</Label>
+        <TextInput id="email" name="email" type="email" value={data.email}
+          onChange={(v) => update("email", v)} required autoComplete="email" />
+        <FieldError msg={errors.email} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="password">Password</Label>
+        <TextInput id="password" name="password" type="password" value={data.password}
+          onChange={(v) => update("password", v)} required autoComplete="new-password"
+          placeholder="At least 8 characters" />
+        <FieldError msg={errors.password} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="confirm_password">Confirm password</Label>
+        <TextInput id="confirm_password" name="confirm_password" type="password"
+          value={data.confirm_password} onChange={(v) => update("confirm_password", v)}
+          required autoComplete="new-password" />
+        <FieldError msg={errors.confirm_password} />
+      </div>
+    </div>
+  )
+}
+
+function StepLocation({
+  data, update, errors,
+}: {
+  data: FormData
+  update: (k: keyof FormData, v: string) => void
+  errors: Record<string, string>
+}) {
+  const showStateDropdown = data.country === "United States" || data.country === "Canada"
+  const stateOptions = data.country === "Canada" ? CANADIAN_PROVINCES : US_STATES
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="affiliation">Current affiliation</Label>
+        <TextInput id="affiliation" name="affiliation" value={data.affiliation}
+          onChange={(v) => update("affiliation", v)} required
+          placeholder="University name, company, self-employed…" />
+        <FieldError msg={errors.affiliation} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="country">Country</Label>
+        <Select id="country" name="country" value={data.country}
+          onChange={(v) => { update("country", v); update("state", "") }}
+          options={COUNTRIES} placeholder="Select a country" required />
+        <FieldError msg={errors.country} />
+      </div>
+
+      {showStateDropdown && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="state">
+            {data.country === "Canada" ? "Province / Territory" : "State / Territory"}
+          </Label>
+          <Select id="state" name="state" value={data.state}
+            onChange={(v) => update("state", v)}
+            options={stateOptions} placeholder="Select…" />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="city">City</Label>
+        <TextInput id="city" name="city" value={data.city}
+          onChange={(v) => update("city", v)} required
+          placeholder="Your current city or town" />
+        <FieldError msg={errors.city} />
+      </div>
+    </div>
+  )
+}
+
+function StepBackground({
+  data, update, updateBarriers, errors,
+}: {
+  data: FormData
+  update: (k: keyof FormData, v: string) => void
+  updateBarriers: (v: string[]) => void
+  errors: Record<string, string>
+}) {
+  const showBarriers = data.field_status !== "" &&
+    data.field_status !== "Yes — I currently work in the field"
+
+  function toggleBarrier(option: string) {
+    const next = data.barriers.includes(option)
+      ? data.barriers.filter((b) => b !== option)
+      : [...data.barriers, option]
+    updateBarriers(next)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium text-zinc-700">Which best describes you?</p>
+        {PERSONA_OPTIONS.map((opt) => (
+          <label key={opt} className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="persona" value={opt}
+              checked={data.persona === opt}
+              onChange={() => update("persona", opt)}
+              className="accent-ipn" />
+            <span className="text-sm text-zinc-700">{opt}</span>
+          </label>
+        ))}
+        {data.persona === "Other" && (
+          <TextInput id="persona_other" name="persona_other"
+            value={data.persona_other} onChange={(v) => update("persona_other", v)}
+            placeholder="Please describe…" />
+        )}
+        <FieldError msg={errors.persona} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium text-zinc-700">Which field are you primarily in?</p>
+        {FIELD_OPTIONS.map((opt) => (
+          <label key={opt} className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="field" value={opt}
+              checked={data.field === opt}
+              onChange={() => update("field", opt)}
+              className="accent-ipn" />
+            <span className="text-sm text-zinc-700">{opt}</span>
+          </label>
+        ))}
+        <FieldError msg={errors.field} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium text-zinc-700">
+          Are you currently working in, or interested in working in, the field?
+        </p>
+        {FIELD_STATUS_OPTIONS.map((opt) => (
+          <label key={opt} className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="field_status" value={opt}
+              checked={data.field_status === opt}
+              onChange={() => update("field_status", opt)}
+              className="accent-ipn" />
+            <span className="text-sm text-zinc-700">{opt}</span>
+          </label>
+        ))}
+        <FieldError msg={errors.field_status} />
+      </div>
+
+      {showBarriers && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-zinc-700">
+            If you&apos;re not currently working in the field, why not?{" "}
+            <span className="font-normal text-zinc-400">(Select all that apply)</span>
+          </p>
+          {BARRIER_OPTIONS.map((opt) => (
+            <label key={opt} className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" value={opt}
+                checked={data.barriers.includes(opt)}
+                onChange={() => toggleBarrier(opt)}
+                className="accent-ipn rounded" />
+              <span className="text-sm text-zinc-700">{opt}</span>
+            </label>
+          ))}
+          {data.barriers.includes("Other") && (
+            <TextInput id="barriers_other" name="barriers_other"
+              value={data.barriers_other} onChange={(v) => update("barriers_other", v)}
+              placeholder="Please specify…" />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StepAbout({
+  data, update, errors,
+}: {
+  data: FormData
+  update: (k: keyof FormData, v: string) => void
+  errors: Record<string, string>
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="role_and_goals">
+          What is your current role or interest, and what are your professional goals?
+        </Label>
+        <p className="text-xs text-zinc-400">
+          Share your current area of focus, roles you hope to pursue, and the
+          types of organizations or impact areas you&apos;re most drawn to.
+        </p>
+        <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
+          onChange={(v) => update("role_and_goals", v)} rows={4} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="inspiration">What inspired you to get involved with IPN?</Label>
+        <Textarea id="inspiration" name="inspiration" value={data.inspiration}
+          onChange={(v) => update("inspiration", v)} rows={3} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium text-zinc-700">How did you hear about us?</p>
+        {REFERRAL_OPTIONS.map((opt) => (
+          <label key={opt} className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="referral_source" value={opt}
+              checked={data.referral_source === opt}
+              onChange={() => update("referral_source", opt)}
+              className="accent-ipn" />
+            <span className="text-sm text-zinc-700">{opt}</span>
+          </label>
+        ))}
+        <FieldError msg={errors.referral_source} />
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
+export default function RegisterPage() {
+  const [step, setStep] = useState(1)
+  const [data, setData] = useState<FormData>(EMPTY)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [globalError, setGlobalError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  function update(key: keyof FormData, value: string) {
+    setData((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => { const e = { ...prev }; delete e[key]; return e })
+  }
+
+  function updateBarriers(value: string[]) {
+    setData((prev) => ({ ...prev, barriers: value }))
+  }
+
+  function validate(s: number): boolean {
+    const e: Record<string, string> = {}
+    if (s === 1) {
+      if (!data.first_name.trim()) e.first_name = "Required"
+      if (!data.last_name.trim()) e.last_name = "Required"
+      if (!data.email.trim()) e.email = "Required"
+      if (data.password.length < 8) e.password = "At least 8 characters"
+      if (data.password !== data.confirm_password) e.confirm_password = "Passwords don't match"
+    }
+    if (s === 2) {
+      if (!data.affiliation.trim()) e.affiliation = "Required"
+      if (!data.country) e.country = "Required"
+      if (!data.city.trim()) e.city = "Required"
+    }
+    if (s === 3) {
+      if (!data.persona) e.persona = "Please select one"
+      if (data.persona === "Other" && !data.persona_other.trim()) e.persona = "Please describe"
+      if (!data.field) e.field = "Please select one"
+      if (!data.field_status) e.field_status = "Please select one"
+    }
+    if (s === 4) {
+      if (!data.referral_source) e.referral_source = "Please select one"
+    }
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  function next() {
+    if (validate(step)) setStep((s) => s + 1)
+  }
+
+  function back() {
+    setStep((s) => s - 1)
+    setErrors({})
+  }
+
+  async function submit() {
+    if (!validate(4)) return
+    setLoading(true)
+    setGlobalError(null)
+
+    const persona = data.persona === "Other" ? data.persona_other : data.persona
+    const barriers = data.barriers.map((b) =>
+      b === "Other" && data.barriers_other ? data.barriers_other : b,
+    )
+
+    const result = await signUp({
+      email: data.email,
+      password: data.password,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      affiliation: data.affiliation,
+      country: data.country,
+      state: data.state,
+      city: data.city,
+      persona,
+      field: data.field,
+      psychedelic_field_status: data.field_status,
+      psychedelic_field_barriers: barriers,
+      role_and_goals: data.role_and_goals,
+      inspiration: data.inspiration,
+      referral_source: data.referral_source,
+    })
+
+    if (result?.error) {
+      setGlobalError(result.error)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 py-12">
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="mb-6 text-center">
+          <div className="mb-4 flex justify-center">
+            <Image src={icon} alt="IPN" width={44} height={44} />
+          </div>
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
+            Intercollegiate Psychedelics Network
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
+            Create your account
+          </h1>
+        </div>
+
+        {/* Progress */}
+        <div className="mb-8 flex items-center gap-2">
+          {STEPS.map((label, i) => {
+            const n = i + 1
+            const done = n < step
+            const active = n === step
+            return (
+              <div key={label} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${
+                    done
+                      ? "bg-ipn text-white"
+                      : active
+                      ? "bg-ipn text-white"
+                      : "bg-zinc-200 text-zinc-500"
+                  }`}
+                >
+                  {done ? (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd" />
+                    </svg>
+                  ) : n}
+                </div>
+                <span className={`text-xs ${active ? "text-ipn font-medium" : "text-zinc-400"}`}>
+                  {label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Form card */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
+          {step === 2 && <StepLocation data={data} update={update} errors={errors} />}
+          {step === 3 && (
+            <StepBackground data={data} update={update} updateBarriers={updateBarriers} errors={errors} />
+          )}
+          {step === 4 && <StepAbout data={data} update={update} errors={errors} />}
+
+          {globalError && (
+            <p className="mt-4 text-sm text-red-600">{globalError}</p>
+          )}
+
+          {/* Navigation */}
+          <div className="mt-6 flex items-center justify-between">
+            {step > 1 ? (
+              <button
+                type="button"
+                onClick={back}
+                className="text-sm text-zinc-500 hover:text-zinc-800"
+              >
+                ← Back
+              </button>
+            ) : (
+              <span />
+            )}
+
+            {step < 4 ? (
+              <button
+                type="button"
+                onClick={next}
+                className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+              >
+                Next →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={loading}
+                className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
+              >
+                {loading ? "Creating account…" : "Create account"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-5 text-center text-sm text-zinc-500">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-ipn hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </div>
+  )
+}

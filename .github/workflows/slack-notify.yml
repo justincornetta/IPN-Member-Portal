@@ -80,8 +80,9 @@ jobs:
           )
 
           REQUEST=$(jq -n --arg prompt "$PROMPT" '{
-            model: "claude-haiku-4-5",
+            model: "claude-haiku-4-5-20251001",
             max_tokens: 100,
+            system: "You are a developer tool that writes plain-English commit summaries for a Slack notification. The project is a member portal for the Intercollegiate Psychedelics Network (IPN), a legitimate academic organization focused on psychedelic science, policy, and community research. Summarize code changes technically and neutrally.",
             messages: [{ role: "user", content: $prompt }]
           }')
 
