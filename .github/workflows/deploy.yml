@@ -17,7 +17,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             npx vercel --token=${{ secrets.VERCEL_TOKEN }}
           else
-            npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+            npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes --debug
           fi
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
