@@ -37,7 +37,7 @@ In your Supabase project → Authentication → Settings:
 | **Email confirmation** | Enabled (default) |
 | **Secure email change** | Enabled (default) |
 
-> Tip: Supabase allows multiple redirect URLs, so you can add both prod and localhost at the same time.
+> Tip: Supabase allows multiple redirect URLs, including wildcard patterns for preview deployments. During the Netlify trial, also add the Netlify redirect URLs listed in [`NETLIFY.md`](NETLIFY.md).
 
 ---
 

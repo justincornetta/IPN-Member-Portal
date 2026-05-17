@@ -9,7 +9,8 @@ The web application powering [`members.ipn.org`](https://members.ipn.org) — co
 - **Next.js 16** (App Router) + React 19 + TypeScript
 - **Tailwind CSS v4**
 - **Supabase** — Postgres + Auth + Row-Level Security
-- **Vercel** — hosting + CI/CD
+- **Vercel** — current hosting + rollback path during Netlify trial
+- **Netlify** — parallel deployment trial for PR previews and collaboration
 - **Mailchimp API** — member email integration (planned)
 
 ## Local development
@@ -59,4 +60,9 @@ If you're a new contributor: read PLANNING.md first, then come back here for the
 
 ## Deploy
 
-Connected to Vercel for auto-deploy on every push to `main`. Set the same `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` env vars in the Vercel project settings.
+Vercel remains active while Netlify is tested as a parallel deployment target. Do not move `members.ipn.org` until Netlify passes the trial checklist.
+
+- Vercel: current production/rollback deployment path.
+- Netlify: configured by [`netlify.toml`](netlify.toml); setup checklist lives in [`docs/NETLIFY.md`](docs/NETLIFY.md).
+
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in whichever host is being tested.

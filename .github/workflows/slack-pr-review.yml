@@ -31,7 +31,10 @@ jobs:
           PR_DELETIONS: ${{ github.event.pull_request.deletions }}
           REVIEWER_GH: ${{ github.event.requested_reviewer.login }}
           REPO_NAME: ${{ github.event.repository.name }}
-          # Vercel project + team slug for constructing the preview URL
+          # Netlify trial site name. Configure this as a GitHub repository
+          # variable once the Netlify site is created.
+          NETLIFY_SITE_NAME: ${{ vars.NETLIFY_SITE_NAME }}
+          # Vercel project + team slug retained while Vercel remains rollback.
           VERCEL_PROJECT: ipn-member-portal
           VERCEL_TEAM_SLUG: ipn-s-projects
         run: |
@@ -45,6 +48,7 @@ jobs:
           # ─────────────────────────────────────────────────────────
           declare -A SLACK_USER_MAP=(
             ["justincornetta"]="U061Z7YC3DX"
+            ["LukeStro47"]="U0A9VJCD3AT"
             ["lukestrong47"]="U0A9VJCD3AT"
           )
 
@@ -56,12 +60,18 @@ jobs:
           fi
 
           # ─────────────────────────────────────────────────────────
-          # 2. Compute Vercel preview URL from branch name
-          #    Pattern: <project>-git-<branch>-<team-slug>.vercel.app
-          #    Vercel converts slashes → dashes and lowercases.
+          # 2. Compute preview URL. During the Netlify trial, prefer Netlify
+          #    Deploy Preview URLs when NETLIFY_SITE_NAME is configured.
+          #    Otherwise, fall back to the legacy Vercel preview pattern.
           # ─────────────────────────────────────────────────────────
-          BRANCH_SLUG=$(echo "$PR_BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-          PREVIEW_URL="https://${VERCEL_PROJECT}-git-${BRANCH_SLUG}-${VERCEL_TEAM_SLUG}.vercel.app"
+          if [ -n "${NETLIFY_SITE_NAME:-}" ]; then
+            PREVIEW_LABEL="Open Netlify Preview"
+            PREVIEW_URL="https://deploy-preview-${PR_NUMBER}--${NETLIFY_SITE_NAME}.netlify.app"
+          else
+            BRANCH_SLUG=$(echo "$PR_BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+            PREVIEW_LABEL="Open Vercel Preview"
+            PREVIEW_URL="https://${VERCEL_PROJECT}-git-${BRANCH_SLUG}-${VERCEL_TEAM_SLUG}.vercel.app"
+          fi
 
           # ─────────────────────────────────────────────────────────
           # 3. Extract first paragraph of PR body, truncate to 400 chars
@@ -98,6 +108,7 @@ jobs:
             --arg pr_author "$PR_AUTHOR" \
             --arg size "$SIZE" \
             --arg summary "$SUMMARY" \
+            --arg preview_label "$PREVIEW_LABEL" \
             --arg preview_url "$PREVIEW_URL" \
             --arg repo_name "$REPO_NAME" \
             '{
@@ -135,7 +146,7 @@ jobs:
                     },
                     {
                       type: "button",
-                      text: { type: "plain_text", text: "Open Live Preview" },
+                      text: { type: "plain_text", text: $preview_label },
                       url: $preview_url
                     }
                   ]
