@@ -29,7 +29,7 @@ Add these in Netlify project settings:
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Same value | Public anon client config |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Same value | Public anon client config |
-| `NEXT_PUBLIC_SITE_URL` | `https://members.ipn.org` | Leave unset unless testing a fixed URL | Preview auth redirects use Netlify deploy URLs when this is unset |
+| `NEXT_PUBLIC_SITE_URL` | Leave unset during the trial | Leave unset during the trial | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this to `https://members.ipn.org` only after the production domain moves |
 
 Do not add service-role keys, Mailchimp keys, or webhook secrets until a feature needs them.
 
@@ -63,13 +63,13 @@ Replace `<netlify-site-name>` with the real Netlify site subdomain. Supabase sup
 
 1. Move `members.ipn.org` DNS to Netlify.
 2. Set Supabase Site URL to `https://members.ipn.org`.
-3. Disable or remove the Vercel GitHub Actions deploy workflow.
-4. Disconnect/pause Vercel auto-deploys.
-5. Update `README.md`, `docs/PLANNING.md`, and this file to mark Netlify as the primary host.
+3. Set Netlify `NEXT_PUBLIC_SITE_URL` to `https://members.ipn.org`.
+4. Disable or remove the Vercel GitHub Actions deploy workflow.
+5. Disconnect/pause Vercel auto-deploys.
+6. Update `README.md`, `docs/PLANNING.md`, and this file to mark Netlify as the primary host.
 
 ## If Netlify loses
 
 1. Leave `members.ipn.org` on Vercel.
 2. Keep or remove `netlify.toml` depending on whether it creates noise.
 3. Continue with the Vercel workflow and revisit hosting later only if cost or collaboration becomes a blocker again.
-
