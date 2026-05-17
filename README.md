@@ -4,6 +4,8 @@ The web application powering [`members.ipn.org`](https://members.ipn.org) — co
 
 **Status:** v0 scaffold. Auth, profiles, directory, and events are coming. Launch target: PsychedelX 2026 (end-June).
 
+Auth completed
+
 ## Stack
 
 - **Next.js 16** (App Router) + React 19 + TypeScript
