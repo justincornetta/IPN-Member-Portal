@@ -21,11 +21,34 @@ export type RegistrationData = {
   referral_source: string
 }
 
+function normalizeSiteUrl(url: string): string {
+  const withProtocol = url.startsWith("http") ? url : `https://${url}`
+  return withProtocol.replace(/\/$/, "")
+}
+
+function getSiteUrl(): string {
+  const explicitUrl = process.env.NEXT_PUBLIC_SITE_URL
+  const netlifyPreviewUrl = process.env.DEPLOY_PRIME_URL ?? process.env.URL
+  const vercelPreviewUrl = process.env.NEXT_PUBLIC_VERCEL_URL
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    : undefined
+  const isPreview =
+    process.env.CONTEXT === "deploy-preview" ||
+    process.env.CONTEXT === "branch-deploy" ||
+    process.env.VERCEL_ENV === "preview"
+
+  const url = isPreview
+    ? (netlifyPreviewUrl ?? vercelPreviewUrl ?? explicitUrl)
+    : (explicitUrl ?? netlifyPreviewUrl ?? vercelPreviewUrl)
+
+  return normalizeSiteUrl(url ?? "http://localhost:3000")
+}
+
 export async function signUp(
   data: RegistrationData,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  const siteUrl = getSiteUrl()
 
   const { error } = await supabase.auth.signUp({
     email: data.email,

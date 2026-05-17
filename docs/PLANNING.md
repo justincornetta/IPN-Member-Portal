@@ -35,7 +35,7 @@ Replaces today's scattered experience across Mailchimp, Discord, Zoom, and the p
 |---|---|---|
 | Frontend | **Next.js 16 + React 19 + TypeScript** | App Router, `src/` layout, Turbopack |
 | Styling | **Tailwind CSS v4** | |
-| Hosting | **Vercel** | Free Hobby tier; auto-deploys on push to `main` |
+| Hosting | **Vercel + Netlify trial** | Vercel remains rollback; Netlify is being tested for private-repo collaboration and PR previews |
 | Auth + DB | **Supabase** | Postgres 17, Row-Level Security, free tier |
 | Email | **Mailchimp API** | Single audience post-SoT-consolidation |
 | Mobile | **PWA wrap** | Manifest + service worker; no app stores in v1 |
@@ -96,7 +96,7 @@ Two GitHub Actions workflows post to the private `#github-updates` Slack channel
 | Workflow | Trigger | What it does |
 |---|---|---|
 | [`.github/workflows/slack-notify.yml`](../.github/workflows/slack-notify.yml) | Push to `main` | Posts a "IPN Member Portal Updated" message with the commit SHA, message, and author. Mirrors the same pattern used in `justincornetta/ipn-dashboard`. |
-| [`.github/workflows/slack-pr-review.yml`](../.github/workflows/slack-pr-review.yml) | PR `review_requested` | Posts a "PR Review Requested" message that **@-mentions the reviewer in Slack** so they get a real notification. Includes PR title, author, size (files / lines changed), a 2–4 sentence summary pulled from the PR description, and two action buttons: open the PR on GitHub, and open the Vercel preview deployment for the branch. |
+| [`.github/workflows/slack-pr-review.yml`](../.github/workflows/slack-pr-review.yml) | PR `review_requested` | Posts a "PR Review Requested" message that **@-mentions the reviewer in Slack** so they get a real notification. Includes PR title, author, size (files / lines changed), a 2–4 sentence summary pulled from the PR description, and two action buttons: open the PR on GitHub, and open the deploy preview. During the Netlify trial, set repository variable `NETLIFY_SITE_NAME` so this button points to Netlify previews. |
 
 **Setup requirements:**
 
@@ -122,7 +122,7 @@ Find a Slack user ID by clicking their profile in Slack → "View full profile" 
 **PR description tip for reviewers' sake:** the first paragraph of your PR description becomes the Slack notification summary. Aim for 2–4 sentences describing what the PR does, what it touches, and any caveats. That's enough for the reviewer to decide whether to context-switch right away or batch the review later.
 
 **Skipped events** (workflow exits early without posting):
-- Draft PRs (lets you open drafts to get the Vercel preview without spamming Slack)
+- Draft PRs (lets you open drafts to get a deploy preview without spamming Slack)
 - Self-review requests (when the PR author requests their own review)
 - Team-review requests (we only handle individual reviewers; teams not used here yet)
 
