@@ -48,6 +48,7 @@ jobs:
           # ─────────────────────────────────────────────────────────
           declare -A SLACK_USER_MAP=(
             ["justincornetta"]="U061Z7YC3DX"
+            ["LukeStro47"]="U0A9VJCD3AT"
             ["lukestrong47"]="U0A9VJCD3AT"
           )
 
