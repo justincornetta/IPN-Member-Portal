@@ -29,6 +29,7 @@ create table if not exists public.profiles (
   area_of_interest          text,
   linkedin_url              text,
   is_discoverable           boolean not null default true,
+  share_location            boolean not null default true,
   avatar_url                text,
   created_at                timestamptz default now(),
   updated_at                timestamptz default now()
@@ -43,6 +44,7 @@ create table if not exists public.profiles (
 -- alter table public.profiles add column if not exists area_of_interest text;
 -- alter table public.profiles add column if not exists linkedin_url text;
 -- alter table public.profiles add column if not exists is_discoverable boolean not null default true;
+-- alter table public.profiles add column if not exists share_location boolean not null default true;
 -- alter table public.profiles add column if not exists avatar_url text;
 
 

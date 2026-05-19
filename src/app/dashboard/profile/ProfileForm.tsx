@@ -35,6 +35,7 @@ type Profile = {
   area_of_interest: string | null
   linkedin_url: string | null
   is_discoverable: boolean | null
+  share_location: boolean | null
   avatar_url: string | null
 }
 
@@ -54,6 +55,7 @@ type FormState = {
   area_of_interest: string
   linkedin_url: string
   is_discoverable: boolean
+  share_location: boolean
   avatar_url: string | null
 }
 
@@ -74,6 +76,7 @@ function toFormState(profile: Profile | null): FormState {
     area_of_interest: profile?.area_of_interest ?? "",
     linkedin_url: profile?.linkedin_url ?? "",
     is_discoverable: profile?.is_discoverable ?? true,
+    share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
   }
 }
@@ -107,7 +110,7 @@ function TextInput({
       id={id} name={name} type={type} value={value}
       autoComplete={autoComplete} placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
     />
   )
 }
@@ -159,7 +162,7 @@ function Combobox({
         onChange={(e) => { setQuery(e.target.value); onChange(""); setOpen(true) }}
         onFocus={() => { if (query.length >= 2) setOpen(true) }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
       />
       {open && filtered.length > 0 && (
         <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
@@ -188,7 +191,7 @@ function Textarea({
     <textarea
       id={id} name={name} value={value} rows={rows} placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+      className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
     />
   )
 }
@@ -235,9 +238,7 @@ export default function ProfileForm({
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(userId)
     const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-    // Persist avatar_url immediately via client (RLS allows updating own row)
     await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
-
     update("avatar_url", publicUrl)
     setAvatarUploading(false)
   }
@@ -263,15 +264,13 @@ export default function ProfileForm({
       area_of_interest: data.area_of_interest || null,
       linkedin_url: data.linkedin_url || null,
       is_discoverable: data.is_discoverable,
+      share_location: data.share_location,
       avatar_url: data.avatar_url,
     })
 
     setSaving(false)
-    if (result?.error) {
-      setError(result.error)
-    } else {
-      setSaved(true)
-    }
+    if (result?.error) setError(result.error)
+    else setSaved(true)
   }
 
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -287,54 +286,50 @@ export default function ProfileForm({
   return (
     <div className="flex flex-col gap-10">
 
-      {/* ── Photo ── */}
+      {/* ── Photo & Name ── */}
       <section>
-        <SectionHeading>Photo</SectionHeading>
-        <div className="flex items-center gap-5">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={avatarUploading}
-            className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-ipn focus:ring-offset-2 disabled:opacity-50"
-            title="Change photo"
-          >
-            {data.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-ipn text-2xl font-semibold text-white">
-                {initials}
-              </div>
-            )}
-            <div className="absolute inset-0 flex items-end justify-center rounded-full bg-black/0 pb-1.5 opacity-0 transition hover:bg-black/30 hover:opacity-100">
-              <span className="text-[10px] font-medium text-white">Edit</span>
-            </div>
-          </button>
-          <div>
+        <SectionHeading>Photo &amp; Name</SectionHeading>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-5">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={avatarUploading}
-              className="text-sm font-medium text-ipn hover:underline disabled:opacity-50"
+              className="group relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full transition focus:outline-none focus:ring-2 focus:ring-ipn focus:ring-offset-2 disabled:opacity-50"
+              title="Change photo"
             >
-              {avatarUploading ? "Uploading…" : "Upload new photo"}
+              {data.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={data.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-ipn text-2xl font-semibold text-white">
+                  {initials}
+                </div>
+              )}
+              <div className="absolute inset-0 flex items-end justify-center rounded-full bg-black/0 pb-1.5 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                <span className="text-[10px] font-medium text-white">Edit</span>
+              </div>
             </button>
-            <p className="mt-0.5 text-xs text-zinc-400">JPG, PNG or GIF · max 5 MB</p>
+            <div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarUploading}
+                className="text-sm font-medium text-ipn hover:underline disabled:opacity-50"
+              >
+                {avatarUploading ? "Uploading…" : "Upload new photo"}
+              </button>
+              <p className="mt-0.5 text-xs text-zinc-400">JPG, PNG or GIF · max 5 MB</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAvatarChange}
-          />
-        </div>
-      </section>
 
-      {/* ── Personal info ── */}
-      <section>
-        <SectionHeading>Personal info</SectionHeading>
-        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <Label htmlFor="first_name">First name</Label>
@@ -347,7 +342,26 @@ export default function ProfileForm({
                 onChange={(v) => update("last_name", v)} autoComplete="family-name" />
             </div>
           </div>
+        </div>
+      </section>
 
+      {/* ── Public Profile ── */}
+      <section>
+        <SectionHeading>Public Profile</SectionHeading>
+
+        {/* Visibility callout */}
+        <div className="mb-5 rounded-lg border border-ipn/20 bg-ipn/5 px-4 py-3">
+          <p className="text-xs font-semibold text-ipn">Visible to other members</p>
+          <ul className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-zinc-500">
+            <li>· Name and bio</li>
+            <li>· Area of interest</li>
+            <li>· LinkedIn URL</li>
+            <li>· Student status / persona</li>
+            <li>· School or affiliation</li>
+          </ul>
+        </div>
+
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <Label htmlFor="bio">Bio</Label>
             <Textarea id="bio" name="bio" value={data.bio}
@@ -369,38 +383,6 @@ export default function ProfileForm({
               placeholder="https://linkedin.com/in/yourname" />
           </div>
 
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={data.is_discoverable}
-              onChange={(e) => update("is_discoverable", e.target.checked)}
-              className="mt-0.5 accent-ipn"
-            />
-            <div>
-              <p className="text-sm font-medium text-zinc-700">Make my profile discoverable</p>
-              <p className="text-xs text-zinc-400">
-                Other members can find you in the directory. Uncheck to stay private.
-              </p>
-            </div>
-          </label>
-        </div>
-      </section>
-
-      {/* ── About you ── */}
-      <section>
-        <SectionHeading>About you</SectionHeading>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="role_and_goals">Current role and professional goals</Label>
-          <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
-            onChange={(v) => update("role_and_goals", v)} rows={4}
-            placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
-        </div>
-      </section>
-
-      {/* ── Background ── */}
-      <section>
-        <SectionHeading>Background</SectionHeading>
-        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <Label htmlFor="persona">What best describes you?</Label>
             <Select id="persona" name="persona" value={data.persona}
@@ -427,7 +409,51 @@ export default function ProfileForm({
                 placeholder="Company, organization, self-employed…" />
             </div>
           )}
+        </div>
+      </section>
 
+      {/* ── Visibility ── */}
+      <section>
+        <SectionHeading>Visibility</SectionHeading>
+        <div className="flex flex-col gap-3">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={data.is_discoverable}
+              onChange={(e) => update("is_discoverable", e.target.checked)}
+              className="mt-0.5 accent-ipn"
+            />
+            <div>
+              <p className="text-sm font-medium text-zinc-700">Make my profile discoverable</p>
+              <p className="text-xs text-zinc-400">
+                Other members can find you in the directory. Uncheck to stay private.
+              </p>
+            </div>
+          </label>
+
+          {data.is_discoverable && (
+            <label className="ml-6 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={data.share_location}
+                onChange={(e) => update("share_location", e.target.checked)}
+                className="mt-0.5 accent-ipn"
+              />
+              <div>
+                <p className="text-sm font-medium text-zinc-700">Allow location-based discovery</p>
+                <p className="text-xs text-zinc-400">
+                  Members in your area can find you — approximate region only, nothing specific.
+                </p>
+              </div>
+            </label>
+          )}
+        </div>
+      </section>
+
+      {/* ── Field & Focus ── */}
+      <section>
+        <SectionHeading>Field &amp; Focus</SectionHeading>
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium text-zinc-700">Which field are you primarily in?</p>
             {FIELD_OPTIONS.map((opt) => (
@@ -489,6 +515,17 @@ export default function ProfileForm({
         </div>
       </section>
 
+      {/* ── About You ── */}
+      <section>
+        <SectionHeading>About You</SectionHeading>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="role_and_goals">Current role and professional goals</Label>
+          <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
+            onChange={(v) => update("role_and_goals", v)} rows={4}
+            placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
+        </div>
+      </section>
+
       {/* ── Save ── */}
       <div className="flex items-center gap-4 border-t border-zinc-100 pt-6">
         <button
@@ -499,12 +536,8 @@ export default function ProfileForm({
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        {saved && (
-          <span className="text-sm text-zinc-500">Changes saved</span>
-        )}
-        {error && (
-          <span className="text-sm text-red-600">{error}</span>
-        )}
+        {saved && <span className="text-sm text-zinc-500">Changes saved</span>}
+        {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
     </div>
   )

@@ -127,6 +127,7 @@ export type ProfileUpdateData = {
   area_of_interest: string | null
   linkedin_url: string | null
   is_discoverable: boolean
+  share_location: boolean
   avatar_url: string | null
 }
 
