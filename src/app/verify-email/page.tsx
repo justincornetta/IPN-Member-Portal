@@ -1,12 +1,12 @@
 import Image from "next/image"
-import icon from "../../../assets/IPN Icon.webp"
+import logo from "../../../assets/purple_full.png"
 
 export default function VerifyEmailPage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6">
       <div className="w-full max-w-sm text-center">
         <div className="mb-4 flex justify-center">
-          <Image src={icon} alt="IPN" width={48} height={48} />
+          <Image src={logo} alt="IPN" height={40} width={200} className="h-10 w-auto" />
         </div>
         <h1 className="text-xl font-semibold text-zinc-900">Check your email</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-500">

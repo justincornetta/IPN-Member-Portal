@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import icon from "../../assets/IPN Icon.webp"
+import icon from "../../assets/purple_icon.png"
 import { signOut } from "@/lib/auth/actions"
 
 const NAV = [
@@ -60,12 +60,16 @@ type Props = {
   email: string
   persona: string | null
   affiliation: string | null
+  avatarUrl: string | null
 }
 
-export default function Sidebar({ firstName, lastName, email, persona, affiliation }: Props) {
+export default function Sidebar({ firstName, lastName, email, persona, affiliation, avatarUrl }: Props) {
   const pathname = usePathname()
   const displayName = firstName ? `${firstName} ${lastName ?? ""}`.trim() : email
   const subtitle = persona ?? affiliation ?? ""
+  const initials = firstName
+    ? `${firstName[0]}${lastName?.[0] ?? ""}`.toUpperCase()
+    : email[0].toUpperCase()
 
   return (
     <aside className="flex w-56 flex-shrink-0 flex-col border-r border-zinc-200 bg-white">
@@ -117,12 +121,27 @@ export default function Sidebar({ firstName, lastName, email, persona, affiliati
       {/* User footer */}
       <div className="border-t border-zinc-100 px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-zinc-800">{displayName}</p>
-            {subtitle && (
-              <p className="truncate text-xs text-zinc-400">{subtitle}</p>
-            )}
-          </div>
+          <Link
+            href="/dashboard/profile"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded transition hover:opacity-75"
+          >
+            <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-ipn text-xs font-semibold text-white">
+                  {initials}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-zinc-800">{displayName}</p>
+              {subtitle && (
+                <p className="truncate text-xs text-zinc-400">{subtitle}</p>
+              )}
+            </div>
+          </Link>
           <form action={signOut}>
             <button
               type="submit"

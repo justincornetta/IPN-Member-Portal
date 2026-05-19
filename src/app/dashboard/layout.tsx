@@ -16,7 +16,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("first_name, last_name, persona, affiliation")
+    .select("first_name, last_name, persona, affiliation, avatar_url")
     .eq("id", user.id)
     .single()
 
@@ -28,6 +28,7 @@ export default async function DashboardLayout({
         email={user.email ?? ""}
         persona={profile?.persona ?? null}
         affiliation={profile?.affiliation ?? null}
+        avatarUrl={profile?.avatar_url ?? null}
       />
       <div className="flex flex-1 flex-col overflow-y-auto bg-zinc-50">
         {children}
