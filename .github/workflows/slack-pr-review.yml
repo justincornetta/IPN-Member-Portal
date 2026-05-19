@@ -25,18 +25,14 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           PR_FILES: ${{ github.event.pull_request.changed_files }}
           PR_ADDITIONS: ${{ github.event.pull_request.additions }}
           PR_DELETIONS: ${{ github.event.pull_request.deletions }}
           REVIEWER_GH: ${{ github.event.requested_reviewer.login }}
           REPO_NAME: ${{ github.event.repository.name }}
-          # Netlify trial site name. Configure this as a GitHub repository
-          # variable once the Netlify site is created.
+          # Netlify site name. Configure this as a GitHub repository
+          # variable so Slack can link to Deploy Previews.
           NETLIFY_SITE_NAME: ${{ vars.NETLIFY_SITE_NAME }}
-          # Vercel project + team slug retained while Vercel remains rollback.
-          VERCEL_PROJECT: ipn-member-portal
-          VERCEL_TEAM_SLUG: ipn-s-projects
         run: |
           set -euo pipefail
 
@@ -60,18 +56,14 @@ jobs:
           fi
 
           # ─────────────────────────────────────────────────────────
-          # 2. Compute preview URL. During the Netlify trial, prefer Netlify
-          #    Deploy Preview URLs when NETLIFY_SITE_NAME is configured.
-          #    Otherwise, fall back to the legacy Vercel preview pattern.
+          # 2. Compute the Netlify Deploy Preview URL.
           # ─────────────────────────────────────────────────────────
-          if [ -n "${NETLIFY_SITE_NAME:-}" ]; then
-            PREVIEW_LABEL="Open Netlify Preview"
-            PREVIEW_URL="https://deploy-preview-${PR_NUMBER}--${NETLIFY_SITE_NAME}.netlify.app"
-          else
-            BRANCH_SLUG=$(echo "$PR_BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-            PREVIEW_LABEL="Open Vercel Preview"
-            PREVIEW_URL="https://${VERCEL_PROJECT}-git-${BRANCH_SLUG}-${VERCEL_TEAM_SLUG}.vercel.app"
+          if [ -z "${NETLIFY_SITE_NAME:-}" ]; then
+            echo "NETLIFY_SITE_NAME repository variable is required for preview links." >&2
+            exit 1
           fi
+          PREVIEW_LABEL="Open Netlify Preview"
+          PREVIEW_URL="https://deploy-preview-${PR_NUMBER}--${NETLIFY_SITE_NAME}.netlify.app"
 
           # ─────────────────────────────────────────────────────────
           # 3. Extract first paragraph of PR body, truncate to 400 chars
