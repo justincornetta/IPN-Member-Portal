@@ -32,12 +32,12 @@ In your Supabase project → Authentication → Settings:
 
 | Setting | Value |
 |---|---|
-| **Site URL** | `https://members.ipn.org` (prod) or `http://localhost:3000` (local) |
-| **Redirect URLs** | Add both `https://members.ipn.org/auth/callback` and `http://localhost:3000/auth/callback` |
+| **Site URL** | `https://ipn-member-portal.netlify.app` until `members.ipn.org` moves to Netlify |
+| **Redirect URLs** | Add `http://localhost:3000/**`, `https://ipn-member-portal.netlify.app/**`, and `https://deploy-preview-*--ipn-member-portal.netlify.app/**` |
 | **Email confirmation** | Enabled (default) |
 | **Secure email change** | Enabled (default) |
 
-> Tip: Supabase allows multiple redirect URLs, including wildcard patterns for preview deployments. During the Netlify trial, also add the Netlify redirect URLs listed in [`NETLIFY.md`](NETLIFY.md).
+> Tip: Supabase allows multiple redirect URLs, including wildcard patterns for Netlify Deploy Previews. Keep `https://members.ipn.org/**` listed if the production domain is already in use or about to move.
 
 ---
 

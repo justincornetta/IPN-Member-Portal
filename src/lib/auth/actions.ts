@@ -46,17 +46,13 @@ function normalizeSiteUrl(url: string): string {
 function getSiteUrl(): string {
   const explicitUrl = process.env.NEXT_PUBLIC_SITE_URL
   const netlifyPreviewUrl = process.env.DEPLOY_PRIME_URL ?? process.env.URL
-  const vercelPreviewUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : undefined
   const isPreview =
     process.env.CONTEXT === "deploy-preview" ||
-    process.env.CONTEXT === "branch-deploy" ||
-    process.env.VERCEL_ENV === "preview"
+    process.env.CONTEXT === "branch-deploy"
 
   const url = isPreview
-    ? (netlifyPreviewUrl ?? vercelPreviewUrl ?? explicitUrl)
-    : (explicitUrl ?? netlifyPreviewUrl ?? vercelPreviewUrl)
+    ? (netlifyPreviewUrl ?? explicitUrl)
+    : (explicitUrl ?? netlifyPreviewUrl)
 
   return normalizeSiteUrl(url ?? "http://localhost:3000")
 }

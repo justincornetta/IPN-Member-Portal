@@ -35,7 +35,7 @@ Replaces today's scattered experience across Mailchimp, Discord, Zoom, and the p
 |---|---|---|
 | Frontend | **Next.js 16 + React 19 + TypeScript** | App Router, `src/` layout, Turbopack |
 | Styling | **Tailwind CSS v4** | |
-| Hosting | **Vercel + Netlify trial** | Vercel remains rollback; Netlify is being tested for private-repo collaboration and PR previews |
+| Hosting | **Netlify** | Public-repo collaboration with PR deploy previews for Justin and Luke |
 | Auth + DB | **Supabase** | Postgres 17, Row-Level Security, free tier |
 | Email | **Mailchimp API** | Single audience post-SoT-consolidation |
 | Mobile | **PWA wrap** | Manifest + service worker; no app stores in v1 |
@@ -96,7 +96,7 @@ Two GitHub Actions workflows post to the private `#github-updates` Slack channel
 | Workflow | Trigger | What it does |
 |---|---|---|
 | [`.github/workflows/slack-notify.yml`](../.github/workflows/slack-notify.yml) | Push to `main` | Posts a "IPN Member Portal Updated" message with the commit SHA, message, and author. Mirrors the same pattern used in `justincornetta/ipn-dashboard`. |
-| [`.github/workflows/slack-pr-review.yml`](../.github/workflows/slack-pr-review.yml) | PR `review_requested` | Posts a "PR Review Requested" message that **@-mentions the reviewer in Slack** so they get a real notification. Includes PR title, author, size (files / lines changed), a 2–4 sentence summary pulled from the PR description, and two action buttons: open the PR on GitHub, and open the deploy preview. During the Netlify trial, set repository variable `NETLIFY_SITE_NAME` so this button points to Netlify previews. |
+| [`.github/workflows/slack-pr-review.yml`](../.github/workflows/slack-pr-review.yml) | PR `review_requested` | Posts a "PR Review Requested" message that **@-mentions the reviewer in Slack** so they get a real notification. Includes PR title, author, size (files / lines changed), a 2–4 sentence summary pulled from the PR description, and two action buttons: open the PR on GitHub, and open the Netlify deploy preview. Requires repository variable `NETLIFY_SITE_NAME` so the preview URL can be generated. |
 
 **Setup requirements:**
 

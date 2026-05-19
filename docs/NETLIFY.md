@@ -1,6 +1,6 @@
-# Netlify Parallel Deploy Trial
+# Netlify Deployment
 
-This project can run on Netlify alongside Vercel while IPN decides which host to keep. Do not move `members.ipn.org` to Netlify until the trial passes.
+Netlify is the active deployment target for the IPN Member Portal. The GitHub repo is public during the build so Justin and Luke can collaborate with free deploy previews.
 
 ## Why Netlify
 
@@ -17,9 +17,9 @@ Netlify supports modern Next.js, including App Router, middleware, route handler
    - Build command: `npm run build`
    - Publish directory: `.next`
    - Node version: `22`
-3. Keep the generated `*.netlify.app` site URL for testing. Do not add `members.ipn.org` yet.
+3. Use `https://ipn-member-portal.netlify.app` while the production domain is not connected.
 4. Enable Deploy Previews for pull requests.
-5. If Netlify asks for a site name, prefer `ipn-member-portal` if available. If it is not available, choose a stable readable name and set the GitHub repository variable `NETLIFY_SITE_NAME` to that exact Netlify subdomain prefix so Slack PR notifications can link to deploy previews.
+5. Keep the GitHub repository variable `NETLIFY_SITE_NAME` set to the Netlify subdomain prefix so Slack PR notifications can link to deploy previews.
 
 ## Environment variables
 
@@ -29,7 +29,7 @@ Add these in Netlify project settings:
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Same value | Public anon client config |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Same value | Public anon client config |
-| `NEXT_PUBLIC_SITE_URL` | Leave unset during the trial | Leave unset during the trial | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this to `https://members.ipn.org` only after the production domain moves |
+| `NEXT_PUBLIC_SITE_URL` | Leave unset until the production domain moves | Leave unset | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this to `https://members.ipn.org` only after the production domain moves |
 
 Do not add service-role keys, Mailchimp keys, or webhook secrets until a feature needs them.
 
@@ -37,39 +37,31 @@ Do not add service-role keys, Mailchimp keys, or webhook secrets until a feature
 
 In Supabase, go to Authentication -> URL Configuration.
 
-Keep existing Vercel/local URLs during the trial. Add Netlify URLs after the Netlify site is created:
-
 | Setting | Value |
 |---|---|
-| Site URL | Keep `https://members.ipn.org` until the production domain moves |
+| Site URL | `https://ipn-member-portal.netlify.app` until the production domain moves |
 | Redirect URL | `http://localhost:3000/**` |
 | Redirect URL | `https://members.ipn.org/**` |
-| Redirect URL | `https://ipn-member-portal.vercel.app/**` |
-| Redirect URL | `https://*-ipn-s-projects.vercel.app/**` |
 | Redirect URL | `https://<netlify-site-name>.netlify.app/**` |
 | Redirect URL | `https://deploy-preview-*--<netlify-site-name>.netlify.app/**` |
 
 Replace `<netlify-site-name>` with the real Netlify site subdomain. Supabase supports wildcard redirect patterns for Netlify preview URLs.
 
-## Trial checklist
+## Validation checklist
 
-- Netlify production test URL loads `/`, `/login`, `/register`, and `/dashboard`.
+- Netlify production URL loads `/`, `/login`, `/register`, and `/dashboard`.
 - Registration sends a Supabase confirmation email with a Netlify callback URL on deploy previews.
-- Luke opens a small PR and Netlify creates a Deploy Preview without Justin manually redeploying.
-- Justin can open the Deploy Preview from GitHub or Slack.
-- Vercel remains available as rollback during the trial.
+- Justin-created PRs get Netlify Deploy Previews.
+- Luke-created PRs get Netlify Deploy Previews.
+- Justin and Luke can open Deploy Previews from GitHub or Slack.
 
-## If Netlify wins
+## Production domain cutover
 
 1. Move `members.ipn.org` DNS to Netlify.
 2. Set Supabase Site URL to `https://members.ipn.org`.
 3. Set Netlify `NEXT_PUBLIC_SITE_URL` to `https://members.ipn.org`.
-4. Disable or remove the Vercel GitHub Actions deploy workflow.
-5. Disconnect/pause Vercel auto-deploys.
-6. Update `README.md`, `docs/PLANNING.md`, and this file to mark Netlify as the primary host.
+4. Verify signup/login callbacks on the production domain.
 
-## If Netlify loses
+## Vercel deprecation
 
-1. Leave `members.ipn.org` on Vercel.
-2. Keep or remove `netlify.toml` depending on whether it creates noise.
-3. Continue with the Vercel workflow and revisit hosting later only if cost or collaboration becomes a blocker again.
+Vercel is no longer the active deployment target. Keep the old Vercel project paused or disconnected to avoid duplicate public links and deploy confusion.

@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # GitHub collaboration rules
 
-This repo deploys from `main`; Vercel remains active while Netlify is tested as a parallel host. Never commit directly to `main`; all work should happen on a descriptive branch and return through a PR.
+This repo deploys from `main` through Netlify. Never commit directly to `main`; all work should happen on a descriptive branch and return through a PR.
 
 Before starting new work:
 
@@ -25,7 +25,7 @@ Use readable branch prefixes:
 
 Commit in small, focused chunks with messages that describe what changed, such as `add member profile page with Supabase fetch`, `fix auth redirect loop on login`, or `update homepage hero copy`. Avoid vague messages like `changes`, `wip`, or `fix stuff`.
 
-Push the branch, open a PR, include a short description of what changed and why, and link the deploy preview URL when available. Get a quick second review before merging.
+Push the branch, open a PR, include a short description of what changed and why, and link the Netlify deploy preview URL when available. Get a quick second review before merging.
 
 Loose ownership boundaries:
 
