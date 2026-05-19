@@ -1,3 +1,7 @@
+import schoolsJson from "./schools.json"
+
+export const SCHOOLS_BY_COUNTRY: Record<string, string[]> = schoolsJson
+
 export const COUNTRIES = [
   "United States",
   "Canada",

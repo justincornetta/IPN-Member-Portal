@@ -52,19 +52,41 @@ One row per user. Created automatically on signup via trigger.
 | `id` | `uuid` | Primary key; references `auth.users.id` |
 | `first_name` | `text` | |
 | `last_name` | `text` | |
-| `affiliation` | `text` | University, company, self-employed, etc. |
 | `country` | `text` | |
 | `state` | `text` | US state/territory or Canadian province |
-| `city` | `text` | |
-| `persona` | `text` | "Which best describes you?" answer |
+| `city` | `text` | Display name as entered by the user |
+| `city_lat` | `float8` | Latitude — geocoded from city + country via Nominatim on signup; `null` if lookup failed |
+| `city_lng` | `float8` | Longitude — same source as `city_lat`; used for map view (v1.1) |
+| `persona` | `text` | "What best describes you?" — one of: High school, Undergraduate student, Graduate student, Professional degree student, Professional in psychedelics, Professional in another field, Other |
+| `affiliation` | `text` | Organization or employer; set for professional/other personas, `null` for students |
+| `school` | `text` | Canonical school name from the Hipo dataset; set for college/grad/professional-degree students, `null` otherwise |
 | `field` | `text` | Primary field of study/work |
 | `psychedelic_field_status` | `text` | Currently working in / interested / not sure |
 | `psychedelic_field_barriers` | `text[]` | Array — "why not" checkboxes |
 | `role_and_goals` | `text` | Long-form answer |
 | `inspiration` | `text` | Long-form answer |
 | `referral_source` | `text` | How they heard about IPN |
+| `bio` | `text` | Short public bio; set on profile edit page |
+| `area_of_interest` | `text` | Free-text area of interest (e.g. "Psilocybin therapy, harm reduction") |
+| `linkedin_url` | `text` | LinkedIn profile URL |
+| `is_discoverable` | `boolean` | Default `true`; `false` hides the member from the directory |
+| `avatar_url` | `text` | Public URL of avatar in the `avatars` Storage bucket |
 | `created_at` | `timestamptz` | Set on insert |
-| `updated_at` | `timestamptz` | Update manually or via trigger when profile edits land |
+| `updated_at` | `timestamptz` | Updated by `updateProfile` server action on every save |
+
+> **Migrating an existing database:** if the `profiles` table was created before this change, run:
+> ```sql
+> alter table public.profiles add column if not exists school text;
+> alter table public.profiles drop column if exists education_status;
+> alter table public.profiles add column if not exists city_lat float8;
+> alter table public.profiles add column if not exists city_lng float8;
+> alter table public.profiles add column if not exists bio text;
+> alter table public.profiles add column if not exists area_of_interest text;
+> alter table public.profiles add column if not exists linkedin_url text;
+> alter table public.profiles add column if not exists is_discoverable boolean not null default true;
+> alter table public.profiles add column if not exists avatar_url text;
+> ```
+> Then re-run `supabase/schema.sql` to update the trigger function. The `affiliation` and `persona` columns already existed under these names.
 
 ### Row-Level Security
 
@@ -77,6 +99,24 @@ RLS is enabled on `profiles`. Current policies: users can only read, insert, and
 ### `on_auth_user_created`
 
 Fires after every `INSERT` on `auth.users`. Reads `raw_user_meta_data` (set by `signUp()`) and creates the corresponding `profiles` row. Defined in `supabase/schema.sql`.
+
+---
+
+---
+
+## Storage
+
+### `avatars` bucket
+
+Public bucket. Each user's avatar is stored at a path equal to their UUID (e.g. `abc123-def456-...`), no file extension. Content-type is stored separately by Supabase.
+
+- **Upload / update**: restricted to the owning user via RLS (`auth.uid()::text = name`)
+- **Read**: public (no auth required)
+- **Public URL pattern**: `{SUPABASE_URL}/storage/v1/object/public/avatars/{userId}`
+
+The `avatar_url` column in `profiles` stores the full public URL with a cache-busting timestamp query parameter appended on upload (`?t={timestamp}`).
+
+To create the bucket and policies, run `supabase/schema.sql` (section 4).
 
 ---
 

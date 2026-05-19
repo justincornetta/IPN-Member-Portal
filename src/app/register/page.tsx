@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import icon from "../../../assets/IPN Icon.webp"
+import logo from "../../../assets/purple_full.png"
 import { signUp } from "@/lib/auth/actions"
+import NeuralBackground from "@/components/NeuralBackground"
 import {
-  PERSONA_OPTIONS,
+  BACKGROUND_OPTIONS,
+  STUDENT_BACKGROUNDS,
+  PROFESSIONAL_BACKGROUNDS,
   FIELD_OPTIONS,
   FIELD_STATUS_OPTIONS,
   BARRIER_OPTIONS,
@@ -17,6 +20,7 @@ import {
   COUNTRIES,
   US_STATES,
   CANADIAN_PROVINCES,
+  SCHOOLS_BY_COUNTRY,
 } from "@/lib/constants/locations"
 
 type FormData = {
@@ -25,12 +29,12 @@ type FormData = {
   email: string
   password: string
   confirm_password: string
-  affiliation: string
   country: string
   state: string
   city: string
   persona: string
-  persona_other: string
+  affiliation: string
+  school: string
   field: string
   field_status: string
   barriers: string[]
@@ -42,8 +46,9 @@ type FormData = {
 
 const EMPTY: FormData = {
   first_name: "", last_name: "", email: "", password: "", confirm_password: "",
-  affiliation: "", country: "", state: "", city: "",
-  persona: "", persona_other: "", field: "", field_status: "",
+  country: "", state: "", city: "",
+  persona: "", affiliation: "", school: "",
+  field: "", field_status: "",
   barriers: [], barriers_other: "",
   role_and_goals: "", inspiration: "", referral_source: "",
 }
@@ -91,6 +96,56 @@ function Select({
       {placeholder && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
+  )
+}
+
+function Combobox({
+  id, name, value, onChange, options, placeholder,
+}: {
+  id: string; name: string; value: string
+  onChange: (v: string) => void; options: string[]
+  placeholder?: string
+}) {
+  const [query, setQuery] = useState(value)
+  const [open, setOpen] = useState(false)
+
+  // Sync display text when value is cleared externally (e.g. country changes)
+  useEffect(() => { if (!value) setQuery("") }, [value])
+
+  const filtered = query.length >= 2
+    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())).slice(0, 60)
+    : []
+
+  function select(option: string) {
+    onChange(option)
+    setQuery(option)
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <input
+        id={id} name={name} type="text" value={query}
+        placeholder={placeholder} autoComplete="off"
+        onChange={(e) => { setQuery(e.target.value); onChange(""); setOpen(true) }}
+        onFocus={() => { if (query.length >= 2) setOpen(true) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+          {filtered.map((o) => (
+            <li
+              key={o}
+              onMouseDown={() => select(o)}
+              className="cursor-pointer px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-50"
+            >
+              {o}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
@@ -175,21 +230,16 @@ function StepLocation({
 }) {
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
   const stateOptions = data.country === "Canada" ? CANADIAN_PROVINCES : US_STATES
+  const showSchool = STUDENT_BACKGROUNDS.has(data.persona)
+  const showAffiliation = PROFESSIONAL_BACKGROUNDS.has(data.persona)
+  const schoolOptions = SCHOOLS_BY_COUNTRY[data.country] ?? []
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <Label htmlFor="affiliation">Current affiliation</Label>
-        <TextInput id="affiliation" name="affiliation" value={data.affiliation}
-          onChange={(v) => update("affiliation", v)} required
-          placeholder="University name, company, self-employed…" />
-        <FieldError msg={errors.affiliation} />
-      </div>
-
-      <div className="flex flex-col gap-1">
         <Label htmlFor="country">Country</Label>
         <Select id="country" name="country" value={data.country}
-          onChange={(v) => { update("country", v); update("state", "") }}
+          onChange={(v) => { update("country", v); update("state", ""); update("school", "") }}
           options={COUNTRIES} placeholder="Select a country" required />
         <FieldError msg={errors.country} />
       </div>
@@ -212,6 +262,36 @@ function StepLocation({
           placeholder="Your current city or town" />
         <FieldError msg={errors.city} />
       </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="persona">What best describes you?</Label>
+        <Select id="persona" name="persona" value={data.persona}
+          onChange={(v) => { update("persona", v); update("school", ""); update("affiliation", "") }}
+          options={BACKGROUND_OPTIONS as unknown as string[]}
+          placeholder="Select…" required />
+        <FieldError msg={errors.persona} />
+      </div>
+
+      {showSchool && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="school">School</Label>
+          <Combobox id="school" name="school" value={data.school}
+            onChange={(v) => update("school", v)}
+            options={schoolOptions}
+            placeholder={data.country ? "Type to search…" : "Select a country first"} />
+          <FieldError msg={errors.school} />
+        </div>
+      )}
+
+      {showAffiliation && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="affiliation">Organization or affiliation</Label>
+          <TextInput id="affiliation" name="affiliation" value={data.affiliation}
+            onChange={(v) => update("affiliation", v)}
+            placeholder="Company, organization, self-employed…" />
+          <FieldError msg={errors.affiliation} />
+        </div>
+      )}
     </div>
   )
 }
@@ -236,24 +316,6 @@ function StepBackground({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-zinc-700">Which best describes you?</p>
-        {PERSONA_OPTIONS.map((opt) => (
-          <label key={opt} className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="persona" value={opt}
-              checked={data.persona === opt}
-              onChange={() => update("persona", opt)}
-              className="accent-ipn" />
-            <span className="text-sm text-zinc-700">{opt}</span>
-          </label>
-        ))}
-        {data.persona === "Other" && (
-          <TextInput id="persona_other" name="persona_other"
-            value={data.persona_other} onChange={(v) => update("persona_other", v)}
-            placeholder="Please describe…" />
-        )}
-        <FieldError msg={errors.persona} />
-      </div>
 
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-zinc-700">Which field are you primarily in?</p>
@@ -363,6 +425,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   function update(key: keyof FormData, value: string) {
     setData((prev) => ({ ...prev, [key]: value }))
@@ -383,13 +446,13 @@ export default function RegisterPage() {
       if (data.password !== data.confirm_password) e.confirm_password = "Passwords don't match"
     }
     if (s === 2) {
-      if (!data.affiliation.trim()) e.affiliation = "Required"
       if (!data.country) e.country = "Required"
       if (!data.city.trim()) e.city = "Required"
+      if (!data.persona) e.persona = "Required"
+      if (STUDENT_BACKGROUNDS.has(data.persona) && !data.school)
+        e.school = "Please select your school from the list"
     }
     if (s === 3) {
-      if (!data.persona) e.persona = "Please select one"
-      if (data.persona === "Other" && !data.persona_other.trim()) e.persona = "Please describe"
       if (!data.field) e.field = "Please select one"
       if (!data.field_status) e.field_status = "Please select one"
     }
@@ -414,7 +477,6 @@ export default function RegisterPage() {
     setLoading(true)
     setGlobalError(null)
 
-    const persona = data.persona === "Other" ? data.persona_other : data.persona
     const barriers = data.barriers.map((b) =>
       b === "Other" && data.barriers_other ? data.barriers_other : b,
     )
@@ -424,11 +486,12 @@ export default function RegisterPage() {
       password: data.password,
       first_name: data.first_name,
       last_name: data.last_name,
-      affiliation: data.affiliation,
       country: data.country,
       state: data.state,
       city: data.city,
-      persona,
+      persona: data.persona,
+      affiliation: data.affiliation || null,
+      school: data.school || null,
       field: data.field,
       psychedelic_field_status: data.field_status,
       psychedelic_field_barriers: barriers,
@@ -444,19 +507,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 py-12">
-      <div className="w-full max-w-lg">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-12">
+      <NeuralBackground avoidRef={contentRef} />
+      <div ref={contentRef} className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
         {/* Header */}
         <div className="mb-6 text-center">
-          <div className="mb-4 flex justify-center">
-            <Image src={icon} alt="IPN" width={44} height={44} />
+          <div className="mb-5 flex justify-center">
+            <Image src={logo} alt="IPN" height={40} width={200} className="h-10 w-auto" />
           </div>
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
-            Intercollegiate Psychedelics Network
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
-            Create your account
-          </h1>
+          <h1 className="text-2xl font-semibold text-zinc-900">Create your account</h1>
         </div>
 
         {/* Progress */}
@@ -492,55 +551,52 @@ export default function RegisterPage() {
           })}
         </div>
 
-        {/* Form card */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
-          {step === 2 && <StepLocation data={data} update={update} errors={errors} />}
-          {step === 3 && (
-            <StepBackground data={data} update={update} updateBarriers={updateBarriers} errors={errors} />
+        {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
+        {step === 2 && <StepLocation data={data} update={update} errors={errors} />}
+        {step === 3 && (
+          <StepBackground data={data} update={update} updateBarriers={updateBarriers} errors={errors} />
+        )}
+        {step === 4 && <StepAbout data={data} update={update} errors={errors} />}
+
+        {globalError && (
+          <p className="mt-4 text-sm text-red-600">{globalError}</p>
+        )}
+
+        {/* Navigation */}
+        <div className="mt-6 flex items-center justify-between">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={back}
+              className="text-sm text-zinc-500 hover:text-zinc-800"
+            >
+              ← Back
+            </button>
+          ) : (
+            <span />
           )}
-          {step === 4 && <StepAbout data={data} update={update} errors={errors} />}
 
-          {globalError && (
-            <p className="mt-4 text-sm text-red-600">{globalError}</p>
+          {step < 4 ? (
+            <button
+              type="button"
+              onClick={next}
+              className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+            >
+              Next →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={loading}
+              className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
+            >
+              {loading ? "Creating account…" : "Create account"}
+            </button>
           )}
-
-          {/* Navigation */}
-          <div className="mt-6 flex items-center justify-between">
-            {step > 1 ? (
-              <button
-                type="button"
-                onClick={back}
-                className="text-sm text-zinc-500 hover:text-zinc-800"
-              >
-                ← Back
-              </button>
-            ) : (
-              <span />
-            )}
-
-            {step < 4 ? (
-              <button
-                type="button"
-                onClick={next}
-                className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
-              >
-                Next →
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={submit}
-                disabled={loading}
-                className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
-              >
-                {loading ? "Creating account…" : "Create account"}
-              </button>
-            )}
-          </div>
         </div>
 
-        <p className="mt-5 text-center text-sm text-zinc-500">
+        <p className="mt-6 border-t border-zinc-100 pt-6 text-center text-sm text-zinc-500">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-ipn hover:underline">
             Sign in

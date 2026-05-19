@@ -73,7 +73,7 @@ export default async function DashboardPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-6 p-4 sm:gap-8 sm:p-8">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -90,16 +90,16 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Upcoming Events" value="3" sub="Next: May 20" />
         <StatCard label="Members" value="1,200+" sub="Across 80+ schools" />
         <StatCard label="New Resources" value="12" sub="Added this month" />
       </div>
 
       {/* Main grid */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Events — spans 2 cols */}
-        <div className="col-span-2 flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Events — spans 2 cols on large screens */}
+        <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-800">Upcoming Events</h2>
             <Link

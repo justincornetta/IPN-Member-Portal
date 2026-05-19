@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import icon from "../../../assets/IPN Icon.webp"
+import logo from "../../../assets/purple_full.png"
 import { signIn } from "@/lib/auth/actions"
+import NeuralBackground from "@/components/NeuralBackground"
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -26,18 +28,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6">
-      <div className="w-full max-w-sm">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-16">
+      <NeuralBackground avoidRef={cardRef} />
+      <div ref={cardRef} className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
         <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <Image src={icon} alt="IPN" width={44} height={44} />
+          <div className="mb-5 flex justify-center">
+            <Image src={logo} alt="IPN" height={40} width={200} className="h-10 w-auto" />
           </div>
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
-            Intercollegiate Psychedelics Network
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
-            Sign in
-          </h1>
+          <h1 className="text-2xl font-semibold text-zinc-900">Sign in</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

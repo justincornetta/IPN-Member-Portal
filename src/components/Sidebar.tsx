@@ -1,9 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import icon from "../../assets/IPN Icon.webp"
+import icon from "../../assets/purple_icon.png"
 import { signOut } from "@/lib/auth/actions"
 
 const NAV = [
@@ -58,24 +59,51 @@ type Props = {
   firstName: string | null
   lastName: string | null
   email: string
-  persona: string | null
-  affiliation: string | null
+  avatarUrl: string | null
 }
 
-export default function Sidebar({ firstName, lastName, email, persona, affiliation }: Props) {
-  const pathname = usePathname()
-  const displayName = firstName ? `${firstName} ${lastName ?? ""}`.trim() : email
-  const subtitle = persona ?? affiliation ?? ""
+function AvatarCircle({
+  avatarUrl,
+  initials,
+  size = "sm",
+}: {
+  avatarUrl: string | null
+  initials: string
+  size?: "sm" | "md"
+}) {
+  const cls = size === "md" ? "h-10 w-10 text-sm" : "h-8 w-8 text-xs"
+  return (
+    <div className={`${cls} flex-shrink-0 overflow-hidden rounded-full`}>
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-ipn font-semibold text-white">
+          {initials}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Shared nav links + user footer — used inside both desktop aside and mobile drawer
+function NavContent({
+  pathname,
+  displayName,
+  initials,
+  avatarUrl,
+  onClose,
+}: {
+  pathname: string
+  displayName: string
+  initials: string
+  avatarUrl: string | null
+  onClose?: () => void
+}) {
+  const profileActive = pathname === "/dashboard/profile"
 
   return (
-    <aside className="flex w-56 flex-shrink-0 flex-col border-r border-zinc-200 bg-white">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 border-b border-zinc-100 px-5 py-4">
-        <Image src={icon} alt="IPN" width={28} height={28} />
-        <span className="text-sm font-semibold text-zinc-800">Member Portal</span>
-      </div>
-
-      {/* Nav */}
+    <>
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
         {NAV.map((item) => {
           const active = pathname === item.href
@@ -83,6 +111,7 @@ export default function Sidebar({ firstName, lastName, email, persona, affiliati
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                 active
                   ? "bg-ipn-light font-medium text-ipn"
@@ -99,13 +128,14 @@ export default function Sidebar({ firstName, lastName, email, persona, affiliati
 
         <Link
           href="/dashboard/profile"
+          onClick={onClose}
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-            pathname === "/dashboard/profile"
+            profileActive
               ? "bg-ipn-light font-medium text-ipn"
               : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
           }`}
         >
-          <span className="text-zinc-400">
+          <span className={profileActive ? "text-ipn" : "text-zinc-400"}>
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
             </svg>
@@ -114,15 +144,18 @@ export default function Sidebar({ firstName, lastName, email, persona, affiliati
         </Link>
       </nav>
 
-      {/* User footer */}
       <div className="border-t border-zinc-100 px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-zinc-800">{displayName}</p>
-            {subtitle && (
-              <p className="truncate text-xs text-zinc-400">{subtitle}</p>
-            )}
-          </div>
+          <Link
+            href="/dashboard/profile"
+            onClick={onClose}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded transition hover:opacity-75"
+          >
+            <AvatarCircle avatarUrl={avatarUrl} initials={initials} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-zinc-800">{displayName}</p>
+            </div>
+          </Link>
           <form action={signOut}>
             <button
               type="submit"
@@ -136,6 +169,80 @@ export default function Sidebar({ firstName, lastName, email, persona, affiliati
           </form>
         </div>
       </div>
-    </aside>
+    </>
+  )
+}
+
+export default function Sidebar({ firstName, lastName, email, avatarUrl }: Props) {
+  const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const displayName = firstName ? `${firstName} ${lastName ?? ""}`.trim() : email
+  const initials = firstName
+    ? `${firstName[0]}${lastName?.[0] ?? ""}`.toUpperCase()
+    : email[0].toUpperCase()
+
+  const sharedProps = { pathname, displayName, initials, avatarUrl }
+
+  return (
+    <>
+      {/* ── Mobile: top header bar ───────────────────── */}
+      <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation"
+          className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+
+        <Image src={icon} alt="IPN" width={28} height={28} />
+
+        <Link href="/dashboard/profile">
+          <AvatarCircle avatarUrl={avatarUrl} initials={initials} />
+        </Link>
+      </header>
+
+      {/* ── Desktop: sidebar ─────────────────────────── */}
+      <aside className="hidden md:flex md:w-56 md:flex-shrink-0 md:flex-col border-r border-zinc-200 bg-white">
+        <div className="flex items-center gap-2.5 border-b border-zinc-100 px-5 py-4">
+          <Image src={icon} alt="IPN" width={28} height={28} />
+          <span className="text-sm font-semibold text-zinc-800">Member Portal</span>
+        </div>
+        <NavContent {...sharedProps} />
+      </aside>
+
+      {/* ── Mobile: slide-in drawer overlay ──────────── */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 flex w-72 flex-col bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <div className="flex items-center gap-2.5">
+                <Image src={icon} alt="IPN" width={28} height={28} />
+                <span className="text-sm font-semibold text-zinc-800">Member Portal</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close navigation"
+                className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <NavContent {...sharedProps} onClose={() => setMobileOpen(false)} />
+          </div>
+        </div>
+      )}
+    </>
   )
 }

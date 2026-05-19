@@ -8,17 +8,34 @@ export type RegistrationData = {
   password: string
   first_name: string
   last_name: string
-  affiliation: string
   country: string
   state: string
   city: string
   persona: string
+  affiliation: string | null
+  school: string | null
   field: string
   psychedelic_field_status: string
   psychedelic_field_barriers: string[]
   role_and_goals: string
   inspiration: string
   referral_source: string
+}
+
+async function geocodeCity(
+  city: string,
+  country: string,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const q = encodeURIComponent(`${city}, ${country}`)
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+      { headers: { "User-Agent": "IPN-Member-Portal (members.ipn.org)" } },
+    )
+    const results: { lat: string; lon: string }[] = await res.json()
+    if (results[0]) return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) }
+  } catch { /* non-fatal — registration proceeds without coordinates */ }
+  return null
 }
 
 function normalizeSiteUrl(url: string): string {
@@ -45,6 +62,7 @@ export async function signUp(
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
+  const coords = await geocodeCity(data.city, data.country)
 
   const { error } = await supabase.auth.signUp({
     email: data.email,
@@ -54,11 +72,14 @@ export async function signUp(
       data: {
         first_name: data.first_name,
         last_name: data.last_name,
-        affiliation: data.affiliation,
         country: data.country,
         state: data.state,
         city: data.city,
+        city_lat: coords?.lat ?? null,
+        city_lng: coords?.lng ?? null,
         persona: data.persona,
+        affiliation: data.affiliation,
+        school: data.school,
         field: data.field,
         psychedelic_field_status: data.psychedelic_field_status,
         psychedelic_field_barriers: data.psychedelic_field_barriers,
@@ -88,4 +109,41 @@ export async function signOut(): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect("/")
+}
+
+export type ProfileUpdateData = {
+  first_name: string
+  last_name: string
+  country: string
+  state: string
+  city: string
+  persona: string
+  affiliation: string | null
+  school: string | null
+  field: string
+  psychedelic_field_status: string
+  role_and_goals: string
+  bio: string | null
+  area_of_interest: string | null
+  linkedin_url: string | null
+  is_discoverable: boolean
+  share_location: boolean
+  avatar_url: string | null
+}
+
+export async function updateProfile(
+  data: ProfileUpdateData,
+): Promise<{ error: string } | void> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", user.id)
+
+  if (error) return { error: error.message }
 }

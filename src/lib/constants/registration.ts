@@ -1,12 +1,24 @@
-export const PERSONA_OPTIONS = [
-  "High school student / pre-college",
-  "Undergraduate Student",
-  "Graduate Student (Master's or PhD)",
-  "Professional Degree Student (MD, JD, MBA, etc.)",
-  "Professional in the field (e.g., clinician, researcher, policy advocate)",
-  "Professional in a related field (e.g., healthcare, education, nonprofit, tech, law)",
+export const BACKGROUND_OPTIONS = [
+  "High school / pre-college",
+  "Undergraduate student",
+  "Graduate student (Master's or PhD)",
+  "Professional degree student (MD, JD, MBA, etc.)",
+  "Professional in psychedelics",
+  "Professional in another field",
   "Other",
 ] as const
+
+export const STUDENT_BACKGROUNDS = new Set([
+  "Undergraduate student",
+  "Graduate student (Master's or PhD)",
+  "Professional degree student (MD, JD, MBA, etc.)",
+])
+
+export const PROFESSIONAL_BACKGROUNDS = new Set([
+  "Professional in psychedelics",
+  "Professional in another field",
+  "Other",
+])
 
 export const FIELD_OPTIONS = [
   "Arts & Humanities",
