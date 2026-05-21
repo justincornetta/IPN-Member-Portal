@@ -122,6 +122,21 @@ function ConfirmationModal({
           </p>
         </div>
 
+        <div className="mt-4 rounded-lg border border-ipn/20 bg-ipn/5 px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-zinc-900">Event chat</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600">
+                Join a group chat specific to this event to discuss with other
+                registered IPN members before and after the session.
+              </p>
+            </div>
+            <span className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn">
+              Coming soon
+            </span>
+          </div>
+        </div>
+
         <div className="mt-5">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
             Add to calendar
