@@ -120,15 +120,52 @@ To create the bucket and policies, run `supabase/schema.sql` (section 4).
 
 ---
 
+### `public.events`
+
+Portal-owned event records for the member-facing Events section. For v1,
+leadership adds and edits these rows directly in Supabase; the Admin Portal
+will add a friendlier event editor later.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` | Primary key |
+| `slug` | `text` | Unique URL slug, used at `/dashboard/events/[slug]` |
+| `title` | `text` | Event title |
+| `event_type` | `text` | e.g. IPN Lab, PsychedelX, Regional Meetup |
+| `starts_at` / `ends_at` | `timestamptz` | Event timing |
+| `timezone` | `text` | Defaults to `America/New_York` |
+| `summary` / `description` | `text` | Tile copy + detail-page copy |
+| `speakers` | `text` | Display text for speakers |
+| `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
+| `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
+| `thumbnail_url` | `text` | Custom event graphic/PNG URL |
+| `status` | `text` | `draft`, `published`, or `cancelled` |
+| `registration_count` | `integer` | Maintained by trigger; used for 10+/20+ display |
+
+RLS allows authenticated members to read only `published` events.
+
+### `public.event_registrations`
+
+One row per member RSVP.
+
+| Column | Type | Notes |
+|---|---|---|
+| `event_id` | `uuid` | References `events.id` |
+| `user_id` | `uuid` | References `auth.users.id` |
+| `created_at` | `timestamptz` | RSVP timestamp |
+| `reminder_state` | `text` | Placeholder for future Mailchimp reminders |
+
+The primary key is `(event_id, user_id)`, so a member can RSVP only once per
+event. RLS allows members to view and create only their own registrations. A
+trigger updates `events.registration_count` after RSVP insert/delete.
+
 ## Tables coming in v1.0
 
 These don't exist yet — schema will be added as each feature is built.
 
 | Table | Feature |
 |---|---|
-| `events` | Events list + detail (#5 in build queue) |
-| `event_registrations` | One-click event registration (#6) |
-| `resources` | Resource library (#10) |
+| `resources` | Resource library (#10), including Past Events & Recordings |
 
 ---
 

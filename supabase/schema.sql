@@ -163,3 +163,115 @@ drop policy if exists "Anyone can view avatars" on storage.objects;
 create policy "Anyone can view avatars"
   on storage.objects for select
   using (bucket_id = 'avatars');
+
+
+-- ── 5. Events ───────────────────────────────────────────────
+--
+-- Events are authored in Supabase for v1. The Admin Portal will add a
+-- friendlier editor later. `thumbnail_url` supports custom event graphics.
+
+create table if not exists public.events (
+  id                  uuid primary key default gen_random_uuid(),
+  slug                text not null unique,
+  title               text not null,
+  event_type          text not null default 'IPN Lab',
+  starts_at           timestamptz not null,
+  ends_at             timestamptz,
+  timezone            text not null default 'America/New_York',
+  summary             text,
+  description         text,
+  speakers            text,
+  location_label      text,
+  location_details    text,
+  join_url            text,
+  thumbnail_url       text,
+  status              text not null default 'draft'
+    check (status in ('draft', 'published', 'cancelled')),
+  registration_count  integer not null default 0
+    check (registration_count >= 0),
+  created_at          timestamptz default now(),
+  updated_at          timestamptz default now()
+);
+
+create index if not exists events_status_starts_at_idx
+  on public.events (status, starts_at);
+
+alter table public.events enable row level security;
+
+drop policy if exists "Authenticated users can view published events" on public.events;
+create policy "Authenticated users can view published events"
+  on public.events for select
+  using (auth.role() = 'authenticated' and status = 'published');
+
+
+-- ── 6. Event registrations ──────────────────────────────────
+--
+-- One row per member RSVP. The visible social-proof count lives on
+-- events.registration_count so members do not need access to other members'
+-- registration rows.
+
+create table if not exists public.event_registrations (
+  event_id       uuid not null references public.events on delete cascade,
+  user_id        uuid not null references auth.users on delete cascade,
+  created_at     timestamptz default now(),
+  reminder_state text not null default 'not_configured',
+  primary key (event_id, user_id)
+);
+
+create index if not exists event_registrations_user_id_idx
+  on public.event_registrations (user_id);
+
+alter table public.event_registrations enable row level security;
+
+drop policy if exists "Users can view own event registrations" on public.event_registrations;
+create policy "Users can view own event registrations"
+  on public.event_registrations for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can create own event registrations" on public.event_registrations;
+create policy "Users can create own event registrations"
+  on public.event_registrations for insert
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1
+      from public.events
+      where events.id = event_registrations.event_id
+        and events.status = 'published'
+    )
+  );
+
+
+-- ── 7. Event registration counts ────────────────────────────
+
+create or replace function public.sync_event_registration_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    update public.events
+    set registration_count = registration_count + 1,
+        updated_at = now()
+    where id = new.event_id;
+    return new;
+  elsif tg_op = 'DELETE' then
+    update public.events
+    set registration_count = greatest(registration_count - 1, 0),
+        updated_at = now()
+    where id = old.event_id;
+    return old;
+  end if;
+
+  return null;
+end;
+$$;
+
+drop trigger if exists event_registration_count_changed on public.event_registrations;
+
+create trigger event_registration_count_changed
+  after insert or delete on public.event_registrations
+  for each row
+  execute procedure public.sync_event_registration_count();
