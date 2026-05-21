@@ -1,29 +1,7 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
-
-const EVENTS = [
-  {
-    id: 1,
-    title: "Intro to Psychedelic Therapy Research",
-    date: "May 20, 2026",
-    type: "Webinar",
-    location: "Online",
-  },
-  {
-    id: 2,
-    title: "Advanced Research Methods Workshop",
-    date: "Jun 3, 2026",
-    type: "Workshop",
-    location: "Denver, CO",
-  },
-  {
-    id: 3,
-    title: "PsychedelX 2026",
-    date: "Jun 28, 2026",
-    type: "Conference",
-    location: "In Person",
-  },
-]
+import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
+import type { EventRecord } from "@/lib/events/types"
 
 const RESOURCES = [
   { id: 1, title: "Intro to Psychedelic Therapy", type: "video", source: "PsychedelX" },
@@ -66,6 +44,17 @@ export default async function DashboardPage() {
     .eq("id", user!.id)
     .single()
 
+  const now = new Date().toISOString()
+  const { data: events, count: eventCount } = await supabase
+    .from("events")
+    .select("*", { count: "exact" })
+    .eq("status", "published")
+    .or(`starts_at.gte.${now},ends_at.gte.${now}`)
+    .order("starts_at", { ascending: true })
+    .limit(3)
+
+  const upcomingEvents = (events ?? []) as EventRecord[]
+
   const firstName = profile?.first_name ?? user!.email?.split("@")[0] ?? "there"
   const subtitle = [profile?.persona, profile?.affiliation].filter(Boolean).join(" · ")
 
@@ -91,7 +80,19 @@ export default async function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Upcoming Events" value="3" sub="Next: May 20" />
+        <StatCard
+          label="Upcoming Events"
+          value={String(eventCount ?? upcomingEvents.length)}
+          sub={
+            upcomingEvents[0]
+              ? `Next: ${formatEventDateTime(
+                  upcomingEvents[0].starts_at,
+                  null,
+                  upcomingEvents[0].timezone,
+                )}`
+              : "New events coming soon"
+          }
+        />
         <StatCard label="Members" value="1,200+" sub="Across 80+ schools" />
         <StatCard label="New Resources" value="12" sub="Added this month" />
       </div>
@@ -111,19 +112,43 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex flex-col divide-y divide-zinc-100">
-            {EVENTS.map((e) => (
-              <div key={e.id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-sm font-medium text-zinc-800">{e.title}</p>
-                  <p className="text-xs text-zinc-400">
-                    {e.date} · {e.type} · {e.location}
-                  </p>
-                </div>
-                <button className="ml-4 flex-shrink-0 rounded-lg bg-ipn-light px-3 py-1.5 text-xs font-medium text-ipn hover:bg-ipn hover:text-white transition">
-                  RSVP
-                </button>
-              </div>
-            ))}
+            {upcomingEvents.length > 0 ? (
+              upcomingEvents.map((event) => (
+                <Link
+                  key={event.id}
+                  href={`/dashboard/events/${event.slug}`}
+                  className="flex items-center gap-3 py-4 first:pt-0 last:pb-0"
+                >
+                  <div className="h-14 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                    {event.thumbnail_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={event.thumbnail_url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-800">
+                      {event.title}
+                    </p>
+                    <p className="truncate text-xs text-zinc-400">
+                      {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+                    </p>
+                  </div>
+                  <div className="ml-2 flex-shrink-0 text-xs font-medium text-zinc-400">
+                    {registrationBand(event.registration_count)}
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <p className="py-6 text-sm text-zinc-400">
+                No upcoming events have been added yet.
+              </p>
+            )}
           </div>
         </div>
 
