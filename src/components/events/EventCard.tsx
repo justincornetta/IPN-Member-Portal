@@ -260,8 +260,18 @@ export default function EventCard({ event, variant = "full" }: Props) {
           )}
 
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-400">
-            {event.location_label && <span>{event.location_label}</span>}
-            {event.speakers && <span>{event.speakers}</span>}
+            {event.location_label && (
+              <span>
+                <span className="font-medium text-zinc-500">Location:</span>{" "}
+                {event.location_label}
+              </span>
+            )}
+            {event.speakers && (
+              <span>
+                <span className="font-medium text-zinc-500">Speakers:</span>{" "}
+                {event.speakers}
+              </span>
+            )}
           </div>
 
           <div className="mt-auto pt-4">
