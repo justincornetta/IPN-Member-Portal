@@ -159,27 +159,43 @@ The primary key is `(event_id, user_id)`, so a member can RSVP only once per
 event. RLS allows members to view and create only their own registrations. A
 trigger updates `events.registration_count` after RSVP insert/delete.
 
+### `resource-assets` bucket
+
+Public bucket for resource-card artwork such as partner logos, affiliate promo
+images, and other non-sensitive media assets.
+
+- **Read**: public (no auth required)
+- **Write**: managed by admins/service-role tooling only
+- **Public URL pattern**: `{SUPABASE_URL}/storage/v1/object/public/resource-assets/{path}`
+
 ### `public.resources`
 
-Links-only content surface for launch. Rows can represent IPN content links,
-partner/sponsor organizations, or approved affiliate/member benefits.
+Member-only resource surface. Rows can represent approved affiliate/member
+benefits, IPN Labs recordings, PsychedelX recordings, IPN blog posts, or
+partner/sponsor organizations.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key |
 | `slug` | `text` | Unique stable identifier used for seed upserts |
-| `resource_type` | `text` | `content`, `partner`, or `affiliate_benefit` |
+| `resource_type` | `text` | `affiliate_benefit`, `ipn_lab_recording`, `psychedelx_recording`, `blog_post`, or `partner` |
 | `title` / `description` | `text` | Member-facing card copy |
-| `url` | `text` | External link opened from the card |
+| `url` | `text` | External source opened by the Learn More CTA |
 | `category` | `text` | Display label such as `Recordings` or `Member benefits` |
 | `image_url` / `image_alt` | `text` | Optional logo or artwork and alt text |
+| `thumbnail_url` | `text` | Optional video/article thumbnail for card and detail views |
 | `benefit_note` | `text` | Optional member benefit / discount copy |
-| `featured` | `boolean` | Drives sort order and badge treatment |
+| `detail_body` | `text` | Detail-page body copy for recordings/articles |
+| `author` | `text` | Optional author byline for blog posts |
+| `published_at` | `timestamptz` | Optional source publish date |
+| `source_id` | `text` | Optional external source identifier, such as a YouTube video ID |
+| `source_name` | `text` | Optional source label, such as YouTube or IPN Blog |
+| `featured` | `boolean` | Internal sort priority; not shown as a public sponsor tier |
 | `sort_order` | `integer` | Manual ordering within the member resources page |
 | `status` | `text` | `draft`, `published`, or `archived` |
 
-RLS allows authenticated members to read only `published` resources. Content is
-managed directly in Supabase until Admin Portal CRUD is built.
+RLS allows authenticated members to read only `published` resources. Content and
+asset URLs are managed directly in Supabase until Admin Portal CRUD is built.
 
 ---
 

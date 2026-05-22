@@ -10,8 +10,8 @@ const RESOURCES = [
     type: "benefit",
     source: "Member benefit",
   },
-  { id: 2, title: "IPN Labs and seminars", type: "video", source: "YouTube" },
-  { id: 3, title: "PsychedelX recordings", type: "video", source: "PsychedelX" },
+  { id: 2, title: "PsychedelX recordings", type: "video", source: "YouTube" },
+  { id: 3, title: "IPN Blog articles", type: "article", source: "IPN Blog" },
 ]
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
@@ -106,8 +106,8 @@ export default async function DashboardPage() {
         <StatCard label="Members" value="1,200+" sub="Across 80+ schools" />
         <StatCard
           label="Resources"
-          value="7"
-          sub="Links, partners, and benefits"
+          value="35"
+          sub="Recordings, writing, partners, and benefits"
         />
       </div>
 

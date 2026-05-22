@@ -1,30 +1,55 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import type { ResourceRecord, ResourceType } from "@/lib/resources/types"
 
-const SECTION_COPY: Record<
-  ResourceType,
-  { eyebrow: string; title: string; description: string }
-> = {
-  affiliate_benefit: {
+const BLOG_IDEA_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSdp2VmQ9wWNFQLfeOTnK4WTBbWBHq2rmBhoDaGRehfrenedgQ/viewform"
+
+const RESOURCE_SECTIONS: {
+  type: ResourceType
+  eyebrow: string
+  title: string
+  description: string
+  columns?: string
+}[] = [
+  {
+    type: "affiliate_benefit",
     eyebrow: "Member benefit",
     title: "Featured member benefit",
     description:
       "Approved partner offers and training opportunities for IPN members.",
+    columns: "grid-cols-1 sm:grid-cols-[minmax(0,26rem)]",
   },
-  content: {
-    eyebrow: "Library",
-    title: "IPN content library",
+  {
+    type: "ipn_lab_recording",
+    eyebrow: "Recordings",
+    title: "IPN Labs Recordings",
     description:
-      "Recordings, writing, and public resources from IPN programs in one place.",
+      "Member-facing recordings from IPN Labs seminars and educational sessions.",
   },
-  partner: {
+  {
+    type: "psychedelx_recording",
+    eyebrow: "Recordings",
+    title: "PsychedelX Recordings",
+    description:
+      "Archived PsychedelX talks and conference sessions from IPN members and invited speakers.",
+  },
+  {
+    type: "blog_post",
+    eyebrow: "Writing",
+    title: "IPN Blog",
+    description:
+      "Essays, interviews, and program writing from the IPN community.",
+  },
+  {
+    type: "partner",
     eyebrow: "Partners",
     title: "Partners and sponsors",
     description:
       "Organizations that support IPN's work and help expand access to psychedelic education, research, and community.",
   },
-}
+]
 
 function ExternalLinkIcon() {
   return (
@@ -45,68 +70,130 @@ function ExternalLinkIcon() {
   )
 }
 
-function ResourceLogo({ resource }: { resource: ResourceRecord }) {
-  if (resource.image_url) {
-    return (
-      <div className="flex h-20 items-center justify-center rounded-lg border border-zinc-200 bg-white p-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={resource.image_url}
-          alt={resource.image_alt ?? ""}
-          className="max-h-full max-w-full object-contain"
-        />
-      </div>
-    )
-  }
-
-  const initial = resource.title.charAt(0).toUpperCase()
-
+function ArrowIcon() {
   return (
-    <div className="flex h-20 items-center justify-center rounded-lg bg-ipn-light text-xl font-semibold text-ipn">
-      {initial}
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.7}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+      />
+    </svg>
+  )
+}
+
+function formatResourceDate(value: string | null) {
+  if (!value) return null
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value))
+}
+
+function resourceImage(resource: ResourceRecord) {
+  return resource.thumbnail_url ?? resource.image_url
+}
+
+function FallbackImage({ title, className }: { title: string; className: string }) {
+  return (
+    <div
+      className={`${className} flex items-center justify-center bg-ipn-light text-xl font-semibold text-ipn`}
+    >
+      {title.charAt(0).toUpperCase()}
     </div>
   )
 }
 
-function ResourceCard({
-  resource,
-  variant = "default",
-}: {
-  resource: ResourceRecord
-  variant?: "default" | "featured"
-}) {
-  const featured = variant === "featured"
+function ResourceMedia({ resource }: { resource: ResourceRecord }) {
+  const image = resourceImage(resource)
+  const isBenefit = resource.resource_type === "affiliate_benefit"
+  const isPartner = resource.resource_type === "partner"
+  const wrapperClass = isBenefit
+    ? "aspect-[4/5] overflow-hidden rounded-lg border border-zinc-200 bg-white"
+    : isPartner
+      ? "flex h-24 items-center justify-center rounded-lg border border-zinc-200 bg-white p-4"
+      : "aspect-video overflow-hidden rounded-lg bg-zinc-100"
+
+  if (!image) {
+    return <FallbackImage title={resource.title} className={wrapperClass} />
+  }
 
   return (
+    <div className={wrapperClass}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image}
+        alt={resource.image_alt ?? ""}
+        className={
+          isBenefit || isPartner
+            ? "h-full w-full object-contain"
+            : "h-full w-full object-cover"
+        }
+      />
+    </div>
+  )
+}
+
+function ResourceMeta({ resource }: { resource: ResourceRecord }) {
+  const date = formatResourceDate(resource.published_at)
+  const metadata = [date, resource.author, resource.source_name].filter(Boolean)
+
+  if (!metadata.length) return null
+
+  return (
+    <p className="mt-2 line-clamp-1 text-xs text-zinc-400">
+      {metadata.join(" · ")}
+    </p>
+  )
+}
+
+function ResourceCard({ resource }: { resource: ResourceRecord }) {
+  const isDetailResource =
+    resource.resource_type === "ipn_lab_recording" ||
+    resource.resource_type === "psychedelx_recording" ||
+    resource.resource_type === "blog_post"
+  const isBenefit = resource.resource_type === "affiliate_benefit"
+
+  const body = (
     <article
-      className={`flex h-full flex-col rounded-lg border bg-white p-4 shadow-sm ${
-        featured ? "border-ipn/20 ring-1 ring-ipn/10" : "border-zinc-200"
+      className={`flex h-full flex-col rounded-lg border bg-white p-4 shadow-sm transition ${
+        isDetailResource
+          ? "border-zinc-200 hover:-translate-y-0.5 hover:border-ipn/30 hover:shadow-md"
+          : isBenefit
+            ? "border-ipn/20 ring-1 ring-ipn/10"
+            : "border-zinc-200"
       }`}
     >
-      <ResourceLogo resource={resource} />
+      <ResourceMedia resource={resource} />
 
       <div className="mt-4 flex flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`rounded-md px-2 py-1 text-[11px] font-medium ${
-              featured ? "bg-ipn-light text-ipn" : "bg-zinc-100 text-zinc-500"
+              isBenefit ? "bg-ipn-light text-ipn" : "bg-zinc-100 text-zinc-500"
             }`}
           >
             {resource.category}
           </span>
-          {resource.featured && (
-            <span className="rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white">
-              Featured
-            </span>
-          )}
         </div>
 
         <h3 className="mt-3 text-base font-semibold leading-snug text-zinc-900">
           {resource.title}
         </h3>
 
+        <ResourceMeta resource={resource} />
+
         {resource.description && (
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 line-clamp-4 text-sm leading-6 text-zinc-500">
             {resource.description}
           </p>
         )}
@@ -123,57 +210,109 @@ function ResourceCard({
         )}
 
         <div className="mt-auto pt-5">
-          <a
-            href={resource.url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
-          >
-            Open resource
-            <ExternalLinkIcon />
-          </a>
+          {isDetailResource ? (
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-ipn">
+              Learn More
+              <ArrowIcon />
+            </span>
+          ) : (
+            <a
+              href={resource.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+            >
+              Learn More
+              <ExternalLinkIcon />
+            </a>
+          )}
         </div>
       </div>
+    </article>
+  )
+
+  if (isDetailResource) {
+    return (
+      <Link href={`/dashboard/resources/${resource.slug}`} className="block h-full">
+        {body}
+      </Link>
+    )
+  }
+
+  return body
+}
+
+function BlogIdeaCard() {
+  return (
+    <article className="flex h-full flex-col rounded-lg border border-dashed border-ipn/30 bg-ipn/5 p-5">
+      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-ipn shadow-sm">
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.7}
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3 .378a6.036 6.036 0 0 0 2.25-1.5m-5.25 1.5a6.036 6.036 0 0 1-2.25-1.5m9 0a6 6 0 1 0-10.5 0m10.5 0a5.977 5.977 0 0 1-1.5 1.5m-9-1.5a5.977 5.977 0 0 0 1.5 1.5m4.5 3.75h-3m3 0a1.5 1.5 0 0 1-3 0m3 0v1.5a1.5 1.5 0 0 1-3 0v-1.5"
+          />
+        </svg>
+      </div>
+      <p className="mt-4 text-sm font-medium text-ipn">Have an article idea?</p>
+      <h3 className="mt-1 text-base font-semibold text-zinc-900">
+        Submit a blog pitch
+      </h3>
+      <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
+        Share a topic, draft, interview idea, or essay proposal with the IPN
+        blog team.
+      </p>
+      <a
+        href={BLOG_IDEA_FORM_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-ipn"
+      >
+        Open intake form
+        <ExternalLinkIcon />
+      </a>
     </article>
   )
 }
 
 function ResourceSection({
-  type,
+  section,
   resources,
 }: {
-  type: ResourceType
+  section: (typeof RESOURCE_SECTIONS)[number]
   resources: ResourceRecord[]
 }) {
   if (!resources.length) return null
 
-  const copy = SECTION_COPY[type]
+  const showBlogIdeaCard = section.type === "blog_post"
 
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <p className="text-sm font-medium text-ipn">{copy.eyebrow}</p>
+        <p className="text-sm font-medium text-ipn">{section.eyebrow}</p>
         <h2 className="mt-1 text-xl font-semibold text-zinc-900">
-          {copy.title}
+          {section.title}
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-          {copy.description}
+          {section.description}
         </p>
       </div>
 
       <div
         className={`grid gap-4 ${
-          type === "affiliate_benefit"
-            ? "grid-cols-1"
-            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          section.columns ?? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
+        {showBlogIdeaCard && <BlogIdeaCard />}
         {resources.map((resource) => (
-          <ResourceCard
-            key={resource.id}
-            resource={resource}
-            variant={type === "affiliate_benefit" ? "featured" : "default"}
-          />
+          <ResourceCard key={resource.id} resource={resource} />
         ))}
       </div>
     </section>
@@ -227,18 +366,13 @@ export default async function ResourcesPage() {
         </div>
       ) : resources.length > 0 ? (
         <>
-          <ResourceSection
-            type="affiliate_benefit"
-            resources={groupResources(resources, "affiliate_benefit")}
-          />
-          <ResourceSection
-            type="content"
-            resources={groupResources(resources, "content")}
-          />
-          <ResourceSection
-            type="partner"
-            resources={groupResources(resources, "partner")}
-          />
+          {RESOURCE_SECTIONS.map((section) => (
+            <ResourceSection
+              key={section.type}
+              section={section}
+              resources={groupResources(resources, section.type)}
+            />
+          ))}
         </>
       ) : (
         <div className="rounded-lg border border-zinc-200 bg-white px-6 py-10 text-center shadow-sm">
