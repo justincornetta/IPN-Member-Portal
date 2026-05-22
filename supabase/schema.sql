@@ -275,3 +275,166 @@ create trigger event_registration_count_changed
   after insert or delete on public.event_registrations
   for each row
   execute procedure public.sync_event_registration_count();
+
+
+-- ── 8. Resources ────────────────────────────────────────────
+--
+-- Links-only library for launch: IPN content, partner/sponsor visibility,
+-- and approved member benefits. Admin editing will come through the Admin
+-- Portal; until then, rows are managed directly in Supabase.
+
+create table if not exists public.resources (
+  id             uuid primary key default gen_random_uuid(),
+  slug           text not null unique,
+  resource_type  text not null
+    check (resource_type in ('content', 'partner', 'affiliate_benefit')),
+  title          text not null,
+  description    text,
+  url            text not null,
+  category       text not null,
+  image_url      text,
+  image_alt      text,
+  benefit_note   text,
+  featured       boolean not null default false,
+  sort_order     integer not null default 0,
+  status         text not null default 'draft'
+    check (status in ('draft', 'published', 'archived')),
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now()
+);
+
+create index if not exists resources_status_type_sort_idx
+  on public.resources (status, resource_type, featured desc, sort_order, title);
+
+alter table public.resources enable row level security;
+
+drop policy if exists "Authenticated users can view published resources" on public.resources;
+create policy "Authenticated users can view published resources"
+  on public.resources for select
+  using (auth.role() = 'authenticated' and status = 'published');
+
+insert into public.resources (
+  slug,
+  resource_type,
+  title,
+  description,
+  url,
+  category,
+  image_url,
+  image_alt,
+  benefit_note,
+  featured,
+  sort_order,
+  status
+) values
+  (
+    'zendo-project-sit',
+    'affiliate_benefit',
+    'Zendo Project Sitting and Integration Training (SIT)',
+    'IPN recommends Zendo SIT for members exploring psychedelic care, clinical pathways, harm reduction, or community support roles. It offers a structured bridge between interest and practice, with live training in peer support, trauma-attuned care, difficult experiences, integration, and ethical sitter boundaries.',
+    'https://zendoproject.org/sit/',
+    'Member benefits',
+    null,
+    null,
+    '50% off with member code IPN50, bringing the course to $298.50.',
+    true,
+    10,
+    'published'
+  ),
+  (
+    'ipn-labs-youtube',
+    'content',
+    'IPN Labs and seminars',
+    'Watch IPN Lab seminars, educational sessions, and other recordings from the main IPN YouTube channel.',
+    'https://www.youtube.com/@IntercollegiatePsychedelics',
+    'Recordings',
+    null,
+    null,
+    null,
+    false,
+    20,
+    'published'
+  ),
+  (
+    'psychedelx-youtube',
+    'content',
+    'PsychedelX recordings',
+    'Browse archived PsychedelX talks and conference sessions from IPN members and invited speakers.',
+    'https://www.youtube.com/@psychedelx3035',
+    'Recordings',
+    null,
+    null,
+    null,
+    false,
+    30,
+    'published'
+  ),
+  (
+    'ipn-blog',
+    'content',
+    'IPN blog',
+    'Read member writing, program updates, interviews, and public-facing IPN resources.',
+    'https://www.intercollegiatepsychedelics.net/blog',
+    'Articles',
+    null,
+    null,
+    null,
+    false,
+    40,
+    'published'
+  ),
+  (
+    'maps',
+    'partner',
+    'Multidisciplinary Association for Psychedelic Studies (MAPS)',
+    'A nonprofit research and educational organization advancing psychedelic and marijuana research, policy, education, and culture.',
+    'https://maps.org/',
+    'Partner organizations',
+    'https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/b8d83611-cfe4-4930-9429-7b9b242d961e/download-e1718575604706.jpeg',
+    'Logo of the Multidisciplinary Association for Psychedelic Studies with hands and spiral design.',
+    null,
+    true,
+    50,
+    'published'
+  ),
+  (
+    'reconsider',
+    'partner',
+    'Reconsider',
+    'A nonprofit creating media, experiences, and community spaces that invite reflection, connection, and more compassionate ways of living.',
+    'https://www.reconsider.org/',
+    'Partner organizations',
+    'https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/b89a661f-5eaf-4cf6-bb59-34c16680fd09/images+%281%29.png',
+    'Black circle with white text RE upside down and CONSIDER below it.',
+    null,
+    false,
+    60,
+    'published'
+  ),
+  (
+    'uw-madison-ppi',
+    'partner',
+    'University of Wisconsin-Madison PPI',
+    'An online graduate program in psychoactive pharmaceutical investigation for students and professionals studying psychoactive drugs, drug development, and therapeutic applications.',
+    'https://pdc.wisc.edu/degrees/ms-psychoactive-pharmaceutical-investigation/',
+    'Partner organizations',
+    'https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/585c14e0-f75d-4aeb-b40b-6817c20d6524/PSYCPHARIN_color-flush-1-1-1.jpg',
+    'Logo of Psychoactive Pharmaceutical Investigation program at University of Wisconsin-Madison School of Pharmacy.',
+    null,
+    false,
+    70,
+    'published'
+  )
+on conflict (slug) do update
+set resource_type = excluded.resource_type,
+    title = excluded.title,
+    description = excluded.description,
+    url = excluded.url,
+    category = excluded.category,
+    image_url = excluded.image_url,
+    image_alt = excluded.image_alt,
+    benefit_note = excluded.benefit_note,
+    featured = excluded.featured,
+    sort_order = excluded.sort_order,
+    status = excluded.status,
+    updated_at = now();

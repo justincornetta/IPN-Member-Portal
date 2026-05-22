@@ -159,13 +159,27 @@ The primary key is `(event_id, user_id)`, so a member can RSVP only once per
 event. RLS allows members to view and create only their own registrations. A
 trigger updates `events.registration_count` after RSVP insert/delete.
 
-## Tables coming in v1.0
+### `public.resources`
 
-These don't exist yet — schema will be added as each feature is built.
+Links-only content surface for launch. Rows can represent IPN content links,
+partner/sponsor organizations, or approved affiliate/member benefits.
 
-| Table | Feature |
-|---|---|
-| `resources` | Resource library (#10), including Past Events & Recordings |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` | Primary key |
+| `slug` | `text` | Unique stable identifier used for seed upserts |
+| `resource_type` | `text` | `content`, `partner`, or `affiliate_benefit` |
+| `title` / `description` | `text` | Member-facing card copy |
+| `url` | `text` | External link opened from the card |
+| `category` | `text` | Display label such as `Recordings` or `Member benefits` |
+| `image_url` / `image_alt` | `text` | Optional logo or artwork and alt text |
+| `benefit_note` | `text` | Optional member benefit / discount copy |
+| `featured` | `boolean` | Drives sort order and badge treatment |
+| `sort_order` | `integer` | Manual ordering within the member resources page |
+| `status` | `text` | `draft`, `published`, or `archived` |
+
+RLS allows authenticated members to read only `published` resources. Content is
+managed directly in Supabase until Admin Portal CRUD is built.
 
 ---
 
