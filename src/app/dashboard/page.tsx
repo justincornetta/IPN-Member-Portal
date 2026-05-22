@@ -4,9 +4,14 @@ import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
 
 const RESOURCES = [
-  { id: 1, title: "Intro to Psychedelic Therapy", type: "video", source: "PsychedelX" },
-  { id: 2, title: "Research Methods in Psychedelic Science", type: "video", source: "IPN Webinar" },
-  { id: 3, title: "Psilocybin & Mental Health: A Review", type: "article", source: "IPN Blog" },
+  {
+    id: 1,
+    title: "Zendo Project Sitting and Integration Training",
+    type: "benefit",
+    source: "Member benefit",
+  },
+  { id: 2, title: "PsychedelX recordings", type: "video", source: "YouTube" },
+  { id: 3, title: "IPN Blog articles", type: "article", source: "IPN Blog" },
 ]
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
@@ -18,6 +23,11 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   article: (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" />
+    </svg>
+  ),
+  benefit: (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.091-3.091L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.091-3.091L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.091 3.091ZM18.25 8.25 18 9.25l-.25-1a2.25 2.25 0 0 0-1.5-1.5l-1-.25 1-.25a2.25 2.25 0 0 0 1.5-1.5l.25-1 .25 1a2.25 2.25 0 0 0 1.5 1.5l1 .25-1 .25a2.25 2.25 0 0 0-1.5 1.5ZM18.25 19.25 18 20.25l-.25-1a2.25 2.25 0 0 0-1.5-1.5l-1-.25 1-.25a2.25 2.25 0 0 0 1.5-1.5l.25-1 .25 1a2.25 2.25 0 0 0 1.5 1.5l1 .25-1 .25a2.25 2.25 0 0 0-1.5 1.5Z" />
     </svg>
   ),
 }
@@ -94,7 +104,11 @@ export default async function DashboardPage() {
           }
         />
         <StatCard label="Members" value="1,200+" sub="Across 80+ schools" />
-        <StatCard label="New Resources" value="12" sub="Added this month" />
+        <StatCard
+          label="Resources"
+          value="35"
+          sub="Recordings, writing, partners, and benefits"
+        />
       </div>
 
       {/* Main grid */}
