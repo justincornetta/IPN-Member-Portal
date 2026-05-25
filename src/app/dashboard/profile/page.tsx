@@ -17,7 +17,9 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
-      <h1 className="mb-8 text-2xl font-semibold text-zinc-900">Profile</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-zinc-900">Profile</h1>
+      </div>
       <ProfileForm profile={profile} userId={user.id} />
     </div>
   )

@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ground Game — Center for Psychedelic Policy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #0A6ABF;
+    --blue-dark: #085299;
+    --blue-deeper: #063d75;
+    --yellow: #F5C800;
+    --yellow-light: #FDE84A;
+    --off-white: #F5F5F5;
+    --black: #000000;
+    --white: #ffffff;
+    --gray-mid: #6b7280;
+    --gray-light: #e5e7eb;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--off-white);
+    color: var(--black);
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    background: var(--blue);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .nav-logo img {
+    height: 32px;
+    width: auto;
+    filter: brightness(0) invert(1);
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--white); }
+
+  .nav-cta {
+    background: var(--yellow) !important;
+    color: var(--black) !important;
+    padding: 8px 18px !important;
+    border-radius: 6px;
+    font-weight: 700 !important;
+    transition: background 0.2s !important;
+  }
+
+  .nav-cta:hover { background: var(--yellow-light) !important; }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--blue);
+    position: relative;
+    overflow: hidden;
+    padding: 80px 40px 100px;
+    min-height: 580px;
+    display: flex;
+    align-items: center;
+  }
+
+  .hero-bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--yellow);
+    opacity: 0.12;
+  }
+  .blob-1 { width: 600px; height: 600px; top: -200px; right: -100px; }
+  .blob-2 { width: 300px; height: 300px; bottom: -100px; left: 100px; }
+
+  .hero-wave {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    overflow: hidden;
+    line-height: 0;
+  }
+  .hero-wave svg { display: block; width: 100%; }
+
+  .hero-inner {
+    position: relative;
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(245, 200, 0, 0.2);
+    border: 1px solid rgba(245, 200, 0, 0.5);
+    color: var(--yellow);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+  }
+
+  .hero-tag-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--yellow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-size: clamp(52px, 8vw, 88px);
+    font-weight: 900;
+    color: var(--white);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+  }
+
+  .hero h1 .yellow { color: var(--yellow); }
+
+  .hero-sub {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .hero-desc {
+    font-size: 18px;
+    color: rgba(255,255,255,0.8);
+    max-width: 520px;
+    line-height: 1.65;
+    margin-bottom: 40px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--yellow);
+    color: var(--black);
+    font-size: 15px;
+    font-weight: 800;
+    padding: 14px 28px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+
+  .btn-primary:hover { background: var(--yellow-light); transform: translateY(-2px); }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: var(--white);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px 28px;
+    border-radius: 8px;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  }
+
+  .btn-outline:hover {
+    border-color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-2px);
+  }
+
+  .hero-art {
+    position: relative;
+  }
+
+  .hero-art img {
+    width: 260px;
+    height: 260px;
+    border-radius: 24px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+    display: block;
+  }
+
+  .platform-badges {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    justify-content: center;
+  }
+
+  .platform-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 100px;
+    padding: 6px 12px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.85);
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+
+  .platform-badge:hover { background: rgba(255,255,255,0.2); }
+
+  .platform-badge svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── LATEST EPISODE ── */
+  .section-latest {
+    background: var(--white);
+    padding: 80px 40px;
+  }
+
+  .section-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--black);
+    margin-bottom: 40px;
+  }
+
+  /* Episode card */
+  .episode-latest {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: var(--off-white);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--gray-light);
+  }
+
+  .episode-media {
+    background: var(--blue);
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .episode-media-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--yellow);
+    opacity: 0.08;
+    border-radius: 50%;
+    width: 400px;
+    height: 400px;
+    top: -100px;
+    right: -100px;
+  }
+
+  .ep-number {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--yellow);
+    margin-bottom: 16px;
+  }
+
+  .ep-title {
+    font-size: clamp(20px, 2.5vw, 28px);
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .ep-guest {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .ep-guest strong { color: var(--white); }
+
+  .play-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--yellow);
+    color: var(--black);
+    font-size: 14px;
+    font-weight: 800;
+    padding: 12px 22px;
+    border-radius: 100px;
+    text-decoration: none;
+    width: fit-content;
+    transition: background 0.2s, transform 0.15s;
+    position: relative;
+  }
+
+  .play-btn:hover { background: var(--yellow-light); transform: scale(1.03); }
+
+  .play-icon {
+    width: 20px; height: 20px;
+    background: var(--black);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .play-icon svg { width: 8px; height: 8px; fill: var(--yellow); margin-left: 1px; }
+
+  .episode-info {
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .ep-meta {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .ep-date {
+    font-size: 13px;
+    color: var(--gray-mid);
+    font-weight: 500;
+  }
+
+  .ep-duration {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--gray-mid);
+    font-weight: 500;
+  }
+
+  .ep-description {
+    font-size: 16px;
+    line-height: 1.7;
+    color: #374151;
+    margin-bottom: 28px;
+  }
+
+  .ep-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .topic-tag {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 100px;
+    background: rgba(10, 106, 191, 0.08);
+    color: var(--blue);
+    border: 1px solid rgba(10, 106, 191, 0.2);
+  }
+
+  .ep-listen-links {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .listen-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--black);
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1.5px solid var(--gray-light);
+    border-radius: 8px;
+    background: var(--white);
+    transition: border-color 0.2s, transform 0.15s;
+  }
+
+  .listen-link:hover { border-color: var(--blue); transform: translateY(-1px); }
+
+  .listen-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* Loading state */
+  .ep-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--gray-mid);
+    font-size: 14px;
+    padding: 20px 0;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--gray-light);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RECENT EPISODES ── */
+  .section-episodes {
+    padding: 80px 40px;
+    background: var(--off-white);
+  }
+
+  .episode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .ep-card {
+    background: var(--white);
+    border: 1px solid var(--gray-light);
+    border-radius: 12px;
+    padding: 28px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .ep-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(10, 106, 191, 0.1);
+    border-color: rgba(10, 106, 191, 0.3);
+  }
+
+  .ep-card-number {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 10px;
+  }
+
+  .ep-card-title {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--black);
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .ep-card-guest {
+    font-size: 13px;
+    color: var(--gray-mid);
+    margin-bottom: 16px;
+  }
+
+  .ep-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 1px solid var(--gray-light);
+  }
+
+  .ep-card-date { font-size: 12px; color: var(--gray-mid); font-weight: 500; }
+
+  .ep-card-arrow {
+    width: 28px; height: 28px;
+    background: var(--blue);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.2s;
+  }
+
+  .ep-card:hover .ep-card-arrow {
+    background: var(--blue-dark);
+    transform: translateX(2px);
+  }
+
+  .ep-card-arrow svg { width: 12px; height: 12px; fill: none; stroke: var(--white); stroke-width: 2; }
+
+  /* ── ABOUT ── */
+  .section-about {
+    background: var(--blue);
+    padding: 80px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .about-blob {
+    position: absolute;
+    background: var(--yellow);
+    border-radius: 50%;
+    opacity: 0.08;
+  }
+
+  .about-blob-1 { width: 500px; height: 500px; top: -150px; right: -100px; }
+  .about-blob-2 { width: 250px; height: 250px; bottom: -80px; left: -50px; }
+
+  .about-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    position: relative;
+  }
+
+  .about-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--yellow);
+    margin-bottom: 16px;
+  }
+
+  .about-title {
+    font-size: clamp(28px, 3.5vw, 40px);
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+  }
+
+  .about-body {
+    font-size: 17px;
+    color: rgba(255,255,255,0.8);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  .about-host {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .host-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--yellow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--black);
+    flex-shrink: 0;
+  }
+
+  .host-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .host-title {
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 2px;
+  }
+
+  .about-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .stat-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 28px 24px;
+  }
+
+  .stat-number {
+    font-size: 42px;
+    font-weight: 900;
+    color: var(--yellow);
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.4;
+    font-weight: 500;
+  }
+
+  /* ── SUBSCRIBE ── */
+  .section-subscribe {
+    background: var(--yellow);
+    padding: 80px 40px;
+  }
+
+  .subscribe-inner {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .subscribe-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.5);
+    margin-bottom: 12px;
+  }
+
+  .subscribe-title {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: var(--black);
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .subscribe-desc {
+    font-size: 17px;
+    color: rgba(0,0,0,0.6);
+    line-height: 1.6;
+    margin-bottom: 40px;
+  }
+
+  .platform-grid {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .platform-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--black);
+    color: var(--white);
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+
+  .platform-btn:hover { background: #111; transform: translateY(-2px); }
+
+  .platform-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  /* ── CPP BANNER ── */
+  .section-cpp {
+    background: var(--black);
+    padding: 64px 40px;
+  }
+
+  .cpp-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .cpp-text {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--white);
+    max-width: 520px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .cpp-text span { color: var(--yellow); }
+
+  .cpp-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--blue-deeper);
+    padding: 40px;
+    text-align: center;
+  }
+
+  .footer-logo { margin-bottom: 16px; }
+  .footer-logo img { height: 28px; filter: brightness(0) invert(1); opacity: 0.7; }
+
+  .footer-text {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.6;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin: 16px 0;
+  }
+
+  .footer-links a {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: rgba(255,255,255,0.85); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    .hero { padding: 60px 20px 80px; }
+    .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+    .hero-art { display: flex; flex-direction: column; align-items: center; }
+    .hero-art img { width: 200px; height: 200px; }
+    .section-latest, .section-episodes, .section-about, .section-subscribe, .section-cpp { padding: 60px 20px; }
+    .episode-latest { grid-template-columns: 1fr; }
+    .about-inner { grid-template-columns: 1fr; gap: 48px; }
+    .cpp-inner { flex-direction: column; text-align: center; }
+    footer { padding: 32px 20px; }
+  }
+
+  /* ── SQUARESPACE NOTES ── */
+  /* 
+  === SQUARESPACE IMPLEMENTATION GUIDE ===
+  
+  FONTS: Add to Design > Fonts > Additional Google Fonts: "Inter"
+  Set Site Title / Navigation / Headings / Body to Inter at appropriate weights.
+  
+  COLORS: Add to Design > Colors > Color Palette:
+    #0A6ABF (Primary Blue)
+    #F5C800 (Yellow Accent)
+    #F5F5F5 (Off-white background)
+    #000000 (Black)
+  
+  SECTIONS TO RECREATE IN SQUARESPACE:
+  
+  1. NAV → Use Squarespace Header block. Set background to #0A6ABF.
+     Add "Subscribe" button with yellow background (#F5C800), black text.
+  
+  2. HERO → Banner section with custom CSS overlay.
+     Use Cover Page or Banner block. Background: #0A6ABF.
+     Add Code Block for the large "GROUND GAME" heading with CSS.
+  
+  3. LATEST EPISODE → Use a Code Block (inject the RSS auto-fetch JS below).
+     Or use a 2-column section: left = blue card (Color Block), right = text content.
+  
+  4. RECENT EPISODES → Use a Blog Collection with cards, or a Gallery Block
+     with custom CSS. Each episode = a Blog Post.
+  
+  5. ABOUT SECTION → 2-column section. Left = text. Right = Metrics/Stats.
+     Background: #0A6ABF via Section background color.
+  
+  6. SUBSCRIBE → Full-width section. Background: #F5C800.
+     3 image + text button blocks for the three platforms.
+  
+  7. FOOTER → Use Squarespace footer. Background: #063d75 (custom CSS).
+  
+  EPISODE AUTO-UPDATES:
+  - Create a Blog named "Episodes"
+  - New episode = New Blog Post (Title, Guest, Description, Date, Duration tag)
+  - Use a Summary Block on the Latest Episode section pointing to the Blog
+  - Filter to show most recent 1 post for "Latest Episode"
+  - Filter to show 6 most recent for "Recent Episodes" grid
+  
+  RSS AUTO-FETCH (for Code Block approach):
+  Paste the <script> from the #rss-fetch-script element below into a Code Block.
+  It pulls from your podcast RSS feed automatically.
+  
+  CUSTOM CSS → Design > Custom CSS:
+  Copy all CSS from this file's :root and key selectors.
+  ==========================================
+  */
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="https://centerforpsychedelicpolicy.org">
+    <!-- Replace src with your hosted CPP logo URL -->
+    <img src="Full_Logo.png" alt="Center for Psychedelic Policy" />
+  </a>
+  <ul class="nav-links">
+    <li><a href="#latest">Latest Episode</a></li>
+    <li><a href="#episodes">All Episodes</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="https://centerforpsychedelicpolicy.org" target="_blank">CPP</a></li>
+    <li><a href="#subscribe" class="nav-cta">Subscribe</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-blob blob-1"></div>
+  <div class="hero-bg-blob blob-2"></div>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-tag">
+        <div class="hero-tag-dot"></div>
+        New Episodes Weekly
+      </div>
+      <h1>GROUND<br /><span class="yellow">GAME</span></h1>
+      <p class="hero-sub">With Sam Chapman</p>
+      <p class="hero-desc">
+        The inside track on psychedelic policy — how it's made, who's fighting for it, and what it takes to win. Hosted by the founder of the Center for Psychedelic Policy.
+      </p>
+      <div class="hero-actions">
+        <a href="#latest" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
+          Latest Episode
+        </a>
+        <a href="#subscribe" class="btn-outline">
+          Subscribe Free
+        </a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <!-- Podcast cover art -->
+      <img src="Ground_Game_Psychedelic_Policy__1_.png" alt="Ground Game Podcast Cover Art" />
+      <div class="platform-badges">
+        <a class="platform-badge" href="https://open.spotify.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          Spotify
+        </a>
+        <a class="platform-badge" href="https://podcasts.apple.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.003 0C5.374 0 0 5.374 0 12.003 0 18.63 5.374 24 12.003 24c6.628 0 11.997-5.37 11.997-11.997C24 5.374 18.63 0 12.003 0zm3.24 6.403c1.64.017 2.96 1.35 2.943 2.99l-.063 6.113c-.017 1.64-1.35 2.96-2.99 2.942l-6.113-.063c-1.64-.017-2.96-1.35-2.942-2.99l.063-6.113c.017-1.64 1.35-2.96 2.99-2.942l6.112.063zm-3.28 1.434c-2.198 0-3.978 1.78-3.978 3.979 0 2.198 1.78 3.978 3.979 3.978 2.198 0 3.978-1.78 3.978-3.978 0-2.198-1.78-3.979-3.979-3.979zm0 1.457c1.394 0 2.522 1.128 2.522 2.522 0 1.394-1.128 2.522-2.522 2.522-1.394 0-2.522-1.128-2.522-2.522 0-1.394 1.128-2.522 2.522-2.522zm2.886-2.525c-.508 0-.92.412-.92.92s.412.92.92.92.92-.412.92-.92-.412-.92-.92-.92z"/></svg>
+          Apple
+        </a>
+        <a class="platform-badge" href="https://youtube.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          YouTube
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 60" preserveAspectRatio="none" height="60">
+      <path d="M0,32 C240,64 480,0 720,32 C960,64 1200,0 1440,32 L1440,60 L0,60 Z" fill="#ffffff"/>
+    </svg>
+  </div>
+</section>
+
+<!-- LATEST EPISODE (auto-updating via RSS) -->
+<section class="section-latest" id="latest">
+  <div class="section-inner">
+    <p class="section-label">🎙 Now Playing</p>
+    <h2 class="section-title">Latest Episode</h2>
+
+    <!-- This container is populated by the RSS fetch script below -->
+    <div id="latest-episode-container">
+      <div class="ep-loading">
+        <div class="spinner"></div>
+        Loading latest episode…
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RECENT EPISODES -->
+<section class="section-episodes" id="episodes">
+  <div class="section-inner">
+    <p class="section-label">Archive</p>
+    <h2 class="section-title">Recent Episodes</h2>
+    <div class="episode-grid" id="episode-grid">
+      <div class="ep-loading">
+        <div class="spinner"></div>
+        Loading episodes…
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="section-about" id="about">
+  <div class="about-blob about-blob-1"></div>
+  <div class="about-blob about-blob-2"></div>
+  <div class="about-inner">
+    <div>
+      <p class="about-label">About the Show</p>
+      <h2 class="about-title">Policy doesn't change itself. Someone has to play the ground game.</h2>
+      <p class="about-body">Ground Game goes inside the rooms where psychedelic policy is actually being made — the state houses, the advocacy organizations, the clinics, and the courtrooms.</p>
+      <p class="about-body">Each episode, Sam sits down with the lawmakers, researchers, advocates, and practitioners driving this movement forward. No hype. No shortcuts. Just the real work.</p>
+      <div class="about-host">
+        <div class="host-avatar">SC</div>
+        <div>
+          <div class="host-name">Sam Chapman</div>
+          <div class="host-title">Founder, Center for Psychedelic Policy</div>
+        </div>
+      </div>
+    </div>
+    <div class="about-stats">
+      <div class="stat-card">
+        <div class="stat-number">40K+</div>
+        <div class="stat-label">Policy advocates in our network</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">5+</div>
+        <div class="stat-label">States with active reform efforts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">100%</div>
+        <div class="stat-label">Independent & nonprofit-backed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">Free</div>
+        <div class="stat-label">Always. On every platform.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUBSCRIBE -->
+<section class="section-subscribe" id="subscribe">
+  <div class="subscribe-inner">
+    <p class="subscribe-label">Never miss an episode</p>
+    <h2 class="subscribe-title">Listen wherever you get your podcasts</h2>
+    <p class="subscribe-desc">New episodes drop weekly. Subscribe for free on your favorite platform and get notified the moment they're live.</p>
+    <div class="platform-grid">
+      <a class="platform-btn" href="https://open.spotify.com" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        Spotify
+      </a>
+      <a class="platform-btn" href="https://podcasts.apple.com" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M12.003 0C5.374 0 0 5.374 0 12.003 0 18.63 5.374 24 12.003 24c6.628 0 11.997-5.37 11.997-11.997C24 5.374 18.63 0 12.003 0zm3.24 6.403c1.64.017 2.96 1.35 2.943 2.99l-.063 6.113c-.017 1.64-1.35 2.96-2.99 2.942l-6.113-.063c-1.64-.017-2.96-1.35-2.942-2.99l.063-6.113c.017-1.64 1.35-2.96 2.942-2.942l6.112.063zm-3.28 1.434c-2.198 0-3.978 1.78-3.978 3.979 0 2.198 1.78 3.978 3.979 3.978 2.198 0 3.978-1.78 3.978-3.978 0-2.198-1.78-3.979-3.979-3.979zm0 1.457c1.394 0 2.522 1.128 2.522 2.522 0 1.394-1.128 2.522-2.522 2.522-1.394 0-2.522-1.128-2.522-2.522 0-1.394 1.128-2.522 2.522-2.522zm2.886-2.525c-.508 0-.92.412-.92.92s.412.92.92.92.92-.412.92-.92-.412-.92-.92-.92z"/></svg>
+        Apple Podcasts
+      </a>
+      <a class="platform-btn" href="https://youtube.com" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- CPP SUPPORT BANNER -->
+<section class="section-cpp">
+  <div class="cpp-inner">
+    <p class="cpp-text">Ground Game is a production of the <span>Center for Psychedelic Policy</span> — the leading nonprofit driving evidence-based reform.</p>
+    <div class="cpp-actions">
+      <a href="https://centerforpsychedelicpolicy.org/donate" target="_blank" class="btn-primary">Support CPP</a>
+      <a href="https://centerforpsychedelicpolicy.org" target="_blank" class="btn-outline" style="border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.75);">Learn More</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <img src="Full_Logo.png" alt="Center for Psychedelic Policy" />
+  </div>
+  <div class="footer-links">
+    <a href="https://centerforpsychedelicpolicy.org">CPP Website</a>
+    <a href="#about">About</a>
+    <a href="mailto:info@centerforpsychedelicpolicy.org">Contact</a>
+  </div>
+  <p class="footer-text">© 2025 Center for Psychedelic Policy. All rights reserved.<br />Ground Game is produced independently and does not constitute medical or legal advice.</p>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════
+     RSS AUTO-FETCH SCRIPT
+     Replace RSS_FEED_URL with your podcast's actual RSS feed.
+     Common sources:
+       Spotify for Podcasters: https://anchor.fm/s/XXXXXX/podcast/rss
+       Buzzsprout: https://feeds.buzzsprout.com/XXXXXXX.rss
+       Transistor: https://feeds.transistor.fm/ground-game
+     ═══════════════════════════════════════════════════ -->
+<script id="rss-fetch-script">
+  // ↓ REPLACE THIS with your actual podcast RSS feed URL
+  const RSS_FEED_URL = 'https://feeds.buzzsprout.com/YOUR_FEED_ID.rss';
+
+  // Platform links — update these with real URLs
+  const SPOTIFY_URL = 'https://open.spotify.com/show/YOUR_SHOW_ID';
+  const APPLE_URL   = 'https://podcasts.apple.com/podcast/id YOUR_PODCAST_ID';
+  const YOUTUBE_URL = 'https://youtube.com/@groundgamepodcast';
+
+  // RSS proxy (avoids CORS on client-side fetches)
+  const PROXY = 'https://api.rss2json.com/v1/api.json?rss_url=';
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  function stripHtml(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+  }
+
+  function truncate(str, n) {
+    return str.length > n ? str.slice(0, n).trimEnd() + '…' : str;
+  }
+
+  function platformLinks(link) {
+    return `
+      <a class="listen-link" href="${link}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        Spotify
+      </a>
+      <a class="listen-link" href="${APPLE_URL}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="#882aff"><path d="M12.003 0C5.374 0 0 5.374 0 12.003 0 18.63 5.374 24 12.003 24c6.628 0 11.997-5.37 11.997-11.997C24 5.374 18.63 0 12.003 0zm3.24 6.403c1.64.017 2.96 1.35 2.943 2.99l-.063 6.113c-.017 1.64-1.35 2.96-2.99 2.942l-6.113-.063c-1.64-.017-2.96-1.35-2.942-2.99l.063-6.113c.017-1.64 1.35-2.96 2.942-2.942l6.112.063zm-3.28 1.434c-2.198 0-3.978 1.78-3.978 3.979 0 2.198 1.78 3.978 3.979 3.978 2.198 0 3.978-1.78 3.978-3.978 0-2.198-1.78-3.979-3.979-3.979zm0 1.457c1.394 0 2.522 1.128 2.522 2.522 0 1.394-1.128 2.522-2.522 2.522-1.394 0-2.522-1.128-2.522-2.522 0-1.394 1.128-2.522 2.522-2.522zm2.886-2.525c-.508 0-.92.412-.92.92s.412.92.92.92.92-.412.92-.92-.412-.92-.92-.92z"/></svg>
+        Apple Podcasts
+      </a>
+      <a class="listen-link" href="${YOUTUBE_URL}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+      </a>
+    `;
+  }
+
+  async function fetchEpisodes() {
+    try {
+      const res = await fetch(`${PROXY}${encodeURIComponent(RSS_FEED_URL)}&count=7`);
+      const data = await res.json();
+
+      if (!data.items || data.items.length === 0) throw new Error('No items');
+
+      const items = data.items;
+      const latest = items[0];
+      const rest = items.slice(1, 7);
+
+      // ── Render Latest Episode ──
+      const latestEl = document.getElementById('latest-episode-container');
+      const desc = truncate(stripHtml(latest.description || latest.content || ''), 320);
+
+      latestEl.innerHTML = `
+        <div class="episode-latest">
+          <div class="episode-media">
+            <div class="episode-media-bg"></div>
+            <div>
+              <div class="ep-number">Latest Episode</div>
+              <h3 class="ep-title">${latest.title}</h3>
+              <p class="ep-guest">${latest.author ? `<strong>${latest.author}</strong>` : ''}</p>
+            </div>
+            <a class="play-btn" href="${latest.link}" target="_blank" rel="noopener">
+              <div class="play-icon">
+                <svg viewBox="0 0 8 10"><path d="M1 1l6 4-6 4V1z" fill="#F5C800"/></svg>
+              </div>
+              Listen Now
+            </a>
+          </div>
+          <div class="episode-info">
+            <div class="ep-meta">
+              <span class="ep-date">${formatDate(latest.pubDate)}</span>
+            </div>
+            <p class="ep-description">${desc}</p>
+            <div class="ep-listen-links">
+              ${platformLinks(latest.link)}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // ── Render Recent Episode Grid ──
+      const gridEl = document.getElementById('episode-grid');
+      if (rest.length === 0) {
+        gridEl.innerHTML = '<p style="color: var(--gray-mid); font-size: 14px;">More episodes coming soon.</p>';
+        return;
+      }
+
+      gridEl.innerHTML = rest.map((ep, i) => `
+        <a class="ep-card" href="${ep.link}" target="_blank" rel="noopener">
+          <div class="ep-card-number">Episode ${items.length - 1 - i}</div>
+          <h4 class="ep-card-title">${ep.title}</h4>
+          <p class="ep-card-guest">${ep.author || ''}</p>
+          <div class="ep-card-bottom">
+            <span class="ep-card-date">${formatDate(ep.pubDate)}</span>
+            <div class="ep-card-arrow">
+              <svg viewBox="0 0 12 12"><path d="M2 6h8M6 2l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+        </a>
+      `).join('');
+
+    } catch (err) {
+      // Fallback state if RSS fails or feed URL not yet configured
+      document.getElementById('latest-episode-container').innerHTML = `
+        <div class="episode-latest">
+          <div class="episode-media">
+            <div class="episode-media-bg"></div>
+            <div>
+              <div class="ep-number">New Episode</div>
+              <h3 class="ep-title">Coming Soon — Update Your RSS Feed URL</h3>
+              <p class="ep-guest">Add your podcast RSS feed URL to the script below to auto-populate episodes.</p>
+            </div>
+            <a class="play-btn" href="${SPOTIFY_URL}" target="_blank" rel="noopener">
+              <div class="play-icon">
+                <svg viewBox="0 0 8 10"><path d="M1 1l6 4-6 4V1z" fill="#F5C800"/></svg>
+              </div>
+              Listen on Spotify
+            </a>
+          </div>
+          <div class="episode-info">
+            <p class="ep-description" style="padding-top:20px;">
+              Replace <code style="font-size:13px; background:#f0f0f0; padding:2px 6px; border-radius:4px;">RSS_FEED_URL</code> in the page script with your podcast's RSS feed address to enable automatic episode updates.
+            </p>
+            <div class="ep-listen-links">
+              <a class="listen-link" href="${SPOTIFY_URL}" target="_blank">🎵 Spotify</a>
+              <a class="listen-link" href="${APPLE_URL}" target="_blank">🎙 Apple Podcasts</a>
+              <a class="listen-link" href="${YOUTUBE_URL}" target="_blank">▶ YouTube</a>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('episode-grid').innerHTML =
+        '<p style="color:#6b7280; font-size:14px;">Configure your RSS feed URL to show episodes automatically.</p>';
+    }
+  }
+
+  fetchEpisodes();
+</script>
+
+</body>
+</html>

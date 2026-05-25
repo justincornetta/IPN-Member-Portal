@@ -9,6 +9,7 @@ import {
   PROFESSIONAL_BACKGROUNDS,
   FIELD_OPTIONS,
   FIELD_STATUS_OPTIONS,
+  INTEREST_TAG_OPTIONS,
 } from "@/lib/constants/registration"
 import {
   COUNTRIES,
@@ -32,7 +33,7 @@ type Profile = {
   psychedelic_field_status: string | null
   role_and_goals: string | null
   bio: string | null
-  area_of_interest: string | null
+  interest_tags: string[] | null
   linkedin_url: string | null
   is_discoverable: boolean | null
   share_location: boolean | null
@@ -52,7 +53,7 @@ type FormState = {
   psychedelic_field_status: string
   role_and_goals: string
   bio: string
-  area_of_interest: string
+  interest_tags: string[]
   linkedin_url: string
   is_discoverable: boolean
   share_location: boolean
@@ -73,7 +74,7 @@ function toFormState(profile: Profile | null): FormState {
     psychedelic_field_status: profile?.psychedelic_field_status ?? "",
     role_and_goals: profile?.role_and_goals ?? "",
     bio: profile?.bio ?? "",
-    area_of_interest: profile?.area_of_interest ?? "",
+    interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
@@ -181,6 +182,43 @@ function Combobox({
   )
 }
 
+function TagPicker({
+  selected,
+  onChange,
+}: {
+  selected: string[]
+  onChange: (tags: string[]) => void
+}) {
+  function toggle(tag: string) {
+    onChange(
+      selected.includes(tag)
+        ? selected.filter((t) => t !== tag)
+        : [...selected, tag],
+    )
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {INTEREST_TAG_OPTIONS.map((tag) => {
+        const active = selected.includes(tag)
+        return (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => toggle(tag)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+              active
+                ? "bg-ipn text-white"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            {tag}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function Textarea({
   id, name, value, onChange, placeholder, rows = 4,
 }: {
@@ -261,7 +299,7 @@ export default function ProfileForm({
       psychedelic_field_status: data.psychedelic_field_status,
       role_and_goals: data.role_and_goals,
       bio: data.bio || null,
-      area_of_interest: data.area_of_interest || null,
+      interest_tags: data.interest_tags.length > 0 ? data.interest_tags : null,
       linkedin_url: data.linkedin_url || null,
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
@@ -354,7 +392,7 @@ export default function ProfileForm({
           <p className="text-xs font-semibold text-ipn">Visible to other members</p>
           <ul className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-zinc-500">
             <li>· Name and bio</li>
-            <li>· Area of interest</li>
+            <li>· Interest tags</li>
             <li>· LinkedIn URL</li>
             <li>· Student status / persona</li>
             <li>· School or affiliation</li>
@@ -369,11 +407,13 @@ export default function ProfileForm({
               placeholder="A short introduction visible to other members…" />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="area_of_interest">Area of interest</Label>
-            <TextInput id="area_of_interest" name="area_of_interest" value={data.area_of_interest}
-              onChange={(v) => update("area_of_interest", v)}
-              placeholder="e.g. Psilocybin therapy, clinical trials, harm reduction…" />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="interest_tags">Interests</Label>
+            <p className="text-xs text-zinc-400">Select all that apply — shown on your directory profile.</p>
+            <TagPicker
+              selected={data.interest_tags}
+              onChange={(tags) => update("interest_tags", tags)}
+            />
           </div>
 
           <div className="flex flex-col gap-1">
