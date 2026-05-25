@@ -92,7 +92,7 @@ export async function signUp(
 
   if (error) return { error: error.message }
 
-  redirect("/verify-email")
+  redirect("/dashboard")
 }
 
 export async function signIn(

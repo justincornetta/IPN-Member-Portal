@@ -8,15 +8,26 @@ export const BACKGROUND_OPTIONS = [
   "Other",
 ] as const
 
+// Pairs of DB-stored value → descriptive form label shown to the user
+export const PERSONA_OPTIONS = [
+  { value: "High School",                label: "High school / pre-college" },
+  { value: "Undergraduate",              label: "Undergraduate student" },
+  { value: "Graduate Student",           label: "Graduate student (Master's or PhD)" },
+  { value: "Professional Degree Student",label: "Professional degree student (MD, JD, MBA, etc.)" },
+  { value: "Psychedelic Professional",   label: "Professional in psychedelics" },
+  { value: "Professional",               label: "Professional in another field" },
+  { value: "Other",                      label: "Other" },
+] as const
+
 export const STUDENT_BACKGROUNDS = new Set([
-  "Undergraduate student",
-  "Graduate student (Master's or PhD)",
-  "Professional degree student (MD, JD, MBA, etc.)",
+  "Undergraduate",
+  "Graduate Student",
+  "Professional Degree Student",
 ])
 
 export const PROFESSIONAL_BACKGROUNDS = new Set([
-  "Professional in psychedelics",
-  "Professional in another field",
+  "Psychedelic Professional",
+  "Professional",
   "Other",
 ])
 

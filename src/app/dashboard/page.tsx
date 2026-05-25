@@ -2,6 +2,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
+import WelcomeModal from "./WelcomeModal"
 
 const RESOURCES = [
   {
@@ -73,6 +74,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:gap-8 sm:p-8">
+      <WelcomeModal userId={user!.id} />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

@@ -7,7 +7,7 @@ import logo from "../../../assets/purple_full.png"
 import { signUp } from "@/lib/auth/actions"
 import NeuralBackground from "@/components/NeuralBackground"
 import {
-  BACKGROUND_OPTIONS,
+  PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
   PROFESSIONAL_BACKGROUNDS,
   FIELD_OPTIONS,
@@ -228,10 +228,13 @@ function StepLocation({
   update: (k: keyof FormData, v: string) => void
   errors: Record<string, string>
 }) {
+  const [atUniversity, setAtUniversity] = useState(false)
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
   const stateOptions = data.country === "Canada" ? CANADIAN_PROVINCES : US_STATES
-  const showSchool = STUDENT_BACKGROUNDS.has(data.persona)
-  const showAffiliation = PROFESSIONAL_BACKGROUNDS.has(data.persona)
+  const isProfessional = PROFESSIONAL_BACKGROUNDS.has(data.persona)
+  const showSchool = STUDENT_BACKGROUNDS.has(data.persona) || (isProfessional && atUniversity)
+  const showAffiliation = isProfessional && !atUniversity
+  const schoolLabel = isProfessional ? "University" : "School"
   const schoolOptions = SCHOOLS_BY_COUNTRY[data.country] ?? []
 
   return (
@@ -265,20 +268,46 @@ function StepLocation({
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="persona">What best describes you?</Label>
-        <Select id="persona" name="persona" value={data.persona}
-          onChange={(v) => { update("persona", v); update("school", ""); update("affiliation", "") }}
-          options={BACKGROUND_OPTIONS as unknown as string[]}
-          placeholder="Select…" required />
+        <select
+          id="persona"
+          name="persona"
+          value={data.persona}
+          required
+          onChange={(e) => { update("persona", e.target.value); update("school", ""); update("affiliation", ""); setAtUniversity(false) }}
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+        >
+          <option value="">Select…</option>
+          {PERSONA_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
         <FieldError msg={errors.persona} />
       </div>
 
+      {isProfessional && (
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={atUniversity}
+            onChange={(e) => {
+              setAtUniversity(e.target.checked)
+              if (e.target.checked) update("affiliation", "")
+              else update("school", "")
+            }}
+            className="h-4 w-4 rounded border-zinc-300 accent-[#664fa1]"
+          />
+          <span className="text-sm text-zinc-700">I work at or am affiliated with a university</span>
+        </label>
+      )}
+
       {showSchool && (
         <div className="flex flex-col gap-1">
-          <Label htmlFor="school">School</Label>
+          <Label htmlFor="school">{schoolLabel}</Label>
           <Combobox id="school" name="school" value={data.school}
             onChange={(v) => update("school", v)}
             options={schoolOptions}
             placeholder={data.country ? "Type to search…" : "Select a country first"} />
+          {data.country && <p className="text-xs text-zinc-400">Showing schools in {data.country}. Change your country selection above to search elsewhere.</p>}
           <FieldError msg={errors.school} />
         </div>
       )}

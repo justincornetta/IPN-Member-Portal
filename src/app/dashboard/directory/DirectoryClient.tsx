@@ -2,20 +2,15 @@
 
 import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { BACKGROUND_OPTIONS, INTEREST_TAG_OPTIONS } from "@/lib/constants/registration"
+import { PERSONA_OPTIONS, INTEREST_TAG_OPTIONS } from "@/lib/constants/registration"
 import type { DirectoryMember, DirectoryParams } from "@/lib/directory/types"
 
-const PERSONAS = BACKGROUND_OPTIONS as unknown as string[]
+const PERSONAS = PERSONA_OPTIONS.map((o) => o.value)
 
-const PERSONA_LABEL: Record<string, string> = {
-  "High school / pre-college": "High School",
-  "Undergraduate student": "Undergraduate",
-  "Graduate student (Master's or PhD)": "Graduate Student",
-  "Professional degree student (MD, JD, MBA, etc.)": "Professional School",
-  "Professional in psychedelics": "Psychedelic Professional",
-  "Professional in another field": "Adjacent Professional",
-  "Other": "Other",
-}
+// DB values are the display labels — this is an identity map kept for future flexibility
+const PERSONA_LABEL: Record<string, string> = Object.fromEntries(
+  PERSONA_OPTIONS.map((o) => [o.value, o.value]),
+)
 
 function getInitials(first: string | null, last: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?"
@@ -59,14 +54,14 @@ function MemberCard({
   onOpen: (m: DirectoryMember) => void
 }) {
   const initials = getInitials(member.first_name, member.last_name)
-  const location = [member.city, member.state].filter(Boolean).join(", ")
   const institution = member.school ?? member.affiliation
+  const tags = member.interest_tags ?? []
 
   return (
     <button
       type="button"
       onClick={() => onOpen(member)}
-      className="group flex w-full flex-col items-center rounded-xl border border-zinc-200 bg-white px-4 pb-5 pt-6 shadow-sm transition hover:border-ipn hover:shadow-md text-left"
+      className="group flex w-full flex-col items-center rounded-xl border border-zinc-200 bg-white px-4 pb-5 pt-6 shadow-sm transition duration-150 ease-out hover:[transform:translateY(-6px)] hover:border-ipn hover:shadow-lg text-left cursor-pointer"
     >
       <AvatarCircle avatarUrl={member.avatar_url} initials={initials} />
       <p className="mt-3 text-center text-sm font-semibold text-zinc-900 group-hover:text-ipn">
@@ -80,15 +75,9 @@ function MemberCard({
           {institution}
         </p>
       )}
-      {location && (
-        <p className="text-center text-xs text-zinc-400">{location}</p>
-      )}
-      {member.interest_tags && member.interest_tags.length > 0 && (
-        <p className="mt-2 text-center text-xs text-zinc-400 line-clamp-2">
-          {member.interest_tags.slice(0, 3).join(" · ")}
-          {member.interest_tags.length > 3 && ` +${member.interest_tags.length - 3}`}
-        </p>
-      )}
+      <p className="mt-1.5 text-center text-xs text-zinc-400">
+        {tags.length > 0 ? tags.join(" · ") : " "}
+      </p>
     </button>
   )
 }
@@ -231,6 +220,52 @@ function MemberModal({
   )
 }
 
+function SchoolCombobox({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+}) {
+  const [query, setQuery] = useState(value)
+  const [open, setOpen] = useState(false)
+
+  const filtered = query.length >= 1
+    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    : []
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={query}
+        placeholder="e.g. MIT, MAPS…"
+        autoComplete="off"
+        onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); setOpen(true) }}
+        onFocus={() => { if (query.length >= 1) setOpen(true) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="mt-1 max-h-40 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
+          {filtered.map((o) => (
+            <li
+              key={o}
+              onMouseDown={() => { onChange(o); setQuery(o); setOpen(false) }}
+              className="cursor-pointer px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-50"
+            >
+              {o}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+
 function FilterDrawer({
   open,
   onClose,
@@ -243,6 +278,7 @@ function FilterDrawer({
   onField,
   tags,
   onToggleTag,
+  availableTags,
   onApply,
   onClear,
   hasActiveFilters,
@@ -258,6 +294,7 @@ function FilterDrawer({
   onField: (v: string) => void
   tags: string[]
   onToggleTag: (t: string) => void
+  availableTags: string[]
   onApply: () => void
   onClear: () => void
   hasActiveFilters: boolean
@@ -305,19 +342,7 @@ function FilterDrawer({
             <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
               School / Affiliation
             </p>
-            <input
-              type="text"
-              list="school-options"
-              placeholder="e.g. MIT, MAPS…"
-              value={school}
-              onChange={(e) => onSchool(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
-            />
-            <datalist id="school-options">
-              {schools.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
+            <SchoolCombobox value={school} onChange={onSchool} options={schools} />
           </div>
 
           <div>
@@ -337,19 +362,23 @@ function FilterDrawer({
             <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
               Interests
             </p>
-            <div className="max-h-52 overflow-y-auto flex flex-col gap-2 pr-1">
-              {INTEREST_TAG_OPTIONS.map((t) => (
-                <label key={t} className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={tags.includes(t)}
-                    onChange={() => onToggleTag(t)}
-                    className="h-4 w-4 rounded border-zinc-300 accent-[#664fa1]"
-                  />
-                  <span className="text-sm text-zinc-700">{t}</span>
-                </label>
-              ))}
-            </div>
+            {availableTags.length > 0 ? (
+              <div className="max-h-52 overflow-y-auto flex flex-col gap-2 pr-1">
+                {availableTags.map((t) => (
+                  <label key={t} className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={tags.includes(t)}
+                      onChange={() => onToggleTag(t)}
+                      className="h-4 w-4 rounded border-zinc-300 accent-[#664fa1]"
+                    />
+                    <span className="text-sm text-zinc-700">{t}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-400">No members have added interests yet.</p>
+            )}
           </div>
         </div>
 
@@ -383,9 +412,10 @@ type Props = {
   showSchoolTab: boolean
   currentParams: DirectoryParams
   schools: string[]
+  availableTags: string[]
 }
 
-export default function DirectoryClient({ members, showSchoolTab, currentParams, schools }: Props) {
+export default function DirectoryClient({ members, showSchoolTab, currentParams, schools, availableTags }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -667,6 +697,7 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
             prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
           )
         }
+        availableTags={availableTags}
         onApply={applyFilters}
         onClear={clearFilters}
         hasActiveFilters={drawerHasChanges}

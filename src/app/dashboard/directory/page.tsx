@@ -97,6 +97,16 @@ export default async function DirectoryPage({
     (schoolRows ?? []).map((r) => r.school as string).filter(Boolean)
   )].sort()
 
+  const { data: tagRows } = await supabase
+    .from("profiles")
+    .select("interest_tags")
+    .eq("is_discoverable", true)
+    .not("interest_tags", "is", null)
+
+  const availableTags = [...new Set(
+    (tagRows ?? []).flatMap((r) => (r.interest_tags as string[]) ?? [])
+  )].sort()
+
   const currentParams: DirectoryParams = {
     q,
     personas,
@@ -112,6 +122,7 @@ export default async function DirectoryPage({
       showSchoolTab={showSchoolTab}
       currentParams={currentParams}
       schools={schools}
+      availableTags={availableTags}
     />
   )
 }
