@@ -70,6 +70,7 @@ export default async function ResourceDetailPage({ params }: Props) {
   const image = resourceImage(resource)
   const details = resource.detail_body ?? resource.description
   const resourceMetadata = metadata(resource)
+  const isBenefit = resource.resource_type === "affiliate_benefit"
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -82,12 +83,12 @@ export default async function ResourceDetailPage({ params }: Props) {
 
       <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         {image && (
-          <div className="aspect-video w-full bg-zinc-100">
+          <div className={`${isBenefit ? "max-h-[28rem]" : "aspect-video"} w-full bg-zinc-100`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt={resource.image_alt ?? ""}
-              className="h-full w-full object-cover"
+              className={isBenefit ? "h-full w-full object-contain" : "h-full w-full object-cover"}
             />
           </div>
         )}
