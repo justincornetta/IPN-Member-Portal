@@ -167,10 +167,17 @@ will add a friendlier event editor later.
 | `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
 | `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
 | `thumbnail_url` | `text` | Custom event graphic/PNG URL |
+| `is_recording` | `boolean` | Marks past recording rows shown under the Events recordings tab |
+| `recording_url` | `text` | External video URL for recording rows |
+| `recording_provider` | `text` | Source label such as YouTube |
+| `recording_source_id` | `text` | External source identifier, such as a YouTube video ID |
+| `recording_published_at` | `timestamptz` | Optional source publish date for recordings |
 | `status` | `text` | `draft`, `published`, or `cancelled` |
 | `registration_count` | `integer` | Maintained by trigger; used for 10+/20+ display |
 
-RLS allows authenticated members to read only `published` events.
+RLS allows authenticated members to read only `published` events. Upcoming event
+rows use `is_recording = false`; past IPN Labs and PsychedelX recordings use
+`is_recording = true` and are shown in the Events tab instead of Resources.
 
 ### `public.event_registrations`
 
@@ -198,18 +205,18 @@ images, and other non-sensitive media assets.
 
 ### `public.resources`
 
-Member-only resource surface. Rows can represent approved affiliate/member
-benefits, IPN Labs recordings, PsychedelX recordings, IPN blog posts, or
-partner/sponsor organizations.
+Member-only resource surface. Rows represent approved affiliate/member benefits,
+IPN blog posts, or partner/sponsor organizations. Event recordings live in
+`public.events`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key |
 | `slug` | `text` | Unique stable identifier used for seed upserts |
-| `resource_type` | `text` | `affiliate_benefit`, `ipn_lab_recording`, `psychedelx_recording`, `blog_post`, or `partner` |
+| `resource_type` | `text` | `affiliate_benefit`, `blog_post`, or `partner` |
 | `title` / `description` | `text` | Member-facing card copy |
 | `url` | `text` | External source opened by the Learn More CTA |
-| `category` | `text` | Display label such as `Recordings` or `Member benefits` |
+| `category` | `text` | Display label such as `Member benefits`, `IPN Blog`, or `Partner organizations` |
 | `image_url` / `image_alt` | `text` | Optional logo or artwork and alt text |
 | `thumbnail_url` | `text` | Optional video/article thumbnail for card and detail views |
 | `benefit_note` | `text` | Optional member benefit / discount copy |

@@ -2,10 +2,121 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EventCard from "@/components/events/EventCard"
+import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
   params: Promise<{ slug: string }>
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.7}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.5 6H18m0 0v4.5M18 6l-7.5 7.5M6.75 6.75h3m-3 0A2.25 2.25 0 0 0 4.5 9v8.25a2.25 2.25 0 0 0 2.25 2.25H15a2.25 2.25 0 0 0 2.25-2.25v-3"
+      />
+    </svg>
+  )
+}
+
+function PlayIcon() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M8 5.14v13.72c0 .6.67.96 1.16.62l10.04-6.86a.75.75 0 0 0 0-1.24L9.16 4.52A.75.75 0 0 0 8 5.14Z" />
+    </svg>
+  )
+}
+
+function RecordingDetail({ event }: { event: EventRecord }) {
+  const recordingDate = formatEventDateTime(
+    event.recording_published_at ?? event.starts_at,
+    null,
+    event.timezone,
+  )
+
+  return (
+    <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="relative aspect-video bg-zinc-950">
+        {event.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.thumbnail_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-ipn shadow-sm">
+            <PlayIcon />
+          </span>
+        </div>
+      </div>
+
+      <div className="p-5 sm:p-7">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-md bg-ipn-light px-2 py-1 text-xs font-medium text-ipn">
+            {event.event_type}
+          </span>
+          {event.recording_provider && (
+            <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500">
+              {event.recording_provider}
+            </span>
+          )}
+        </div>
+
+        <h1 className="mt-4 text-2xl font-semibold leading-tight text-zinc-900">
+          {event.title}
+        </h1>
+
+        <p className="mt-3 text-sm text-zinc-500">{recordingDate}</p>
+
+        {event.speakers && (
+          <p className="mt-2 text-sm text-zinc-500">
+            <span className="font-medium text-zinc-700">Speakers:</span>{" "}
+            {event.speakers}
+          </p>
+        )}
+
+        {event.recording_url && (
+          <a
+            href={event.recording_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+          >
+            Watch recording
+            <ExternalLinkIcon />
+          </a>
+        )}
+
+        {(event.description || event.summary) && (
+          <div className="mt-7 space-y-4 text-sm leading-7 text-zinc-600">
+            {(event.description ?? event.summary ?? "")
+              .split("\n")
+              .map((paragraph, index) => (
+                <p key={`${index}-${paragraph}`}>{paragraph}</p>
+              ))}
+          </div>
+        )}
+      </div>
+    </article>
+  )
 }
 
 export default async function EventDetailPage({ params }: Props) {
@@ -27,6 +138,22 @@ export default async function EventDetailPage({ params }: Props) {
   if (!event) notFound()
 
   const eventRecord = event as EventRecord
+
+  if (eventRecord.is_recording) {
+    return (
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
+        <Link
+          href="/dashboard/events"
+          className="text-sm font-medium text-ipn hover:underline"
+        >
+          Back to events
+        </Link>
+
+        <RecordingDetail event={eventRecord} />
+      </div>
+    )
+  }
+
   const { data: registration } = await supabase
     .from("event_registrations")
     .select("event_id")
