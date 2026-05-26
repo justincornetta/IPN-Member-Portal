@@ -92,7 +92,7 @@ export async function signUp(
 
   if (error) return { error: error.message }
 
-  redirect("/verify-email")
+  redirect("/dashboard")
 }
 
 export async function signIn(
@@ -124,7 +124,7 @@ export type ProfileUpdateData = {
   psychedelic_field_status: string
   role_and_goals: string
   bio: string | null
-  area_of_interest: string | null
+  interest_tags: string[] | null
   linkedin_url: string | null
   is_discoverable: boolean
   share_location: boolean

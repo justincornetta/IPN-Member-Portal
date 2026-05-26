@@ -22,8 +22,8 @@ We use Supabase's built-in email + password auth. No third-party providers in v1
 
 1. User completes the 4-step registration form at `/register`
 2. `signUp()` is called with `email`, `password`, and all form fields packed into `user_metadata`
-3. Supabase sends a confirmation email with a magic link
-4. User clicks the link → redirected to `/auth/callback` → session created → redirected to `/dashboard`
+3. Supabase creates the session immediately (email confirmation disabled)
+4. User is redirected to `/dashboard`
 5. The `on_auth_user_created` database trigger fires on step 2 and copies `user_metadata` into the `profiles` table
 
 ### Supabase Auth settings to configure
@@ -34,7 +34,7 @@ In your Supabase project → Authentication → Settings:
 |---|---|
 | **Site URL** | `https://ipn-member-portal.netlify.app` until `members.ipn.org` moves to Netlify |
 | **Redirect URLs** | Add `http://localhost:3000/**`, `https://ipn-member-portal.netlify.app/**`, and `https://deploy-preview-*--ipn-member-portal.netlify.app/**` |
-| **Email confirmation** | Enabled (default) |
+| **Email confirmation** | Disabled (skip for demo) |
 | **Secure email change** | Enabled (default) |
 
 > Tip: Supabase allows multiple redirect URLs, including wildcard patterns for Netlify Deploy Previews. Keep `https://members.ipn.org/**` listed if the production domain is already in use or about to move.
@@ -57,9 +57,9 @@ One row per user. Created automatically on signup via trigger.
 | `city` | `text` | Display name as entered by the user |
 | `city_lat` | `float8` | Latitude — geocoded from city + country via Nominatim on signup; `null` if lookup failed |
 | `city_lng` | `float8` | Longitude — same source as `city_lat`; used for map view (v1.1) |
-| `persona` | `text` | "What best describes you?" — one of: High school, Undergraduate student, Graduate student, Professional degree student, Professional in psychedelics, Professional in another field, Other |
-| `affiliation` | `text` | Organization or employer; set for professional/other personas, `null` for students |
-| `school` | `text` | Canonical school name from the Hipo dataset; set for college/grad/professional-degree students, `null` otherwise |
+| `persona` | `text` | "What best describes you?" — one of: `High School`, `Undergraduate`, `Graduate Student`, `Professional Degree Student`, `Psychedelic Professional`, `Professional`, `Other` |
+| `affiliation` | `text` | Organization or employer; set for professional personas who are **not** affiliated with a university, `null` otherwise |
+| `school` | `text` | Canonical school name from the Hipo dataset; set for student personas **and** for professional personas who check "I work at a university", `null` otherwise |
 | `field` | `text` | Primary field of study/work |
 | `psychedelic_field_status` | `text` | Currently working in / interested / not sure |
 | `psychedelic_field_barriers` | `text[]` | Array — "why not" checkboxes |
@@ -67,14 +67,18 @@ One row per user. Created automatically on signup via trigger.
 | `inspiration` | `text` | Long-form answer |
 | `referral_source` | `text` | How they heard about IPN |
 | `bio` | `text` | Short public bio; set on profile edit page |
-| `area_of_interest` | `text` | Free-text area of interest (e.g. "Psilocybin therapy, harm reduction") |
+| `area_of_interest` | `text` | **Deprecated** — replaced by `interest_tags`; kept for historical data |
+| `interest_tags` | `text[]` | Up to 3 structured interest tags selected from a fixed list (e.g. `{Psilocybin, Harm Reduction, PTSD}`); displayed on directory cards and filterable |
 | `linkedin_url` | `text` | LinkedIn profile URL |
 | `is_discoverable` | `boolean` | Default `true`; `false` hides the member from the directory |
 | `avatar_url` | `text` | Public URL of avatar in the `avatars` Storage bucket |
+| `share_location` | `boolean` | Default `true`; controls location-based discovery (used in future "Near You" tab) |
 | `created_at` | `timestamptz` | Set on insert |
 | `updated_at` | `timestamptz` | Updated by `updateProfile` server action on every save |
 
-> **Migrating an existing database:** if the `profiles` table was created before this change, run:
+> **Migrating an existing database:**
+>
+> **One-time schema additions** (run if columns are missing):
 > ```sql
 > alter table public.profiles add column if not exists school text;
 > alter table public.profiles drop column if exists education_status;
@@ -82,11 +86,35 @@ One row per user. Created automatically on signup via trigger.
 > alter table public.profiles add column if not exists city_lng float8;
 > alter table public.profiles add column if not exists bio text;
 > alter table public.profiles add column if not exists area_of_interest text;
+> alter table public.profiles add column if not exists interest_tags text[] default '{}';
 > alter table public.profiles add column if not exists linkedin_url text;
 > alter table public.profiles add column if not exists is_discoverable boolean not null default true;
+> alter table public.profiles add column if not exists share_location boolean not null default true;
 > alter table public.profiles add column if not exists avatar_url text;
 > ```
-> Then re-run `supabase/schema.sql` to update the trigger function. The `affiliation` and `persona` columns already existed under these names.
+>
+> **Persona value migration** (short labels — run once to update existing rows):
+> ```sql
+> update profiles set persona = case persona
+>   when 'High school / pre-college'                        then 'High School'
+>   when 'Undergraduate student'                            then 'Undergraduate'
+>   when 'Graduate student (Master''s or PhD)'              then 'Graduate Student'
+>   when 'Professional degree student (MD, JD, MBA, etc.)' then 'Professional Degree Student'
+>   when 'Professional in psychedelics'                     then 'Psychedelic Professional'
+>   when 'Professional in another field'                    then 'Professional'
+>   else persona
+> end;
+> ```
+>
+> **Directory RLS policy** (allow members to view discoverable profiles):
+> ```sql
+> create policy "Members can view discoverable profiles"
+>   on public.profiles for select
+>   to authenticated
+>   using (is_discoverable = true);
+> ```
+>
+> Then re-run `supabase/schema.sql` to update the trigger function.
 
 ### Row-Level Security
 

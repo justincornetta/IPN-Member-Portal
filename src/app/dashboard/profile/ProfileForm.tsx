@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { updateProfile } from "@/lib/auth/actions"
 import {
-  BACKGROUND_OPTIONS,
+  PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
   PROFESSIONAL_BACKGROUNDS,
   FIELD_OPTIONS,
   FIELD_STATUS_OPTIONS,
+  INTEREST_TAG_OPTIONS,
 } from "@/lib/constants/registration"
 import {
   COUNTRIES,
@@ -32,7 +33,7 @@ type Profile = {
   psychedelic_field_status: string | null
   role_and_goals: string | null
   bio: string | null
-  area_of_interest: string | null
+  interest_tags: string[] | null
   linkedin_url: string | null
   is_discoverable: boolean | null
   share_location: boolean | null
@@ -52,7 +53,7 @@ type FormState = {
   psychedelic_field_status: string
   role_and_goals: string
   bio: string
-  area_of_interest: string
+  interest_tags: string[]
   linkedin_url: string
   is_discoverable: boolean
   share_location: boolean
@@ -73,7 +74,7 @@ function toFormState(profile: Profile | null): FormState {
     psychedelic_field_status: profile?.psychedelic_field_status ?? "",
     role_and_goals: profile?.role_and_goals ?? "",
     bio: profile?.bio ?? "",
-    area_of_interest: profile?.area_of_interest ?? "",
+    interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
@@ -181,6 +182,101 @@ function Combobox({
   )
 }
 
+function TagPickerModal({
+  selected,
+  onChange,
+  onClose,
+}: {
+  selected: string[]
+  onChange: (tags: string[]) => void
+  onClose: () => void
+}) {
+  const [local, setLocal] = useState<string[]>(selected)
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = "" }
+  }, [])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  function toggle(tag: string) {
+    setLocal((prev) =>
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : prev.length < 3
+          ? [...prev, tag]
+          : prev,
+    )
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <div>
+            <p className="text-sm font-semibold text-zinc-900">Pick your interests</p>
+            <p className="mt-0.5 text-xs text-zinc-400">{local.length} / 3 selected</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto px-5 py-4">
+          {INTEREST_TAG_OPTIONS.map((tag) => {
+            const active = local.includes(tag)
+            const disabled = !active && local.length >= 3
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggle(tag)}
+                disabled={disabled}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  active
+                    ? "bg-ipn text-white"
+                    : disabled
+                      ? "bg-zinc-100 text-zinc-300 cursor-not-allowed"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                {tag}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="border-t border-zinc-100 px-5 py-4">
+          <button
+            type="button"
+            onClick={() => { onChange(local); onClose() }}
+            className="w-full rounded-lg bg-ipn py-2.5 text-sm font-medium text-white transition hover:bg-ipn-dark"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Textarea({
   id, name, value, onChange, placeholder, rows = 4,
 }: {
@@ -210,6 +306,10 @@ export default function ProfileForm({
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [tagPickerOpen, setTagPickerOpen] = useState(false)
+  const [atUniversity, setAtUniversity] = useState(() =>
+    PROFESSIONAL_BACKGROUNDS.has(profile?.persona ?? "") && !!profile?.school,
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -261,7 +361,7 @@ export default function ProfileForm({
       psychedelic_field_status: data.psychedelic_field_status,
       role_and_goals: data.role_and_goals,
       bio: data.bio || null,
-      area_of_interest: data.area_of_interest || null,
+      interest_tags: data.interest_tags.length > 0 ? data.interest_tags : null,
       linkedin_url: data.linkedin_url || null,
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
@@ -275,8 +375,10 @@ export default function ProfileForm({
 
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
   const stateOptions = data.country === "Canada" ? CANADIAN_PROVINCES : US_STATES
-  const showSchool = STUDENT_BACKGROUNDS.has(data.persona)
-  const showAffiliation = PROFESSIONAL_BACKGROUNDS.has(data.persona)
+  const isProfessional = PROFESSIONAL_BACKGROUNDS.has(data.persona)
+  const showSchool = STUDENT_BACKGROUNDS.has(data.persona) || (isProfessional && atUniversity)
+  const showAffiliation = isProfessional && !atUniversity
+  const schoolLabel = isProfessional ? "University" : "School"
   const schoolOptions = SCHOOLS_BY_COUNTRY[data.country] ?? []
 
   const initials = data.first_name
@@ -354,7 +456,7 @@ export default function ProfileForm({
           <p className="text-xs font-semibold text-ipn">Visible to other members</p>
           <ul className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-zinc-500">
             <li>· Name and bio</li>
-            <li>· Area of interest</li>
+            <li>· Interest tags</li>
             <li>· LinkedIn URL</li>
             <li>· Student status / persona</li>
             <li>· School or affiliation</li>
@@ -369,12 +471,34 @@ export default function ProfileForm({
               placeholder="A short introduction visible to other members…" />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="area_of_interest">Area of interest</Label>
-            <TextInput id="area_of_interest" name="area_of_interest" value={data.area_of_interest}
-              onChange={(v) => update("area_of_interest", v)}
-              placeholder="e.g. Psilocybin therapy, clinical trials, harm reduction…" />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="interest_tags">Interests</Label>
+            <p className="text-xs text-zinc-400">Up to 3 — shown on your directory profile.</p>
+            {data.interest_tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {data.interest_tags.map((t) => (
+                  <span key={t} className="rounded-full bg-ipn-light px-3 py-1 text-xs font-medium text-ipn">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setTagPickerOpen(true)}
+              className="self-start rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50"
+            >
+              {data.interest_tags.length > 0 ? "Edit interests" : "Add interests"}
+            </button>
           </div>
+
+          {tagPickerOpen && (
+            <TagPickerModal
+              selected={data.interest_tags}
+              onChange={(tags) => update("interest_tags", tags)}
+              onClose={() => setTagPickerOpen(false)}
+            />
+          )}
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="linkedin_url">LinkedIn</Label>
@@ -385,19 +509,46 @@ export default function ProfileForm({
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="persona">What best describes you?</Label>
-            <Select id="persona" name="persona" value={data.persona}
-              onChange={(v) => { update("persona", v); update("school", ""); update("affiliation", "") }}
-              options={BACKGROUND_OPTIONS as unknown as string[]}
-              placeholder="Select…" />
+            <select
+              id="persona"
+              name="persona"
+              value={data.persona}
+              onChange={(e) => { update("persona", e.target.value); update("school", ""); update("affiliation", ""); setAtUniversity(false) }}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+            >
+              <option value="">Select…</option>
+              {PERSONA_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
+
+          {isProfessional && (
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={atUniversity}
+                onChange={(e) => {
+                  setAtUniversity(e.target.checked)
+                  if (e.target.checked) update("affiliation", "")
+                  else update("school", "")
+                }}
+                className="h-4 w-4 rounded border-zinc-300 accent-[#664fa1]"
+              />
+              <span className="text-sm text-zinc-700">I work at or am affiliated with a university</span>
+            </label>
+          )}
 
           {showSchool && (
             <div className="flex flex-col gap-1">
-              <Label htmlFor="school">School</Label>
+              <Label htmlFor="school">{schoolLabel}</Label>
               <Combobox id="school" name="school" value={data.school}
                 onChange={(v) => update("school", v)}
                 options={schoolOptions}
                 placeholder={data.country ? "Type to search…" : "Select a country first"} />
+              <p className="text-xs text-zinc-400">
+                Schools are filtered by country — update your country in the Location section to see schools in a different country.
+              </p>
             </div>
           )}
 
@@ -409,6 +560,37 @@ export default function ProfileForm({
                 placeholder="Company, organization, self-employed…" />
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ── Location ── */}
+      <section>
+        <SectionHeading>Location</SectionHeading>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="country">Country</Label>
+            <Select id="country" name="country" value={data.country}
+              onChange={(v) => { update("country", v); update("state", ""); update("school", "") }}
+              options={COUNTRIES} placeholder="Select a country" />
+          </div>
+
+          {showStateDropdown && (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="state">
+                {data.country === "Canada" ? "Province / Territory" : "State / Territory"}
+              </Label>
+              <Select id="state" name="state" value={data.state}
+                onChange={(v) => update("state", v)}
+                options={stateOptions} placeholder="Select…" />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="city">City</Label>
+            <TextInput id="city" name="city" value={data.city}
+              onChange={(v) => update("city", v)}
+              placeholder="Your current city or town" />
+          </div>
         </div>
       </section>
 
@@ -450,6 +632,17 @@ export default function ProfileForm({
         </div>
       </section>
 
+      {/* ── About You ── */}
+      <section>
+        <SectionHeading>About You</SectionHeading>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="role_and_goals">Current role and professional goals</Label>
+          <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
+            onChange={(v) => update("role_and_goals", v)} rows={4}
+            placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
+        </div>
+      </section>
+
       {/* ── Field & Focus ── */}
       <section>
         <SectionHeading>Field &amp; Focus</SectionHeading>
@@ -481,48 +674,6 @@ export default function ProfileForm({
               </label>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── Location ── */}
-      <section>
-        <SectionHeading>Location</SectionHeading>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="country">Country</Label>
-            <Select id="country" name="country" value={data.country}
-              onChange={(v) => { update("country", v); update("state", ""); update("school", "") }}
-              options={COUNTRIES} placeholder="Select a country" />
-          </div>
-
-          {showStateDropdown && (
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="state">
-                {data.country === "Canada" ? "Province / Territory" : "State / Territory"}
-              </Label>
-              <Select id="state" name="state" value={data.state}
-                onChange={(v) => update("state", v)}
-                options={stateOptions} placeholder="Select…" />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="city">City</Label>
-            <TextInput id="city" name="city" value={data.city}
-              onChange={(v) => update("city", v)}
-              placeholder="Your current city or town" />
-          </div>
-        </div>
-      </section>
-
-      {/* ── About You ── */}
-      <section>
-        <SectionHeading>About You</SectionHeading>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="role_and_goals">Current role and professional goals</Label>
-          <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
-            onChange={(v) => update("role_and_goals", v)} rows={4}
-            placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
         </div>
       </section>
 
