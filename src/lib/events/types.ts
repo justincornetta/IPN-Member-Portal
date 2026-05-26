@@ -13,6 +13,11 @@ export type EventRecord = {
   location_details: string | null
   join_url: string | null
   thumbnail_url: string | null
+  is_recording: boolean
+  recording_url: string | null
+  recording_provider: string | null
+  recording_source_id: string | null
+  recording_published_at: string | null
   status: string
   registration_count: number
 }

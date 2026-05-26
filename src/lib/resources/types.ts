@@ -1,7 +1,5 @@
 export type ResourceType =
   | "affiliate_benefit"
-  | "ipn_lab_recording"
-  | "psychedelx_recording"
   | "blog_post"
   | "partner"
 

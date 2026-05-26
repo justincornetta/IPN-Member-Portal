@@ -11,8 +11,8 @@ const RESOURCES = [
     type: "benefit",
     source: "Member benefit",
   },
-  { id: 2, title: "PsychedelX recordings", type: "video", source: "YouTube" },
-  { id: 3, title: "IPN Blog articles", type: "article", source: "IPN Blog" },
+  { id: 2, title: "IPN Blog articles", type: "article", source: "IPN Blog" },
+  { id: 3, title: "Partners and sponsors", type: "partner", source: "IPN network" },
 ]
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
@@ -29,6 +29,11 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   benefit: (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.091-3.091L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.091-3.091L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.091 3.091ZM18.25 8.25 18 9.25l-.25-1a2.25 2.25 0 0 0-1.5-1.5l-1-.25 1-.25a2.25 2.25 0 0 0 1.5-1.5l.25-1 .25 1a2.25 2.25 0 0 0 1.5 1.5l1 .25-1 .25a2.25 2.25 0 0 0-1.5 1.5ZM18.25 19.25 18 20.25l-.25-1a2.25 2.25 0 0 0-1.5-1.5l-1-.25 1-.25a2.25 2.25 0 0 0 1.5-1.5l.25-1 .25 1a2.25 2.25 0 0 0 1.5 1.5l1 .25-1 .25a2.25 2.25 0 0 0-1.5 1.5Z" />
+    </svg>
+  ),
+  partner: (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a8.25 8.25 0 0 0 3-6.36 8.25 8.25 0 1 0-16.5 0 8.25 8.25 0 0 0 3 6.36m10.5 0A8.217 8.217 0 0 1 12 20.25a8.217 8.217 0 0 1-6-1.53m12 0a5.25 5.25 0 0 0-12 0m12 0a8.198 8.198 0 0 1-6 2.28 8.198 8.198 0 0 1-6-2.28M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
     </svg>
   ),
 }
@@ -60,6 +65,7 @@ export default async function DashboardPage() {
     .from("events")
     .select("*", { count: "exact" })
     .eq("status", "published")
+    .eq("is_recording", false)
     .or(`starts_at.gte.${now},ends_at.gte.${now}`)
     .order("starts_at", { ascending: true })
     .limit(3)
@@ -108,8 +114,8 @@ export default async function DashboardPage() {
         <StatCard label="Members" value="1,200+" sub="Across 80+ schools" />
         <StatCard
           label="Resources"
-          value="35"
-          sub="Recordings, writing, partners, and benefits"
+          value="20"
+          sub="Benefits, writing, and partners"
         />
       </div>
 

@@ -169,6 +169,7 @@ create policy "Anyone can view avatars"
 --
 -- Events are authored in Supabase for v1. The Admin Portal will add a
 -- friendlier editor later. `thumbnail_url` supports custom event graphics.
+-- Past IPN Labs and PsychedelX recordings also live here with is_recording.
 
 create table if not exists public.events (
   id                  uuid primary key default gen_random_uuid(),
@@ -185,6 +186,11 @@ create table if not exists public.events (
   location_details    text,
   join_url            text,
   thumbnail_url       text,
+  is_recording        boolean not null default false,
+  recording_url       text,
+  recording_provider  text,
+  recording_source_id text,
+  recording_published_at timestamptz,
   status              text not null default 'draft'
     check (status in ('draft', 'published', 'cancelled')),
   registration_count  integer not null default 0
@@ -195,6 +201,15 @@ create table if not exists public.events (
 
 create index if not exists events_status_starts_at_idx
   on public.events (status, starts_at);
+
+alter table public.events add column if not exists is_recording boolean not null default false;
+alter table public.events add column if not exists recording_url text;
+alter table public.events add column if not exists recording_provider text;
+alter table public.events add column if not exists recording_source_id text;
+alter table public.events add column if not exists recording_published_at timestamptz;
+
+create index if not exists events_recordings_type_starts_at_idx
+  on public.events (status, is_recording, event_type, starts_at desc);
 
 alter table public.events enable row level security;
 
@@ -279,9 +294,9 @@ create trigger event_registration_count_changed
 
 -- ── 8. Resources ────────────────────────────────────────────
 --
--- Member-only resource library: approved benefits, recordings, blog posts,
--- and partner/sponsor visibility. Admin editing will come through the Admin
--- Portal; until then, rows are managed directly in Supabase.
+-- Member-only resource library: approved benefits, blog posts, and
+-- partner/sponsor visibility. Admin editing will come through the Admin Portal;
+-- until then, rows are managed directly in Supabase.
 
 insert into storage.buckets (id, name, public)
 values ('resource-assets', 'resource-assets', true)
@@ -415,3 +430,128 @@ set resource_type = excluded.resource_type,
     sort_order = excluded.sort_order,
     status = excluded.status,
     updated_at = now();
+
+insert into public.events (
+  slug,
+  title,
+  event_type,
+  starts_at,
+  ends_at,
+  timezone,
+  summary,
+  description,
+  speakers,
+  location_label,
+  location_details,
+  join_url,
+  thumbnail_url,
+  is_recording,
+  recording_url,
+  recording_provider,
+  recording_source_id,
+  recording_published_at,
+  status,
+  registration_count
+)
+select
+  resources.slug,
+  resources.title,
+  case
+    when resources.resource_type = 'ipn_lab_recording' then 'IPN Lab'
+    else 'PsychedelX'
+  end,
+  coalesce(resources.published_at, now()),
+  null,
+  'America/New_York',
+  resources.description,
+  coalesce(resources.detail_body, resources.description),
+  resources.author,
+  resources.source_name,
+  null,
+  null,
+  coalesce(resources.thumbnail_url, resources.image_url),
+  true,
+  resources.url,
+  resources.source_name,
+  resources.source_id,
+  resources.published_at,
+  resources.status,
+  0
+from public.resources
+where resources.resource_type in ('ipn_lab_recording', 'psychedelx_recording')
+on conflict (slug) do update
+set title = excluded.title,
+    event_type = excluded.event_type,
+    starts_at = excluded.starts_at,
+    ends_at = excluded.ends_at,
+    timezone = excluded.timezone,
+    summary = excluded.summary,
+    description = excluded.description,
+    speakers = excluded.speakers,
+    location_label = excluded.location_label,
+    location_details = excluded.location_details,
+    join_url = excluded.join_url,
+    thumbnail_url = excluded.thumbnail_url,
+    is_recording = excluded.is_recording,
+    recording_url = excluded.recording_url,
+    recording_provider = excluded.recording_provider,
+    recording_source_id = excluded.recording_source_id,
+    recording_published_at = excluded.recording_published_at,
+    status = excluded.status,
+    updated_at = now();
+
+insert into public.events (
+  slug,
+  title,
+  event_type,
+  starts_at,
+  ends_at,
+  timezone,
+  summary,
+  description,
+  speakers,
+  location_label,
+  location_details,
+  join_url,
+  thumbnail_url,
+  is_recording,
+  recording_url,
+  recording_provider,
+  recording_source_id,
+  recording_published_at,
+  status,
+  registration_count
+) values
+  ($$ipn-labs-recording-placeholder-1$$, $$IPN Labs recording placeholder$$, $$IPN Lab$$, $$2026-01-01T17:00:00+00:00$$, null, $$America/New_York$$, $$Draft placeholder for a future IPN Labs recording.$$, $$Draft placeholder for a future IPN Labs recording. Replace this row with a real recording URL, thumbnail, speakers, and description before publishing.$$, null, $$Video$$, null, null, null, true, null, null, null, null, $$draft$$, 0),
+  ($$ipn-labs-recording-placeholder-2$$, $$IPN Labs recording placeholder 2$$, $$IPN Lab$$, $$2026-01-02T17:00:00+00:00$$, null, $$America/New_York$$, $$Draft placeholder for a future IPN Labs recording.$$, $$Draft placeholder for a future IPN Labs recording. Replace this row with a real recording URL, thumbnail, speakers, and description before publishing.$$, null, $$Video$$, null, null, null, true, null, null, null, null, $$draft$$, 0)
+on conflict (slug) do update
+set title = excluded.title,
+    event_type = excluded.event_type,
+    starts_at = excluded.starts_at,
+    ends_at = excluded.ends_at,
+    timezone = excluded.timezone,
+    summary = excluded.summary,
+    description = excluded.description,
+    speakers = excluded.speakers,
+    location_label = excluded.location_label,
+    location_details = excluded.location_details,
+    join_url = excluded.join_url,
+    thumbnail_url = excluded.thumbnail_url,
+    is_recording = excluded.is_recording,
+    recording_url = excluded.recording_url,
+    recording_provider = excluded.recording_provider,
+    recording_source_id = excluded.recording_source_id,
+    recording_published_at = excluded.recording_published_at,
+    status = excluded.status,
+    updated_at = now();
+
+delete from public.resources
+where resource_type in ('ipn_lab_recording', 'psychedelx_recording');
+
+alter table public.resources drop constraint if exists resources_resource_type_check;
+alter table public.resources add constraint resources_resource_type_check
+  check (resource_type in (
+    'affiliate_benefit',
+    'blog_post',
+    'partner'
+  ));
