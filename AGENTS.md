@@ -25,7 +25,7 @@ Use readable branch prefixes:
 
 Commit in small, focused chunks with messages that describe what changed, such as `add member profile page with Supabase fetch`, `fix auth redirect loop on login`, or `update homepage hero copy`. Avoid vague messages like `changes`, `wip`, or `fix stuff`.
 
-Push the branch, open a PR, include a short description of what changed and why, and link the Netlify deploy preview URL when available. Get a quick second review before merging.
+Before pushing a branch, opening a PR, or requesting reviewers, show Justin the completed local changes, summarize the verification performed, and wait for explicit approval to publish. After approval, push the branch, open a PR, include a short description of what changed and why, and link the Netlify deploy preview URL when available. Get a quick second review before merging.
 
 Loose ownership boundaries:
 
