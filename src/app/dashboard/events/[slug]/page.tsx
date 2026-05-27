@@ -78,6 +78,11 @@ function RecordingDetail({ event }: { event: EventRecord }) {
               {event.recording_provider}
             </span>
           )}
+          {event.recording_category && (
+            <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500">
+              {event.recording_category}
+            </span>
+          )}
         </div>
 
         <h1 className="mt-4 text-2xl font-semibold leading-tight text-zinc-900">

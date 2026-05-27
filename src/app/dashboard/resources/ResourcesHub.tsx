@@ -144,6 +144,8 @@ function ResourceMeta({ resource }: { resource: ResourceRecord }) {
 function ResourceCard({ resource }: { resource: ResourceRecord }) {
   const isBlog = resource.resource_type === "blog_post"
   const isBenefit = resource.resource_type === "affiliate_benefit"
+  const isPartner = resource.resource_type === "partner"
+  const descriptionClamp = isPartner ? "" : "line-clamp-3"
 
   const body = (
     <article
@@ -173,7 +175,7 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
         <ResourceMeta resource={resource} />
 
         {resource.description && (
-          <p className="mt-2 line-clamp-3 text-sm leading-6 text-zinc-500">
+          <p className={`mt-2 ${descriptionClamp} text-sm leading-6 text-zinc-500`}>
             {resource.description}
           </p>
         )}
@@ -193,6 +195,11 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
           {isBlog ? (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-ipn">
               Read article
+              <ArrowIcon />
+            </span>
+          ) : isBenefit ? (
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-ipn">
+              View details
               <ArrowIcon />
             </span>
           ) : (
@@ -219,20 +226,46 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
     )
   }
 
+  if (isBenefit) {
+    return (
+      <Link href={`/dashboard/resources/${resource.slug}`} className="block h-full">
+        {body}
+      </Link>
+    )
+  }
+
   return body
 }
 
 function BlogIdeaCard() {
   return (
-    <article className="flex h-full flex-col rounded-lg border border-dashed border-ipn/30 bg-ipn/5 p-5">
+    <article className="flex h-full min-h-[28rem] flex-col rounded-lg border border-dashed border-ipn/30 bg-ipn/5 p-5">
       <p className="text-sm font-medium text-ipn">Have an article idea?</p>
       <h3 className="mt-1 text-base font-semibold text-zinc-900">
         Submit a blog pitch
       </h3>
       <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
-        Share a topic, draft, interview idea, or essay proposal with the IPN
-        blog team.
+        Publish thoughtful, well-researched writing on psychedelic academia,
+        policy, news, integration, harm reduction, and interdisciplinary
+        student perspectives. Submissions are reviewed on a rolling basis by
+        IPN Blog editors before publication.
       </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[
+          "Research summary",
+          "Opinion",
+          "Policy essay",
+          "Integration guide",
+          "Harm reduction",
+        ].map((label) => (
+          <span
+            key={label}
+            className="rounded-md bg-white px-2 py-1 text-xs font-medium text-zinc-500"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
       <a
         href={BLOG_IDEA_FORM_URL}
         target="_blank"
@@ -344,11 +377,10 @@ export default function ResourcesHub({ resources }: Props) {
           <div>
             <p className="text-sm font-medium text-ipn">Member benefits</p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">
-              Approved member benefits
+              IPN Exclusive Member Benefits
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-              Partner offers and training opportunities available to IPN
-              members.
+              Discounts and offers exclusively available to IPN members.
             </p>
           </div>
           {benefits.length ? (

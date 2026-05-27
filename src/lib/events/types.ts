@@ -16,6 +16,7 @@ export type EventRecord = {
   is_recording: boolean
   recording_url: string | null
   recording_provider: string | null
+  recording_category: string | null
   recording_source_id: string | null
   recording_published_at: string | null
   status: string
