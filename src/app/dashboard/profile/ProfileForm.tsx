@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import Cropper from "react-easy-crop"
+import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
 import { updateProfile } from "@/lib/auth/actions"
 import {
@@ -292,6 +294,25 @@ function Textarea({
   )
 }
 
+// ── Crop helper ──────────────────────────────────────────────────────────────
+
+async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = imageSrc
+  })
+  const canvas = document.createElement("canvas")
+  canvas.width = pixelCrop.width
+  canvas.height = pixelCrop.height
+  const ctx = canvas.getContext("2d")!
+  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height)
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Canvas empty"))), "image/jpeg", 0.92),
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ProfileForm({
@@ -306,6 +327,10 @@ export default function ProfileForm({
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [tagPickerOpen, setTagPickerOpen] = useState(false)
   const [atUniversity, setAtUniversity] = useState(() =>
     PROFESSIONAL_BACKGROUNDS.has(profile?.persona ?? "") && !!profile?.school,
@@ -317,30 +342,43 @@ export default function ProfileForm({
     setSaved(false)
   }
 
-  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ""
+    const reader = new FileReader()
+    reader.onload = () => setCropSrc(reader.result as string)
+    reader.readAsDataURL(file)
+  }
 
+  const onCropComplete = useCallback((_: Area, pixels: Area) => {
+    setCroppedAreaPixels(pixels)
+  }, [])
+
+  async function handleCropConfirm() {
+    if (!cropSrc || !croppedAreaPixels) return
     setAvatarUploading(true)
     setError(null)
-    const supabase = createClient()
+    setCropSrc(null)
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(userId, file, { upsert: true, contentType: file.type })
+    try {
+      const blob = await getCroppedBlob(cropSrc, croppedAreaPixels)
+      const supabase = createClient()
 
-    if (uploadError) {
-      setError(uploadError.message)
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(userId, blob, { upsert: true, contentType: "image/jpeg" })
+
+      if (uploadError) { setError(uploadError.message); return }
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(userId)
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
+
+      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
+      update("avatar_url", publicUrl)
+    } finally {
       setAvatarUploading(false)
-      return
     }
-
-    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(userId)
-    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
-
-    await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
-    update("avatar_url", publicUrl)
-    setAvatarUploading(false)
   }
 
   async function handleSave() {
@@ -690,6 +728,57 @@ export default function ProfileForm({
         {saved && <span className="text-sm text-zinc-500">Changes saved</span>}
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
+
+      {/* ── Crop modal ── */}
+      {cropSrc && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/80">
+          <div className="relative flex-1">
+            <Cropper
+              image={cropSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div className="flex flex-col gap-3 bg-zinc-900 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-ipn"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setCropSrc(null)}
+                className="flex-1 rounded-lg border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCropConfirm}
+                className="flex-1 rounded-lg bg-ipn py-2.5 text-sm font-medium text-white hover:bg-ipn/90 transition"
+              >
+                Save photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

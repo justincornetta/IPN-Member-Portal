@@ -29,3 +29,10 @@ export type DirectoryProps = {
   currentParams: DirectoryParams
   schools: string[]
 }
+
+export type ConnectionStatus = "pending" | "accepted" | "declined"
+
+export type ConnectionEntry = {
+  status: ConnectionStatus
+  amRequester: boolean
+}

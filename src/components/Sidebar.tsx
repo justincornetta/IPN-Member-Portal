@@ -60,6 +60,8 @@ type Props = {
   lastName: string | null
   email: string
   avatarUrl: string | null
+  pendingRequestCount: number
+  isAdmin: boolean
 }
 
 function AvatarCircle({
@@ -92,12 +94,16 @@ function NavContent({
   displayName,
   initials,
   avatarUrl,
+  pendingRequestCount,
+  isAdmin,
   onClose,
 }: {
   pathname: string
   displayName: string
   initials: string
   avatarUrl: string | null
+  pendingRequestCount: number
+  isAdmin: boolean
   onClose?: () => void
 }) {
   const profileActive = pathname === "/dashboard/profile"
@@ -106,7 +112,10 @@ function NavContent({
     <>
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
         {NAV.map((item) => {
-          const active = pathname === item.href
+          const active = item.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname === item.href || pathname.startsWith(item.href + "/")
+          const isCommunity = item.href === "/dashboard/community"
           return (
             <Link
               key={item.href}
@@ -119,7 +128,12 @@ function NavContent({
               }`}
             >
               <span className={active ? "text-ipn" : "text-zinc-400"}>{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {isCommunity && pendingRequestCount > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+                </span>
+              )}
             </Link>
           )
         })}
@@ -142,6 +156,28 @@ function NavContent({
           </span>
           Profile
         </Link>
+
+        {isAdmin && (() => {
+          const adminActive = pathname === "/dashboard/admin" || pathname.startsWith("/dashboard/admin/")
+          return (
+            <Link
+              href="/dashboard/admin"
+              onClick={onClose}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                adminActive
+                  ? "bg-ipn-light font-medium text-ipn"
+                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+              }`}
+            >
+              <span className={adminActive ? "text-ipn" : "text-zinc-400"}>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                </svg>
+              </span>
+              Admin
+            </Link>
+          )
+        })()}
       </nav>
 
       <div className="border-t border-zinc-100 px-4 py-3">
@@ -173,7 +209,7 @@ function NavContent({
   )
 }
 
-export default function Sidebar({ firstName, lastName, email, avatarUrl }: Props) {
+export default function Sidebar({ firstName, lastName, email, avatarUrl, pendingRequestCount, isAdmin }: Props) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -182,7 +218,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl }: Props
     ? `${firstName[0]}${lastName?.[0] ?? ""}`.toUpperCase()
     : email[0].toUpperCase()
 
-  const sharedProps = { pathname, displayName, initials, avatarUrl }
+  const sharedProps = { pathname, displayName, initials, avatarUrl, pendingRequestCount, isAdmin }
 
   return (
     <>

@@ -9,12 +9,12 @@ export default function WelcomeModal({ userId }: { userId: string }) {
   useEffect(() => {
     const key = `ipn_welcome_shown_${userId}`
     if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, "1")
       setOpen(true)
     }
   }, [userId])
 
   function dismiss() {
-    localStorage.setItem(`ipn_welcome_shown_${userId}`, "1")
     setOpen(false)
   }
 
