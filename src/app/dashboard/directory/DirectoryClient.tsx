@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { PERSONA_OPTIONS, INTEREST_TAG_OPTIONS } from "@/lib/constants/registration"
-import type { DirectoryMember, DirectoryParams } from "@/lib/directory/types"
+import type { DirectoryMember, DirectoryParams, ConnectionEntry } from "@/lib/directory/types"
+import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
 
 const PERSONAS = PERSONA_OPTIONS.map((o) => o.value)
 
@@ -84,12 +85,16 @@ function MemberCard({
 
 function MemberModal({
   member,
+  connectionEntry,
+  onConnectionChange,
   onClose,
 }: {
   member: DirectoryMember
+  connectionEntry: ConnectionEntry | undefined
+  onConnectionChange: (entry: ConnectionEntry) => void
   onClose: () => void
 }) {
-  const [connectClicked, setConnectClicked] = useState(false)
+  const [, startTransition] = useTransition()
   const initials = getInitials(member.first_name, member.last_name)
   const location = [member.city, member.state].filter(Boolean).join(", ")
   const institution = member.school ?? member.affiliation
@@ -202,18 +207,60 @@ function MemberModal({
           ) : (
             <span />
           )}
-          <button
-            type="button"
-            onClick={() => setConnectClicked(true)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              connectClicked
-                ? "bg-zinc-100 text-zinc-400 cursor-default"
-                : "bg-ipn text-white hover:bg-ipn-dark"
-            }`}
-            disabled={connectClicked}
-          >
-            {connectClicked ? "Coming soon" : "Connect"}
-          </button>
+          {(() => {
+            const { status, amRequester } = connectionEntry ?? {}
+
+            if (status === "accepted") {
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onConnectionChange({ status: "declined", amRequester: true })
+                    startTransition(() => { removeConnection(member.id) })
+                  }}
+                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500 hover:border-red-200 hover:text-red-500 transition"
+                >
+                  Connected ✓
+                </button>
+              )
+            }
+
+            if (status === "pending" && amRequester) {
+              return (
+                <button type="button" disabled className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-400 cursor-default">
+                  Request Sent
+                </button>
+              )
+            }
+
+            if (status === "pending" && !amRequester) {
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onConnectionChange({ status: "accepted", amRequester: false })
+                    startTransition(() => { acceptConnection(member.id) })
+                  }}
+                  className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
+                >
+                  Accept Request
+                </button>
+              )
+            }
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  onConnectionChange({ status: "pending", amRequester: true })
+                  startTransition(() => { sendConnectionRequest(member.id) })
+                }}
+                className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
+              >
+                Connect
+              </button>
+            )
+          })()}
         </div>
       </div>
     </div>
@@ -413,9 +460,10 @@ type Props = {
   currentParams: DirectoryParams
   schools: string[]
   availableTags: string[]
+  connectionMap: Record<string, ConnectionEntry>
 }
 
-export default function DirectoryClient({ members, showSchoolTab, currentParams, schools, availableTags }: Props) {
+export default function DirectoryClient({ members, showSchoolTab, currentParams, schools, availableTags, connectionMap: initialConnectionMap }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -427,6 +475,7 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
   const [drawerField, setDrawerField] = useState(currentParams.field)
   const [drawerTags, setDrawerTags] = useState<string[]>(currentParams.tags)
   const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(null)
+  const [connMap, setConnMap] = useState<Record<string, ConnectionEntry>>(initialConnectionMap)
   const closeModal = useCallback(() => setSelectedMember(null), [])
 
   function buildUrl(overrides: Partial<DirectoryParams>) {
@@ -704,7 +753,14 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
       />
 
       {selectedMember && (
-        <MemberModal member={selectedMember} onClose={closeModal} />
+        <MemberModal
+          member={selectedMember}
+          connectionEntry={connMap[selectedMember.id]}
+          onConnectionChange={(entry) =>
+            setConnMap((prev) => ({ ...prev, [selectedMember.id]: entry }))
+          }
+          onClose={closeModal}
+        />
       )}
     </div>
   )

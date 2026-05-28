@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import DirectoryClient from "./DirectoryClient"
-import type { DirectoryMember, DirectoryParams } from "@/lib/directory/types"
+import type { DirectoryMember, DirectoryParams, ConnectionEntry } from "@/lib/directory/types"
 
 export default async function DirectoryPage({
   searchParams,
@@ -107,6 +107,20 @@ export default async function DirectoryPage({
     (tagRows ?? []).flatMap((r) => (r.interest_tags as string[]) ?? [])
   )].sort()
 
+  const { data: connRows } = await supabase
+    .from("connections")
+    .select("requester_id, addressee_id, status")
+    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+
+  const connectionMap: Record<string, ConnectionEntry> = {}
+  for (const c of connRows ?? []) {
+    const otherId = c.requester_id === user.id ? c.addressee_id : c.requester_id
+    connectionMap[otherId] = {
+      status: c.status as ConnectionEntry["status"],
+      amRequester: c.requester_id === user.id,
+    }
+  }
+
   const currentParams: DirectoryParams = {
     q,
     personas,
@@ -123,6 +137,7 @@ export default async function DirectoryPage({
       currentParams={currentParams}
       schools={schools}
       availableTags={availableTags}
+      connectionMap={connectionMap}
     />
   )
 }
