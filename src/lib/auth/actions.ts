@@ -105,6 +105,17 @@ export async function signIn(
   redirect("/dashboard")
 }
 
+export async function sendPasswordResetEmail(
+  email: string,
+): Promise<{ error: string } | void> {
+  const supabase = await createClient()
+  const siteUrl = getSiteUrl()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+  })
+  if (error) return { error: error.message }
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()

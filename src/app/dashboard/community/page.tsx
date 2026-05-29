@@ -9,6 +9,9 @@ export type ConnectionProfile = {
   persona: string | null
   avatar_url: string | null
   email: string | null
+  bio: string | null
+  field: string | null
+  linkedin_url: string | null
 }
 
 export type ConnectionRow = {
@@ -30,8 +33,8 @@ export default async function CommunityPage() {
     .from("connections")
     .select(`
       id, requester_id, addressee_id, status, created_at,
-      requester:profiles!connections_requester_id_fkey(id, first_name, last_name, persona, avatar_url, email),
-      addressee:profiles!connections_addressee_id_fkey(id, first_name, last_name, persona, avatar_url, email)
+      requester:profiles!connections_requester_id_fkey(id, first_name, last_name, persona, avatar_url, email, bio, field, linkedin_url),
+      addressee:profiles!connections_addressee_id_fkey(id, first_name, last_name, persona, avatar_url, email, bio, field, linkedin_url)
     `)
     .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
     .order("created_at", { ascending: false })
