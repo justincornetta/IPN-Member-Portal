@@ -1,30 +1,45 @@
 "use client"
 
 import { useState, useRef } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import logo from "../../../assets/purple_full.png"
-import { signIn } from "@/lib/auth/actions"
+import { createClient } from "@/lib/supabase/client"
 import NeuralBackground from "@/components/NeuralBackground"
 
-export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null)
+export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
     const fd = new FormData(e.currentTarget)
-    const result = await signIn(
-      fd.get("email") as string,
-      fd.get("password") as string,
-    )
-    if (result?.error) {
-      setError(result.error)
-      setLoading(false)
+    const password = fd.get("password") as string
+    const confirm = fd.get("confirm") as string
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters")
+      return
     }
+    if (password !== confirm) {
+      setError("Passwords don't match")
+      return
+    }
+
+    setLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+
+    router.push("/dashboard")
   }
 
   return (
@@ -35,45 +50,36 @@ export default function LoginPage() {
           <div className="mb-5 flex justify-center">
             <Image src={logo} alt="IPN" height={40} width={200} className="h-10 w-auto" />
           </div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Sign in</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900">Choose a new password</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <label
-              htmlFor="email"
-              className="text-sm font-medium text-zinc-700"
-            >
-              Email
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700">
+              New password
             </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="password"
-                className="text-sm font-medium text-zinc-700"
-              >
-                Password
-              </label>
-              <Link href="/forgot-password" className="text-xs text-zinc-400 hover:text-ipn transition">
-                Forgot password?
-              </Link>
-            </div>
             <input
               id="password"
               name="password"
               type="password"
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
+              autoFocus
+              placeholder="At least 8 characters"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="confirm" className="text-sm font-medium text-zinc-700">
+              Confirm password
+            </label>
+            <input
+              id="confirm"
+              name="confirm"
+              type="password"
+              required
+              autoComplete="new-password"
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
             />
           </div>
@@ -85,16 +91,9 @@ export default function LoginPage() {
             disabled={loading}
             className="mt-1 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Updating…" : "Update password"}
           </button>
         </form>
-
-        <p className="mt-6 text-center text-sm text-zinc-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-ipn hover:underline">
-            Create one
-          </Link>
-        </p>
       </div>
     </div>
   )

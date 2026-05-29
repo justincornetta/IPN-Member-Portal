@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
@@ -184,6 +185,24 @@ function Combobox({
   )
 }
 
+const UPPERCASE_TAG_WORDS = new Set([
+  "LSD", "MDMA", "DMT", "PTSD", "OCD", "CBD", "THC", "IBG", "KAP", "PAT",
+  "MAPS", "FDA", "DEA", "DNA", "RNA", "ADHD", "ASD", "TBI", "IV",
+])
+
+function toTagCase(input: string): string {
+  return input
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .map((word) =>
+      UPPERCASE_TAG_WORDS.has(word.toUpperCase())
+        ? word.toUpperCase()
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+    )
+    .join(" ")
+}
+
 function TagPickerModal({
   selected,
   onChange,
@@ -194,6 +213,7 @@ function TagPickerModal({
   onClose: () => void
 }) {
   const [local, setLocal] = useState<string[]>(selected)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -216,6 +236,29 @@ function TagPickerModal({
     )
   }
 
+  const q = search.trim()
+  const filtered = INTEREST_TAG_OPTIONS.filter((t) =>
+    t.toLowerCase().includes(q.toLowerCase()),
+  )
+
+  const normalized = toTagCase(q)
+  const wordCount = q.split(/\s+/).filter(Boolean).length
+  const alreadyExists =
+    [...INTEREST_TAG_OPTIONS, ...local].some(
+      (t) => t.toLowerCase() === normalized.toLowerCase(),
+    )
+  const canAddCustom =
+    q.length > 0 &&
+    wordCount <= 3 &&
+    !alreadyExists &&
+    local.length < 3
+
+  function addCustom() {
+    if (!canAddCustom) return
+    setLocal((prev) => [...prev, normalized])
+    setSearch("")
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4"
@@ -225,44 +268,87 @@ function TagPickerModal({
         className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <div>
             <p className="text-sm font-semibold text-zinc-900">Pick your interests</p>
             <p className="mt-0.5 text-xs text-zinc-400">{local.length} / 3 selected</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
-          >
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto px-5 py-4">
-          {INTEREST_TAG_OPTIONS.map((tag) => {
-            const active = local.includes(tag)
-            const disabled = !active && local.length >= 3
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggle(tag)}
-                disabled={disabled}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  active
-                    ? "bg-ipn text-white"
-                    : disabled
-                      ? "bg-zinc-100 text-zinc-300 cursor-not-allowed"
-                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                }`}
-              >
-                {tag}
-              </button>
-            )
-          })}
+        {/* Search */}
+        <div className="border-b border-zinc-100 px-5 py-3">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search interests…"
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
+            autoFocus
+          />
+        </div>
+
+        {/* Tag list */}
+        <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto px-5 py-4">
+          {filtered.length > 0 ? (
+            filtered.map((tag) => {
+              const active = local.includes(tag)
+              const disabled = !active && local.length >= 3
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggle(tag)}
+                  disabled={disabled}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    active
+                      ? "bg-ipn text-white"
+                      : disabled
+                        ? "bg-zinc-100 text-zinc-300 cursor-not-allowed"
+                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {tag}
+                </button>
+              )
+            })
+          ) : (
+            <p className="text-xs text-zinc-400">No matching interests found.</p>
+          )}
+        </div>
+
+        {/* Custom tag */}
+        <div className="border-t border-zinc-100 px-5 py-3">
+          <p className="mb-2 text-xs text-zinc-400">Not finding what you&apos;re looking for? Add a custom interest:</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom() } }}
+              placeholder="e.g. Ecotherapy"
+              className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
+            />
+            <button
+              type="button"
+              onClick={addCustom}
+              disabled={!canAddCustom}
+              className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              Add
+            </button>
+          </div>
+          {q.length > 0 && normalized && (
+            <p className="mt-1.5 text-xs text-zinc-400">
+              Will be saved as: <span className="font-medium text-zinc-600">{normalized}</span>
+              {wordCount > 3 && <span className="ml-1 text-red-500">(max 3 words)</span>}
+            </p>
+          )}
         </div>
 
         <div className="border-t border-zinc-100 px-5 py-4">
@@ -322,6 +408,7 @@ export default function ProfileForm({
   profile: Profile | null
   userId: string
 }) {
+  const router = useRouter()
   const [data, setData] = useState<FormState>(() => toFormState(profile))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -376,6 +463,7 @@ export default function ProfileForm({
 
       await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
       update("avatar_url", publicUrl)
+      router.refresh()
     } finally {
       setAvatarUploading(false)
     }

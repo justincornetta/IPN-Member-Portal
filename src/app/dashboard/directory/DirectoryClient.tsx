@@ -49,14 +49,17 @@ function PersonaBadge({ persona }: { persona: string | null }) {
 
 function MemberCard({
   member,
+  connectionEntry,
   onOpen,
 }: {
   member: DirectoryMember
+  connectionEntry?: ConnectionEntry
   onOpen: (m: DirectoryMember) => void
 }) {
   const initials = getInitials(member.first_name, member.last_name)
   const institution = member.school ?? member.affiliation
   const tags = member.interest_tags ?? []
+  const isConnected = connectionEntry?.status === "accepted"
 
   return (
     <button
@@ -64,7 +67,16 @@ function MemberCard({
       onClick={() => onOpen(member)}
       className="group flex w-full flex-col items-center rounded-xl border border-zinc-200 bg-white px-4 pb-5 pt-6 shadow-sm transition duration-150 ease-out hover:[transform:translateY(-6px)] hover:border-ipn hover:shadow-lg text-left cursor-pointer"
     >
-      <AvatarCircle avatarUrl={member.avatar_url} initials={initials} />
+      <div className="relative">
+        <AvatarCircle avatarUrl={member.avatar_url} initials={initials} />
+        {isConnected && (
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 ring-2 ring-white">
+            <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </span>
+        )}
+      </div>
       <p className="mt-3 text-center text-sm font-semibold text-zinc-900 group-hover:text-ipn">
         {member.first_name} {member.last_name}
       </p>
@@ -83,6 +95,43 @@ function MemberCard({
   )
 }
 
+function ConfirmRemoveModal({
+  name,
+  onConfirm,
+  onCancel,
+}: {
+  name: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onCancel() }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onCancel])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-zinc-950/40 px-4" onClick={onCancel}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-base font-semibold text-zinc-900">Remove connection?</h2>
+        <p className="mt-2 text-sm text-zinc-500">
+          You and <span className="font-medium text-zinc-700">{name}</span> will no longer be connected.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={onCancel}
+            className="flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition">
+            Cancel
+          </button>
+          <button type="button" onClick={onConfirm}
+            className="flex-1 rounded-lg border border-ipn bg-transparent py-2 text-sm font-medium text-ipn hover:bg-ipn/5 transition">
+            Remove connection
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MemberModal({
   member,
   connectionEntry,
@@ -95,6 +144,7 @@ function MemberModal({
   onClose: () => void
 }) {
   const [, startTransition] = useTransition()
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const initials = getInitials(member.first_name, member.last_name)
   const location = [member.city, member.state].filter(Boolean).join(", ")
   const institution = member.school ?? member.affiliation
@@ -192,7 +242,15 @@ function MemberModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-4">
-          {member.linkedin_url ? (
+          {connectionEntry?.status === "accepted" ? (
+            <button
+              type="button"
+              onClick={() => setConfirmRemove(true)}
+              className="rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn hover:bg-ipn/5 transition"
+            >
+              Remove connection
+            </button>
+          ) : member.linkedin_url ? (
             <a
               href={member.linkedin_url}
               target="_blank"
@@ -212,16 +270,12 @@ function MemberModal({
 
             if (status === "accepted") {
               return (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onConnectionChange({ status: "declined", amRequester: true })
-                    startTransition(() => { removeConnection(member.id) })
-                  }}
-                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500 hover:border-red-200 hover:text-red-500 transition"
-                >
-                  Connected ✓
-                </button>
+                <span className="flex items-center gap-1.5 text-sm font-medium text-green-600">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  Connected
+                </span>
               )
             }
 
@@ -262,7 +316,25 @@ function MemberModal({
             )
           })()}
         </div>
+
+        {(!connectionEntry || connectionEntry.status === "declined") && (
+          <p className="px-6 pb-4 text-center text-xs text-zinc-400">
+            Connecting lets you share email addresses with each other.
+          </p>
+        )}
       </div>
+
+      {confirmRemove && (
+        <ConfirmRemoveModal
+          name={`${member.first_name ?? ""} ${member.last_name ?? ""}`.trim()}
+          onConfirm={() => {
+            onConnectionChange({ status: "declined", amRequester: true })
+            startTransition(() => { removeConnection(member.id) })
+            setConfirmRemove(false)
+          }}
+          onCancel={() => setConfirmRemove(false)}
+        />
+      )}
     </div>
   )
 }
@@ -714,7 +786,7 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
       {members.length > 0 ? (
         <div className={`grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
           {members.map((member) => (
-            <MemberCard key={member.id} member={member} onOpen={setSelectedMember} />
+            <MemberCard key={member.id} member={member} connectionEntry={connMap[member.id]} onOpen={setSelectedMember} />
           ))}
         </div>
       ) : (
