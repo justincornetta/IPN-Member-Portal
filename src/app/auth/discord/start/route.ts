@@ -7,15 +7,13 @@ function normalizeSiteUrl(url: string): string {
   return withProtocol.replace(/\/$/, "")
 }
 
-function getSiteUrl(origin: string): string {
-  const isNetlifyPreview =
-    process.env.CONTEXT === "deploy-preview" ||
-    process.env.CONTEXT === "branch-deploy"
-  const envUrl = isNetlifyPreview
-    ? process.env.DEPLOY_PRIME_URL
-    : process.env.NEXT_PUBLIC_SITE_URL ?? process.env.URL
+function getSiteUrl(request: Request, fallbackOrigin: string): string {
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
+  const forwardedProtocol = request.headers.get("x-forwarded-proto") ?? "https"
 
-  return normalizeSiteUrl(envUrl ?? origin)
+  if (!forwardedHost) return normalizeSiteUrl(fallbackOrigin)
+
+  return normalizeSiteUrl(`${forwardedProtocol}://${forwardedHost}`)
 }
 
 function sanitizeNext(value: string | null): string {
@@ -27,10 +25,11 @@ function sanitizeNext(value: string | null): string {
 
 export async function GET(request: Request) {
   const { origin, searchParams } = new URL(request.url)
+  const siteUrl = getSiteUrl(request, origin)
   const clientId = process.env.DISCORD_CLIENT_ID
 
   if (!clientId) {
-    return NextResponse.redirect(`${origin}/dashboard/profile?discord=missing_config`)
+    return NextResponse.redirect(`${siteUrl}/dashboard/profile?discord=missing_config`)
   }
 
   const next = sanitizeNext(searchParams.get("next"))
@@ -43,21 +42,21 @@ export async function GET(request: Request) {
   cookieStore.set("ipn_discord_oauth_state", state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: getSiteUrl(origin).startsWith("https://"),
+    secure: siteUrl.startsWith("https://"),
     path: "/",
     maxAge: 10 * 60,
   })
   cookieStore.set("ipn_discord_oauth_next", next, {
     httpOnly: true,
     sameSite: "lax",
-    secure: getSiteUrl(origin).startsWith("https://"),
+    secure: siteUrl.startsWith("https://"),
     path: "/",
     maxAge: 10 * 60,
   })
 
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: `${getSiteUrl(origin)}/auth/discord/callback`,
+    redirect_uri: `${siteUrl}/auth/discord/callback`,
     response_type: "code",
     scope: scopes.join(" "),
     state,

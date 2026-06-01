@@ -21,15 +21,13 @@ function normalizeSiteUrl(url: string): string {
   return withProtocol.replace(/\/$/, "")
 }
 
-function getSiteUrl(origin: string): string {
-  const isNetlifyPreview =
-    process.env.CONTEXT === "deploy-preview" ||
-    process.env.CONTEXT === "branch-deploy"
-  const envUrl = isNetlifyPreview
-    ? process.env.DEPLOY_PRIME_URL
-    : process.env.NEXT_PUBLIC_SITE_URL ?? process.env.URL
+function getSiteUrl(request: Request, fallbackOrigin: string): string {
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
+  const forwardedProtocol = request.headers.get("x-forwarded-proto") ?? "https"
 
-  return normalizeSiteUrl(envUrl ?? origin)
+  if (!forwardedHost) return normalizeSiteUrl(fallbackOrigin)
+
+  return normalizeSiteUrl(`${forwardedProtocol}://${forwardedHost}`)
 }
 
 function sanitizeNext(value: string | undefined): string {
@@ -76,6 +74,7 @@ async function addDiscordGuildMember(discordUserId: string, accessToken: string)
 
 export async function GET(request: Request) {
   const { origin, searchParams } = new URL(request.url)
+  const siteUrl = getSiteUrl(request, origin)
   const code = searchParams.get("code")
   const state = searchParams.get("state")
   const cookieStore = await cookies()
@@ -85,20 +84,20 @@ export async function GET(request: Request) {
   cookieStore.delete("ipn_discord_oauth_next")
 
   if (!code || !state || !savedState || state !== savedState) {
-    return redirectWithStatus(origin, next, "state_error")
+    return redirectWithStatus(siteUrl, next, "state_error")
   }
 
   const clientId = process.env.DISCORD_CLIENT_ID
   const clientSecret = process.env.DISCORD_CLIENT_SECRET
   if (!clientId || !clientSecret) {
-    return redirectWithStatus(origin, next, "missing_config")
+    return redirectWithStatus(siteUrl, next, "missing_config")
   }
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.redirect(`${origin}/login`)
+  if (!user) return NextResponse.redirect(`${siteUrl}/login`)
 
   const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
     method: "POST",
@@ -108,18 +107,18 @@ export async function GET(request: Request) {
       client_secret: clientSecret,
       grant_type: "authorization_code",
       code,
-      redirect_uri: `${getSiteUrl(origin)}/auth/discord/callback`,
+      redirect_uri: `${siteUrl}/auth/discord/callback`,
     }),
   })
 
-  if (!tokenResponse.ok) return redirectWithStatus(origin, next, "token_error")
+  if (!tokenResponse.ok) return redirectWithStatus(siteUrl, next, "token_error")
   const token = (await tokenResponse.json()) as DiscordTokenResponse
 
   const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
     headers: { Authorization: `${token.token_type} ${token.access_token}` },
   })
 
-  if (!userResponse.ok) return redirectWithStatus(origin, next, "user_error")
+  if (!userResponse.ok) return redirectWithStatus(siteUrl, next, "user_error")
   const discordUser = (await userResponse.json()) as DiscordUserResponse
   const join = await addDiscordGuildMember(discordUser.id, token.access_token)
 
@@ -140,7 +139,7 @@ export async function GET(request: Request) {
     })
     .eq("id", user.id)
 
-  if (error) return redirectWithStatus(origin, next, "save_error")
+  if (error) return redirectWithStatus(siteUrl, next, "save_error")
 
-  return redirectWithStatus(origin, next, join.status === "join_failed" ? "connected_join_failed" : "connected")
+  return redirectWithStatus(siteUrl, next, join.status === "join_failed" ? "connected_join_failed" : "connected")
 }
