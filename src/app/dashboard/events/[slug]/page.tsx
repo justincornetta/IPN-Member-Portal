@@ -342,9 +342,6 @@ function SpeakerResourcesSection({
               Relevant Papers and Event Resources
             </h2>
           </div>
-          <span className="w-fit rounded-md bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn">
-            Event chat prep
-          </span>
         </div>
 
         <div className="mt-5 flex flex-col gap-3">
