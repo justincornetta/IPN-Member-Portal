@@ -783,6 +783,8 @@ export default function ProfileForm({
                 <>
                   <a
                     href="/auth/discord/start?next=/dashboard/profile"
+                    target="_blank"
+                    rel="noreferrer"
                     className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
                   >
                     Reconnect
@@ -799,6 +801,8 @@ export default function ProfileForm({
               ) : (
                 <a
                   href="/auth/discord/start?next=/dashboard/profile"
+                  target="_blank"
+                  rel="noreferrer"
                   className="rounded-lg bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#4752C4]"
                 >
                   Connect Discord

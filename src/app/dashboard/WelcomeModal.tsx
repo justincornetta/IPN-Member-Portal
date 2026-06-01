@@ -78,7 +78,8 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           </Link>
           <Link
             href="/auth/discord/start?next=/dashboard/profile"
-            onClick={dismiss}
+            target="_blank"
+            rel="noreferrer"
             className="flex-1 rounded-lg border border-[#5865F2]/30 px-4 py-2.5 text-center text-sm font-medium text-[#5865F2] hover:bg-[#5865F2]/5 transition"
           >
             Connect Discord
