@@ -139,10 +139,45 @@ will add a friendlier event editor later.
 | `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
 | `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
 | `thumbnail_url` | `text` | Custom event graphic/PNG URL |
+| `speaker_resources` | `jsonb` | Optional IPN Lab papers, event resources, and speaker links |
 | `status` | `text` | `draft`, `published`, or `cancelled` |
 | `registration_count` | `integer` | Maintained by trigger; used for 10+/20+ display |
 
 RLS allows authenticated members to read only `published` events.
+
+`speaker_resources` is optional. IPN Lab detail pages show placeholders when
+the field is empty. When populated, use this shape:
+
+```json
+{
+  "papers": [
+    {
+      "title": "Paper title",
+      "url": "https://example.com/paper",
+      "citation": "Author et al., 2026",
+      "note": "Optional context for members"
+    }
+  ],
+  "resources": [
+    {
+      "title": "Slides or event resource",
+      "url": "https://example.com/resource",
+      "source": "Slides",
+      "note": "Optional context for members"
+    }
+  ],
+  "speakerLinks": [
+    {
+      "label": "Personal website",
+      "url": "https://example.com",
+      "type": "website"
+    }
+  ]
+}
+```
+
+Supported `speakerLinks.type` values are `website`, `email`, `profile`,
+`social`, and `other`. Email links should use a `mailto:` URL.
 
 ### `public.event_registrations`
 

@@ -185,6 +185,7 @@ create table if not exists public.events (
   location_details    text,
   join_url            text,
   thumbnail_url       text,
+  speaker_resources   jsonb,
   status              text not null default 'draft'
     check (status in ('draft', 'published', 'cancelled')),
   registration_count  integer not null default 0
@@ -192,6 +193,8 @@ create table if not exists public.events (
   created_at          timestamptz default now(),
   updated_at          timestamptz default now()
 );
+
+alter table public.events add column if not exists speaker_resources jsonb;
 
 create index if not exists events_status_starts_at_idx
   on public.events (status, starts_at);
