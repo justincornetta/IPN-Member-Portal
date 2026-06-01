@@ -192,6 +192,7 @@ create table if not exists public.events (
   recording_category  text,
   recording_source_id text,
   recording_published_at timestamptz,
+  speaker_resources   jsonb,
   status              text not null default 'draft'
     check (status in ('draft', 'published', 'cancelled')),
   registration_count  integer not null default 0
@@ -199,6 +200,8 @@ create table if not exists public.events (
   created_at          timestamptz default now(),
   updated_at          timestamptz default now()
 );
+
+alter table public.events add column if not exists speaker_resources jsonb;
 
 create index if not exists events_status_starts_at_idx
   on public.events (status, starts_at);
@@ -209,6 +212,7 @@ alter table public.events add column if not exists recording_provider text;
 alter table public.events add column if not exists recording_category text;
 alter table public.events add column if not exists recording_source_id text;
 alter table public.events add column if not exists recording_published_at timestamptz;
+alter table public.events add column if not exists speaker_resources jsonb;
 
 create index if not exists events_recordings_type_starts_at_idx
   on public.events (status, is_recording, event_type, starts_at desc);

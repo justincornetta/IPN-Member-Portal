@@ -1,3 +1,36 @@
+export type EventSpeakerPaper = {
+  title: string
+  url?: string | null
+  citation?: string | null
+  note?: string | null
+}
+
+export type EventSpeakerResource = {
+  title: string
+  url?: string | null
+  source?: string | null
+  note?: string | null
+}
+
+export type EventSpeakerLinkType =
+  | "website"
+  | "email"
+  | "profile"
+  | "social"
+  | "other"
+
+export type EventSpeakerLink = {
+  label: string
+  url?: string | null
+  type?: EventSpeakerLinkType | null
+}
+
+export type EventSpeakerResources = {
+  papers?: EventSpeakerPaper[] | null
+  resources?: EventSpeakerResource[] | null
+  speakerLinks?: EventSpeakerLink[] | null
+}
+
 export type EventRecord = {
   id: string
   slug: string
@@ -19,6 +52,7 @@ export type EventRecord = {
   recording_category: string | null
   recording_source_id: string | null
   recording_published_at: string | null
+  speaker_resources: EventSpeakerResources | null
   status: string
   registration_count: number
 }
