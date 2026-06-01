@@ -22,7 +22,14 @@ function normalizeSiteUrl(url: string): string {
 }
 
 function getSiteUrl(origin: string): string {
-  return normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL ?? origin)
+  const isNetlifyPreview =
+    process.env.CONTEXT === "deploy-preview" ||
+    process.env.CONTEXT === "branch-deploy"
+  const envUrl = isNetlifyPreview
+    ? process.env.DEPLOY_PRIME_URL
+    : process.env.NEXT_PUBLIC_SITE_URL ?? process.env.URL
+
+  return normalizeSiteUrl(envUrl ?? origin)
 }
 
 function sanitizeNext(value: string | undefined): string {
