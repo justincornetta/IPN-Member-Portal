@@ -2,7 +2,9 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EventCard from "@/components/events/EventCard"
+import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
 import { formatEventDateTime } from "@/lib/events/calendar"
+import { buildWidgetBotUrl } from "@/lib/discord/widgetbot"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
@@ -170,6 +172,10 @@ export default async function EventDetailPage({ params }: Props) {
     ...eventRecord,
     is_registered: Boolean(registration),
   }
+  const eventChatUrl =
+    eventRecord.chat_status === "active"
+      ? eventRecord.chat_widget_url || buildWidgetBotUrl(eventRecord.chat_channel_id)
+      : null
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -181,6 +187,31 @@ export default async function EventDetailPage({ params }: Props) {
       </Link>
 
       <EventCard event={eventWithRegistration} />
+
+      {eventWithRegistration.is_registered && eventChatUrl && (
+        <section id="event-chat" className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900">Event chat</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Join the conversation before and after this event.
+              </p>
+            </div>
+            {eventRecord.chat_external_url && (
+              <a
+                href={eventRecord.chat_external_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+              >
+                Open in Discord
+                <ExternalLinkIcon />
+              </a>
+            )}
+          </div>
+          <WidgetBotEmbed title={`${eventRecord.title} event chat`} src={eventChatUrl} />
+        </section>
+      )}
 
       {(eventRecord.description || eventRecord.location_details) && (
         <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">

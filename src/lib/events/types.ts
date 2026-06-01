@@ -13,6 +13,11 @@ export type EventRecord = {
   location_details: string | null
   join_url: string | null
   thumbnail_url: string | null
+  chat_platform: string | null
+  chat_status: "none" | "draft" | "active" | "archived"
+  chat_channel_id: string | null
+  chat_widget_url: string | null
+  chat_external_url: string | null
   is_recording: boolean
   recording_url: string | null
   recording_provider: string | null

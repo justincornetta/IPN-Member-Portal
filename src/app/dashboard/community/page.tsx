@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation"
+import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
+import { getAnnouncementsWidgetBotUrl } from "@/lib/discord/widgetbot"
 import { createClient } from "@/lib/supabase/server"
 import CommunityClient from "./CommunityClient"
 
@@ -47,10 +49,22 @@ export default async function CommunityPage() {
   )
 
   return (
-    <CommunityClient
-      userId={user.id}
-      accepted={accepted}
-      incoming={incoming}
-    />
+    <>
+      <CommunityClient
+        userId={user.id}
+        accepted={accepted}
+        incoming={incoming}
+      />
+
+      <section className="px-4 pb-8 sm:px-8">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <WidgetBotEmbed
+            title="IPN Discord announcements"
+            src={getAnnouncementsWidgetBotUrl()}
+            height="h-[640px]"
+          />
+        </div>
+      </section>
+    </>
   )
 }

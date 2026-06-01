@@ -2,6 +2,8 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
+import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
+import { getAnnouncementsWidgetBotUrl } from "@/lib/discord/widgetbot"
 import WelcomeModal from "./WelcomeModal"
 
 const RESOURCES = [
@@ -77,6 +79,7 @@ export default async function DashboardPage() {
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
+  const announcementsWidgetUrl = getAnnouncementsWidgetBotUrl()
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:gap-8 sm:p-8">
@@ -176,6 +179,21 @@ export default async function DashboardPage() {
 
         {/* Right column */}
         <div className="flex flex-col gap-6">
+          {/* Announcements */}
+          <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-sm font-semibold text-zinc-800">Announcements</h2>
+              <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
+                Discord
+              </span>
+            </div>
+            <WidgetBotEmbed
+              title="IPN Discord announcements"
+              src={announcementsWidgetUrl}
+              height="h-[360px]"
+            />
+          </div>
+
           {/* Resources */}
           <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">

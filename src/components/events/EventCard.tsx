@@ -131,9 +131,19 @@ function ConfirmationModal({
                 registered IPN members before and after the session.
               </p>
             </div>
-            <span className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn">
-              Coming soon
-            </span>
+            {event.chat_status === "active" ? (
+              <Link
+                href={`/dashboard/events/${event.slug}#event-chat`}
+                onClick={onClose}
+                className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn"
+              >
+                Open
+              </Link>
+            ) : (
+              <span className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn">
+                Coming soon
+              </span>
+            )}
           </div>
         </div>
 
@@ -299,13 +309,22 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       {countLabel}
                     </span>
                   )}
-                  <button
-                    type="button"
-                    disabled
-                    className="rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400"
-                  >
-                    Event chat coming soon
-                  </button>
+                  {event.chat_status === "active" ? (
+                    <Link
+                      href={`/dashboard/events/${event.slug}#event-chat`}
+                      className="rounded-md border border-ipn/20 bg-ipn/5 px-2.5 py-1.5 text-xs font-medium text-ipn"
+                    >
+                      Event chat
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400"
+                    >
+                      Event chat coming soon
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"

@@ -158,3 +158,27 @@ export async function updateProfile(
 
   if (error) return { error: error.message }
 }
+
+export async function disconnectDiscord(): Promise<{ error: string } | void> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      discord_user_id: null,
+      discord_username: null,
+      discord_global_name: null,
+      discord_avatar_url: null,
+      discord_connected_at: null,
+      discord_server_status: null,
+      discord_server_joined_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id)
+
+  if (error) return { error: error.message }
+}
