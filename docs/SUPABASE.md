@@ -172,12 +172,47 @@ will add a friendlier event editor later.
 | `recording_provider` | `text` | Source label such as YouTube |
 | `recording_source_id` | `text` | External source identifier, such as a YouTube video ID |
 | `recording_published_at` | `timestamptz` | Optional source publish date for recordings |
+| `speaker_resources` | `jsonb` | Optional IPN Lab papers, event resources, and speaker links |
 | `status` | `text` | `draft`, `published`, or `cancelled` |
 | `registration_count` | `integer` | Maintained by trigger; used for 10+/20+ display |
 
 RLS allows authenticated members to read only `published` events. Upcoming event
 rows use `is_recording = false`; past IPN Labs and PsychedelX recordings use
 `is_recording = true` and are shown in the Events tab instead of Resources.
+
+`speaker_resources` is optional. IPN Lab detail pages show placeholders when
+the field is empty. When populated, use this shape:
+
+```json
+{
+  "papers": [
+    {
+      "title": "Paper title",
+      "url": "https://example.com/paper",
+      "citation": "Author et al., 2026",
+      "note": "Optional context for members"
+    }
+  ],
+  "resources": [
+    {
+      "title": "Slides or event resource",
+      "url": "https://example.com/resource",
+      "source": "Slides",
+      "note": "Optional context for members"
+    }
+  ],
+  "speakerLinks": [
+    {
+      "label": "Personal website",
+      "url": "https://example.com",
+      "type": "website"
+    }
+  ]
+}
+```
+
+Supported `speakerLinks.type` values are `website`, `email`, `profile`,
+`social`, and `other`. Email links should use a `mailto:` URL.
 
 ### `public.event_registrations`
 
