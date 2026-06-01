@@ -7,5 +7,5 @@ export function buildWidgetBotUrl(channelId?: string | null): string | null {
 }
 
 export function getAnnouncementsWidgetBotUrl(): string | null {
-  return buildWidgetBotUrl(process.env.NEXT_PUBLIC_WIDGETBOT_ANNOUNCEMENTS_CHANNEL_ID)
+  return buildWidgetBotUrl(process.env.NEXT_PUBLIC_WIDGETBOT_JOIN_EVENTS_CHANNEL_ID)
 }

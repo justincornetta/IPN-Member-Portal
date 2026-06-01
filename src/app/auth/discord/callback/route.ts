@@ -2,6 +2,8 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+const DISCORD_INVITE_URL = "https://discord.gg/YDdMGNF7X5"
+
 type DiscordTokenResponse = {
   access_token: string
   token_type: string
@@ -141,5 +143,5 @@ export async function GET(request: Request) {
 
   if (error) return redirectWithStatus(siteUrl, next, "save_error")
 
-  return redirectWithStatus(siteUrl, next, join.status === "join_failed" ? "connected_join_failed" : "connected")
+  return NextResponse.redirect(DISCORD_INVITE_URL)
 }
