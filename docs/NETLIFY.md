@@ -30,6 +30,12 @@ Add these in Netlify project settings:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Same value | Public anon client config |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Same value | Public anon client config |
 | `NEXT_PUBLIC_SITE_URL` | Leave unset until the production domain moves | Leave unset | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this to `https://members.ipn.org` only after the production domain moves |
+| `DISCORD_CLIENT_ID` | Discord OAuth app client ID | Same value | Required for Discord account linking |
+| `DISCORD_CLIENT_SECRET` | Discord OAuth app client secret | Same value | Secret; required for OAuth token exchange |
+| `DISCORD_BOT_TOKEN` | Discord bot token | Same value | Secret; required for automatic server join |
+| `DISCORD_GUILD_ID` | Discord server ID | Same value | Required for automatic server join |
+| `NEXT_PUBLIC_WIDGETBOT_SERVER_ID` | Discord server ID | Same value | Public WidgetBot server ID |
+| `NEXT_PUBLIC_WIDGETBOT_JOIN_EVENTS_CHANNEL_ID` | Discord channel ID | Same value | Public WidgetBot dashboard channel |
 
 Do not add service-role keys, Mailchimp keys, or webhook secrets until a feature needs them.
 

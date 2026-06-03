@@ -27,10 +27,18 @@ create table if not exists public.profiles (
   referral_source           text,
   bio                       text,
   area_of_interest          text,
+  interest_tags             text[] default '{}',
   linkedin_url              text,
   is_discoverable           boolean not null default true,
   share_location            boolean not null default true,
   avatar_url                text,
+  discord_user_id           text,
+  discord_username          text,
+  discord_global_name       text,
+  discord_avatar_url        text,
+  discord_connected_at      timestamptz,
+  discord_server_status     text,
+  discord_server_joined_at  timestamptz,
   created_at                timestamptz default now(),
   updated_at                timestamptz default now()
 );
@@ -42,10 +50,24 @@ create table if not exists public.profiles (
 -- alter table public.profiles add column if not exists city_lng float8;
 -- alter table public.profiles add column if not exists bio text;
 -- alter table public.profiles add column if not exists area_of_interest text;
+-- alter table public.profiles add column if not exists interest_tags text[] default '{}';
 -- alter table public.profiles add column if not exists linkedin_url text;
 -- alter table public.profiles add column if not exists is_discoverable boolean not null default true;
 -- alter table public.profiles add column if not exists share_location boolean not null default true;
 -- alter table public.profiles add column if not exists avatar_url text;
+
+alter table public.profiles add column if not exists interest_tags text[] default '{}';
+alter table public.profiles add column if not exists discord_user_id text;
+alter table public.profiles add column if not exists discord_username text;
+alter table public.profiles add column if not exists discord_global_name text;
+alter table public.profiles add column if not exists discord_avatar_url text;
+alter table public.profiles add column if not exists discord_connected_at timestamptz;
+alter table public.profiles add column if not exists discord_server_status text;
+alter table public.profiles add column if not exists discord_server_joined_at timestamptz;
+
+create unique index if not exists profiles_discord_user_id_unique
+  on public.profiles (discord_user_id)
+  where discord_user_id is not null;
 
 
 -- ── 2. Row-Level Security ────────────────────────────────────
@@ -186,6 +208,12 @@ create table if not exists public.events (
   location_details    text,
   join_url            text,
   thumbnail_url       text,
+  chat_platform       text,
+  chat_channel_id     text,
+  chat_widget_url     text,
+  chat_external_url   text,
+  chat_status         text
+    check (chat_status is null or chat_status in ('draft', 'active', 'archived')),
   is_recording        boolean not null default false,
   recording_url       text,
   recording_provider  text,
@@ -202,6 +230,25 @@ create table if not exists public.events (
 );
 
 alter table public.events add column if not exists speaker_resources jsonb;
+alter table public.events add column if not exists chat_platform text;
+alter table public.events add column if not exists chat_channel_id text;
+alter table public.events add column if not exists chat_widget_url text;
+alter table public.events add column if not exists chat_external_url text;
+alter table public.events add column if not exists chat_status text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'events_chat_status_check'
+      and conrelid = 'public.events'::regclass
+  ) then
+    alter table public.events
+      add constraint events_chat_status_check
+      check (chat_status is null or chat_status in ('draft', 'active', 'archived'));
+  end if;
+end $$;
 
 create index if not exists events_status_starts_at_idx
   on public.events (status, starts_at);

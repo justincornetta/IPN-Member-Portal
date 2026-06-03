@@ -56,6 +56,7 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           {[
             "Add a bio and photo so other members can find you",
             "Select up to 3 interest tags to appear in directory filters",
+            "Connect Discord for event chats and community updates",
             "Control your visibility and what you share",
           ].map((item) => (
             <li key={item} className="flex items-start gap-2">
@@ -75,6 +76,14 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           >
             Complete your profile
           </Link>
+          <a
+            href="/auth/discord/start?next=/dashboard/profile"
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 rounded-lg bg-[#5865F2] px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-[#4752C4]"
+          >
+            Connect Discord
+          </a>
           <button
             onClick={dismiss}
             className="flex-1 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition"
