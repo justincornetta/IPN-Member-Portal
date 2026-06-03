@@ -73,6 +73,13 @@ One row per user. Created automatically on signup via trigger.
 | `is_discoverable` | `boolean` | Default `true`; `false` hides the member from the directory |
 | `avatar_url` | `text` | Public URL of avatar in the `avatars` Storage bucket |
 | `share_location` | `boolean` | Default `true`; controls location-based discovery (used in future "Near You" tab) |
+| `discord_user_id` | `text` | Verified Discord user ID from OAuth |
+| `discord_username` | `text` | Discord username |
+| `discord_global_name` | `text` | Discord display name, when provided |
+| `discord_avatar_url` | `text` | Discord avatar URL |
+| `discord_connected_at` | `timestamptz` | When the member linked Discord |
+| `discord_server_status` | `text` | Pilot server join result: `joined`, `skipped`, or `failed` |
+| `discord_server_joined_at` | `timestamptz` | When automatic Discord server join completed |
 | `created_at` | `timestamptz` | Set on insert |
 | `updated_at` | `timestamptz` | Updated by `updateProfile` server action on every save |
 
@@ -167,6 +174,11 @@ will add a friendlier event editor later.
 | `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
 | `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
 | `thumbnail_url` | `text` | Custom event graphic/PNG URL |
+| `chat_platform` | `text` | Pilot chat platform, e.g. `discord` |
+| `chat_channel_id` | `text` | Discord channel ID for selected event chats |
+| `chat_widget_url` | `text` | Optional explicit WidgetBot iframe URL |
+| `chat_external_url` | `text` | Optional external Discord channel/invite URL |
+| `chat_status` | `text` | `draft`, `active`, or `archived`; active chats render after RSVP |
 | `is_recording` | `boolean` | Marks past recording rows shown under the Events recordings tab |
 | `recording_url` | `text` | External video URL for recording rows |
 | `recording_provider` | `text` | Source label such as YouTube |

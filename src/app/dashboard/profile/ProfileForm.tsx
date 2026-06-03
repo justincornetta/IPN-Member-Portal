@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
-import { updateProfile } from "@/lib/auth/actions"
+import { disconnectDiscord, updateProfile } from "@/lib/auth/actions"
 import {
   PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
@@ -41,6 +41,12 @@ type Profile = {
   is_discoverable: boolean | null
   share_location: boolean | null
   avatar_url: string | null
+  discord_user_id: string | null
+  discord_username: string | null
+  discord_global_name: string | null
+  discord_avatar_url: string | null
+  discord_connected_at: string | null
+  discord_server_status: string | null
 }
 
 type FormState = {
@@ -404,15 +410,26 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
 export default function ProfileForm({
   profile,
   userId,
+  discordStatus,
 }: {
   profile: Profile | null
   userId: string
+  discordStatus: string | null
 }) {
   const router = useRouter()
   const [data, setData] = useState<FormState>(() => toFormState(profile))
+  const [discordProfile, setDiscordProfile] = useState(() => ({
+    userId: profile?.discord_user_id ?? null,
+    username: profile?.discord_username ?? null,
+    globalName: profile?.discord_global_name ?? null,
+    avatarUrl: profile?.discord_avatar_url ?? null,
+    connectedAt: profile?.discord_connected_at ?? null,
+    serverStatus: profile?.discord_server_status ?? null,
+  }))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [discordDisconnecting, setDiscordDisconnecting] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -499,6 +516,29 @@ export default function ProfileForm({
     else setSaved(true)
   }
 
+  async function handleDisconnectDiscord() {
+    setDiscordDisconnecting(true)
+    setError(null)
+
+    const result = await disconnectDiscord()
+
+    setDiscordDisconnecting(false)
+    if (result?.error) {
+      setError(result.error)
+      return
+    }
+
+    setDiscordProfile({
+      userId: null,
+      username: null,
+      globalName: null,
+      avatarUrl: null,
+      connectedAt: null,
+      serverStatus: null,
+    })
+    router.refresh()
+  }
+
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
   const stateOptions = data.country === "Canada" ? CANADIAN_PROVINCES : US_STATES
   const isProfessional = PROFESSIONAL_BACKGROUNDS.has(data.persona)
@@ -510,6 +550,22 @@ export default function ProfileForm({
   const initials = data.first_name
     ? `${data.first_name[0]}${data.last_name?.[0] ?? ""}`.toUpperCase()
     : userId[0].toUpperCase()
+  const discordConnected = Boolean(discordProfile.userId)
+  const discordName =
+    discordProfile.globalName ?? discordProfile.username ?? "Discord account"
+  const discordConnectHref = "/auth/discord/start?next=/dashboard/profile"
+  const discordMessage =
+    discordStatus === "missing_config"
+      ? "Discord OAuth is not configured for this environment yet."
+      : discordStatus === "invalid_state"
+        ? "Discord verification expired. Please try connecting again."
+        : discordStatus === "not_authenticated"
+          ? "Sign in to the portal before connecting Discord."
+          : discordStatus === "token_error" ||
+              discordStatus === "user_error" ||
+              discordStatus === "save_error"
+            ? "Discord could not be connected. Please try again."
+            : null
 
   return (
     <div className="flex flex-col gap-10">
@@ -686,6 +742,71 @@ export default function ProfileForm({
                 placeholder="Company, organization, self-employed…" />
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ── Community Chat ── */}
+      <section>
+        <SectionHeading>Community Chat</SectionHeading>
+        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          {discordMessage && (
+            <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {discordMessage}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              {discordProfile.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={discordProfile.avatarUrl}
+                  alt=""
+                  className="h-11 w-11 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#5865F2] text-sm font-semibold text-white">
+                  DC
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-zinc-900">
+                  {discordConnected ? discordName : "Connect Discord"}
+                </p>
+                <p className="mt-0.5 text-xs leading-5 text-zinc-500">
+                  {discordConnected
+                    ? "Your portal profile is linked for community chat access."
+                    : "Optional, but recommended for event chats and Discord updates."}
+                </p>
+                {discordConnected && discordProfile.serverStatus === "failed" && (
+                  <p className="mt-1 text-xs leading-5 text-amber-700">
+                    Discord was linked, but automatic server join did not complete. Use Reconnect to try again.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={discordConnectHref}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#4752C4]"
+              >
+                {discordConnected ? "Reconnect" : "Connect"}
+              </a>
+              {discordConnected && (
+                <button
+                  type="button"
+                  onClick={handleDisconnectDiscord}
+                  disabled={discordDisconnecting}
+                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  {discordDisconnecting ? "Disconnecting..." : "Disconnect"}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 

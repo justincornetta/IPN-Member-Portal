@@ -97,6 +97,8 @@ function ConfirmationModal({
   event: EventWithRegistration
   onClose: () => void
 }) {
+  const hasActiveChat = event.chat_status === "active"
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
       <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
@@ -127,13 +129,23 @@ function ConfirmationModal({
             <div>
               <p className="text-sm font-medium text-zinc-900">Event chat</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
-                Join a group chat specific to this event to discuss with other
-                registered IPN members before and after the session.
+                {hasActiveChat
+                  ? "Your RSVP unlocks the event chat on the event detail page."
+                  : "Join a group chat specific to this event to discuss with other registered IPN members before and after the session."}
               </p>
             </div>
-            <span className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn">
-              Coming soon
-            </span>
+            {hasActiveChat ? (
+              <Link
+                href={`/dashboard/events/${event.slug}`}
+                className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn transition hover:bg-white/80"
+              >
+                Open
+              </Link>
+            ) : (
+              <span className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn">
+                Coming soon
+              </span>
+            )}
           </div>
         </div>
 
@@ -196,6 +208,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
   const countLabel = registrationBand(count)
   const isCompact = variant === "compact"
+  const hasActiveChat = event.chat_status === "active"
 
   function handleRegister() {
     setError(null)
@@ -299,13 +312,22 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       {countLabel}
                     </span>
                   )}
-                  <button
-                    type="button"
-                    disabled
-                    className="rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400"
-                  >
-                    Event chat coming soon
-                  </button>
+                  {hasActiveChat ? (
+                    <Link
+                      href={`/dashboard/events/${event.slug}`}
+                      className="rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70"
+                    >
+                      Event chat
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400"
+                    >
+                      Event chat coming soon
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"

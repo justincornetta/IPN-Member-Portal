@@ -2,7 +2,12 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import ProfileForm from "./ProfileForm"
 
-export default async function ProfilePage() {
+type Props = {
+  searchParams: Promise<{ discord?: string }>
+}
+
+export default async function ProfilePage({ searchParams }: Props) {
+  const query = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -20,7 +25,11 @@ export default async function ProfilePage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-zinc-900">Profile</h1>
       </div>
-      <ProfileForm profile={profile} userId={user.id} />
+      <ProfileForm
+        profile={profile}
+        userId={user.id}
+        discordStatus={query.discord ?? null}
+      />
     </div>
   )
 }
