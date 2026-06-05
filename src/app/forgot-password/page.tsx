@@ -3,7 +3,7 @@
 import { useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import logo from "../../../assets/purple_full.png"
+import icon from "../../../assets/purple_icon.png"
 import { sendPasswordResetEmail } from "@/lib/auth/actions"
 import NeuralBackground from "@/components/NeuralBackground"
 
@@ -33,7 +33,8 @@ export default function ForgotPasswordPage() {
       <div ref={cardRef} className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
         <div className="mb-8 text-center">
           <div className="mb-5 flex justify-center">
-            <Image src={logo} alt="IPN" height={40} width={200} className="h-10 w-auto" />
+            <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
+            <p className="text-sm font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900">Reset your password</h1>
           <p className="mt-2 text-sm text-zinc-500">

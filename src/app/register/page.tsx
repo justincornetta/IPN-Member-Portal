@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import logo from "../../../assets/purple_full.png"
+import icon from "../../../assets/purple_icon.png"
 import { signUp } from "@/lib/auth/actions"
 import NeuralBackground from "@/components/NeuralBackground"
 import {
@@ -542,7 +542,8 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="mb-6 text-center">
           <div className="mb-5 flex justify-center">
-            <Image src={logo} alt="IPN" height={40} width={200} className="h-10 w-auto" />
+            <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
+            <p className="text-sm font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900">Create your account</h1>
         </div>

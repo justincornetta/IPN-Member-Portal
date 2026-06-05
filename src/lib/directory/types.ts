@@ -12,6 +12,8 @@ export type DirectoryMember = {
   interest_tags: string[] | null
   linkedin_url: string | null
   avatar_url: string | null
+  admin_role: string | null
+  team: string | null
 }
 
 export type DirectoryParams = {
