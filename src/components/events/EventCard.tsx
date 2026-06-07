@@ -63,26 +63,26 @@ function CalendarActions({ event }: { event: EventWithRegistration }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <a
         href={buildGoogleCalendarUrl(event)}
         target="_blank"
         rel="noreferrer"
-        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
+        className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
       >
         Google
       </a>
       <button
         type="button"
         onClick={downloadIcs}
-        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
+        className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
       >
         Apple
       </button>
       <button
         type="button"
         onClick={downloadIcs}
-        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
+        className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
       >
         Outlook
       </button>
@@ -287,31 +287,25 @@ export default function EventCard({ event, variant = "full" }: Props) {
             )}
           </div>
 
-          <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                Add to calendar
-              </p>
-              <CalendarActions event={event} />
-            </div>
-          </div>
-
           <div className="mt-auto pt-4">
             {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
             {!registered ? (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-h-8 text-xs font-medium text-zinc-400">
                   {countLabel}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRegister}
-                  disabled={pending}
-                  className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {pending ? "Saving..." : "RSVP"}
-                </button>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <CalendarActions event={event} />
+                  <button
+                    type="button"
+                    onClick={handleRegister}
+                    disabled={pending}
+                    className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {pending ? "Saving..." : "RSVP"}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -338,13 +332,16 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     </button>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleJoin}
-                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-                >
-                  Join
-                </button>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <CalendarActions event={event} />
+                  <button
+                    type="button"
+                    onClick={handleJoin}
+                    className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+                  >
+                    Join
+                  </button>
+                </div>
               </div>
             )}
           </div>
