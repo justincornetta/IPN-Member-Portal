@@ -1,8 +1,10 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
+import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
 import { getJoinEventsWidgetBotUrl } from "@/lib/discord/widgetbot"
 import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
+import { protectTicketedJoinUrl } from "@/lib/events/tickets"
 import type { EventRecord } from "@/lib/events/types"
 import WelcomeModal from "./WelcomeModal"
 
@@ -72,7 +74,22 @@ export default async function DashboardPage() {
     .order("starts_at", { ascending: true })
     .limit(3)
 
-  const upcomingEvents = (events ?? []) as EventRecord[]
+  const rawUpcomingEvents = (events ?? []) as EventRecord[]
+  let ticketIds = new Set<string>()
+  if (rawUpcomingEvents.length && user?.email) {
+    const { data: ticketRows } = await supabase
+      .from("event_ticket_access")
+      .select("event_id")
+      .in("event_id", rawUpcomingEvents.map((event) => event.id))
+      .eq("attendee_email_normalized", user.email.trim().toLowerCase())
+
+    ticketIds = new Set(
+      ((ticketRows ?? []) as { event_id: string }[]).map((ticket) => ticket.event_id),
+    )
+  }
+  const upcomingEvents = rawUpcomingEvents.map((event) =>
+    protectTicketedJoinUrl(event, ticketIds.has(event.id)),
+  )
 
   const firstName = profile?.first_name ?? user!.email?.split("@")[0] ?? "there"
   const subtitle = [profile?.persona, profile?.affiliation].filter(Boolean).join(" · ")
@@ -139,35 +156,42 @@ export default async function DashboardPage() {
           <div className="flex flex-col divide-y divide-zinc-100">
             {upcomingEvents.length > 0 ? (
               upcomingEvents.map((event) => (
-                <Link
+                <div
                   key={event.id}
-                  href={`/dashboard/events/${event.slug}`}
-                  className="flex items-center gap-3 py-4 first:pt-0 last:pb-0"
+                  className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center"
                 >
-                  <div className="h-14 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-900">
-                    {event.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={event.thumbnail_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
-                    )}
+                  <Link
+                    href={`/dashboard/events/${event.slug}`}
+                    className="flex min-w-0 flex-1 items-center gap-3"
+                  >
+                    <div className="h-14 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                      {event.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={event.thumbnail_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-800">
+                        {event.title}
+                      </p>
+                      <p className="truncate text-xs text-zinc-400">
+                        {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="flex flex-shrink-0 items-center gap-2 sm:ml-2">
+                    <span className="text-xs font-medium text-zinc-400">
+                      {registrationBand(event.registration_count)}
+                    </span>
+                    <AddToCalendarButton event={event} compact />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-800">
-                      {event.title}
-                    </p>
-                    <p className="truncate text-xs text-zinc-400">
-                      {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
-                    </p>
-                  </div>
-                  <div className="ml-2 flex-shrink-0 text-xs font-medium text-zinc-400">
-                    {registrationBand(event.registration_count)}
-                  </div>
-                </Link>
+                </div>
               ))
             ) : (
               <p className="py-6 text-sm text-zinc-400">

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import EventsHub from "./EventsHub"
 import { createClient } from "@/lib/supabase/server"
+import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 
 export default async function EventsPage() {
@@ -32,6 +33,7 @@ export default async function EventsPage() {
   const upcomingRecords = (upcoming ?? []) as EventRecord[]
   const eventIds = upcomingRecords.map((event) => event.id)
   let registrations: { event_id: string }[] = []
+  let tickets: { event_id: string }[] = []
 
   if (eventIds.length) {
     const { data } = await supabase
@@ -40,16 +42,29 @@ export default async function EventsPage() {
       .eq("user_id", user.id)
       .in("event_id", eventIds)
     registrations = (data ?? []) as { event_id: string }[]
+
+    if (user.email) {
+      const { data: ticketRows } = await supabase
+        .from("event_ticket_access")
+        .select("event_id")
+        .in("event_id", eventIds)
+        .eq("attendee_email_normalized", user.email.trim().toLowerCase())
+      tickets = (ticketRows ?? []) as { event_id: string }[]
+    }
   }
 
   const registeredIds = new Set(
     registrations.map((registration) => registration.event_id),
   )
+  const ticketIds = new Set(tickets.map((ticket) => ticket.event_id))
 
-  const upcomingEvents: EventWithRegistration[] = upcomingRecords.map((event) => ({
-    ...event,
-    is_registered: registeredIds.has(event.id),
-  }))
+  const upcomingEvents: EventWithRegistration[] = upcomingRecords.map((event) =>
+    withTicketRegistrationState(
+      event,
+      registeredIds.has(event.id),
+      ticketIds.has(event.id),
+    ),
+  )
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-10">

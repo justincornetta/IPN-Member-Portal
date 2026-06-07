@@ -4,6 +4,12 @@ import { createClient } from "@/lib/supabase/server"
 
 const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 const DISCORD_STATE_COOKIE = "ipn_discord_oauth_state"
+const DISCORD_STATE_COOKIE_MAX_AGE = 10 * 60
+
+type DiscordOAuthState = {
+  state: string
+  next: string
+}
 
 function normalizeSiteUrl(url: string): string {
   const withProtocol = url.startsWith("http") ? url : `https://${url}`
@@ -19,6 +25,14 @@ function getSiteUrl(request: Request): string {
 
   if (!forwardedHost) return normalizeSiteUrl(fallbackOrigin)
   return normalizeSiteUrl(`${forwardedProtocol}://${forwardedHost}`)
+}
+
+function safeNextPath(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard/profile"
+  }
+
+  return value
 }
 
 export async function GET(request: Request) {
@@ -37,8 +51,10 @@ export async function GET(request: Request) {
   }
 
   const siteUrl = getSiteUrl(request)
+  const requestUrl = new URL(request.url)
   const redirectUri = `${siteUrl}/auth/discord/callback`
   const state = crypto.randomUUID()
+  const next = safeNextPath(requestUrl.searchParams.get("next"))
   const scopes = ["identify"]
 
   if (process.env.DISCORD_GUILD_ID && process.env.DISCORD_BOT_TOKEN) {
@@ -46,9 +62,10 @@ export async function GET(request: Request) {
   }
 
   const cookieStore = await cookies()
-  cookieStore.set(DISCORD_STATE_COOKIE, state, {
+  const stateCookie: DiscordOAuthState = { state, next }
+  cookieStore.set(`${DISCORD_STATE_COOKIE}.${state}`, JSON.stringify(stateCookie), {
     httpOnly: true,
-    maxAge: 10 * 60,
+    maxAge: DISCORD_STATE_COOKIE_MAX_AGE,
     path: "/",
     sameSite: "lax",
     secure: siteUrl.startsWith("https://"),

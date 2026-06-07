@@ -5,6 +5,7 @@ import EventCard from "@/components/events/EventCard"
 import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
 import { buildWidgetBotUrl } from "@/lib/discord/widgetbot"
 import { formatEventDateTime } from "@/lib/events/calendar"
+import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type {
   EventRecord,
   EventSpeakerLink,
@@ -524,13 +525,26 @@ export default async function EventDetailPage({ params }: Props) {
     .eq("user_id", user.id)
     .maybeSingle()
 
-  const eventWithRegistration: EventWithRegistration = {
-    ...eventRecord,
-    is_registered: Boolean(registration),
+  let hasVerifiedTicket = false
+  if (eventRecord.requires_verified_ticket && user.email) {
+    const { data: ticket } = await supabase
+      .from("event_ticket_access")
+      .select("event_id")
+      .eq("event_id", eventRecord.id)
+      .eq("attendee_email_normalized", user.email.trim().toLowerCase())
+      .maybeSingle()
+    hasVerifiedTicket = Boolean(ticket)
   }
+
+  const eventWithRegistration: EventWithRegistration = withTicketRegistrationState(
+    eventRecord,
+    Boolean(registration),
+    hasVerifiedTicket,
+  )
   const eventChatUrl =
-    eventRecord.chat_status === "active" && eventWithRegistration.is_registered
-      ? eventRecord.chat_widget_url ?? buildWidgetBotUrl(eventRecord.chat_channel_id)
+    eventWithRegistration.chat_status === "active" && eventWithRegistration.is_registered
+      ? eventWithRegistration.chat_widget_url ??
+        buildWidgetBotUrl(eventWithRegistration.chat_channel_id)
       : null
 
   return (

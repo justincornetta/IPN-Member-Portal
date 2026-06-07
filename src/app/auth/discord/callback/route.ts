@@ -1,10 +1,15 @@
 import { cookies } from "next/headers"
+import { revalidatePath } from "next/cache"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 const DISCORD_API_URL = "https://discord.com/api/v10"
-const DISCORD_INVITE_URL = "https://discord.gg/YDdMGNF7X5"
 const DISCORD_STATE_COOKIE = "ipn_discord_oauth_state"
+
+type DiscordOAuthState = {
+  state: string
+  next: string
+}
 
 type DiscordTokenResponse = {
   access_token: string
@@ -45,6 +50,38 @@ function discordAvatarUrl(user: DiscordUser): string | null {
 
 function profileRedirect(request: Request, status: string) {
   return NextResponse.redirect(`${getSiteUrl(request)}/dashboard/profile?discord=${status}`)
+}
+
+function safeNextPath(value: string | null | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard/profile"
+  }
+
+  return value
+}
+
+function statusRedirect(request: Request, next: string, status: string) {
+  const redirectUrl = new URL(safeNextPath(next), getSiteUrl(request))
+  redirectUrl.searchParams.set("discord", status)
+  return NextResponse.redirect(redirectUrl)
+}
+
+function parseStateCookie(value: string | undefined): DiscordOAuthState | null {
+  if (!value) return null
+
+  try {
+    const parsed = JSON.parse(value) as Partial<DiscordOAuthState>
+    if (parsed.state) {
+      return {
+        state: parsed.state,
+        next: safeNextPath(parsed.next),
+      }
+    }
+  } catch {
+    // Older deploys stored only the state string. Fall through to support them.
+  }
+
+  return { state: value, next: "/dashboard/profile" }
 }
 
 async function exchangeCodeForToken(
@@ -106,10 +143,15 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code")
   const state = url.searchParams.get("state")
   const cookieStore = await cookies()
-  const expectedState = cookieStore.get(DISCORD_STATE_COOKIE)?.value
+  const stateCookieName = state ? `${DISCORD_STATE_COOKIE}.${state}` : DISCORD_STATE_COOKIE
+  const statePayload = parseStateCookie(
+    cookieStore.get(stateCookieName)?.value ?? cookieStore.get(DISCORD_STATE_COOKIE)?.value,
+  )
+
+  if (state) cookieStore.delete(stateCookieName)
   cookieStore.delete(DISCORD_STATE_COOKIE)
 
-  if (!code || !state || !expectedState || state !== expectedState) {
+  if (!code || !state || !statePayload || state !== statePayload.state) {
     return profileRedirect(request, "invalid_state")
   }
 
@@ -121,10 +163,10 @@ export async function GET(request: Request) {
   if (!user) return profileRedirect(request, "not_authenticated")
 
   const token = await exchangeCodeForToken(request, code)
-  if (!token) return profileRedirect(request, "token_error")
+  if (!token) return statusRedirect(request, statePayload.next, "token_error")
 
   const discordUser = await fetchDiscordUser(token)
-  if (!discordUser) return profileRedirect(request, "user_error")
+  if (!discordUser) return statusRedirect(request, statePayload.next, "user_error")
 
   const serverStatus = await joinDiscordServer(discordUser.id, token.access_token)
   const now = new Date().toISOString()
@@ -144,5 +186,16 @@ export async function GET(request: Request) {
 
   if (error) return profileRedirect(request, "save_error")
 
-  return NextResponse.redirect(DISCORD_INVITE_URL)
+  revalidatePath("/dashboard/profile")
+  revalidatePath("/dashboard/directory")
+
+  if (serverStatus === "joined") {
+    return statusRedirect(request, statePayload.next, "connected_joined")
+  }
+
+  if (serverStatus === "failed") {
+    return statusRedirect(request, statePayload.next, "connected_join_failed")
+  }
+
+  return statusRedirect(request, statePayload.next, "connected_invite")
 }

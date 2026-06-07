@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react"
 import { searchMembersForAdmin, assignAdminAccess } from "@/lib/admin/actions"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
+import ContentIntakeForm from "./ContentIntakeForm"
 
 const TEAMS = ["Strategy", "Media", "PsychedelX", "Community"] as const
 
@@ -328,13 +329,14 @@ function sortDirectorsFirst(members: AdminMemberProfile[]) {
 }
 
 export default function AdminClient({ isSuperadmin, leadership, analytics }: Props) {
-  type Tab = "analytics" | "leadership"
-  const defaultTab: Tab = analytics ? "analytics" : "leadership"
+  type Tab = "analytics" | "content" | "leadership"
+  const defaultTab: Tab = analytics ? "analytics" : "content"
   const [tab, setTab] = useState<Tab>(defaultTab)
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
 
   const tabs: { id: Tab; label: string }[] = [
     ...(analytics ? [{ id: "analytics" as Tab, label: "Analytics" }] : []),
+    { id: "content", label: "Content Intake" },
     { id: "leadership", label: "Leadership" },
   ]
 
@@ -417,6 +419,8 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
           )}
         </div>
       )}
+
+      {tab === "content" && <ContentIntakeForm />}
 
       {/* ── Leadership tab ── */}
       {tab === "leadership" && (

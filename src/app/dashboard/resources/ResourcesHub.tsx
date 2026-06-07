@@ -194,7 +194,7 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
         <div className="mt-auto pt-5">
           {isBlog ? (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-ipn">
-              Read article
+              Read More
               <ArrowIcon />
             </span>
           ) : isBenefit ? (

@@ -40,12 +40,21 @@ export function formatEventDateTime(
 
   if (!end) return `${date} at ${startTime}`
 
+  const endDate = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: timezone,
+  }).format(end)
+
   const endTime = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
     timeZone: timezone,
   }).format(end)
+
+  if (date !== endDate) return `${date}, ${startTime} - ${endDate}, ${endTime}`
 
   return `${date}, ${startTime} - ${endTime}`
 }
@@ -100,6 +109,20 @@ export function buildGoogleCalendarUrl(event: EventRecord): string {
   })
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
+export function buildOutlookCalendarUrl(event: EventRecord): string {
+  const params = new URLSearchParams({
+    path: "/calendar/action/compose",
+    rru: "addevent",
+    subject: event.title,
+    startdt: new Date(event.starts_at).toISOString(),
+    enddt: new Date(event.ends_at ?? event.starts_at).toISOString(),
+    body: buildCalendarDescription(event),
+    location: event.location_label ?? event.location_details ?? "Online",
+  })
+
+  return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`
 }
 
 export function buildIcsContent(event: EventRecord): string {
