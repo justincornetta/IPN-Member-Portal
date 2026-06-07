@@ -38,6 +38,7 @@ type Profile = {
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
+  discord_handle: string | null
   is_discoverable: boolean | null
   share_location: boolean | null
   avatar_url: string | null
@@ -64,6 +65,7 @@ type FormState = {
   bio: string
   interest_tags: string[]
   linkedin_url: string
+  discord_handle: string
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
@@ -85,6 +87,7 @@ function toFormState(profile: Profile | null): FormState {
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
+    discord_handle: profile?.discord_handle ?? "",
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
@@ -243,27 +246,11 @@ function TagPickerModal({
   }
 
   const q = search.trim()
+  const presetSet = new Set(INTEREST_TAG_OPTIONS as readonly string[])
+  const customSelected = local.filter((t) => !presetSet.has(t))
   const filtered = INTEREST_TAG_OPTIONS.filter((t) =>
     t.toLowerCase().includes(q.toLowerCase()),
   )
-
-  const normalized = toTagCase(q)
-  const wordCount = q.split(/\s+/).filter(Boolean).length
-  const alreadyExists =
-    [...INTEREST_TAG_OPTIONS, ...local].some(
-      (t) => t.toLowerCase() === normalized.toLowerCase(),
-    )
-  const canAddCustom =
-    q.length > 0 &&
-    wordCount <= 3 &&
-    !alreadyExists &&
-    local.length < 3
-
-  function addCustom() {
-    if (!canAddCustom) return
-    setLocal((prev) => [...prev, normalized])
-    setSearch("")
-  }
 
   return (
     <div
@@ -301,6 +288,21 @@ function TagPickerModal({
 
         {/* Tag list */}
         <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto px-5 py-4">
+          {customSelected.length > 0 && (
+            <>
+              {customSelected.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggle(tag)}
+                  className="rounded-full bg-ipn px-3 py-1 text-xs font-medium text-white cursor-pointer"
+                >
+                  {tag}
+                </button>
+              ))}
+              {(filtered.length > 0 || q) && <div className="w-full border-t border-zinc-100 mt-1 mb-1" />}
+            </>
+          )}
           {filtered.length > 0 ? (
             filtered.map((tag) => {
               const active = local.includes(tag)
@@ -311,7 +313,7 @@ function TagPickerModal({
                   type="button"
                   onClick={() => toggle(tag)}
                   disabled={disabled}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition ${
                     active
                       ? "bg-ipn text-white"
                       : disabled
@@ -324,36 +326,7 @@ function TagPickerModal({
               )
             })
           ) : (
-            <p className="text-xs text-zinc-400">No matching interests found.</p>
-          )}
-        </div>
-
-        {/* Custom tag */}
-        <div className="border-t border-zinc-100 px-5 py-3">
-          <p className="mb-2 text-xs text-zinc-400">Not finding what you&apos;re looking for? Add a custom interest:</p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom() } }}
-              placeholder="e.g. Ecotherapy"
-              className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
-            />
-            <button
-              type="button"
-              onClick={addCustom}
-              disabled={!canAddCustom}
-              className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              Add
-            </button>
-          </div>
-          {q.length > 0 && normalized && (
-            <p className="mt-1.5 text-xs text-zinc-400">
-              Will be saved as: <span className="font-medium text-zinc-600">{normalized}</span>
-              {wordCount > 3 && <span className="ml-1 text-red-500">(max 3 words)</span>}
-            </p>
+            <p className="text-xs text-zinc-400">{q ? "No matching interests found." : ""}</p>
           )}
         </div>
 
@@ -506,6 +479,7 @@ export default function ProfileForm({
       bio: data.bio || null,
       interest_tags: data.interest_tags.length > 0 ? data.interest_tags : null,
       linkedin_url: data.linkedin_url || null,
+      discord_handle: data.discord_handle || null,
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
       avatar_url: data.avatar_url,
@@ -633,17 +607,6 @@ export default function ProfileForm({
       <section>
         <SectionHeading>Public Profile</SectionHeading>
 
-        {/* Visibility callout */}
-        <div className="mb-5 rounded-lg border border-ipn/20 bg-ipn/5 px-4 py-3">
-          <p className="text-xs font-semibold text-ipn">Visible to other members</p>
-          <ul className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-zinc-500">
-            <li>· Name and bio</li>
-            <li>· Interest tags</li>
-            <li>· LinkedIn URL</li>
-            <li>· Student status / persona</li>
-            <li>· School or affiliation</li>
-          </ul>
-        </div>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -687,6 +650,14 @@ export default function ProfileForm({
             <TextInput id="linkedin_url" name="linkedin_url" value={data.linkedin_url}
               onChange={(v) => update("linkedin_url", v)}
               placeholder="https://linkedin.com/in/yourname" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="discord_handle">Discord handle</Label>
+            <TextInput id="discord_handle" name="discord_handle" value={data.discord_handle}
+              onChange={(v) => update("discord_handle", v)}
+              placeholder="e.g. username or @username" />
+            <p className="text-xs text-zinc-400">Shared with your connections</p>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -876,6 +847,24 @@ export default function ProfileForm({
               </div>
             </label>
           )}
+
+          {/* What each level can see */}
+          <div className="mt-1 rounded-lg border border-zinc-100 bg-zinc-50 p-4 flex flex-col gap-3 text-xs">
+            <div className="flex flex-col gap-0.5">
+              <p className="font-semibold text-zinc-500">Directory members see</p>
+              <p className="text-zinc-400">Bio, interests, LinkedIn, stage, school or affiliation</p>
+            </div>
+            <div className="h-px bg-zinc-200" />
+            <div className="flex flex-col gap-0.5">
+              <p className="font-semibold text-zinc-500">Connections also see</p>
+              <p className="text-zinc-400">
+                Email
+                {data.discord_handle
+                  ? `, Discord (${data.discord_handle})`
+                  : " · Discord handle (if added)"}
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

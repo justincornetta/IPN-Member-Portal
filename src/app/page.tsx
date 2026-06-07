@@ -3,7 +3,7 @@
 import { useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import logo from "../../assets/purple_full.png"
+import icon from "../../assets/purple_icon.png"
 import NeuralBackground from "@/components/NeuralBackground"
 
 const FEATURES = [
@@ -47,7 +47,8 @@ export default function Home() {
 
         {/* Identity */}
         <div className="flex flex-col items-center gap-4">
-          <Image src={logo} alt="IPN" height={48} width={220} className="h-12 w-auto" />
+          <Image src={icon} alt="IPN" height={48} width={48} className="h-12 w-auto" />
+          <p className="text-base font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
           <div className="flex flex-col gap-2">
             <h1 className="text-5xl font-semibold tracking-tight text-zinc-900">
               Member Portal

@@ -40,7 +40,7 @@ export default async function DirectoryPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, first_name, last_name, persona, school, affiliation, field, city, state, bio, interest_tags, linkedin_url, avatar_url",
+      "id, first_name, last_name, persona, school, affiliation, field, city, state, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
     )
     .eq("is_discoverable", true)
     .neq("id", user.id)

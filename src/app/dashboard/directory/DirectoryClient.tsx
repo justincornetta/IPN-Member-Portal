@@ -319,7 +319,7 @@ function MemberModal({
 
         {(!connectionEntry || connectionEntry.status === "declined") && (
           <p className="px-6 pb-4 text-center text-xs text-zinc-400">
-            Connecting lets you share email addresses with each other.
+            When you connect, you both get access to each other&apos;s email so you can take the conversation further.
           </p>
         )}
       </div>
@@ -507,7 +507,7 @@ function FilterDrawer({
               <button
                 type="button"
                 onClick={onClear}
-                className="flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+                className="flex-1 cursor-pointer rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
               >
                 Clear
               </button>
@@ -515,7 +515,7 @@ function FilterDrawer({
             <button
               type="button"
               onClick={onApply}
-              className="flex-1 rounded-lg bg-ipn py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+              className="flex-1 cursor-pointer rounded-lg bg-ipn py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
             >
               Apply
             </button>
@@ -657,8 +657,20 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
             placeholder="Search by name, school, or field…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
+            className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-9 text-sm shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
           />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+              aria-label="Clear search"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <button
@@ -699,7 +711,7 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
             key={tab}
             type="button"
             onClick={() => setTab(tab)}
-            className={`px-4 py-2.5 text-sm font-medium transition ${
+            className={`cursor-pointer px-4 py-2.5 text-sm font-medium transition ${
               currentParams.tab === tab
                 ? "-mb-px border-b-2 border-ipn text-ipn"
                 : "text-zinc-500 hover:text-zinc-800"

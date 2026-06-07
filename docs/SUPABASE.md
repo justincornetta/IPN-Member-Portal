@@ -7,7 +7,7 @@ Supabase provides our database (Postgres), authentication, and row-level securit
 ## Initial setup (do once per environment)
 
 1. **Create a Supabase project** at [supabase.com](https://supabase.com) → New project
-2. **Get your keys**: Project Settings → API → copy **Project URL** and **anon public key**
+2. **Get your keys**: Project Settings → API → copy **Project URL**, **anon public key**, and **service_role key**
 3. **Create `.env.local`** from `.env.example` and paste those values in
 4. **Run the schema**: SQL Editor → New query → paste `supabase/schema.sql` → Run
 5. **Configure auth settings** (see Auth section below)
@@ -24,7 +24,14 @@ We use Supabase's built-in email + password auth. No third-party providers in v1
 2. `signUp()` is called with `email`, `password`, and all form fields packed into `user_metadata`
 3. Supabase creates the session immediately (email confirmation disabled)
 4. User is redirected to `/dashboard`
-5. The `on_auth_user_created` database trigger fires on step 2 and copies `user_metadata` into the `profiles` table
+5. The `on_auth_user_created` trigger fires synchronously on step 2 and copies `user_metadata` into the `profiles` table; `signUp()` then immediately updates the `email` column (the trigger doesn't capture it)
+
+### Password reset flow
+
+1. User visits `/forgot-password` → `resetPasswordForEmail()` sends a reset link
+2. Link hits `/auth/callback?token_hash=...&type=recovery&next=/reset-password`
+3. Callback calls `verifyOtp({ token_hash, type })` → session created → redirect to `/reset-password`
+4. User enters new password → `supabase.auth.updateUser({ password })`
 
 ### Supabase Auth settings to configure
 
@@ -50,6 +57,7 @@ One row per user. Created automatically on signup via trigger.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key; references `auth.users.id` |
+| `email` | `text` | Copied from `auth.users.email` by `signUp()`; used for connections contact reveal |
 | `first_name` | `text` | |
 | `last_name` | `text` | |
 | `country` | `text` | |
@@ -57,9 +65,9 @@ One row per user. Created automatically on signup via trigger.
 | `city` | `text` | Display name as entered by the user |
 | `city_lat` | `float8` | Latitude — geocoded from city + country via Nominatim on signup; `null` if lookup failed |
 | `city_lng` | `float8` | Longitude — same source as `city_lat`; used for map view (v1.1) |
-| `persona` | `text` | "What best describes you?" — one of: `High School`, `Undergraduate`, `Graduate Student`, `Professional Degree Student`, `Psychedelic Professional`, `Professional`, `Other` |
-| `affiliation` | `text` | Organization or employer; set for professional personas who are **not** affiliated with a university, `null` otherwise |
-| `school` | `text` | Canonical school name from the Hipo dataset; set for student personas **and** for professional personas who check "I work at a university", `null` otherwise |
+| `persona` | `text` | One of: `High School`, `Undergraduate`, `Graduate Student`, `Professional Degree Student`, `Psychedelic Professional`, `Professional`, `Other` |
+| `affiliation` | `text` | Organization or employer; set for professional personas not affiliated with a university |
+| `school` | `text` | Canonical school name; set for student personas and university-affiliated professionals |
 | `field` | `text` | Primary field of study/work |
 | `psychedelic_field_status` | `text` | Currently working in / interested / not sure |
 | `psychedelic_field_barriers` | `text[]` | Array — "why not" checkboxes |
@@ -68,13 +76,17 @@ One row per user. Created automatically on signup via trigger.
 | `referral_source` | `text` | How they heard about IPN |
 | `bio` | `text` | Short public bio; set on profile edit page |
 | `area_of_interest` | `text` | **Deprecated** — replaced by `interest_tags`; kept for historical data |
-| `interest_tags` | `text[]` | Up to 3 structured interest tags selected from a fixed list (e.g. `{Psilocybin, Harm Reduction, PTSD}`); displayed on directory cards and filterable |
+| `interest_tags` | `text[]` | Up to 3 structured interest tags (e.g. `{Psilocybin, Harm Reduction, PTSD}`); displayed on directory cards and filterable |
 | `linkedin_url` | `text` | LinkedIn profile URL |
+| `discord_handle` | `text` | Manually entered Discord username; shared with connections |
 | `is_discoverable` | `boolean` | Default `true`; `false` hides the member from the directory |
+| `share_location` | `boolean` | Default `true`; controls location-based discovery |
 | `avatar_url` | `text` | Public URL of avatar in the `avatars` Storage bucket |
-| `share_location` | `boolean` | Default `true`; controls location-based discovery (used in future "Near You" tab) |
+| `role` | `text` | Portal access tier: `superadmin` (full admin access), `admin` (leadership/analytics access), `null` (regular member) |
+| `admin_role` | `text` | IPN leadership title (e.g. "Director of Strategy"); set by superadmins; displayed publicly in member profiles |
+| `team` | `text` | IPN team assignment: `Strategy`, `Media`, `PsychedelX`, or `Community`; check constraint enforced |
 | `discord_user_id` | `text` | Verified Discord user ID from OAuth |
-| `discord_username` | `text` | Discord username |
+| `discord_username` | `text` | Discord username (from OAuth) |
 | `discord_global_name` | `text` | Discord display name, when provided |
 | `discord_avatar_url` | `text` | Discord avatar URL |
 | `discord_connected_at` | `timestamptz` | When the member linked Discord |
@@ -83,26 +95,22 @@ One row per user. Created automatically on signup via trigger.
 | `created_at` | `timestamptz` | Set on insert |
 | `updated_at` | `timestamptz` | Updated by `updateProfile` server action on every save |
 
-> **Migrating an existing database:**
->
-> **One-time schema additions** (run if columns are missing):
+> **Migration SQL** (run against any existing database):
 > ```sql
-> alter table public.profiles add column if not exists school text;
-> alter table public.profiles drop column if exists education_status;
-> alter table public.profiles add column if not exists city_lat float8;
-> alter table public.profiles add column if not exists city_lng float8;
-> alter table public.profiles add column if not exists bio text;
-> alter table public.profiles add column if not exists area_of_interest text;
+> alter table public.profiles add column if not exists email text;
 > alter table public.profiles add column if not exists interest_tags text[] default '{}';
-> alter table public.profiles add column if not exists linkedin_url text;
-> alter table public.profiles add column if not exists is_discoverable boolean not null default true;
 > alter table public.profiles add column if not exists share_location boolean not null default true;
-> alter table public.profiles add column if not exists avatar_url text;
-> ```
+> alter table public.profiles add column if not exists role text;
+> alter table public.profiles add column if not exists admin_role text;
+> alter table public.profiles add column if not exists team text
+>   check (team in ('Strategy', 'Media', 'PsychedelX', 'Community'));
+> alter table public.profiles add column if not exists discord_handle text;
 >
-> **Persona value migration** (short labels — run once to update existing rows):
-> ```sql
-> update profiles set persona = case persona
+> -- Backfill emails from auth.users
+> update public.profiles p set email = u.email from auth.users u where p.id = u.id and p.email is null;
+>
+> -- Persona short-label migration
+> update public.profiles set persona = case persona
 >   when 'High school / pre-college'                        then 'High School'
 >   when 'Undergraduate student'                            then 'Undergraduate'
 >   when 'Graduate student (Master''s or PhD)'              then 'Graduate Student'
@@ -112,20 +120,79 @@ One row per user. Created automatically on signup via trigger.
 >   else persona
 > end;
 > ```
->
-> **Directory RLS policy** (allow members to view discoverable profiles):
+
+### Row-Level Security on `profiles`
+
+| Policy | Allows |
+|---|---|
+| `Users can view own profile` | `auth.uid() = id` |
+| `Users can update own profile` | `auth.uid() = id` |
+| `Users can insert own profile` | `auth.uid() = id` |
+| `Members can view discoverable profiles` | `is_discoverable = true` (authenticated) |
+| `Connected users can view each other's profiles` | Accepted connection exists between viewer and target |
+| `Pending connection parties can view each other's profiles` | Pending connection exists in either direction |
+
+Admin/service-role queries bypass RLS entirely (used in `src/lib/supabase/admin.ts`).
+
+---
+
+### `public.connections`
+
+One row per connection request. Enables the Community page friending system.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` | Primary key |
+| `requester_id` | `uuid` | References `public.profiles(id)` |
+| `addressee_id` | `uuid` | References `public.profiles(id)` |
+| `status` | `text` | `pending`, `accepted`, or `declined` |
+| `created_at` | `timestamptz` | |
+| `updated_at` | `timestamptz` | |
+
+Unique constraint on `(requester_id, addressee_id)`. Self-connections prevented by check constraint. RLS: users can view/delete rows where they are requester or addressee; only addressees can update status; only requesters can insert.
+
+> **Migration SQL:**
 > ```sql
-> create policy "Members can view discoverable profiles"
->   on public.profiles for select
->   to authenticated
->   using (is_discoverable = true);
-> ```
+> create table if not exists public.connections (
+>   id           uuid primary key default gen_random_uuid(),
+>   requester_id uuid not null references public.profiles(id) on delete cascade,
+>   addressee_id uuid not null references public.profiles(id) on delete cascade,
+>   status       text not null default 'pending'
+>     check (status in ('pending', 'accepted', 'declined')),
+>   created_at   timestamptz not null default now(),
+>   updated_at   timestamptz not null default now(),
+>   constraint connections_no_self  check (requester_id != addressee_id),
+>   constraint connections_unique   unique (requester_id, addressee_id)
+> );
+> alter table public.connections enable row level security;
+> create policy "Users can view their own connections"   on public.connections for select to authenticated using (auth.uid() = requester_id or auth.uid() = addressee_id);
+> create policy "Users can send connection requests"     on public.connections for insert to authenticated with check (auth.uid() = requester_id);
+> create policy "Addressee can update connection status" on public.connections for update to authenticated using (auth.uid() = addressee_id);
+> create policy "Users can delete their own connections" on public.connections for delete to authenticated using (auth.uid() = requester_id or auth.uid() = addressee_id);
 >
-> Then re-run `supabase/schema.sql` to update the trigger function.
-
-### Row-Level Security
-
-RLS is enabled on `profiles`. Current policies: users can only read, insert, and update **their own row** (`auth.uid() = id`). Admins will need a separate service-role query or a `role` column + policy once the admin portal is built.
+> -- Allow viewing profiles of pending connection parties
+> create policy "Pending connection parties can view each other's profiles"
+>   on public.profiles for select to authenticated
+>   using (exists (
+>     select 1 from public.connections
+>     where status = 'pending'
+>       and ((requester_id = auth.uid() and addressee_id = profiles.id)
+>            or (addressee_id = auth.uid() and requester_id = profiles.id))
+>   ));
+>
+> -- Allow viewing profiles of accepted connections
+> create policy "Connected users can view each other's profiles"
+>   on public.profiles for select to authenticated
+>   using (exists (
+>     select 1 from public.connections
+>     where status = 'accepted'
+>       and ((requester_id = auth.uid() and addressee_id = profiles.id)
+>            or (addressee_id = auth.uid() and requester_id = profiles.id))
+>   ));
+>
+> -- Set yourself as superadmin (replace with your UUID)
+> -- update public.profiles set role = 'superadmin' where id = '<your-uuid>';
+> ```
 
 ---
 
@@ -133,9 +200,7 @@ RLS is enabled on `profiles`. Current policies: users can only read, insert, and
 
 ### `on_auth_user_created`
 
-Fires after every `INSERT` on `auth.users`. Reads `raw_user_meta_data` (set by `signUp()`) and creates the corresponding `profiles` row. Defined in `supabase/schema.sql`.
-
----
+Fires after every `INSERT` on `auth.users`. Reads `raw_user_meta_data` (set by `signUp()`) and creates the corresponding `profiles` row. `email` is set separately by `signUp()` after the trigger fires (the trigger doesn't capture it). Defined in `supabase/schema.sql`.
 
 ---
 
@@ -143,23 +208,26 @@ Fires after every `INSERT` on `auth.users`. Reads `raw_user_meta_data` (set by `
 
 ### `avatars` bucket
 
-Public bucket. Each user's avatar is stored at a path equal to their UUID (e.g. `abc123-def456-...`), no file extension. Content-type is stored separately by Supabase.
+Public bucket. Each user's avatar is stored at a path equal to their UUID (no file extension). Uploaded as JPEG after client-side crop.
 
 - **Upload / update**: restricted to the owning user via RLS (`auth.uid()::text = name`)
 - **Read**: public (no auth required)
 - **Public URL pattern**: `{SUPABASE_URL}/storage/v1/object/public/avatars/{userId}`
 
-The `avatar_url` column in `profiles` stores the full public URL with a cache-busting timestamp query parameter appended on upload (`?t={timestamp}`).
+The `avatar_url` column stores the full public URL with a `?t={timestamp}` cache-busting parameter.
 
-To create the bucket and policies, run `supabase/schema.sql` (section 4).
+### `resource-assets` bucket
+
+Public bucket for resource-card artwork (partner logos, affiliate promo images).
+
+- **Read**: public (no auth required)
+- **Write**: managed by admins/service-role tooling only
 
 ---
 
 ### `public.events`
 
-Portal-owned event records for the member-facing Events section. For v1,
-leadership adds and edits these rows directly in Supabase; the Admin Portal
-will add a friendlier event editor later.
+Portal-owned event records for the member-facing Events section.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -174,110 +242,48 @@ will add a friendlier event editor later.
 | `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
 | `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
 | `thumbnail_url` | `text` | Custom event graphic/PNG URL |
-| `chat_platform` | `text` | Pilot chat platform, e.g. `discord` |
-| `chat_channel_id` | `text` | Discord channel ID for selected event chats |
-| `chat_widget_url` | `text` | Optional explicit WidgetBot iframe URL |
-| `chat_external_url` | `text` | Optional external Discord channel/invite URL |
-| `chat_status` | `text` | `draft`, `active`, or `archived`; active chats render after RSVP |
-| `is_recording` | `boolean` | Marks past recording rows shown under the Events recordings tab |
-| `recording_url` | `text` | External video URL for recording rows |
-| `recording_provider` | `text` | Source label such as YouTube |
-| `recording_source_id` | `text` | External source identifier, such as a YouTube video ID |
-| `recording_published_at` | `timestamptz` | Optional source publish date for recordings |
-| `speaker_resources` | `jsonb` | Optional IPN Lab papers, event resources, and speaker links |
+| `chat_platform` / `chat_channel_id` / `chat_widget_url` / `chat_external_url` / `chat_status` | `text` | Discord WidgetBot pilot fields |
+| `is_recording` | `boolean` | Marks past recording rows |
+| `recording_url` / `recording_provider` / `recording_source_id` / `recording_published_at` | various | Recording metadata |
+| `speaker_resources` | `jsonb` | Optional papers, links, and event resources for IPN Lab detail pages |
 | `status` | `text` | `draft`, `published`, or `cancelled` |
-| `registration_count` | `integer` | Maintained by trigger; used for 10+/20+ display |
-
-RLS allows authenticated members to read only `published` events. Upcoming event
-rows use `is_recording = false`; past IPN Labs and PsychedelX recordings use
-`is_recording = true` and are shown in the Events tab instead of Resources.
-
-`speaker_resources` is optional. IPN Lab detail pages show placeholders when
-the field is empty. When populated, use this shape:
-
-```json
-{
-  "papers": [
-    {
-      "title": "Paper title",
-      "url": "https://example.com/paper",
-      "citation": "Author et al., 2026",
-      "note": "Optional context for members"
-    }
-  ],
-  "resources": [
-    {
-      "title": "Slides or event resource",
-      "url": "https://example.com/resource",
-      "source": "Slides",
-      "note": "Optional context for members"
-    }
-  ],
-  "speakerLinks": [
-    {
-      "label": "Personal website",
-      "url": "https://example.com",
-      "type": "website"
-    }
-  ]
-}
-```
-
-Supported `speakerLinks.type` values are `website`, `email`, `profile`,
-`social`, and `other`. Email links should use a `mailto:` URL.
+| `registration_count` | `integer` | Maintained by trigger |
 
 ### `public.event_registrations`
-
-One row per member RSVP.
 
 | Column | Type | Notes |
 |---|---|---|
 | `event_id` | `uuid` | References `events.id` |
 | `user_id` | `uuid` | References `auth.users.id` |
 | `created_at` | `timestamptz` | RSVP timestamp |
-| `reminder_state` | `text` | Placeholder for future Mailchimp reminders |
+| `reminder_state` | `text` | Placeholder for future email reminders |
 
-The primary key is `(event_id, user_id)`, so a member can RSVP only once per
-event. RLS allows members to view and create only their own registrations. A
-trigger updates `events.registration_count` after RSVP insert/delete.
-
-### `resource-assets` bucket
-
-Public bucket for resource-card artwork such as partner logos, affiliate promo
-images, and other non-sensitive media assets.
-
-- **Read**: public (no auth required)
-- **Write**: managed by admins/service-role tooling only
-- **Public URL pattern**: `{SUPABASE_URL}/storage/v1/object/public/resource-assets/{path}`
+Primary key is `(event_id, user_id)`. A trigger increments/decrements `events.registration_count`.
 
 ### `public.resources`
-
-Member-only resource surface. Rows represent approved affiliate/member benefits,
-IPN blog posts, or partner/sponsor organizations. Event recordings live in
-`public.events`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key |
-| `slug` | `text` | Unique stable identifier used for seed upserts |
+| `slug` | `text` | Unique stable identifier |
 | `resource_type` | `text` | `affiliate_benefit`, `blog_post`, or `partner` |
 | `title` / `description` | `text` | Member-facing card copy |
-| `url` | `text` | External source opened by the Learn More CTA |
-| `category` | `text` | Display label such as `Member benefits`, `IPN Blog`, or `Partner organizations` |
-| `image_url` / `image_alt` | `text` | Optional logo or artwork and alt text |
-| `thumbnail_url` | `text` | Optional video/article thumbnail for card and detail views |
-| `benefit_note` | `text` | Optional member benefit / discount copy |
-| `detail_body` | `text` | Detail-page body copy for recordings/articles |
-| `author` | `text` | Optional author byline for blog posts |
-| `published_at` | `timestamptz` | Optional source publish date |
-| `source_id` | `text` | Optional external source identifier, such as a YouTube video ID |
-| `source_name` | `text` | Optional source label, such as YouTube or IPN Blog |
-| `featured` | `boolean` | Internal sort priority; not shown as a public sponsor tier |
-| `sort_order` | `integer` | Manual ordering within the member resources page |
+| `url` | `text` | External source |
+| `category` | `text` | Display label |
+| `image_url` / `image_alt` / `thumbnail_url` | `text` | Card artwork |
+| `benefit_note` / `detail_body` / `author` | `text` | Content fields |
+| `published_at` / `source_id` / `source_name` | various | Source metadata |
+| `featured` | `boolean` | Internal sort priority |
+| `sort_order` | `integer` | Manual ordering |
 | `status` | `text` | `draft`, `published`, or `archived` |
 
-RLS allows authenticated members to read only `published` resources. Content and
-asset URLs are managed directly in Supabase until Admin Portal CRUD is built.
+---
+
+## Admin & service-role client
+
+`src/lib/supabase/admin.ts` exports `createAdminClient()` which uses `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS. Used only in server components and server actions for admin-tier operations. Never import in client components.
+
+Required env var: `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API → service_role key). Add to `.env.local` and to Netlify environment variables.
 
 ---
 
@@ -295,4 +301,10 @@ const supabase = createClient()
 const { data } = await supabase.from("profiles").select("*").eq("id", userId)
 ```
 
-RLS ensures users only get back rows they're allowed to see regardless of which client is used.
+**Admin / service-role** — use `src/lib/supabase/admin.ts` (server only):
+```ts
+const admin = createAdminClient()
+const { data } = await admin.from("profiles").select("*") // bypasses RLS
+```
+
+RLS ensures users only get back rows they're allowed to see regardless of which user client is used.

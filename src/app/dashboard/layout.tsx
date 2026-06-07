@@ -29,7 +29,7 @@ export default async function DashboardLayout({
 
   const profile = profileResult.data
   const pendingRequestCount = pendingResult.count ?? 0
-  const isAdmin = profile?.role === "superadmin"
+  const isAdmin = profile?.role === "superadmin" || profile?.role === "admin"
 
   return (
     <div className="flex h-full flex-col overflow-hidden md:flex-row">

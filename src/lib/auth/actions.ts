@@ -64,7 +64,7 @@ export async function signUp(
   const siteUrl = getSiteUrl()
   const coords = await geocodeCity(data.city, data.country)
 
-  const { error } = await supabase.auth.signUp({
+  const { data: authData, error } = await supabase.auth.signUp({
     email: data.email,
     password: data.password,
     options: {
@@ -91,6 +91,14 @@ export async function signUp(
   })
 
   if (error) return { error: error.message }
+
+  // The trigger doesn't capture email — set it explicitly on the new profile row
+  if (authData.user) {
+    await supabase
+      .from("profiles")
+      .update({ email: data.email })
+      .eq("id", authData.user.id)
+  }
 
   redirect("/dashboard")
 }
@@ -137,6 +145,7 @@ export type ProfileUpdateData = {
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
+  discord_handle: string | null
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
