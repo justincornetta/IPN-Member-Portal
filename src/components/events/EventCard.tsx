@@ -68,21 +68,21 @@ function CalendarActions({ event }: { event: EventWithRegistration }) {
         href={buildGoogleCalendarUrl(event)}
         target="_blank"
         rel="noreferrer"
-        className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
       >
         Google
       </a>
       <button
         type="button"
         onClick={downloadIcs}
-        className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
       >
         Apple
       </button>
       <button
         type="button"
         onClick={downloadIcs}
-        className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
       >
         Outlook
       </button>
@@ -285,6 +285,15 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 {event.speakers}
               </span>
             )}
+          </div>
+
+          <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                Add to calendar
+              </p>
+              <CalendarActions event={event} />
+            </div>
           </div>
 
           <div className="mt-auto pt-4">

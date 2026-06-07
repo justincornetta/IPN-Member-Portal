@@ -21,6 +21,9 @@ import {
   SCHOOLS_BY_COUNTRY,
 } from "@/lib/constants/locations"
 
+const DISCORD_INVITE_URL =
+  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/YDdMGNF7X5"
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type Profile = {
@@ -528,6 +531,12 @@ export default function ProfileForm({
   const discordName =
     discordProfile.globalName ?? discordProfile.username ?? "Discord account"
   const discordConnectHref = "/auth/discord/start?next=/dashboard/profile"
+  const discordNeedsInvite =
+    discordConnected &&
+    (discordProfile.serverStatus === "failed" ||
+      discordProfile.serverStatus === "skipped" ||
+      discordStatus === "connected_invite" ||
+      discordStatus === "connected_join_failed")
   const discordMessage =
     discordStatus === "missing_config"
       ? "Discord OAuth is not configured for this environment yet."
@@ -535,6 +544,12 @@ export default function ProfileForm({
         ? "Discord verification expired. Please try connecting again."
         : discordStatus === "not_authenticated"
           ? "Sign in to the portal before connecting Discord."
+          : discordStatus === "connected_joined"
+            ? "Discord connected and server access was added."
+            : discordStatus === "connected_invite"
+              ? "Discord connected. Use the Discord button below to join the IPN server."
+              : discordStatus === "connected_join_failed"
+                ? "Discord connected, but automatic server join did not complete. Use the Discord button below to join manually."
           : discordStatus === "token_error" ||
               discordStatus === "user_error" ||
               discordStatus === "save_error"
@@ -760,12 +775,24 @@ export default function ProfileForm({
             <div className="flex flex-wrap gap-2">
               <a
                 href={discordConnectHref}
-                target="_blank"
-                rel="noreferrer"
                 className="rounded-lg bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#4752C4]"
               >
                 {discordConnected ? "Reconnect" : "Connect"}
               </a>
+              {discordConnected && (
+                <a
+                  href={DISCORD_INVITE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                    discordNeedsInvite
+                      ? "border-[#5865F2] text-[#5865F2] hover:bg-[#5865F2]/5"
+                      : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                  }`}
+                >
+                  Open Discord
+                </a>
+              )}
               {discordConnected && (
                 <button
                   type="button"
