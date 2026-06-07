@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import { registerForEvent } from "@/lib/events/actions"
 import {
-  buildGoogleCalendarUrl,
-  buildIcsContent,
   canJoinEvent,
   formatEventDateTime,
   joinWindowMessage,
@@ -45,47 +44,6 @@ function EventArtwork({ event }: { event: EventWithRegistration }) {
           {event.event_type}
         </span>
       </div>
-    </div>
-  )
-}
-
-function CalendarActions({ event }: { event: EventWithRegistration }) {
-  function downloadIcs() {
-    const blob = new Blob([buildIcsContent(event)], {
-      type: "text/calendar;charset=utf-8",
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${event.slug}.ics`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <a
-        href={buildGoogleCalendarUrl(event)}
-        target="_blank"
-        rel="noreferrer"
-        className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
-      >
-        Google
-      </a>
-      <button
-        type="button"
-        onClick={downloadIcs}
-        className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
-      >
-        Apple
-      </button>
-      <button
-        type="button"
-        onClick={downloadIcs}
-        className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
-      >
-        Outlook
-      </button>
     </div>
   )
 }
@@ -153,7 +111,7 @@ function ConfirmationModal({
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
             Add to calendar
           </p>
-          <CalendarActions event={event} />
+          <AddToCalendarButton event={event} compact />
         </div>
 
         <div className="mt-5 flex justify-end">
@@ -209,6 +167,9 @@ export default function EventCard({ event, variant = "full" }: Props) {
   const countLabel = registrationBand(count)
   const isCompact = variant === "compact"
   const hasActiveChat = event.chat_status === "active"
+  const isExternalRegistration = Boolean(event.registration_url)
+  const isLockedTicketedEvent =
+    event.requires_verified_ticket && !event.has_verified_ticket
 
   function handleRegister() {
     setError(null)
@@ -290,13 +251,34 @@ export default function EventCard({ event, variant = "full" }: Props) {
           <div className="mt-auto pt-4">
             {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
-            {!registered ? (
+            {isLockedTicketedEvent ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <p className="max-w-xl text-xs leading-5 text-zinc-500">
+                  Register on Eventbrite with the same email you use for this
+                  portal. If the email does not match, use the Zoom link from
+                  your Eventbrite confirmation email.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <AddToCalendarButton event={event} compact />
+                  {event.registration_url && (
+                    <a
+                      href={event.registration_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+                    >
+                      Register on Eventbrite
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : !registered && !isExternalRegistration ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-h-8 text-xs font-medium text-zinc-400">
                   {countLabel}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <CalendarActions event={event} />
+                  <AddToCalendarButton event={event} compact />
                   <button
                     type="button"
                     onClick={handleRegister}
@@ -333,7 +315,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <CalendarActions event={event} />
+                  <AddToCalendarButton event={event} compact />
                   <button
                     type="button"
                     onClick={handleJoin}

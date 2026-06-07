@@ -68,9 +68,12 @@ export default async function ResourceDetailPage({ params }: Props) {
 
   const resource = data as ResourceRecord
   const image = resourceImage(resource)
-  const details = resource.detail_body ?? resource.description
   const resourceMetadata = metadata(resource)
   const isBenefit = resource.resource_type === "affiliate_benefit"
+  const isBlog = resource.resource_type === "blog_post"
+  const showRecommendation =
+    resource.detail_body &&
+    resource.detail_body.trim() !== resource.description?.trim()
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -123,12 +126,25 @@ export default async function ResourceDetailPage({ params }: Props) {
             </p>
           )}
 
-          {details && (
+          {resource.description && (
             <div className="mt-6 space-y-4 text-sm leading-7 text-zinc-600">
-              {details.split("\n").map((paragraph, index) => (
+              {resource.description.split("\n").map((paragraph, index) => (
                 <p key={`${index}-${paragraph}`}>{paragraph}</p>
               ))}
             </div>
+          )}
+
+          {showRecommendation && (
+            <section className="mt-7 rounded-lg border border-ipn/20 bg-ipn/5 px-4 py-4">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-ipn">
+                IPN Recommendation
+              </h2>
+              <div className="mt-3 space-y-3 text-sm leading-7 text-zinc-700">
+                {resource.detail_body!.split("\n").map((paragraph, index) => (
+                  <p key={`${index}-${paragraph}`}>{paragraph}</p>
+                ))}
+              </div>
+            </section>
           )}
 
           {resource.benefit_note && (
@@ -148,7 +164,7 @@ export default async function ResourceDetailPage({ params }: Props) {
             rel="noreferrer"
             className="mt-7 inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
           >
-            Learn More
+            {isBlog ? "Read More" : "Learn More"}
             <ExternalLinkIcon />
           </a>
         </div>

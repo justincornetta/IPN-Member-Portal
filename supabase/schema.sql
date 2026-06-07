@@ -207,6 +207,10 @@ create table if not exists public.events (
   location_label      text,
   location_details    text,
   join_url            text,
+  registration_url    text,
+  registration_provider text,
+  external_event_id   text,
+  requires_verified_ticket boolean not null default false,
   thumbnail_url       text,
   chat_platform       text,
   chat_channel_id     text,
@@ -235,6 +239,10 @@ alter table public.events add column if not exists chat_channel_id text;
 alter table public.events add column if not exists chat_widget_url text;
 alter table public.events add column if not exists chat_external_url text;
 alter table public.events add column if not exists chat_status text;
+alter table public.events add column if not exists registration_url text;
+alter table public.events add column if not exists registration_provider text;
+alter table public.events add column if not exists external_event_id text;
+alter table public.events add column if not exists requires_verified_ticket boolean not null default false;
 
 do $$
 begin
@@ -266,6 +274,14 @@ create index if not exists events_recordings_type_starts_at_idx
 
 create index if not exists events_recordings_category_starts_at_idx
   on public.events (status, is_recording, event_type, recording_category, starts_at desc);
+
+create unique index if not exists events_recording_source_unique
+  on public.events (recording_provider, recording_source_id)
+  where recording_source_id is not null;
+
+create index if not exists events_external_event_id_idx
+  on public.events (external_event_id)
+  where external_event_id is not null;
 
 alter table public.events enable row level security;
 
@@ -346,6 +362,66 @@ create trigger event_registration_count_changed
   after insert or delete on public.event_registrations
   for each row
   execute procedure public.sync_event_registration_count();
+
+
+-- ── 7b. External event ticket access ────────────────────────
+--
+-- Used for ticketed events such as PsychedelX where registration happens
+-- in Eventbrite. The portal unlocks Join only when the logged-in member's
+-- email matches a synced attendee row.
+
+create table if not exists public.event_ticket_access (
+  id                         uuid primary key default gen_random_uuid(),
+  event_id                   uuid not null references public.events on delete cascade,
+  external_event_id          text not null,
+  attendee_email             text not null,
+  attendee_email_normalized  text not null,
+  attendee_name              text,
+  eventbrite_attendee_id     text,
+  eventbrite_order_id        text,
+  ticket_class_name          text,
+  status                     text,
+  checked_in                 boolean not null default false,
+  synced_at                  timestamptz not null default now(),
+  created_at                 timestamptz default now(),
+  updated_at                 timestamptz default now(),
+  unique (event_id, attendee_email_normalized)
+);
+
+create index if not exists event_ticket_access_event_email_idx
+  on public.event_ticket_access (event_id, attendee_email_normalized);
+
+create index if not exists event_ticket_access_external_event_idx
+  on public.event_ticket_access (external_event_id);
+
+alter table public.event_ticket_access enable row level security;
+
+drop policy if exists "Users can view own ticket access" on public.event_ticket_access;
+create policy "Users can view own ticket access"
+  on public.event_ticket_access for select
+  using (
+    auth.role() = 'authenticated'
+    and attendee_email_normalized = lower(coalesce(auth.jwt()->>'email', ''))
+  );
+
+
+-- ── 7c. Admin content permissions ───────────────────────────
+--
+-- Future-friendly permission table for restricting which leadership admins
+-- can publish each content type. Superadmins bypass this in server actions.
+-- If an admin has no rows here, the v1 default is all content permissions.
+
+create table if not exists public.admin_content_permissions (
+  profile_id    uuid not null references public.profiles on delete cascade,
+  content_type  text not null
+    check (content_type in ('upcoming_event', 'past_recording', 'member_resource', 'blog_post', 'partner')),
+  can_publish   boolean not null default true,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now(),
+  primary key (profile_id, content_type)
+);
+
+alter table public.admin_content_permissions enable row level security;
 
 
 -- ── 8. Resources ────────────────────────────────────────────
@@ -448,7 +524,7 @@ insert into public.resources (
   ($$psychedelx-lynsey-gibson-biophilia-psychedelia-regenerative-psychedelic-settings$$, $$psychedelx_recording$$, $$Lynsey Gibson - Biophilia Psychedelia: Regenerative Psychedelic Settings$$, $$Lynsey Gibson - Biophilia Psychedelia: Regenerative Psychedelic Settings Day 2 – Culture, Anthropology and Sociology category of PsychedelX 2025, hosted by the Intercollegiate Psychedelics Network.$$, $$https://www.youtube.com/watch?v=TeSWHheefyg$$, $$PsychedelX recordings$$, null, $$Lynsey Gibson - Biophilia Psychedelia: Regenerative Psychedelic Settings thumbnail$$, $$https://i.ytimg.com/vi/TeSWHheefyg/hqdefault.jpg$$, null, $$Lynsey Gibson - Biophilia Psychedelia: Regenerative Psychedelic Settings Day 2 – Culture, Anthropology and Sociology category of PsychedelX 2025, hosted by the Intercollegiate Psychedelics Network.$$, null, $$2025-07-17T05:47:52+00:00$$, $$TeSWHheefyg$$, $$YouTube$$, false, 220, $$published$$),
   ($$psychedelx-cece-trezza-spiritual-awakening-the-musical-a-patient-s-lived-experience$$, $$psychedelx_recording$$, $$Cece Trezza - Spiritual Awakening the Musical: A Patient’s Lived Experience with KAP$$, $$Cece Trezza - Spiritual Awakening the Musical: A Patient’s Lived Experience with Ketamine-Assisted Psychotherapy Day 2 – Culture, Anthropology and Sociology category of PsychedelX 2025, hosted by the Intercollegiate Psychedelics Network.$$, $$https://www.youtube.com/watch?v=edSGdjGB_hg$$, $$PsychedelX recordings$$, null, $$Cece Trezza - Spiritual Awakening the Musical: A Patient’s Lived Experience with KAP thumbnail$$, $$https://i.ytimg.com/vi/edSGdjGB_hg/hqdefault.jpg$$, null, $$Cece Trezza - Spiritual Awakening the Musical: A Patient’s Lived Experience with Ketamine-Assisted Psychotherapy Day 2 – Culture, Anthropology and Sociology category of PsychedelX 2025, hosted by the Intercollegiate Psychedelics Network.$$, null, $$2025-07-17T05:40:37+00:00$$, $$edSGdjGB_hg$$, $$YouTube$$, false, 230, $$published$$),
   ($$psychedelx-angel-cox-reclaiming-softness-how-plant-medicine-can-illuminate-the-path$$, $$psychedelx_recording$$, $$Angel Cox - Reclaiming Softness: How Plant Medicine Can Illuminate the Path to Healing...$$, $$Reclaiming Softness: How Plant Medicine Can Illuminate the Path to Healing from the Strong Black Woman Schema Day 2 – Culture, Anthropology and Sociology category of PsychedelX 2025, hosted by the Intercollegiate Psychedelics Network.$$, $$https://www.youtube.com/watch?v=trQZ_O2JmOE$$, $$PsychedelX recordings$$, null, $$Angel Cox - Reclaiming Softness: How Plant Medicine Can Illuminate the Path to Healing... thumbnail$$, $$https://i.ytimg.com/vi/trQZ_O2JmOE/hqdefault.jpg$$, null, $$Reclaiming Softness: How Plant Medicine Can Illuminate the Path to Healing from the Strong Black Woman Schema Day 2 – Culture, Anthropology and Sociology category of PsychedelX 2025, hosted by the Intercollegiate Psychedelics Network.$$, null, $$2025-07-17T05:32:21+00:00$$, $$trQZ_O2JmOE$$, $$YouTube$$, false, 240, $$published$$),
-  ($$blog-why-different-psychedelics-feel-different$$, $$blog_post$$, $$Why Different Psychedelics Feel Different$$, $$People often refer to psychedelics as if they are a unified category of drug that produces one type of experience. While molecules in this family may have more in common with each other than they do with drugs in other categories (such as opioids or benzodiazepines), anyone familiar with LSD, psilocybin, DMT or mescaline knows that the differences are striking. Seasoned users report consistent themes. LSD experiences tend to feel bright, crisp, hyper-detailed, and mentally energetic. Psilocybin (converted to active psilocin in the body) often feels softer, emotional, introspective, and bodily. DMT can feel instantaneous, immersive, and alien, while mescaline has its own distinctly warm, som…$$, $$https://www.intercollegiatepsychedelics.net/blog/why-different-psychedelics-feel-different$$, $$IPN Blog$$, $$https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/3e70ee4c-eaec-4f20-b267-f2b60658164f/94bb6f26-186e-483c-834a-df9d1400f13a.jfif?format=1000w$$, $$Why Different Psychedelics Feel Different article image$$, null, null, $$People often refer to psychedelics as if they are a unified category of drug that produces one type of experience. While molecules in this family may have more in common with each other than they do with drugs in other categories (such as opioids or benzodiazepines), anyone familiar with LSD, psilocybin, DMT or mescaline knows that the differences are striking. Seasoned users report consistent themes. LSD experiences tend to feel bright, crisp, hyper-detailed, and mentally energetic. Psilocybin (converted to active psilocin in the body) often feels softer, emotional, introspective, and bodily. DMT can feel instantaneous, immersive, and alien, while mescaline has its own distinctly warm, som…$$, $$Intercollegiate Psychedelics Network (IPN)$$, $$2026-03-31T18:58:37.000Z$$, null, $$IPN Blog$$, false, 300, $$published$$),
+  ($$blog-why-different-psychedelics-feel-different$$, $$blog_post$$, $$Why Different Psychedelics Feel Different$$, $$People often refer to psychedelics as if they are a unified category of drug that produces one type of experience. While molecules in this family may have more in common with each other than they do with drugs in other categories (such as opioids or benzodiazepines), anyone familiar with LSD, psilocybin, DMT or mescaline knows that the differences are striking. Seasoned users report consistent themes. LSD experiences tend to feel bright, crisp, hyper-detailed, and mentally energetic. Psilocybin (converted to active psilocin in the body) often feels softer, emotional, introspective, and bodily. DMT can feel instantaneous, immersive, and alien, while mescaline has its own distinctly warm, som…$$, $$https://ipnblog.substack.com/p/why-different-psychedelics-feel-different$$, $$IPN Blog$$, $$https://substackcdn.com/image/fetch/$s_!_w_R!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F6693bf81-9bed-49f9-8287-51f3bd8dee15_640x640.jpeg$$, $$Why Different Psychedelics Feel Different article image$$, null, null, $$People often refer to psychedelics as if they are a unified category of drug that produces one type of experience. While molecules in this family may have more in common with each other than they do with drugs in other categories (such as opioids or benzodiazepines), anyone familiar with LSD, psilocybin, DMT or mescaline knows that the differences are striking. Seasoned users report consistent themes. LSD experiences tend to feel bright, crisp, hyper-detailed, and mentally energetic. Psilocybin (converted to active psilocin in the body) often feels softer, emotional, introspective, and bodily. DMT can feel instantaneous, immersive, and alien, while mescaline has its own distinctly warm, som…$$, $$Intercollegiate Psychedelics Network (IPN)$$, $$2026-03-31T18:58:37.000Z$$, $$https://ipnblog.substack.com/p/why-different-psychedelics-feel-different$$, $$Substack$$, false, 300, $$published$$),
   ($$blog-ancient-medicine-in-modern-practice$$, $$blog_post$$, $$Ancient Medicine in Modern Practice$$, $$Rain gently patters the leaves outside of the forest hut deep within the forest of the ancient Amazon. A shaman humming an alien yet familiar tune hands you a wooden cup containing a deep maroon liquid, a light steam coming off its surface. The smell of wet earth fills your nostrils as the shaman gently places his hand underneath, urging you to drink until your cup is empty. This is your third helping, and you hand it back to him and he begins to fill it again. Your family shakes and rattles bundles of leaves called chakapas, which rhythmically accompany the shaman’s deep encaptivating melody. As you continue to drink, a euphoric sensation blossoms across your body, your abdomen filling wit…$$, $$https://www.intercollegiatepsychedelics.net/blog/2024/08/02/ancient-medicine-in-modern-practice$$, $$IPN Blog$$, $$https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/1746567259199-UA9Y8ZI74RHK70QYR03U/Ancient-Medicine-in-Modern-Practice-Header-Image.png?format=1000w$$, $$Ancient Medicine in Modern Practice article image$$, null, null, $$Rain gently patters the leaves outside of the forest hut deep within the forest of the ancient Amazon. A shaman humming an alien yet familiar tune hands you a wooden cup containing a deep maroon liquid, a light steam coming off its surface. The smell of wet earth fills your nostrils as the shaman gently places his hand underneath, urging you to drink until your cup is empty. This is your third helping, and you hand it back to him and he begins to fill it again. Your family shakes and rattles bundles of leaves called chakapas, which rhythmically accompany the shaman’s deep encaptivating melody. As you continue to drink, a euphoric sensation blossoms across your body, your abdomen filling wit…$$, null, $$2024-08-02T05:01:57.000Z$$, null, $$IPN Blog$$, false, 310, $$published$$),
   ($$blog-interview-of-psychedelx-co-founder-haley-dourron$$, $$blog_post$$, $$Interview of PsychedelX Co-Founder, Haley Dourron$$, $$Haley Dourron is a Ph.D. candidate in the Drug Use and Behavior Lab at the University of Alabama at Birmingham. Her research focuses on the neurophenomenological effects of psychedelics and their potential for inducing lasting behavioral changes. Haley pioneered the creation of IPN’s PsychedelX program in 2020 and 2021 along with the rest of IPN’s Research and Professional Development team (now called IPN Labs). Currently, she is working on a pioneering psilocybin-assisted therapy trial for cocaine dependence. Haley's work also delves into the parallels between psychedelic-induced states and psychosis, contributing to innovative approaches in mental health treatment. Explore her research pu…$$, $$https://www.intercollegiatepsychedelics.net/blog/2024/05/31/interview-of-psychedelx-co-founder-haley-dourron$$, $$IPN Blog$$, $$https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/1746567258984-PLXJ6K2IVD7FQ9SJ9C28/Interview-of-Haley-Dourron-Blog-Post-Cover-Image.png?format=1000w$$, $$Interview of PsychedelX Co-Founder, Haley Dourron article image$$, null, null, $$Haley Dourron is a Ph.D. candidate in the Drug Use and Behavior Lab at the University of Alabama at Birmingham. Her research focuses on the neurophenomenological effects of psychedelics and their potential for inducing lasting behavioral changes. Haley pioneered the creation of IPN’s PsychedelX program in 2020 and 2021 along with the rest of IPN’s Research and Professional Development team (now called IPN Labs). Currently, she is working on a pioneering psilocybin-assisted therapy trial for cocaine dependence. Haley's work also delves into the parallels between psychedelic-induced states and psychosis, contributing to innovative approaches in mental health treatment. Explore her research pu…$$, null, $$2024-05-31T17:22:59.000Z$$, null, $$IPN Blog$$, false, 320, $$published$$),
   ($$blog-bridging-the-gap-between-the-past-and-present-in-the-psychedelic-renaiss$$, $$blog_post$$, $$Bridging the Gap Between the Past and Present in the Psychedelic Renaissance$$, $$“It was my destiny to join a great experience”- This quote by Herman Hesse welcomed attendees to the 2023 biannual Psychedelic Science Conference hosted by MAPS in Denver, Colorado. Like hundreds of others in the crowd, I was filled with excitement and awe at being present for the world’s largest gathering of psychedelic enthusiasts.$$, $$https://www.intercollegiatepsychedelics.net/blog/2024/03/29/bridging-the-gap-between-the-past-and-present-in-the-psychedelic-renaissance$$, $$IPN Blog$$, $$https://images.squarespace-cdn.com/content/v1/6818fd40c887dc63e296d115/1746568446493-1I0YG777SM093WMB6BHL/Bridging-the-gap-DALL%C2%B7E-2024-03-19-14.26.43-.png?format=1000w$$, $$Bridging the Gap Between the Past and Present in the Psychedelic Renaissance article image$$, null, null, $$“It was my destiny to join a great experience”- This quote by Herman Hesse welcomed attendees to the 2023 biannual Psychedelic Science Conference hosted by MAPS in Denver, Colorado. Like hundreds of others in the crowd, I was filled with excitement and awe at being present for the world’s largest gathering of psychedelic enthusiasts.$$, null, $$2024-03-29T19:33:42.000Z$$, null, $$IPN Blog$$, false, 330, $$published$$),
@@ -632,6 +708,50 @@ set title = excluded.title,
     recording_category = excluded.recording_category,
     recording_source_id = excluded.recording_source_id,
     recording_published_at = excluded.recording_published_at,
+    status = excluded.status,
+    updated_at = now();
+
+insert into public.events (
+  slug,
+  title,
+  event_type,
+  starts_at,
+  ends_at,
+  timezone,
+  summary,
+  description,
+  speakers,
+  location_label,
+  location_details,
+  join_url,
+  thumbnail_url,
+  registration_url,
+  registration_provider,
+  external_event_id,
+  requires_verified_ticket,
+  is_recording,
+  status,
+  registration_count
+) values
+  ($$psychedelx-2026$$, $$PsychedelX 2026: The Premier Global Psychedelic Student Talk Conference$$, $$PsychedelX$$, $$2026-06-26T15:00:00+00:00$$, $$2026-06-28T21:00:00+00:00$$, $$Europe/Lisbon$$, $$Register for PsychedelX 2026 through Eventbrite. Ticket holders receive the Zoom link by email, and the member portal Join button unlocks when the ticket email matches the portal email.$$, $$PsychedelX 2026 is IPN's premier global psychedelic student talk conference, bringing together student researchers, clinicians, policy thinkers, and community organizers for a multi-day online conference. Registration is handled through Eventbrite. Once the Zoom link is available, verified ticket holders can join from the member portal using the same email address used for Eventbrite registration.$$, $$IPN PsychedelX Team$$, $$Online$$, $$Register on Eventbrite to receive the Zoom link by email. Portal Join access unlocks after the Eventbrite attendee sync confirms a matching email address.$$, null, $$https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F1185375569%2F798777896233%2F1%2Foriginal.20260525-174106?crop=focalpoint&fit=crop&w=940&auto=format%2Ccompress&q=75&sharp=10&fp-x=0.5&fp-y=0.5&s=d40dd67dd252ce3fdb48989ecd7517ae$$, $$https://www.eventbrite.com/e/psychedelx-2026-the-premier-global-psychedelic-student-talk-conference-registration-1990339262312?aff=oddtdtcreator$$, $$Eventbrite$$, $$1990339262312$$, true, false, $$published$$, 0)
+on conflict (slug) do update
+set title = excluded.title,
+    event_type = excluded.event_type,
+    starts_at = excluded.starts_at,
+    ends_at = excluded.ends_at,
+    timezone = excluded.timezone,
+    summary = excluded.summary,
+    description = excluded.description,
+    speakers = excluded.speakers,
+    location_label = excluded.location_label,
+    location_details = excluded.location_details,
+    join_url = excluded.join_url,
+    thumbnail_url = excluded.thumbnail_url,
+    registration_url = excluded.registration_url,
+    registration_provider = excluded.registration_provider,
+    external_event_id = excluded.external_event_id,
+    requires_verified_ticket = excluded.requires_verified_ticket,
+    is_recording = excluded.is_recording,
     status = excluded.status,
     updated_at = now();
 

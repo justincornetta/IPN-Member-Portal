@@ -46,6 +46,10 @@ export type EventRecord = {
   location_details: string | null
   join_url: string | null
   thumbnail_url: string | null
+  registration_url: string | null
+  registration_provider: string | null
+  external_event_id: string | null
+  requires_verified_ticket: boolean
   chat_platform: string | null
   chat_channel_id: string | null
   chat_widget_url: string | null
@@ -64,4 +68,5 @@ export type EventRecord = {
 
 export type EventWithRegistration = EventRecord & {
   is_registered: boolean
+  has_verified_ticket: boolean
 }
