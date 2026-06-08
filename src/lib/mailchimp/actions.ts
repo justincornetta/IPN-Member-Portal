@@ -4,6 +4,7 @@ import { createHash } from "crypto"
 import { createClient } from "@/lib/supabase/server"
 import {
   canonicalMailchimpErrorDescription,
+  normalizeMailchimpStatus,
   profileMailchimpFields,
   type MailchimpErrorRaw,
   type MailchimpStatus,
@@ -11,6 +12,7 @@ import {
 } from "./status"
 
 const LIST_ID = "e7bcf08ab8"
+const MAILCHIMP_TIMEOUT_MS = 8000
 
 function mailchimpAuth() {
   const apiKey = process.env.MAILCHIMP_API_KEY
@@ -71,6 +73,7 @@ export async function setMailchimpSubscription(
       {
         method: "PUT",
         headers: { Authorization: auth, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(MAILCHIMP_TIMEOUT_MS),
         body: JSON.stringify({
           email_address: email,
           status_if_new: subscribed ? "subscribed" : "unsubscribed",
@@ -87,7 +90,8 @@ export async function setMailchimpSubscription(
         errorDescription: description,
       }
     }
-    return { status: subscribed ? "subscribed" : "unsubscribed" }
+    const data = (await res.json()) as { status?: string }
+    return { status: normalizeMailchimpStatus(data.status) }
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Unknown error"
     const raw = {
@@ -121,14 +125,63 @@ export async function getMailchimpStatus(
     const { baseUrl, auth } = mailchimpAuth()
     const res = await fetch(
       `${baseUrl}/lists/${LIST_ID}/members/${subscriberHash(email)}`,
-      { headers: { Authorization: auth } },
+      {
+        headers: { Authorization: auth },
+        signal: AbortSignal.timeout(MAILCHIMP_TIMEOUT_MS),
+      },
     )
     if (!res.ok) return "unknown"
     const data = (await res.json()) as { status?: string }
-    if (data.status === "subscribed") return "subscribed"
-    if (data.status === "unsubscribed") return "unsubscribed"
-    return "unknown"
+    return normalizeMailchimpStatus(data.status)
   } catch {
     return "unknown"
+  }
+}
+
+export async function lookupMailchimpSubscription(
+  email: string,
+): Promise<MailchimpSyncResult> {
+  if (!email.trim()) return { status: "unknown" }
+
+  try {
+    const { baseUrl, auth } = mailchimpAuth()
+    const res = await fetch(
+      `${baseUrl}/lists/${LIST_ID}/members/${subscriberHash(email)}`,
+      {
+        headers: { Authorization: auth },
+        signal: AbortSignal.timeout(MAILCHIMP_TIMEOUT_MS),
+      },
+    )
+
+    if (res.status === 404) {
+      return { status: "not_found" }
+    }
+
+    if (!res.ok) {
+      const { raw, description } = await readMailchimpError(res)
+      return {
+        status: "sync_failed",
+        error: raw.detail ?? raw.title ?? "Mailchimp lookup failed",
+        errorRaw: raw,
+        errorDescription: description,
+      }
+    }
+
+    const data = (await res.json()) as { status?: string }
+    return { status: normalizeMailchimpStatus(data.status) }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "Unknown error"
+    const raw = {
+      title: "Mailchimp Lookup Exception",
+      detail,
+    }
+    return {
+      status: "sync_failed",
+      error: detail,
+      errorRaw: raw,
+      errorDescription: detail.includes("MAILCHIMP_API_KEY")
+        ? "Mailchimp is not configured correctly. Check MAILCHIMP_API_KEY in the deployment environment."
+        : "The portal could not complete the Mailchimp status lookup.",
+    }
   }
 }

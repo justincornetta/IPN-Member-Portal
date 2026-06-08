@@ -307,6 +307,7 @@ export type AnalyticsData = {
   topSchools: [string, number][]
   topCountries: [string, number][]
   recent: {
+    id: string
     first_name: string | null
     last_name: string | null
     email: string | null
@@ -350,10 +351,30 @@ function mailchimpBadge(status: MailchimpStatus | null) {
         label: "Unsubscribed",
         className: "border-zinc-200 bg-zinc-50 text-zinc-500",
       }
+    case "pending":
+      return {
+        label: "Pending",
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+      }
+    case "cleaned":
+      return {
+        label: "Cleaned",
+        className: "border-orange-200 bg-orange-50 text-orange-700",
+      }
+    case "transactional":
+      return {
+        label: "Transactional",
+        className: "border-violet-200 bg-violet-50 text-violet-700",
+      }
     case "sync_failed":
       return {
         label: "Sync failed",
         className: "border-red-200 bg-red-50 text-red-700",
+      }
+    case "not_found":
+      return {
+        label: "Not found",
+        className: "border-zinc-200 bg-zinc-50 text-zinc-500",
       }
     default:
       return {
@@ -435,8 +456,8 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
                 <h2 className="text-sm font-semibold text-zinc-800">Recent signups</h2>
               </div>
               <div className="divide-y divide-zinc-100">
-                {analytics.recent.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between px-5 py-3">
+                {analytics.recent.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between px-5 py-3">
                     <div>
                       <p className="text-sm font-medium text-zinc-800">{m.first_name} {m.last_name}</p>
                       <p className="text-xs text-zinc-400">{m.email}</p>

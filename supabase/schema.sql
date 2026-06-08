@@ -40,7 +40,7 @@ create table if not exists public.profiles (
   discord_server_status     text,
   discord_server_joined_at  timestamptz,
   mailchimp_status          text not null default 'unknown'
-    check (mailchimp_status in ('subscribed', 'unsubscribed', 'sync_failed', 'unknown')),
+    check (mailchimp_status in ('subscribed', 'unsubscribed', 'cleaned', 'pending', 'transactional', 'sync_failed', 'not_found', 'unknown')),
   mailchimp_synced_at       timestamptz,
   mailchimp_last_error_raw  jsonb,
   mailchimp_last_error_description text,
@@ -76,7 +76,7 @@ alter table public.profiles add column if not exists mailchimp_last_error_descri
 
 alter table public.profiles drop constraint if exists profiles_mailchimp_status_check;
 alter table public.profiles add constraint profiles_mailchimp_status_check
-  check (mailchimp_status in ('subscribed', 'unsubscribed', 'sync_failed', 'unknown'));
+  check (mailchimp_status in ('subscribed', 'unsubscribed', 'cleaned', 'pending', 'transactional', 'sync_failed', 'not_found', 'unknown'));
 
 create unique index if not exists profiles_discord_user_id_unique
   on public.profiles (discord_user_id)

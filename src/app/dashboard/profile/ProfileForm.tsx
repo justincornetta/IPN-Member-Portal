@@ -515,7 +515,7 @@ export default function ProfileForm({
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [tagPickerOpen, setTagPickerOpen] = useState(false)
-  const [subscribed, setSubscribed] = useState(mailchimpStatus !== "unsubscribed")
+  const [subscribed, setSubscribed] = useState(mailchimpStatus === "subscribed")
   const [subscriptionSaving, setSubscriptionSaving] = useState(false)
   const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
   const [atUniversity, setAtUniversity] = useState(() =>

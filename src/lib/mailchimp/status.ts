@@ -1,7 +1,11 @@
 export type MailchimpStatus =
   | "subscribed"
   | "unsubscribed"
+  | "cleaned"
+  | "pending"
+  | "transactional"
   | "sync_failed"
+  | "not_found"
   | "unknown"
 
 export type MailchimpErrorRaw = {
@@ -47,7 +51,7 @@ export function canonicalMailchimpErrorDescription(raw: MailchimpErrorRaw): stri
     return "The Mailchimp API key does not have permission to update this audience."
   }
   if (status === 404 || title.includes("not found")) {
-    return "Mailchimp could not find the configured audience or endpoint. Check the list ID and API data center."
+    return "Mailchimp could not find this email in the configured audience, or the audience ID/API data center is wrong."
   }
   if (status === 405 || title.includes("method not allowed")) {
     return "The Mailchimp endpoint rejected this request method. Check the API URL and member update method."
@@ -65,4 +69,17 @@ export function canonicalMailchimpErrorDescription(raw: MailchimpErrorRaw): stri
     return "Mailchimp reported a server-side problem or outage. Retry later and check Mailchimp status if it persists."
   }
   return "Mailchimp did not sync this member. Review the raw error for the exact response."
+}
+
+export function normalizeMailchimpStatus(status: string | null | undefined): MailchimpStatus {
+  switch (status) {
+    case "subscribed":
+    case "unsubscribed":
+    case "cleaned":
+    case "pending":
+    case "transactional":
+      return status
+    default:
+      return "unknown"
+  }
 }

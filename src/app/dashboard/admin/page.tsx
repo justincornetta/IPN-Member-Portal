@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
+import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import AdminClient from "./AdminClient"
 import type { AnalyticsData } from "./AdminClient"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
@@ -71,10 +73,19 @@ export default async function AdminPage() {
   if (isSuperadmin) {
     const { data } = await admin
       .from("profiles")
-      .select("first_name, last_name, email, persona, created_at, mailchimp_status, mailchimp_last_error_raw, mailchimp_last_error_description")
+      .select("id, first_name, last_name, email, persona, created_at, mailchimp_status, mailchimp_last_error_raw, mailchimp_last_error_description")
       .order("created_at", { ascending: false })
       .limit(10)
-    recent = data ?? []
+    recent = await Promise.all((data ?? []).map(async (profile) => {
+      if (profile.mailchimp_status !== "unknown" || !profile.email) {
+        return profile
+      }
+
+      const result = await lookupMailchimpSubscription(profile.email)
+      const fields = profileMailchimpFields(result)
+      await admin.from("profiles").update(fields).eq("id", profile.id)
+      return { ...profile, ...fields }
+    }))
   }
 
   const analytics: AnalyticsData = {
