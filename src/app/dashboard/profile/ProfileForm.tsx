@@ -6,6 +6,7 @@ import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
 import { disconnectDiscord, updateProfile } from "@/lib/auth/actions"
+import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import {
   PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
@@ -95,6 +96,103 @@ function toFormState(profile: Profile | null): FormState {
     share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
   }
+}
+
+// ── Account field (email / password change) ───────────────────────────────────
+
+function AccountField({ label, value, onEmailChange }: { label: string; value: string; onEmailChange?: (email: string) => void }) {
+  const isPassword = label === "Password"
+  const [open, setOpen] = useState(false)
+  const [val, setVal] = useState("")
+  const [confirm, setConfirm] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null)
+
+  async function handleSave() {
+    if (!val.trim()) return
+    if (!isPassword && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      setMsg({ text: "Enter a valid email address", error: true })
+      return
+    }
+    if (isPassword) {
+      if (val.length < 8) { setMsg({ text: "At least 8 characters", error: true }); return }
+      if (val !== confirm) { setMsg({ text: "Passwords don't match", error: true }); return }
+    }
+    setSaving(true)
+    setMsg(null)
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser(
+      isPassword ? { password: val } : { email: val },
+    )
+    setSaving(false)
+    if (error) {
+      setMsg({ text: error.message, error: true })
+    } else {
+      setMsg({
+        text: isPassword
+          ? "Password updated"
+          : `Confirmation sent to ${val} — click the link to confirm`,
+      })
+      if (!isPassword) onEmailChange?.(val)
+      setVal("")
+      setConfirm("")
+      if (isPassword) setTimeout(() => { setOpen(false); setMsg(null) }, 2000)
+    }
+  }
+
+  const inputCls = "rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-zinc-500">{label}</p>
+          <p className="mt-0.5 text-sm text-zinc-800">{value}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setOpen((o) => !o); setMsg(null); setVal(""); setConfirm("") }}
+          className="cursor-pointer text-xs font-medium text-ipn transition hover:underline"
+        >
+          {open ? "Cancel" : "Change"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-3">
+          <input
+            type={isPassword ? "password" : "email"}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder={isPassword ? "New password" : "New email address"}
+            autoComplete={isPassword ? "new-password" : "email"}
+            className={inputCls}
+          />
+          {isPassword && (
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Confirm new password"
+              autoComplete="new-password"
+              className={inputCls}
+            />
+          )}
+          {msg && (
+            <p className={`text-xs ${msg.error ? "text-red-600" : "text-zinc-500"}`}>{msg.text}</p>
+          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="cursor-pointer self-end rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : `Update ${label.toLowerCase()}`}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -386,11 +484,15 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
 export default function ProfileForm({
   profile,
   userId,
+  userEmail,
   discordStatus,
+  mailchimpStatus,
 }: {
   profile: Profile | null
   userId: string
+  userEmail: string
   discordStatus: string | null
+  mailchimpStatus: "subscribed" | "unsubscribed" | "unknown"
 }) {
   const router = useRouter()
   const [data, setData] = useState<FormState>(() => toFormState(profile))
@@ -412,6 +514,9 @@ export default function ProfileForm({
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [tagPickerOpen, setTagPickerOpen] = useState(false)
+  const [subscribed, setSubscribed] = useState(mailchimpStatus !== "unsubscribed")
+  const [subscriptionSaving, setSubscriptionSaving] = useState(false)
+  const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
   const [atUniversity, setAtUniversity] = useState(() =>
     PROFESSIONAL_BACKGROUNDS.has(profile?.persona ?? "") && !!profile?.school,
   )
@@ -937,6 +1042,52 @@ export default function ProfileForm({
               </label>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Email preferences ── */}
+      <section>
+        <SectionHeading>Email preferences</SectionHeading>
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={subscribed}
+            disabled={subscriptionSaving}
+            onChange={async (e) => {
+              const next = e.target.checked
+              setSubscribed(next)
+              setSubscriptionSaving(true)
+              setSubscriptionMsg(null)
+              const result = await setMailchimpSubscription(userEmail, next)
+              setSubscriptionSaving(false)
+              if (result.error) {
+                setSubscribed(!next)
+                setSubscriptionMsg(result.error)
+              } else {
+                setSubscriptionMsg(next ? "Subscribed" : "Unsubscribed")
+                setTimeout(() => setSubscriptionMsg(null), 3000)
+              }
+            }}
+            className="mt-0.5 accent-ipn"
+          />
+          <div>
+            <p className="text-sm font-medium text-zinc-700">IPN member updates</p>
+            <p className="text-xs text-zinc-400">
+              Event announcements, community news, and member resources.
+            </p>
+            {subscriptionMsg && (
+              <p className="mt-1 text-xs text-zinc-500">{subscriptionMsg}</p>
+            )}
+          </div>
+        </label>
+      </section>
+
+      {/* ── Account ── */}
+      <section>
+        <SectionHeading>Account</SectionHeading>
+        <div className="flex flex-col gap-3">
+          <AccountField label="Email" value={userEmail} onEmailChange={subscribed ? (email) => setMailchimpSubscription(email, true) : undefined} />
+          <AccountField label="Password" value="••••••••••••" />
         </div>
       </section>
 

@@ -3,11 +3,10 @@
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
-import { registerForEvent } from "@/lib/events/actions"
+import { registerForEvent, unregisterFromEvent } from "@/lib/events/actions"
 import {
   canJoinEvent,
   formatEventDateTime,
-  joinWindowMessage,
   registrationBand,
 } from "@/lib/events/calendar"
 import type { EventWithRegistration } from "@/lib/events/types"
@@ -160,6 +159,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
   const [registered, setRegistered] = useState(event.is_registered)
   const [count, setCount] = useState(event.registration_count)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [unrsvpConfirming, setUnrsvpConfirming] = useState(false)
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -170,6 +170,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
   const isExternalRegistration = Boolean(event.registration_url)
   const isLockedTicketedEvent =
     event.requires_verified_ticket && !event.has_verified_ticket
+  const canJoin = canJoinEvent(event.starts_at, event.timezone)
 
   function handleRegister() {
     setError(null)
@@ -187,23 +188,22 @@ export default function EventCard({ event, variant = "full" }: Props) {
   }
 
   function handleJoin() {
-    if (!event.join_url) {
-      setNotice({
-        title: "Join link unavailable",
-        message: "The join link has not been added for this event yet.",
-      })
-      return
+    if (event.join_url) {
+      window.open(event.join_url, "_blank", "noopener,noreferrer")
     }
+  }
 
-    if (!canJoinEvent(event.starts_at)) {
-      setNotice({
-        title: "Event has not started",
-        message: joinWindowMessage(event.starts_at, event.timezone),
-      })
-      return
-    }
-
-    window.open(event.join_url, "_blank", "noopener,noreferrer")
+  function handleUnrsvp() {
+    startTransition(async () => {
+      const result = await unregisterFromEvent(event.id, event.slug)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setRegistered(false)
+        setCount((c) => Math.max(0, c - 1))
+        setUnrsvpConfirming(false)
+      }
+    })
   }
 
   return (
@@ -313,16 +313,60 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       Event chat coming soon
                     </button>
                   )}
+                  {unrsvpConfirming ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-zinc-500">Cancel your RSVP?</span>
+                      <button
+                        type="button"
+                        onClick={handleUnrsvp}
+                        disabled={pending}
+                        className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Yes, cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUnrsvpConfirming(false)}
+                        className="text-xs text-zinc-400 transition hover:text-zinc-600"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setUnrsvpConfirming(true)}
+                      className="text-xs text-zinc-400 transition hover:text-zinc-600"
+                    >
+                      Cancel RSVP
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <AddToCalendarButton event={event} compact />
-                  <button
-                    type="button"
-                    onClick={handleJoin}
-                    className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-                  >
-                    Join
-                  </button>
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AddToCalendarButton event={event} compact />
+                    {canJoin ? (
+                      <button
+                        type="button"
+                        onClick={handleJoin}
+                        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+                      >
+                        Join
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="Join link will be available on the day of the event"
+                        className="cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-400"
+                      >
+                        Join
+                      </button>
+                    )}
+                  </div>
+                  {!canJoin && (
+                    <p className="text-[11px] text-zinc-400">Available on the day of the event</p>
+                  )}
                 </div>
               </div>
             )}

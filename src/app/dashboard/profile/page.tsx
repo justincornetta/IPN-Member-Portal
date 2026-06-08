@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { getMailchimpStatus } from "@/lib/mailchimp/actions"
 import ProfileForm from "./ProfileForm"
 
 type Props = {
@@ -14,11 +15,10 @@ export default async function ProfilePage({ searchParams }: Props) {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, mailchimpStatus] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    user.email ? getMailchimpStatus(user.email) : Promise.resolve("unknown" as const),
+  ])
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
@@ -28,7 +28,9 @@ export default async function ProfilePage({ searchParams }: Props) {
       <ProfileForm
         profile={profile}
         userId={user.id}
+        userEmail={user.email ?? ""}
         discordStatus={query.discord ?? null}
+        mailchimpStatus={mailchimpStatus}
       />
     </div>
   )

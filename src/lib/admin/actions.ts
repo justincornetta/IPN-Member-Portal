@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import type { EventSpeakerResources } from "@/lib/events/types"
 
 export type AdminContentType =
   | "upcoming_event"
@@ -40,6 +41,7 @@ export type AdminContentPayload = {
   publishedAt?: string
   benefitNote?: string
   detailBody?: string
+  speakerResources?: EventSpeakerResources
 }
 
 async function verifySuperadmin(): Promise<{ error: string } | null> {
@@ -222,7 +224,7 @@ export async function publishAdminContent(
     const eventPayload = {
       slug,
       title,
-      event_type: clean(payload.eventType) ?? (isRecording ? "PsychedelX" : "IPN Lab"),
+      event_type: clean(payload.eventType) ?? (isRecording ? "PsychedelX" : "IPN Labs"),
       starts_at: startsAt,
       ends_at: toIso(payload.endsAt),
       timezone: clean(payload.timezone) ?? "America/New_York",
@@ -243,6 +245,9 @@ export async function publishAdminContent(
       recording_category: isRecording ? clean(payload.recordingCategory) : null,
       recording_source_id: isRecording ? sourceId : null,
       recording_published_at: isRecording ? startsAt : null,
+      speaker_resources: !isRecording && payload.speakerResources
+        ? payload.speakerResources
+        : null,
       status: "published",
     }
 
@@ -301,4 +306,112 @@ export async function publishAdminContent(
   revalidatePath("/dashboard/resources")
   revalidatePath(`/dashboard/resources/${slug}`)
   return { slug }
+}
+
+export type AdminEventSummary = {
+  id: string
+  slug: string
+  title: string
+  event_type: string
+  starts_at: string
+  ends_at: string | null
+  timezone: string
+  summary: string | null
+  description: string | null
+  speakers: string | null
+  location_label: string | null
+  location_details: string | null
+  join_url: string | null
+  thumbnail_url: string | null
+  registration_url: string | null
+  registration_provider: string | null
+  external_event_id: string | null
+  requires_verified_ticket: boolean
+  is_recording: boolean
+  recording_url: string | null
+  recording_provider: string | null
+  recording_category: string | null
+  speaker_resources: EventSpeakerResources | null
+  status: string
+}
+
+export type AdminResourceSummary = {
+  id: string
+  slug: string
+  title: string
+  resource_type: string
+  description: string | null
+  url: string
+  category: string | null
+  image_url: string | null
+  detail_body: string | null
+  author: string | null
+  benefit_note: string | null
+  published_at: string | null
+  status: string
+}
+
+export async function listAdminEvents(): Promise<AdminEventSummary[]> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return []
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("events")
+    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, is_recording, recording_url, recording_provider, recording_category, speaker_resources, status")
+    .order("starts_at", { ascending: true })
+    .limit(200)
+  return (data ?? []) as AdminEventSummary[]
+}
+
+export async function listAdminResources(): Promise<AdminResourceSummary[]> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return []
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("resources")
+    .select("id, slug, title, resource_type, description, url, category, image_url, detail_body, author, benefit_note, published_at, status")
+    .order("published_at", { ascending: false })
+    .limit(200)
+  return (data ?? []) as AdminResourceSummary[]
+}
+
+export async function deleteAdminContent(
+  id: string,
+  table: "events" | "resources",
+): Promise<{ error?: string }> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return auth
+  const admin = createAdminClient()
+  const { error } = await admin.from(table).delete().eq("id", id)
+  if (error) return { error: error.message }
+  if (table === "events") {
+    revalidatePath("/dashboard")
+    revalidatePath("/dashboard/events")
+  } else {
+    revalidatePath("/dashboard/resources")
+  }
+  return {}
+}
+
+export async function uploadContentImage(
+  formData: FormData,
+): Promise<{ url?: string; error?: string }> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return auth
+
+  const file = formData.get("file") as File | null
+  if (!file) return { error: "No file provided" }
+
+  const admin = createAdminClient()
+  const path = `content/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+  const buffer = await file.arrayBuffer()
+
+  const { error } = await admin.storage
+    .from("content-images")
+    .upload(path, buffer, { contentType: "image/jpeg", upsert: false })
+
+  if (error) return { error: error.message }
+
+  const { data } = admin.storage.from("content-images").getPublicUrl(path)
+  return { url: data.publicUrl }
 }

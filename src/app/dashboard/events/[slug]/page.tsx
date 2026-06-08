@@ -34,11 +34,6 @@ const SPEAKER_LINK_TYPES = new Set<EventSpeakerLinkType>([
   "other",
 ])
 
-const SPEAKER_LINK_PLACEHOLDERS: EventSpeakerLink[] = [
-  { label: "Speaker website coming soon", type: "website" },
-  { label: "Contact information coming soon", type: "email" },
-  { label: "Research profile coming soon", type: "profile" },
-]
 
 function cleanString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null
@@ -268,15 +263,13 @@ function ResourceRow({
 }
 
 function SpeakerLinksPanel({ links }: { links: EventSpeakerLink[] }) {
-  const visibleLinks = links.length ? links : SPEAKER_LINK_PLACEHOLDERS
-
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
         Speaker Links
       </h2>
       <div className="mt-4 flex flex-col gap-2">
-        {visibleLinks.map((link) => {
+        {links.map((link) => {
           const row = (
             <>
               <SpeakerLinkIcon type={link.type} />
@@ -348,45 +341,28 @@ function SpeakerResourcesSection({
         </div>
 
         <div className="mt-5 flex flex-col gap-3">
-          {hasResourceRows ? (
-            <>
-              {resources.papers.map((paper) => (
-                <ResourceRow
-                  key={`paper-${paper.title}`}
-                  title={paper.title}
-                  label="Relevant paper"
-                  url={paper.url}
-                  detail={paper.citation}
-                  note={paper.note}
-                  kind="paper"
-                />
-              ))}
-              {resources.resources.map((resource) => (
-                <ResourceRow
-                  key={`resource-${resource.title}`}
-                  title={resource.title}
-                  label="Event resource"
-                  url={resource.url}
-                  detail={resource.source}
-                  note={resource.note}
-                  kind="resource"
-                />
-              ))}
-            </>
-          ) : (
-            <>
-              <ResourceRow
-                title="Paper title coming soon"
-                label="Relevant paper"
-                kind="paper"
-              />
-              <ResourceRow
-                title="Event resource coming soon"
-                label="Event resource"
-                kind="resource"
-              />
-            </>
-          )}
+          {resources.papers.map((paper) => (
+            <ResourceRow
+              key={`paper-${paper.title}`}
+              title={paper.title}
+              label="Relevant paper"
+              url={paper.url}
+              detail={paper.citation}
+              note={paper.note}
+              kind="paper"
+            />
+          ))}
+          {resources.resources.map((resource) => (
+            <ResourceRow
+              key={`resource-${resource.title}`}
+              title={resource.title}
+              label="Event resource"
+              url={resource.url}
+              detail={resource.source}
+              note={resource.note}
+              kind="resource"
+            />
+          ))}
         </div>
       </div>
 
@@ -616,7 +592,10 @@ export default async function EventDetailPage({ params }: Props) {
         </section>
       )}
 
-      {isIpnLabEvent(eventRecord) && (
+      {isIpnLabEvent(eventRecord) &&
+        (speakerResources.papers.length > 0 ||
+          speakerResources.resources.length > 0 ||
+          speakerResources.speakerLinks.length > 0) && (
         <SpeakerResourcesSection resources={speakerResources} />
       )}
     </div>

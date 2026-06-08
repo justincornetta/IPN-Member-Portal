@@ -5,7 +5,7 @@ import { searchMembersForAdmin, assignAdminAccess } from "@/lib/admin/actions"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
 import ContentIntakeForm from "./ContentIntakeForm"
 
-const TEAMS = ["Strategy", "Media", "PsychedelX", "Community"] as const
+const TEAMS = ["Strategy", "Media", "PsychedelX", "Community", "IPN Labs"] as const
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -336,7 +336,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
 
   const tabs: { id: Tab; label: string }[] = [
     ...(analytics ? [{ id: "analytics" as Tab, label: "Analytics" }] : []),
-    { id: "content", label: "Content Intake" },
+    { id: "content", label: "Content" },
     { id: "leadership", label: "Leadership" },
   ]
 

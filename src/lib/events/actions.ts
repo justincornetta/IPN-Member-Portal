@@ -38,3 +38,29 @@ export async function registerForEvent(
 
   return {}
 }
+
+export async function unregisterFromEvent(
+  eventId: string,
+  eventSlug: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("event_registrations")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("user_id", user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/dashboard")
+  revalidatePath("/dashboard/events")
+  revalidatePath(`/dashboard/events/${eventSlug}`)
+
+  return {}
+}

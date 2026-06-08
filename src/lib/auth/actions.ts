@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 
 export type RegistrationData = {
   email: string
@@ -59,6 +60,7 @@ function getSiteUrl(): string {
 
 export async function signUp(
   data: RegistrationData,
+  next?: string,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
@@ -100,17 +102,21 @@ export async function signUp(
       .eq("id", authData.user.id)
   }
 
-  redirect("/dashboard")
+  // Subscribe to Mailchimp — non-blocking, failure doesn't affect registration
+  void setMailchimpSubscription(data.email, true)
+
+  redirect(next && next.startsWith("/") ? next : "/dashboard")
 }
 
 export async function signIn(
   email: string,
   password: string,
+  next?: string,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: error.message }
-  redirect("/dashboard")
+  redirect(next && next.startsWith("/") ? next : "/dashboard")
 }
 
 export async function sendPasswordResetEmail(

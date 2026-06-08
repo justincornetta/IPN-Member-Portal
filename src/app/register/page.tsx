@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import icon from "../../../assets/purple_icon.png"
@@ -448,7 +449,9 @@ function StepAbout({
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
-export default function RegisterPage() {
+function RegisterPageContent() {
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("next") ?? ""
   const [step, setStep] = useState(1)
   const [data, setData] = useState<FormData>(EMPTY)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -527,7 +530,7 @@ export default function RegisterPage() {
       role_and_goals: data.role_and_goals,
       inspiration: data.inspiration,
       referral_source: data.referral_source,
-    })
+    }, redirectTo || undefined)
 
     if (result?.error) {
       setGlobalError(result.error)
@@ -541,7 +544,7 @@ export default function RegisterPage() {
       <div ref={contentRef} className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
         {/* Header */}
         <div className="mb-6 text-center">
-          <div className="mb-5 flex justify-center">
+          <div className="mb-5 flex flex-col items-center gap-2">
             <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
             <p className="text-sm font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
           </div>
@@ -628,11 +631,22 @@ export default function RegisterPage() {
 
         <p className="mt-6 border-t border-zinc-100 pt-6 text-center text-sm text-zinc-500">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-ipn hover:underline">
+          <Link
+            href={redirectTo ? `/login?next=${encodeURIComponent(redirectTo)}` : "/login"}
+            className="font-medium text-ipn hover:underline"
+          >
             Sign in
           </Link>
         </p>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterPageContent />
+    </Suspense>
   )
 }
