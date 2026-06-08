@@ -71,7 +71,7 @@ export default async function AdminPage() {
   if (isSuperadmin) {
     const { data } = await admin
       .from("profiles")
-      .select("first_name, last_name, email, persona, created_at")
+      .select("first_name, last_name, email, persona, created_at, mailchimp_status, mailchimp_last_error_raw, mailchimp_last_error_description")
       .order("created_at", { ascending: false })
       .limit(10)
     recent = data ?? []

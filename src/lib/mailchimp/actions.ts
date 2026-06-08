@@ -1,6 +1,14 @@
 "use server"
 
 import { createHash } from "crypto"
+import { createClient } from "@/lib/supabase/server"
+import {
+  canonicalMailchimpErrorDescription,
+  profileMailchimpFields,
+  type MailchimpErrorRaw,
+  type MailchimpStatus,
+  type MailchimpSyncResult,
+} from "./status"
 
 const LIST_ID = "e7bcf08ab8"
 
@@ -10,7 +18,7 @@ function mailchimpAuth() {
   const dc = apiKey.split("-")[1]
   if (!dc) throw new Error("Invalid MAILCHIMP_API_KEY format — expected key-dc (e.g. abc123-us1)")
   return {
-    baseUrl: `https://${dc}.api.mailchimp.com/3.1`,
+    baseUrl: `https://${dc}.api.mailchimp.com/3.0`,
     auth: `Basic ${Buffer.from(`anystring:${apiKey}`).toString("base64")}`,
   }
 }
@@ -19,10 +27,43 @@ function subscriberHash(email: string) {
   return createHash("md5").update(email.toLowerCase()).digest("hex")
 }
 
+async function readMailchimpError(res: Response): Promise<{
+  raw: MailchimpErrorRaw
+  description: string
+}> {
+  const raw: MailchimpErrorRaw = { status: res.status }
+  const body = await res.text()
+  try {
+    const data = JSON.parse(body) as MailchimpErrorRaw
+    raw.type = data.type
+    raw.title = data.title
+    raw.detail = data.detail
+    raw.instance = data.instance
+    raw.response = data
+  } catch {
+    raw.detail = body
+  }
+  return { raw, description: canonicalMailchimpErrorDescription(raw) }
+}
+
+async function recordCurrentUserMailchimpResult(result: MailchimpSyncResult) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  await supabase
+    .from("profiles")
+    .update(profileMailchimpFields(result))
+    .eq("id", user.id)
+}
+
 export async function setMailchimpSubscription(
   email: string,
   subscribed: boolean,
-): Promise<{ error?: string }> {
+): Promise<MailchimpSyncResult> {
   try {
     const { baseUrl, auth } = mailchimpAuth()
     const res = await fetch(
@@ -38,18 +79,44 @@ export async function setMailchimpSubscription(
       },
     )
     if (!res.ok) {
-      const data = (await res.json()) as { detail?: string }
-      return { error: data.detail ?? "Mailchimp request failed" }
+      const { raw, description } = await readMailchimpError(res)
+      return {
+        status: "sync_failed",
+        error: raw.detail ?? raw.title ?? "Mailchimp request failed",
+        errorRaw: raw,
+        errorDescription: description,
+      }
     }
-    return {}
+    return { status: subscribed ? "subscribed" : "unsubscribed" }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Unknown error" }
+    const detail = err instanceof Error ? err.message : "Unknown error"
+    const raw = {
+      title: "Mailchimp Sync Exception",
+      detail,
+    }
+    return {
+      status: "sync_failed",
+      error: detail,
+      errorRaw: raw,
+      errorDescription: detail.includes("MAILCHIMP_API_KEY")
+        ? "Mailchimp is not configured correctly. Check MAILCHIMP_API_KEY in the deployment environment."
+        : "The portal could not reach or complete the Mailchimp sync request.",
+    }
   }
+}
+
+export async function setCurrentUserMailchimpSubscription(
+  email: string,
+  subscribed: boolean,
+): Promise<MailchimpSyncResult> {
+  const result = await setMailchimpSubscription(email, subscribed)
+  await recordCurrentUserMailchimpResult(result)
+  return result
 }
 
 export async function getMailchimpStatus(
   email: string,
-): Promise<"subscribed" | "unsubscribed" | "unknown"> {
+): Promise<MailchimpStatus> {
   try {
     const { baseUrl, auth } = mailchimpAuth()
     const res = await fetch(
