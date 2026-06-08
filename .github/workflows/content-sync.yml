@@ -1,0 +1,18 @@
+name: Content sync
+
+on:
+  schedule:
+    # Runs every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger content sync
+        run: |
+          curl -s -X POST "${{ secrets.SITE_URL }}/api/admin/sync-content" \
+            -H "x-content-sync-secret: ${{ secrets.CONTENT_SYNC_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body

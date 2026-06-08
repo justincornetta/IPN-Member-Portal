@@ -1,6 +1,5 @@
 import type { EventRecord } from "./types"
 
-const JOIN_WINDOW_MINUTES = 15
 
 function toUtcCalendarStamp(value: string): string {
   return new Date(value)
@@ -64,32 +63,21 @@ export function registrationBand(count: number): string | null {
   return `${Math.floor(count / 10) * 10}+ registered`
 }
 
-export function canJoinEvent(startsAt: string, now = new Date()): boolean {
-  const opensAt = new Date(startsAt).getTime() - JOIN_WINDOW_MINUTES * 60 * 1000
-  return now.getTime() >= opensAt
-}
-
-export function joinWindowMessage(startsAt: string, timezone: string): string {
-  const opensAt = new Date(
-    new Date(startsAt).getTime() - JOIN_WINDOW_MINUTES * 60 * 1000,
-  )
-  const formatted = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
+export function canJoinEvent(startsAt: string, timezone: string, now = new Date()): boolean {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
-  }).format(opensAt)
-
-  return `This event has not started yet. The join button opens 15 minutes before the event, at ${formatted}.`
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+  return fmt.format(now) >= fmt.format(new Date(startsAt))
 }
 
 export function buildCalendarDescription(event: EventRecord): string {
   const parts = [
     event.summary,
     event.description,
-    "You can join from the link in your email or through the IPN member portal. The event opens 15 minutes before the scheduled start time.",
+    "You can join from the link in your email or through the IPN member portal.",
   ]
 
   if (event.join_url) parts.push(`Join link: ${event.join_url}`)

@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import icon from "../../../assets/purple_icon.png"
 import { signIn } from "@/lib/auth/actions"
 import NeuralBackground from "@/components/NeuralBackground"
 
-export default function LoginPage() {
+function LoginCard() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get("next") ?? ""
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -20,6 +23,7 @@ export default function LoginPage() {
     const result = await signIn(
       fd.get("email") as string,
       fd.get("password") as string,
+      next || undefined,
     )
     if (result?.error) {
       setError(result.error)
@@ -32,7 +36,7 @@ export default function LoginPage() {
       <NeuralBackground avoidRef={cardRef} />
       <div ref={cardRef} className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
         <div className="mb-8 text-center">
-          <div className="mb-5 flex justify-center">
+          <div className="mb-5 flex flex-col items-center gap-2">
             <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
             <p className="text-sm font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
           </div>
@@ -41,12 +45,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <label
-              htmlFor="email"
-              className="text-sm font-medium text-zinc-700"
-            >
-              Email
-            </label>
+            <label htmlFor="email" className="text-sm font-medium text-zinc-700">Email</label>
             <input
               id="email"
               name="email"
@@ -59,13 +58,8 @@ export default function LoginPage() {
 
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <label
-                htmlFor="password"
-                className="text-sm font-medium text-zinc-700"
-              >
-                Password
-              </label>
-              <Link href="/forgot-password" className="text-xs text-zinc-400 hover:text-ipn transition">
+              <label htmlFor="password" className="text-sm font-medium text-zinc-700">Password</label>
+              <Link href="/forgot-password" className="text-xs text-zinc-400 transition hover:text-ipn">
                 Forgot password?
               </Link>
             </div>
@@ -92,11 +86,22 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-zinc-500">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-ipn hover:underline">
+          <Link
+            href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"}
+            className="font-medium text-ipn hover:underline"
+          >
             Create one
           </Link>
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginCard />
+    </Suspense>
   )
 }

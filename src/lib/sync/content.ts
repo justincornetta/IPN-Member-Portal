@@ -22,6 +22,7 @@ type SyncSummary = {
   substack: SyncResult
   youtube: SyncResult
   eventbrite: SyncResult
+  cleanup: { deleted: number }
 }
 
 type EventbriteAttendee = {
@@ -318,12 +319,51 @@ async function syncEventbrite() {
   return result
 }
 
+async function cleanupPastEvents() {
+  const supabase = syncClient()
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+
+  const [{ data: expiredByEnd }, { data: expiredByStart }] = await Promise.all([
+    // Events with ends_at set and > 1 hour past
+    supabase
+      .from("events")
+      .select("id, thumbnail_url")
+      .eq("is_recording", false)
+      .not("ends_at", "is", null)
+      .lt("ends_at", oneHourAgo),
+    // Events with no ends_at where starts_at is > 4 hours past
+    supabase
+      .from("events")
+      .select("id, thumbnail_url")
+      .eq("is_recording", false)
+      .is("ends_at", null)
+      .lt("starts_at", fourHoursAgo),
+  ])
+
+  const toDelete = [...(expiredByEnd ?? []), ...(expiredByStart ?? [])] as {
+    id: string
+    thumbnail_url: string | null
+  }[]
+
+  for (const event of toDelete) {
+    if (event.thumbnail_url?.includes("/content-images/")) {
+      const path = event.thumbnail_url.split("/content-images/")[1]?.split("?")[0]
+      if (path) await supabase.storage.from("content-images").remove([path])
+    }
+    await supabase.from("events").delete().eq("id", event.id)
+  }
+
+  return { deleted: toDelete.length }
+}
+
 export async function runContentSync(): Promise<SyncSummary> {
-  const [substack, youtube, eventbrite] = await Promise.all([
+  const [substack, youtube, eventbrite, cleanup] = await Promise.all([
     syncSubstack(),
     syncYouTube(),
     syncEventbrite(),
+    cleanupPastEvents(),
   ])
 
-  return { substack, youtube, eventbrite }
+  return { substack, youtube, eventbrite, cleanup }
 }
