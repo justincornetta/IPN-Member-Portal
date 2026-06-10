@@ -21,6 +21,11 @@ type MailchimpTagUpdate = {
   status: "active" | "inactive"
 }
 
+type MailchimpMemberFields = {
+  firstName?: string | null
+  lastName?: string | null
+}
+
 function mailchimpAuth() {
   const apiKey = process.env.MAILCHIMP_API_KEY
   if (!apiKey) throw new Error("MAILCHIMP_API_KEY not set")
@@ -34,6 +39,22 @@ function mailchimpAuth() {
 
 function subscriberHash(email: string) {
   return createHash("md5").update(email.toLowerCase()).digest("hex")
+}
+
+function cleanMergeFieldValue(value: string | null | undefined) {
+  const cleaned = value?.trim()
+  return cleaned ? cleaned : undefined
+}
+
+function mailchimpMergeFields(fields?: MailchimpMemberFields) {
+  const firstName = cleanMergeFieldValue(fields?.firstName)
+  const lastName = cleanMergeFieldValue(fields?.lastName)
+  const mergeFields: Record<string, string> = {}
+
+  if (firstName) mergeFields.FNAME = firstName
+  if (lastName) mergeFields.LNAME = lastName
+
+  return Object.keys(mergeFields).length > 0 ? mergeFields : undefined
 }
 
 async function readMailchimpError(res: Response): Promise<{
@@ -98,9 +119,11 @@ async function updateMailchimpTags(
 export async function setMailchimpSubscription(
   email: string,
   subscribed: boolean,
+  fields?: MailchimpMemberFields,
 ): Promise<MailchimpSyncResult> {
   try {
     const { baseUrl, auth } = mailchimpAuth()
+    const mergeFields = mailchimpMergeFields(fields)
     const res = await fetch(
       `${baseUrl}/lists/${LIST_ID}/members/${subscriberHash(email)}`,
       {
@@ -111,6 +134,7 @@ export async function setMailchimpSubscription(
           email_address: email,
           status_if_new: subscribed ? "subscribed" : "unsubscribed",
           status: subscribed ? "subscribed" : "unsubscribed",
+          ...(mergeFields ? { merge_fields: mergeFields } : {}),
         }),
       },
     )
@@ -156,7 +180,22 @@ export async function setCurrentUserMailchimpSubscription(
   email: string,
   subscribed: boolean,
 ): Promise<MailchimpSyncResult> {
-  const result = await setMailchimpSubscription(email, subscribed)
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("id", user.id)
+      .single()
+    : { data: null }
+
+  const result = await setMailchimpSubscription(email, subscribed, {
+    firstName: profile?.first_name,
+    lastName: profile?.last_name,
+  })
   await recordCurrentUserMailchimpResult(result)
   return result
 }
