@@ -6,7 +6,8 @@ import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
 import { disconnectDiscord, updateProfile } from "@/lib/auth/actions"
-import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
+import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
+import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import {
   PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
@@ -100,7 +101,7 @@ function toFormState(profile: Profile | null): FormState {
 
 // ── Account field (email / password change) ───────────────────────────────────
 
-function AccountField({ label, value, onEmailChange }: { label: string; value: string; onEmailChange?: (email: string) => void }) {
+function AccountField({ label, value, onEmailChange }: { label: string; value: string; onEmailChange?: (email: string) => void | Promise<void> }) {
   const isPassword = label === "Password"
   const [open, setOpen] = useState(false)
   const [val, setVal] = useState("")
@@ -133,7 +134,7 @@ function AccountField({ label, value, onEmailChange }: { label: string; value: s
           ? "Password updated"
           : `Confirmation sent to ${val} — click the link to confirm`,
       })
-      if (!isPassword) onEmailChange?.(val)
+      if (!isPassword) void onEmailChange?.(val)
       setVal("")
       setConfirm("")
       if (isPassword) setTimeout(() => { setOpen(false); setMsg(null) }, 2000)
@@ -492,7 +493,7 @@ export default function ProfileForm({
   userId: string
   userEmail: string
   discordStatus: string | null
-  mailchimpStatus: "subscribed" | "unsubscribed" | "unknown"
+  mailchimpStatus: MailchimpStatus
 }) {
   const router = useRouter()
   const [data, setData] = useState<FormState>(() => toFormState(profile))
@@ -514,7 +515,7 @@ export default function ProfileForm({
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [tagPickerOpen, setTagPickerOpen] = useState(false)
-  const [subscribed, setSubscribed] = useState(mailchimpStatus !== "unsubscribed")
+  const [subscribed, setSubscribed] = useState(mailchimpStatus === "subscribed")
   const [subscriptionSaving, setSubscriptionSaving] = useState(false)
   const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
   const [atUniversity, setAtUniversity] = useState(() =>
@@ -1058,11 +1059,11 @@ export default function ProfileForm({
               setSubscribed(next)
               setSubscriptionSaving(true)
               setSubscriptionMsg(null)
-              const result = await setMailchimpSubscription(userEmail, next)
+              const result = await setCurrentUserMailchimpSubscription(userEmail, next)
               setSubscriptionSaving(false)
               if (result.error) {
                 setSubscribed(!next)
-                setSubscriptionMsg(result.error)
+                setSubscriptionMsg(result.errorDescription ?? result.error)
               } else {
                 setSubscriptionMsg(next ? "Subscribed" : "Unsubscribed")
                 setTimeout(() => setSubscriptionMsg(null), 3000)
@@ -1086,7 +1087,7 @@ export default function ProfileForm({
       <section>
         <SectionHeading>Account</SectionHeading>
         <div className="flex flex-col gap-3">
-          <AccountField label="Email" value={userEmail} onEmailChange={subscribed ? (email) => setMailchimpSubscription(email, true) : undefined} />
+          <AccountField label="Email" value={userEmail} onEmailChange={subscribed ? async (email) => { await setCurrentUserMailchimpSubscription(email, true) } : undefined} />
           <AccountField label="Password" value="••••••••••••" />
         </div>
       </section>

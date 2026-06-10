@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react"
 import { searchMembersForAdmin, assignAdminAccess } from "@/lib/admin/actions"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
+import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import ContentIntakeForm from "./ContentIntakeForm"
 
 const TEAMS = ["Strategy", "Media", "PsychedelX", "Community", "IPN Labs"] as const
@@ -305,7 +306,17 @@ export type AnalyticsData = {
   topTags: [string, number][]
   topSchools: [string, number][]
   topCountries: [string, number][]
-  recent: { first_name: string | null; last_name: string | null; email: string | null; persona: string | null; created_at: string }[] | null
+  recent: {
+    id: string
+    first_name: string | null
+    last_name: string | null
+    email: string | null
+    persona: string | null
+    created_at: string
+    mailchimp_status: MailchimpStatus | null
+    mailchimp_last_error_raw: unknown
+    mailchimp_last_error_description: string | null
+  }[] | null
 }
 
 type Props = {
@@ -326,6 +337,51 @@ function sortDirectorsFirst(members: AdminMemberProfile[]) {
     if (!aDir && bDir) return 1
     return (a.first_name ?? "").localeCompare(b.first_name ?? "")
   })
+}
+
+function mailchimpBadge(status: MailchimpStatus | null) {
+  switch (status) {
+    case "subscribed":
+      return {
+        label: "Subscribed",
+        className: "border-green-200 bg-green-50 text-green-700",
+      }
+    case "unsubscribed":
+      return {
+        label: "Unsubscribed",
+        className: "border-zinc-200 bg-zinc-50 text-zinc-500",
+      }
+    case "pending":
+      return {
+        label: "Pending",
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+      }
+    case "cleaned":
+      return {
+        label: "Cleaned",
+        className: "border-orange-200 bg-orange-50 text-orange-700",
+      }
+    case "transactional":
+      return {
+        label: "Transactional",
+        className: "border-violet-200 bg-violet-50 text-violet-700",
+      }
+    case "sync_failed":
+      return {
+        label: "Sync failed",
+        className: "border-red-200 bg-red-50 text-red-700",
+      }
+    case "not_found":
+      return {
+        label: "Not found",
+        className: "border-zinc-200 bg-zinc-50 text-zinc-500",
+      }
+    default:
+      return {
+        label: "Unknown",
+        className: "border-amber-200 bg-amber-50 text-amber-700",
+      }
+  }
 }
 
 export default function AdminClient({ isSuperadmin, leadership, analytics }: Props) {
@@ -400,14 +456,39 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
                 <h2 className="text-sm font-semibold text-zinc-800">Recent signups</h2>
               </div>
               <div className="divide-y divide-zinc-100">
-                {analytics.recent.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between px-5 py-3">
+                {analytics.recent.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between px-5 py-3">
                     <div>
                       <p className="text-sm font-medium text-zinc-800">{m.first_name} {m.last_name}</p>
                       <p className="text-xs text-zinc-400">{m.email}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="flex flex-col items-end gap-1 text-right">
                       {m.persona && <p className="text-xs text-zinc-500">{m.persona}</p>}
+                      {(() => {
+                        const badge = mailchimpBadge(m.mailchimp_status)
+                        return (
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        )
+                      })()}
+                      {m.mailchimp_status === "sync_failed" && (
+                        <details className="max-w-xs text-left text-[11px] text-zinc-500">
+                          <summary className="cursor-pointer text-right text-zinc-400 hover:text-zinc-600">
+                            Mailchimp details
+                          </summary>
+                          <div className="mt-1 rounded-lg border border-red-100 bg-red-50 p-2 text-red-700">
+                            <p>{m.mailchimp_last_error_description ?? "No canonical error description was stored."}</p>
+                            {m.mailchimp_last_error_raw ? (
+                              <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded bg-white/70 p-2 font-mono text-[10px] text-red-900">
+                                {JSON.stringify(m.mailchimp_last_error_raw, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="mt-1 text-red-500">No raw Mailchimp error was stored.</p>
+                            )}
+                          </div>
+                        </details>
+                      )}
                       <p className="text-xs text-zinc-400">
                         {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>

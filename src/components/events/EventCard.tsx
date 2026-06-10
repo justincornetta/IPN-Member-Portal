@@ -76,8 +76,9 @@ function ConfirmationModal({
 
         <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
           <p className="text-sm text-zinc-700">
-            The event opens 15 minutes before the scheduled start time. You can
-            join from the link in your email or through the IPN member portal.
+            Return to the IPN member portal on the day of the event to join. In
+            the meantime, check out our event resources and join our event group
+            chat to join discussions before and after the event.
           </p>
         </div>
 

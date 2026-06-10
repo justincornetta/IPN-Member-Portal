@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
+import { profileMailchimpFields } from "@/lib/mailchimp/status"
 
 export type RegistrationData = {
   email: string
@@ -102,8 +103,17 @@ export async function signUp(
       .eq("id", authData.user.id)
   }
 
-  // Subscribe to Mailchimp — non-blocking, failure doesn't affect registration
-  void setMailchimpSubscription(data.email, true)
+  // Mailchimp sync is tracked for admins, but never blocks registration.
+  if (authData.user) {
+    const mailchimpResult = await setMailchimpSubscription(data.email, true, {
+      firstName: data.first_name,
+      lastName: data.last_name,
+    })
+    await supabase
+      .from("profiles")
+      .update(profileMailchimpFields(mailchimpResult))
+      .eq("id", authData.user.id)
+  }
 
   redirect(next && next.startsWith("/") ? next : "/dashboard")
 }
@@ -166,12 +176,29 @@ export async function updateProfile(
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  const { error } = await supabase
+  const { data: updatedProfile, error } = await supabase
     .from("profiles")
     .update({ ...data, updated_at: new Date().toISOString() })
     .eq("id", user.id)
+    .select("email, mailchimp_status")
+    .single()
 
   if (error) return { error: error.message }
+
+  if (updatedProfile?.mailchimp_status === "subscribed" && updatedProfile.email) {
+    const mailchimpResult = await setMailchimpSubscription(
+      updatedProfile.email,
+      true,
+      {
+        firstName: data.first_name,
+        lastName: data.last_name,
+      },
+    )
+    await supabase
+      .from("profiles")
+      .update(profileMailchimpFields(mailchimpResult))
+      .eq("id", user.id)
+  }
 }
 
 export async function disconnectDiscord(): Promise<{ error: string } | void> {
