@@ -9,6 +9,7 @@ import {
   listAdminResources,
   deleteAdminContent,
   uploadContentImage,
+  promoteToRecording,
 } from "@/lib/admin/actions"
 import type {
   AdminContentPayload,
@@ -754,6 +755,93 @@ function resourceToFields(r: AdminResourceSummary): ResourceFields {
   }
 }
 
+// ─── Awaiting-recording row ───────────────────────────────────────────────────
+
+function PromoteRow({
+  event,
+  onPromote,
+  onDelete,
+  promoting,
+}: {
+  event: AdminEventSummary
+  onPromote: (id: string, url: string) => void
+  onDelete: () => void
+  promoting: boolean
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [url, setUrl] = useState("")
+  const [confirming, setConfirming] = useState(false)
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-zinc-900">{event.title}</p>
+          <p className="truncate text-xs text-zinc-400">{event.event_type} · {formatDate(event.starts_at)}</p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setExpanded((v) => !v); setConfirming(false) }}
+            className="cursor-pointer rounded-md border border-ipn/30 bg-ipn/5 px-2.5 py-1 text-xs font-medium text-ipn transition hover:bg-ipn/10"
+          >
+            {expanded ? "Cancel" : "Add recording"}
+          </button>
+          {confirming ? (
+            <>
+              <button
+                type="button"
+                onClick={() => { onDelete(); setConfirming(false) }}
+                className="cursor-pointer rounded-md border border-ipn bg-ipn px-2.5 py-1 text-xs font-medium text-white transition hover:bg-ipn/90"
+              >
+                Confirm delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="cursor-pointer text-xs text-zinc-400 transition hover:text-zinc-600"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              className="cursor-pointer rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-ipn/30 hover:bg-ipn/5 hover:text-ipn"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 flex gap-2 border-t border-zinc-100 pt-3">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Paste YouTube or recording URL…"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+          />
+          <button
+            type="button"
+            onClick={() => { if (url.trim()) onPromote(event.id, url.trim()) }}
+            disabled={!url.trim() || promoting}
+            className="cursor-pointer flex-shrink-0 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {promoting ? "Saving…" : "Mark as recording"}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── List row ─────────────────────────────────────────────────────────────────
 
 type EditTarget =
@@ -880,7 +968,7 @@ function Pagination({ page, totalPages, perPage, onPage, onPerPage }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type SubTab = "events" | "recordings" | "resources"
+type SubTab = "events" | "recordings" | "awaiting" | "resources"
 
 export default function ContentIntakeForm() {
   const [subTab, setSubTab] = useState<SubTab>("events")
@@ -909,7 +997,8 @@ export default function ContentIntakeForm() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const upcomingEvents = events.filter((e) => !e.is_recording)
+  const upcomingEvents = events.filter((e) => !e.is_recording && e.status === "published")
+  const endedEvents = events.filter((e) => !e.is_recording && e.status === "ended")
   const recordings = events.filter((e) => e.is_recording)
 
   // Paginated slices
@@ -968,13 +1057,22 @@ export default function ContentIntakeForm() {
     })
   }
 
+  function handlePromote(id: string, url: string) {
+    startTransition(async () => {
+      const result = await promoteToRecording(id, url)
+      if (result.error) setErrorMsg(result.error)
+      else await loadData()
+    })
+  }
+
   const tabCounts: Record<SubTab, number> = {
     events: upcomingEvents.length,
     recordings: recordings.length,
+    awaiting: endedEvents.length,
     resources: resources.length,
   }
 
-  const newLabel = subTab === "events" ? "New event" : subTab === "recordings" ? "New recording" : "New resource"
+  const newLabel = subTab === "events" ? "New event" : subTab === "recordings" ? "New recording" : subTab === "awaiting" ? "" : "New resource"
 
   const formTitle = editTarget === null ? newLabel
     : editTarget.type === "event" ? `Edit: ${editTarget.fields.title}`
@@ -1023,7 +1121,7 @@ export default function ContentIntakeForm() {
             </button>
           )}
         </div>
-        {view === "list" && (
+        {view === "list" && subTab !== "awaiting" && (
           <button type="button" onClick={openNew} className="cursor-pointer ml-4 flex-shrink-0 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90">
             {newLabel}
           </button>
@@ -1033,7 +1131,7 @@ export default function ContentIntakeForm() {
       {/* Sub-tabs (list only) */}
       {view === "list" && (
         <div className="flex border-b border-zinc-100">
-          {(["events", "recordings", "resources"] as SubTab[]).map((id) => (
+          {(["events", "recordings", "awaiting", "resources"] as SubTab[]).map((id) => (
             <button
               key={id}
               type="button"
@@ -1042,9 +1140,13 @@ export default function ContentIntakeForm() {
                 subTab === id ? "-mb-px border-b-2 border-ipn text-ipn" : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
-              {id.charAt(0).toUpperCase() + id.slice(1)}
+              {id === "awaiting" ? "Awaiting" : id.charAt(0).toUpperCase() + id.slice(1)}
               {!loadingList && (
-                <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 tabular-nums">
+                <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                  id === "awaiting" && tabCounts.awaiting > 0
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-zinc-100 text-zinc-500"
+                }`}>
                   {tabCounts[id]}
                 </span>
               )}
@@ -1104,6 +1206,22 @@ export default function ContentIntakeForm() {
                     </>
               )}
 
+              {subTab === "awaiting" && (
+                endedEvents.length === 0
+                  ? <p className="text-sm text-zinc-400">No events awaiting recording — events appear here after they end.</p>
+                  : <div className="flex flex-col gap-2">
+                      {endedEvents.map((event) => (
+                        <PromoteRow
+                          key={event.id}
+                          event={event}
+                          onPromote={handlePromote}
+                          onDelete={() => handleDelete(event.id, "events")}
+                          promoting={pending}
+                        />
+                      ))}
+                    </div>
+              )}
+
               {subTab === "resources" && (
                 resources.length === 0
                   ? <p className="text-sm text-zinc-400">No resources. Click "New resource" to add one.</p>
@@ -1118,8 +1236,8 @@ export default function ContentIntakeForm() {
         </div>
       )}
 
-      {/* Form view */}
-      {view === "form" && (
+      {/* Form view (awaiting tab has no form — all actions are inline) */}
+      {view === "form" && subTab !== "awaiting" && (
         <div className="p-5">
           {subTab === "events" && (
             <EventForm

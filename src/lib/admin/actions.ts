@@ -393,6 +393,43 @@ export async function deleteAdminContent(
   return {}
 }
 
+export async function promoteToRecording(
+  id: string,
+  recordingUrl: string,
+): Promise<{ error?: string }> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return auth
+
+  const admin = createAdminClient()
+  const trimmedUrl = recordingUrl.trim()
+
+  const sourceId =
+    trimmedUrl.match(/[?&]v=([^&]+)/)?.[1] ??
+    trimmedUrl.match(/youtu\.be\/([^?]+)/)?.[1] ??
+    null
+  const provider = sourceId ? "YouTube" : "Other"
+
+  const { error } = await admin
+    .from("events")
+    .update({
+      is_recording: true,
+      status: "published",
+      recording_url: trimmedUrl,
+      recording_provider: provider,
+      recording_source_id: sourceId,
+      recording_published_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("is_recording", false)
+    .eq("status", "ended")
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/dashboard")
+  revalidatePath("/dashboard/events")
+  return {}
+}
+
 export async function uploadContentImage(
   formData: FormData,
 ): Promise<{ url?: string; error?: string }> {

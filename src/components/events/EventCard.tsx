@@ -298,21 +298,13 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       {countLabel}
                     </span>
                   )}
-                  {hasActiveChat ? (
+                  {hasActiveChat && (
                     <Link
                       href={`/dashboard/events/${event.slug}`}
                       className="rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70"
                     >
                       Event chat
                     </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400"
-                    >
-                      Event chat coming soon
-                    </button>
                   )}
                   {unrsvpConfirming ? (
                     <div className="flex items-center gap-1.5">
@@ -337,7 +329,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     <button
                       type="button"
                       onClick={() => setUnrsvpConfirming(true)}
-                      className="text-xs text-zinc-400 transition hover:text-zinc-600"
+                      className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-200 hover:text-red-600"
                     >
                       Cancel RSVP
                     </button>
@@ -366,7 +358,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     )}
                   </div>
                   {!canJoin && (
-                    <p className="text-[11px] text-zinc-400">Available on the day of the event</p>
+                    <p className="text-[11px] text-zinc-400">Event link available on day of event</p>
                   )}
                 </div>
               </div>
