@@ -13,6 +13,13 @@ import {
 
 const LIST_ID = "e7bcf08ab8"
 const MAILCHIMP_TIMEOUT_MS = 8000
+const PORTAL_REGISTRATION_TAG = "IPN Member Portal Registration"
+const LEGACY_GOOGLE_FORM_TAG = "Google Form 2025"
+
+type MailchimpTagUpdate = {
+  name: string
+  status: "active" | "inactive"
+}
 
 function mailchimpAuth() {
   const apiKey = process.env.MAILCHIMP_API_KEY
@@ -62,6 +69,32 @@ async function recordCurrentUserMailchimpResult(result: MailchimpSyncResult) {
     .eq("id", user.id)
 }
 
+async function updateMailchimpTags(
+  email: string,
+  tags: MailchimpTagUpdate[],
+): Promise<MailchimpSyncResult | null> {
+  const { baseUrl, auth } = mailchimpAuth()
+  const res = await fetch(
+    `${baseUrl}/lists/${LIST_ID}/members/${subscriberHash(email)}/tags`,
+    {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(MAILCHIMP_TIMEOUT_MS),
+      body: JSON.stringify({ tags }),
+    },
+  )
+
+  if (res.ok) return null
+
+  const { raw, description } = await readMailchimpError(res)
+  return {
+    status: "sync_failed",
+    error: raw.detail ?? raw.title ?? "Mailchimp tag update failed",
+    errorRaw: raw,
+    errorDescription: description,
+  }
+}
+
 export async function setMailchimpSubscription(
   email: string,
   subscribed: boolean,
@@ -91,6 +124,16 @@ export async function setMailchimpSubscription(
       }
     }
     const data = (await res.json()) as { status?: string }
+
+    if (subscribed) {
+      const tagResult = await updateMailchimpTags(email, [
+        { name: PORTAL_REGISTRATION_TAG, status: "active" },
+        { name: LEGACY_GOOGLE_FORM_TAG, status: "inactive" },
+      ])
+
+      if (tagResult) return tagResult
+    }
+
     return { status: normalizeMailchimpStatus(data.status) }
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Unknown error"
