@@ -82,6 +82,18 @@ create unique index if not exists profiles_discord_user_id_unique
   on public.profiles (discord_user_id)
   where discord_user_id is not null;
 
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists role text;
+alter table public.profiles add column if not exists admin_role text;
+alter table public.profiles add column if not exists team text;
+
+-- Rename "Strategy" team to "Strategy and Operations" before applying the constraint
+update public.profiles set team = 'Strategy and Operations' where team = 'Strategy';
+
+alter table public.profiles drop constraint if exists profiles_team_check;
+alter table public.profiles add constraint profiles_team_check
+  check (team is null or team in ('Strategy and Operations', 'Media', 'PsychedelX', 'Community', 'IPN Labs'));
+
 
 -- ── 2. Row-Level Security ────────────────────────────────────
 
@@ -435,6 +447,27 @@ create table if not exists public.admin_content_permissions (
 );
 
 alter table public.admin_content_permissions enable row level security;
+
+
+-- ── 7d. Team content permissions ────────────────────────────
+--
+-- Team-level publishing permissions. If a team has no rows here, all
+-- content types are allowed. A row with can_publish = false explicitly
+-- blocks that team from publishing that content type.
+-- Superadmins bypass this in server actions.
+
+create table if not exists public.team_content_permissions (
+  team          text not null
+    check (team in ('Strategy and Operations', 'Media', 'PsychedelX', 'Community', 'IPN Labs')),
+  content_type  text not null
+    check (content_type in ('upcoming_event', 'past_recording', 'member_resource', 'blog_post', 'partner')),
+  can_publish   boolean not null default true,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now(),
+  primary key (team, content_type)
+);
+
+alter table public.team_content_permissions enable row level security;
 
 
 -- ── 8. Resources ────────────────────────────────────────────

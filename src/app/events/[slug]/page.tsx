@@ -162,7 +162,7 @@ export default async function PublicEventPage({ params }: Props) {
                   href={`/register?next=/events/${slug}`}
                   className="rounded-lg bg-ipn px-4 py-2.5 text-sm font-medium text-white transition hover:bg-ipn/90"
                 >
-                  Join IPN — it&apos;s free
+                  Join IPN (it&apos;s free)
                 </Link>
               </div>
             </div>

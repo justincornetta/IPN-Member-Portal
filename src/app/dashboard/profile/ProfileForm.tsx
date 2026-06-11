@@ -132,7 +132,7 @@ function AccountField({ label, value, onEmailChange }: { label: string; value: s
       setMsg({
         text: isPassword
           ? "Password updated"
-          : `Confirmation sent to ${val} — click the link to confirm`,
+          : `Confirmation sent to ${val}. Click the link to confirm.`,
       })
       if (!isPassword) void onEmailChange?.(val)
       setVal("")
@@ -739,7 +739,7 @@ export default function ProfileForm({
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="interest_tags">Interests</Label>
-            <p className="text-xs text-zinc-400">Up to 3 — shown on your directory profile.</p>
+            <p className="text-xs text-zinc-400">Up to 3, shown on your directory profile.</p>
             {data.interest_tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {data.interest_tags.map((t) => (
@@ -821,7 +821,7 @@ export default function ProfileForm({
                 options={schoolOptions}
                 placeholder={data.country ? "Type to search…" : "Select a country first"} />
               <p className="text-xs text-zinc-400">
-                Schools are filtered by country — update your country in the Location section to see schools in a different country.
+                Schools are filtered by country. Update your country in the Location section to see schools in a different country.
               </p>
             </div>
           )}
@@ -975,7 +975,7 @@ export default function ProfileForm({
               <div>
                 <p className="text-sm font-medium text-zinc-700">Allow location-based discovery</p>
                 <p className="text-xs text-zinc-400">
-                  Members in your area can find you — approximate region only, nothing specific.
+                  Members in your area can find you. Approximate region only, nothing specific.
                 </p>
               </div>
             </label>

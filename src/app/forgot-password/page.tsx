@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSearchParams } from "next/navigation"
 import icon from "../../../assets/purple_icon.png"
 import { sendPasswordResetEmail } from "@/lib/auth/actions"
 import NeuralBackground from "@/components/NeuralBackground"
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordCard() {
+  const searchParams = useSearchParams()
+  const expired = searchParams.get("expired") === "1"
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,13 +35,15 @@ export default function ForgotPasswordPage() {
       <NeuralBackground avoidRef={cardRef} />
       <div ref={cardRef} className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
         <div className="mb-8 text-center">
-          <div className="mb-5 flex justify-center">
+          <div className="mb-5 flex flex-col items-center gap-2">
             <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
             <p className="text-sm font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900">Reset your password</h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Enter your email and we&apos;ll send you a reset link.
+            {expired
+              ? "Your reset link has expired. Enter your email to get a new one."
+              : "Enter your email and we’ll send you a reset link."}
           </p>
         </div>
 
@@ -50,7 +55,7 @@ export default function ForgotPasswordPage() {
               </svg>
             </div>
             <p className="text-sm text-zinc-600">
-              Check your inbox — a reset link is on its way. It may take a minute to arrive.
+              Check your inbox. A reset link is on its way. It may take a minute to arrive.
             </p>
             <Link href="/login" className="text-sm font-medium text-ipn hover:underline">
               Back to sign in
@@ -94,5 +99,13 @@ export default function ForgotPasswordPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense>
+      <ForgotPasswordCard />
+    </Suspense>
   )
 }

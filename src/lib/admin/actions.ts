@@ -113,6 +113,32 @@ async function canPublishContent(
   if (role === "superadmin") return true
 
   const admin = createAdminClient()
+
+  // Check team-level permissions first
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("team")
+    .eq("id", userId)
+    .single()
+
+  const team = (profile as { team?: string | null } | null)?.team
+
+  if (team) {
+    const { data: teamPerms } = await admin
+      .from("team_content_permissions")
+      .select("content_type, can_publish")
+      .eq("team", team)
+
+    // Only block when there is an explicit can_publish = false row
+    const blocked = (teamPerms ?? []).some(
+      (row) =>
+        (row as { content_type: string; can_publish: boolean }).content_type === contentType &&
+        !(row as { content_type: string; can_publish: boolean }).can_publish,
+    )
+    return !blocked
+  }
+
+  // Fall back to legacy per-user permissions for users without a team
   const { data } = await admin
     .from("admin_content_permissions")
     .select("content_type, can_publish")
@@ -427,6 +453,45 @@ export async function promoteToRecording(
 
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/events")
+  return {}
+}
+
+export type TeamPermissionsMap = Partial<Record<string, Partial<Record<AdminContentType, boolean>>>>
+
+export async function getTeamPermissions(): Promise<TeamPermissionsMap> {
+  const authError = await verifySuperadmin()
+  if (authError) return {}
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("team_content_permissions")
+    .select("team, content_type, can_publish")
+
+  const result: TeamPermissionsMap = {}
+  for (const row of (data ?? []) as { team: string; content_type: AdminContentType; can_publish: boolean }[]) {
+    if (!result[row.team]) result[row.team] = {}
+    result[row.team]![row.content_type] = row.can_publish
+  }
+  return result
+}
+
+export async function setTeamPermission(
+  team: string,
+  contentType: AdminContentType,
+  canPublish: boolean,
+): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from("team_content_permissions")
+    .upsert(
+      { team, content_type: contentType, can_publish: canPublish, updated_at: new Date().toISOString() },
+      { onConflict: "team,content_type" },
+    )
+
+  if (error) return { error: error.message }
   return {}
 }
 

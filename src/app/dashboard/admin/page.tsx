@@ -6,6 +6,8 @@ import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import AdminClient from "./AdminClient"
 import type { AnalyticsData } from "./AdminClient"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
+import { getTeamPermissions } from "@/lib/admin/actions"
+import type { TeamPermissionsMap } from "@/lib/admin/actions"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -75,7 +77,7 @@ export default async function AdminPage() {
       .from("profiles")
       .select("id, first_name, last_name, email, persona, created_at, mailchimp_status, mailchimp_last_error_raw, mailchimp_last_error_description")
       .order("created_at", { ascending: false })
-      .limit(10)
+      .limit(50)
     recent = await Promise.all((data ?? []).map(async (profile) => {
       if (profile.mailchimp_status !== "unknown" || !profile.email) {
         return profile
@@ -87,6 +89,8 @@ export default async function AdminPage() {
       return { ...profile, ...fields }
     }))
   }
+
+  const teamPermissions: TeamPermissionsMap = isSuperadmin ? await getTeamPermissions() : {}
 
   const analytics: AnalyticsData = {
     total,
@@ -105,6 +109,7 @@ export default async function AdminPage() {
       isSuperadmin={isSuperadmin}
       leadership={leadership}
       analytics={analytics}
+      teamPermissions={teamPermissions}
     />
   )
 }

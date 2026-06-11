@@ -316,7 +316,7 @@ function EventForm({ initial, onSubmit, pending }: {
         <>
           <StepBar step={1} total={3} title="Basics" sub="Title, type, and when it happens" />
           <div className="flex flex-col gap-4">
-            <Field label="Title" required hint="Keep it short — shown on event cards and emails (e.g. 'IPN Labs: Psilocybin-Assisted Therapy Update')">
+            <Field label="Title" required hint="Keep it short. Shown on event cards and emails (e.g. 'IPN Labs: Psilocybin-Assisted Therapy Update').">
               <input value={f.title} onChange={(e) => set("title", e.target.value)} className={inputCls()} placeholder="IPN Labs: …" />
               {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
             </Field>
@@ -326,11 +326,11 @@ function EventForm({ initial, onSubmit, pending }: {
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Start date & time" required hint="Your local time — pick the timezone below">
+              <Field label="Start date & time" required hint="Your local time; pick the timezone below.">
                 <input type="datetime-local" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inputCls()} />
                 {errors.startsAt && <p className="text-xs text-red-600">{errors.startsAt}</p>}
               </Field>
-              <Field label="End date & time" hint="Optional — shows duration on the event page">
+              <Field label="End date & time" hint="Optional. Shows duration on the event page.">
                 <input type="datetime-local" value={f.endsAt} onChange={(e) => set("endsAt", e.target.value)} className={inputCls()} />
               </Field>
             </div>
@@ -346,7 +346,7 @@ function EventForm({ initial, onSubmit, pending }: {
         <>
           <StepBar step={2} total={3} title="Access & registration" sub="How do people join or sign up?" />
           <div className="flex flex-col gap-4">
-            <Field label="Join URL" hint="The direct Zoom / Google Meet / etc. link — only shown to members (or ticketed attendees if gated below)">
+            <Field label="Join URL" hint="The direct Zoom / Google Meet / etc. link. Only shown to members (or ticketed attendees if gated below).">
               <input value={f.joinUrl} onChange={(e) => set("joinUrl", e.target.value)} className={inputCls()} placeholder="https://zoom.us/j/..." />
             </Field>
             <Field label="Location label" hint="Shown on the event card (e.g. 'Online', 'San Francisco', 'Zoom')">
@@ -369,7 +369,7 @@ function EventForm({ initial, onSubmit, pending }: {
                   </select>
                 </Field>
                 {f.registrationProvider === "Eventbrite" && (
-                  <Field label="Eventbrite event ID" hint="Numeric ID from the Eventbrite URL — used to automatically sync ticket holders">
+                  <Field label="Eventbrite event ID" hint="Numeric ID from the Eventbrite URL, used to automatically sync ticket holders.">
                     <input value={f.externalEventId} onChange={(e) => set("externalEventId", e.target.value)} className={inputCls()} placeholder="e.g. 1234567890" />
                   </Field>
                 )}
@@ -386,12 +386,12 @@ function EventForm({ initial, onSubmit, pending }: {
 
       {step === 3 && (
         <>
-          <StepBar step={3} total={4} title="Details" sub="Description, speakers, and thumbnail — all optional" />
+          <StepBar step={3} total={4} title="Details" sub="Description, speakers, and thumbnail (all optional)" />
           <div className="flex flex-col gap-4">
             <Field label="Summary" hint="1–2 sentences shown on event cards and previews">
               <textarea value={f.summary} onChange={(e) => set("summary", e.target.value)} rows={2} className={inputCls()} placeholder="A brief, compelling description of the event…" />
             </Field>
-            <Field label="Description" hint="Full text shown on the event detail page — supports multiple paragraphs">
+            <Field label="Description" hint="Full text shown on the event detail page. Supports multiple paragraphs.">
               <textarea value={f.description} onChange={(e) => set("description", e.target.value)} rows={5} className={inputCls()} placeholder="Detailed overview, agenda, or notes about the event…" />
             </Field>
             <Field label="Speakers" hint="Comma-separated names shown below the title (e.g. 'Dr. Jane Smith, Dr. John Doe')">
@@ -400,7 +400,7 @@ function EventForm({ initial, onSubmit, pending }: {
             <Field label="Thumbnail" hint="Uploaded at 1280×720 (16:9). Used on event cards and the public event page.">
               <ImageUploadField value={f.imageUrl} onChange={(url) => set("imageUrl", url)} />
             </Field>
-            <Field label="Slug" hint="URL path for this event — auto-generated from the title if left blank (e.g. 'ipn-labs-psilocybin-update')">
+            <Field label="Slug" hint="URL path for this event, auto-generated from the title if left blank (e.g. 'ipn-labs-psilocybin-update').">
               <input value={f.slug} onChange={(e) => set("slug", e.target.value)} className={inputCls()} placeholder="auto-generated" />
             </Field>
           </div>
@@ -410,7 +410,7 @@ function EventForm({ initial, onSubmit, pending }: {
 
       {step === 4 && (
         <>
-          <StepBar step={4} total={4} title="Speaker & materials" sub="Shown on the event page for IPN Labs events — all optional" />
+          <StepBar step={4} total={4} title="Speaker & materials" sub="Shown on the event page for IPN Labs events (all optional)" />
           <div className="flex flex-col gap-6">
 
             {/* Speaker links */}
@@ -457,8 +457,8 @@ function EventForm({ initial, onSubmit, pending }: {
                     <input value={paper.url} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], url: e.target.value }; set("papers", next) }} placeholder="URL (optional)" className={inputCls()} />
                     <button type="button" onClick={() => set("papers", f.papers.filter((_, j) => j !== i))} className="cursor-pointer rounded-lg border border-zinc-200 px-2 text-zinc-400 hover:border-red-200 hover:text-red-500 transition">✕</button>
                   </div>
-                  <input value={paper.citation} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], citation: e.target.value }; set("papers", next) }} placeholder="Citation (optional — author, journal, year)" className={inputCls()} />
-                  <input value={paper.note} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], note: e.target.value }; set("papers", next) }} placeholder="Note (optional — e.g. 'Focus on section 3')" className={inputCls()} />
+                  <input value={paper.citation} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], citation: e.target.value }; set("papers", next) }} placeholder="Citation (optional: author, journal, year)" className={inputCls()} />
+                  <input value={paper.note} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], note: e.target.value }; set("papers", next) }} placeholder="Note (optional, e.g. 'Focus on section 3')" className={inputCls()} />
                 </div>
               ))}
               <button type="button" onClick={() => set("papers", [...f.papers, { title: "", url: "", citation: "", note: "" }])} className="cursor-pointer self-start rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn">
@@ -477,7 +477,7 @@ function EventForm({ initial, onSubmit, pending }: {
                     <input value={resource.url} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], url: e.target.value }; set("eventMaterials", next) }} placeholder="URL (optional)" className={inputCls()} />
                     <button type="button" onClick={() => set("eventMaterials", f.eventMaterials.filter((_, j) => j !== i))} className="cursor-pointer rounded-lg border border-zinc-200 px-2 text-zinc-400 hover:border-red-200 hover:text-red-500 transition">✕</button>
                   </div>
-                  <input value={resource.source} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], source: e.target.value }; set("eventMaterials", next) }} placeholder="Source (optional — e.g. 'Google Drive')" className={inputCls()} />
+                  <input value={resource.source} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], source: e.target.value }; set("eventMaterials", next) }} placeholder="Source (optional, e.g. 'Google Drive')" className={inputCls()} />
                   <input value={resource.note} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], note: e.target.value }; set("eventMaterials", next) }} placeholder="Note (optional)" className={inputCls()} />
                 </div>
               ))}
@@ -542,11 +542,11 @@ function RecordingForm({ initial, onSubmit, pending }: {
         <>
           <StepBar step={1} total={2} title="Recording basics" />
           <div className="flex flex-col gap-4">
-            <Field label="Title" required hint="Shown on recording cards — include the event name for context (e.g. 'PsychedelX 2024: Opening Keynote')">
+            <Field label="Title" required hint="Shown on recording cards. Include the event name for context (e.g. 'PsychedelX 2024: Opening Keynote').">
               <input value={f.title} onChange={(e) => set("title", e.target.value)} className={inputCls()} placeholder="PsychedelX 2024: …" />
               {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
             </Field>
-            <Field label="YouTube URL" required hint="Full video URL — the video ID is extracted automatically for embedding">
+            <Field label="YouTube URL" required hint="Full video URL. The video ID is extracted automatically for embedding.">
               <input value={f.url} onChange={(e) => set("url", e.target.value)} className={inputCls()} placeholder="https://youtube.com/watch?v=..." />
               {errors.url && <p className="text-xs text-red-600">{errors.url}</p>}
             </Field>
@@ -646,12 +646,12 @@ function ResourceForm({ initial, onSubmit, pending }: {
           <div className="flex flex-col gap-4">
             <Field label="Resource type" hint="Determines how this item is displayed and categorized in the member portal">
               <select value={f.resourceType} onChange={(e) => set("resourceType", e.target.value as ResourceFields["resourceType"])} className={`cursor-pointer ${inputCls()}`}>
-                <option value="blog_post">Blog post — IPN Substack articles</option>
-                <option value="partner">Partner — organizations IPN works with</option>
-                <option value="member_resource">Member benefit — perks and discounts for IPN members</option>
+                <option value="blog_post">Blog post: IPN Substack articles</option>
+                <option value="partner">Partner: organizations IPN works with</option>
+                <option value="member_resource">Member benefit: perks and discounts for IPN members</option>
               </select>
             </Field>
-            <Field label="Title" required hint="Shown on resource cards — keep it concise (under 80 characters)">
+            <Field label="Title" required hint="Shown on resource cards. Keep it concise (under 80 characters).">
               <input value={f.title} onChange={(e) => set("title", e.target.value)} className={inputCls()} />
               {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
             </Field>
@@ -664,7 +664,7 @@ function ResourceForm({ initial, onSubmit, pending }: {
                 <Field label="Published date" hint="Publication date of the article">
                   <input type="datetime-local" value={f.publishedAt} onChange={(e) => set("publishedAt", e.target.value)} className={inputCls()} />
                 </Field>
-                <Field label="Author" hint="Full name — shown below the article title">
+                <Field label="Author" hint="Full name, shown below the article title.">
                   <input value={f.author} onChange={(e) => set("author", e.target.value)} className={inputCls()} placeholder="e.g. Intercollegiate Psychedelics Network" />
                 </Field>
               </>
@@ -686,7 +686,7 @@ function ResourceForm({ initial, onSubmit, pending }: {
                 <input value={f.benefitNote} onChange={(e) => set("benefitNote", e.target.value)} className={inputCls()} placeholder="20% off for IPN members" />
               </Field>
             )}
-            <Field label="IPN recommendation" hint="Longer body text shown on the resource detail page — why IPN recommends this">
+            <Field label="IPN recommendation" hint="Longer body text shown on the resource detail page. Why IPN recommends this.">
               <textarea value={f.detailBody} onChange={(e) => set("detailBody", e.target.value)} rows={3} className={inputCls()} placeholder="Why IPN recommends this resource and how members can benefit…" />
             </Field>
             <Field label="Image" hint="Uploaded at 1280×720 (16:9). Shown as the resource thumbnail.">
@@ -1208,7 +1208,7 @@ export default function ContentIntakeForm() {
 
               {subTab === "awaiting" && (
                 endedEvents.length === 0
-                  ? <p className="text-sm text-zinc-400">No events awaiting recording — events appear here after they end.</p>
+                  ? <p className="text-sm text-zinc-400">No events awaiting recording. Events appear here after they end.</p>
                   : <div className="flex flex-col gap-2">
                       {endedEvents.map((event) => (
                         <PromoteRow

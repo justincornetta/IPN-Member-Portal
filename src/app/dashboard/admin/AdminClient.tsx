@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { searchMembersForAdmin, assignAdminAccess } from "@/lib/admin/actions"
-import type { AdminMemberProfile } from "@/lib/admin/actions"
+import { searchMembersForAdmin, assignAdminAccess, setTeamPermission } from "@/lib/admin/actions"
+import type { AdminMemberProfile, AdminContentType, TeamPermissionsMap } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import ContentIntakeForm from "./ContentIntakeForm"
 
-const TEAMS = ["Strategy", "Media", "PsychedelX", "Community", "IPN Labs"] as const
+const TEAMS = ["Strategy and Operations", "Media", "PsychedelX", "Community", "IPN Labs"] as const
+type TeamName = typeof TEAMS[number]
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -323,11 +324,83 @@ type Props = {
   isSuperadmin: boolean
   leadership: AdminMemberProfile[]
   analytics: AnalyticsData | null
+  teamPermissions: TeamPermissionsMap
+}
+
+function TeamPermissionsMatrix({ initialPerms }: { initialPerms: TeamPermissionsMap }) {
+  const [perms, setPerms] = useState<TeamPermissionsMap>(initialPerms)
+  const [saving, setSaving] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  function isEnabled(team: TeamName, contentType: AdminContentType): boolean {
+    const val = perms[team]?.[contentType]
+    return val === undefined ? true : val
+  }
+
+  function handleToggle(team: TeamName, contentType: AdminContentType, value: boolean) {
+    const key = `${team}:${contentType}`
+    setSaving(key)
+    setPerms((prev) => ({
+      ...prev,
+      [team]: { ...prev[team], [contentType]: value },
+    }))
+    startTransition(async () => {
+      await setTeamPermission(team, contentType, value)
+      setSaving(null)
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              <th className="pb-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">Team</th>
+              {CONTENT_TYPES.map(({ id, label }) => (
+                <th key={id} className="px-3 pb-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {TEAMS.map((team) => (
+              <tr key={team}>
+                <td className="py-2.5 pr-4 text-sm font-medium text-zinc-700 whitespace-nowrap">{team}</td>
+                {CONTENT_TYPES.map(({ id }) => {
+                  const key = `${team}:${id}`
+                  return (
+                    <td key={id} className="px-3 py-2.5 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isEnabled(team, id)}
+                        disabled={saving === key}
+                        onChange={(e) => handleToggle(team, id, e.target.checked)}
+                        className="h-4 w-4 cursor-pointer accent-ipn disabled:cursor-wait"
+                      />
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-zinc-400">All permissions are on by default. Uncheck to restrict a team from publishing that content type.</p>
+    </div>
+  )
 }
 
 // ── Main client component ────────────────────────────────────────────────────
 
-const TEAM_ORDER = ["Strategy", "Media", "PsychedelX", "Community"] as const
+const TEAM_ORDER = ["Strategy and Operations", "Media", "PsychedelX", "Community", "IPN Labs"] as const
+
+const CONTENT_TYPES: { id: AdminContentType; label: string }[] = [
+  { id: "upcoming_event", label: "Events" },
+  { id: "past_recording", label: "Recordings" },
+  { id: "member_resource", label: "Benefits" },
+  { id: "blog_post", label: "Blog posts" },
+  { id: "partner", label: "Partners" },
+]
 
 function sortDirectorsFirst(members: AdminMemberProfile[]) {
   return [...members].sort((a, b) => {
@@ -384,11 +457,12 @@ function mailchimpBadge(status: MailchimpStatus | null) {
   }
 }
 
-export default function AdminClient({ isSuperadmin, leadership, analytics }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, analytics, teamPermissions }: Props) {
   type Tab = "analytics" | "content" | "leadership"
   const defaultTab: Tab = analytics ? "analytics" : "content"
   const [tab, setTab] = useState<Tab>(defaultTab)
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
+  const [signupsPage, setSignupsPage] = useState(0)
 
   const tabs: { id: Tab; label: string }[] = [
     ...(analytics ? [{ id: "analytics" as Tab, label: "Analytics" }] : []),
@@ -401,16 +475,20 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
     members: sortDirectorsFirst(leadership.filter((m) => m.team === team)),
   })).filter((g) => g.members.length > 0)
 
-  const superadminsWithoutTeam = sortDirectorsFirst(
-    leadership.filter((m) => m.role === "superadmin" && !m.team),
+  const knownTeams = new Set(TEAM_ORDER as readonly string[])
+  const ungrouped = sortDirectorsFirst(
+    leadership.filter((m) => !m.team || !knownTeams.has(m.team)),
   )
+
+  const superadminsWithoutTeam = ungrouped.filter((m) => m.role === "superadmin")
+  const adminsWithoutTeam = ungrouped.filter((m) => m.role !== "superadmin")
 
   return (
     <div className="flex flex-col gap-8 p-4 sm:p-8">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Admin</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          {isSuperadmin ? "Superadmin — full access" : "Leadership — analytics access"}
+          {isSuperadmin ? "Superadmin: full access" : "Leadership: analytics access"}
         </p>
       </div>
 
@@ -450,54 +528,83 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
             <BreakdownList title="Top countries" items={analytics.topCountries} total={analytics.total} />
           </div>
 
-          {analytics.recent && (
-            <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-              <div className="border-b border-zinc-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-zinc-800">Recent signups</h2>
-              </div>
-              <div className="divide-y divide-zinc-100">
-                {analytics.recent.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between px-5 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-zinc-800">{m.first_name} {m.last_name}</p>
-                      <p className="text-xs text-zinc-400">{m.email}</p>
+          {analytics.recent && (() => {
+            const PAGE_SIZE = 10
+            const totalPages = Math.ceil(analytics.recent.length / PAGE_SIZE)
+            const pageItems = analytics.recent.slice(signupsPage * PAGE_SIZE, (signupsPage + 1) * PAGE_SIZE)
+            return (
+              <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-zinc-800">Recent signups</h2>
+                  <span className="text-xs text-zinc-400">{analytics.recent.length} total</span>
+                </div>
+                <div className="divide-y divide-zinc-100">
+                  {pageItems.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between px-5 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-zinc-800">{m.first_name} {m.last_name}</p>
+                        <p className="text-xs text-zinc-400">{m.email}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 text-right">
+                        {m.persona && <p className="text-xs text-zinc-500">{m.persona}</p>}
+                        {(() => {
+                          const badge = mailchimpBadge(m.mailchimp_status)
+                          return (
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          )
+                        })()}
+                        {m.mailchimp_status === "sync_failed" && (
+                          <details className="max-w-xs text-left text-[11px] text-zinc-500">
+                            <summary className="cursor-pointer text-right text-zinc-400 hover:text-zinc-600">
+                              Mailchimp details
+                            </summary>
+                            <div className="mt-1 rounded-lg border border-red-100 bg-red-50 p-2 text-red-700">
+                              <p>{m.mailchimp_last_error_description ?? "No canonical error description was stored."}</p>
+                              {m.mailchimp_last_error_raw ? (
+                                <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded bg-white/70 p-2 font-mono text-[10px] text-red-900">
+                                  {JSON.stringify(m.mailchimp_last_error_raw, null, 2)}
+                                </pre>
+                              ) : (
+                                <p className="mt-1 text-red-500">No raw Mailchimp error was stored.</p>
+                              )}
+                            </div>
+                          </details>
+                        )}
+                        <p className="text-xs text-zinc-400">
+                          {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 text-right">
-                      {m.persona && <p className="text-xs text-zinc-500">{m.persona}</p>}
-                      {(() => {
-                        const badge = mailchimpBadge(m.mailchimp_status)
-                        return (
-                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
-                            {badge.label}
-                          </span>
-                        )
-                      })()}
-                      {m.mailchimp_status === "sync_failed" && (
-                        <details className="max-w-xs text-left text-[11px] text-zinc-500">
-                          <summary className="cursor-pointer text-right text-zinc-400 hover:text-zinc-600">
-                            Mailchimp details
-                          </summary>
-                          <div className="mt-1 rounded-lg border border-red-100 bg-red-50 p-2 text-red-700">
-                            <p>{m.mailchimp_last_error_description ?? "No canonical error description was stored."}</p>
-                            {m.mailchimp_last_error_raw ? (
-                              <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded bg-white/70 p-2 font-mono text-[10px] text-red-900">
-                                {JSON.stringify(m.mailchimp_last_error_raw, null, 2)}
-                              </pre>
-                            ) : (
-                              <p className="mt-1 text-red-500">No raw Mailchimp error was stored.</p>
-                            )}
-                          </div>
-                        </details>
-                      )}
-                      <p className="text-xs text-zinc-400">
-                        {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
-                    </div>
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setSignupsPage((p) => Math.max(0, p - 1))}
+                      disabled={signupsPage === 0}
+                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-xs text-zinc-400">
+                      Page {signupsPage + 1} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSignupsPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={signupsPage === totalPages - 1}
+                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
       )}
 
@@ -508,7 +615,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
         <div className="flex flex-col gap-8">
           {/* Roster */}
           <div className="flex flex-col gap-6">
-            {rosterByTeam.length === 0 && superadminsWithoutTeam.length === 0 && (
+            {rosterByTeam.length === 0 && superadminsWithoutTeam.length === 0 && adminsWithoutTeam.length === 0 && (
               <p className="text-sm text-zinc-400">No team members assigned yet.</p>
             )}
 
@@ -542,6 +649,31 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
               </div>
             ))}
 
+            {adminsWithoutTeam.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Other</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {adminsWithoutTeam.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSelectedMember(m)}
+                      className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm text-left transition hover:border-ipn hover:shadow-md cursor-pointer"
+                    >
+                      <MemberAvatar member={m} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-zinc-900">{m.first_name} {m.last_name}</p>
+                        {m.admin_role && <p className="text-xs text-zinc-500">{m.admin_role}</p>}
+                      </div>
+                      <svg className="h-4 w-4 flex-shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {superadminsWithoutTeam.length > 0 && (
               <div className="flex flex-col gap-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Superadmins</p>
@@ -573,6 +705,19 @@ export default function AdminClient({ isSuperadmin, leadership, analytics }: Pro
             <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Assign roles</p>
               <MemberSearch isSuperadmin={isSuperadmin} />
+            </div>
+          )}
+
+          {/* Team permissions (superadmin only) */}
+          {isSuperadmin && (
+            <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Team permissions</p>
+                <p className="mt-1 text-xs text-zinc-500">Control which teams can publish each content type.</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <TeamPermissionsMatrix initialPerms={teamPermissions} />
+              </div>
             </div>
           )}
         </div>
