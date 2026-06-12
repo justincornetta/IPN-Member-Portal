@@ -27,5 +27,11 @@ export async function GET(request: Request) {
     }
   }
 
+  // If this was a password-reset flow, send the user back to request a new link
+  // rather than dumping them on the login page with a confusing error.
+  if (next.startsWith("/reset-password")) {
+    return NextResponse.redirect(`${origin}/forgot-password?expired=1`)
+  }
+
   return NextResponse.redirect(`${origin}/login?error=Could+not+verify+your+email`)
 }

@@ -22,7 +22,7 @@ type SyncSummary = {
   substack: SyncResult
   youtube: SyncResult
   eventbrite: SyncResult
-  cleanup: { deleted: number }
+  cleanup: { marked: number }
 }
 
 type EventbriteAttendee = {
@@ -319,7 +319,7 @@ async function syncEventbrite() {
   return result
 }
 
-async function cleanupPastEvents() {
+async function markEndedEvents() {
   const supabase = syncClient()
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
@@ -328,42 +328,43 @@ async function cleanupPastEvents() {
     // Events with ends_at set and > 1 hour past
     supabase
       .from("events")
-      .select("id, thumbnail_url")
+      .select("id")
       .eq("is_recording", false)
+      .eq("status", "published")
       .not("ends_at", "is", null)
       .lt("ends_at", oneHourAgo),
     // Events with no ends_at where starts_at is > 4 hours past
     supabase
       .from("events")
-      .select("id, thumbnail_url")
+      .select("id")
       .eq("is_recording", false)
+      .eq("status", "published")
       .is("ends_at", null)
       .lt("starts_at", fourHoursAgo),
   ])
 
-  const toDelete = [...(expiredByEnd ?? []), ...(expiredByStart ?? [])] as {
-    id: string
-    thumbnail_url: string | null
-  }[]
+  const ids = [...(expiredByEnd ?? []), ...(expiredByStart ?? [])].map(
+    (e: { id: string }) => e.id,
+  )
 
-  for (const event of toDelete) {
-    if (event.thumbnail_url?.includes("/content-images/")) {
-      const path = event.thumbnail_url.split("/content-images/")[1]?.split("?")[0]
-      if (path) await supabase.storage.from("content-images").remove([path])
-    }
-    await supabase.from("events").delete().eq("id", event.id)
-  }
+  if (!ids.length) return { marked: 0 }
 
-  return { deleted: toDelete.length }
+  const { error } = await supabase
+    .from("events")
+    .update({ status: "ended" })
+    .in("id", ids)
+
+  if (error) throw error
+  return { marked: ids.length }
 }
 
 export async function runContentSync(): Promise<SyncSummary> {
-  const [substack, youtube, eventbrite, cleanup] = await Promise.all([
+  const [substack, youtube, eventbrite] = await Promise.all([
     syncSubstack(),
     syncYouTube(),
     syncEventbrite(),
-    cleanupPastEvents(),
   ])
+  const cleanup = await markEndedEvents()
 
   return { substack, youtube, eventbrite, cleanup }
 }

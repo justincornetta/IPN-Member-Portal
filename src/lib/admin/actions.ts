@@ -113,6 +113,32 @@ async function canPublishContent(
   if (role === "superadmin") return true
 
   const admin = createAdminClient()
+
+  // Check team-level permissions first
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("team")
+    .eq("id", userId)
+    .single()
+
+  const team = (profile as { team?: string | null } | null)?.team
+
+  if (team) {
+    const { data: teamPerms } = await admin
+      .from("team_content_permissions")
+      .select("content_type, can_publish")
+      .eq("team", team)
+
+    // Only block when there is an explicit can_publish = false row
+    const blocked = (teamPerms ?? []).some(
+      (row) =>
+        (row as { content_type: string; can_publish: boolean }).content_type === contentType &&
+        !(row as { content_type: string; can_publish: boolean }).can_publish,
+    )
+    return !blocked
+  }
+
+  // Fall back to legacy per-user permissions for users without a team
   const { data } = await admin
     .from("admin_content_permissions")
     .select("content_type, can_publish")
@@ -390,6 +416,82 @@ export async function deleteAdminContent(
   } else {
     revalidatePath("/dashboard/resources")
   }
+  return {}
+}
+
+export async function promoteToRecording(
+  id: string,
+  recordingUrl: string,
+): Promise<{ error?: string }> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return auth
+
+  const admin = createAdminClient()
+  const trimmedUrl = recordingUrl.trim()
+
+  const sourceId =
+    trimmedUrl.match(/[?&]v=([^&]+)/)?.[1] ??
+    trimmedUrl.match(/youtu\.be\/([^?]+)/)?.[1] ??
+    null
+  const provider = sourceId ? "YouTube" : "Other"
+
+  const { error } = await admin
+    .from("events")
+    .update({
+      is_recording: true,
+      status: "published",
+      recording_url: trimmedUrl,
+      recording_provider: provider,
+      recording_source_id: sourceId,
+      recording_published_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("is_recording", false)
+    .eq("status", "ended")
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/dashboard")
+  revalidatePath("/dashboard/events")
+  return {}
+}
+
+export type TeamPermissionsMap = Partial<Record<string, Partial<Record<AdminContentType, boolean>>>>
+
+export async function getTeamPermissions(): Promise<TeamPermissionsMap> {
+  const authError = await verifySuperadmin()
+  if (authError) return {}
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("team_content_permissions")
+    .select("team, content_type, can_publish")
+
+  const result: TeamPermissionsMap = {}
+  for (const row of (data ?? []) as { team: string; content_type: AdminContentType; can_publish: boolean }[]) {
+    if (!result[row.team]) result[row.team] = {}
+    result[row.team]![row.content_type] = row.can_publish
+  }
+  return result
+}
+
+export async function setTeamPermission(
+  team: string,
+  contentType: AdminContentType,
+  canPublish: boolean,
+): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from("team_content_permissions")
+    .upsert(
+      { team, content_type: contentType, can_publish: canPublish, updated_at: new Date().toISOString() },
+      { onConflict: "team,content_type" },
+    )
+
+  if (error) return { error: error.message }
   return {}
 }
 

@@ -49,7 +49,7 @@ export default function WelcomeModal({ userId }: { userId: string }) {
 
         <h2 className="text-xl font-semibold text-zinc-900">Welcome to the IPN Member Portal</h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-          You&apos;re in. To get the most out of this demo — and to show up in the member directory — take a minute to complete your profile.
+          You&apos;re in. To get the most out of this demo and show up in the member directory, take a minute to complete your profile.
         </p>
 
         <ul className="mt-4 flex flex-col gap-2 text-sm text-zinc-600">

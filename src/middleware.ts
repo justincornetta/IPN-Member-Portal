@@ -33,7 +33,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (!user && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    const loginUrl = new URL("/login", request.url)
+    const destination = pathname + (request.nextUrl.search || "")
+    loginUrl.searchParams.set("next", destination)
+    return NextResponse.redirect(loginUrl)
   }
 
   if (user && (pathname === "/login" || pathname === "/register")) {

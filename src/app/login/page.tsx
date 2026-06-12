@@ -11,6 +11,7 @@ import NeuralBackground from "@/components/NeuralBackground"
 function LoginCard() {
   const searchParams = useSearchParams()
   const next = searchParams.get("next") ?? ""
+  const urlError = searchParams.get("error")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -57,12 +58,7 @@ function LoginCard() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-sm font-medium text-zinc-700">Password</label>
-              <Link href="/forgot-password" className="text-xs text-zinc-400 transition hover:text-ipn">
-                Forgot password?
-              </Link>
-            </div>
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700">Password</label>
             <input
               id="password"
               name="password"
@@ -71,16 +67,31 @@ function LoginCard() {
               autoComplete="current-password"
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
             />
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-xs text-zinc-400 transition hover:text-ipn">
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {(error || urlError) && (
+            <p className="text-sm text-red-600">{error ?? urlError}</p>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
+            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Signing in…
+              </>
+            ) : "Sign in"}
           </button>
         </form>
 

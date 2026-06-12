@@ -40,8 +40,9 @@ export default async function PublicEventPage({ params }: Props) {
   const { slug } = await params
   const admin = createAdminClient()
   const supabase = await createClient()
+  const now = new Date().toISOString()
 
-  const [{ data: event }, { data: { user } }] = await Promise.all([
+  const [{ data: event }, { data: { user } }, { data: otherEvents }] = await Promise.all([
     admin
       .from("events")
       .select("*")
@@ -50,6 +51,15 @@ export default async function PublicEventPage({ params }: Props) {
       .eq("is_recording", false)
       .single(),
     supabase.auth.getUser(),
+    admin
+      .from("events")
+      .select("slug, title, event_type, starts_at, ends_at, timezone, thumbnail_url")
+      .eq("status", "published")
+      .eq("is_recording", false)
+      .neq("slug", slug)
+      .gte("starts_at", now)
+      .order("starts_at", { ascending: true })
+      .limit(3),
   ])
 
   if (!event) notFound()
@@ -76,10 +86,10 @@ export default async function PublicEventPage({ params }: Props) {
               </Link>
             ) : (
               <>
-                <Link href="/login" className="text-sm text-zinc-500 transition hover:text-zinc-800">
+                <Link href={`/login?next=/events/${slug}`} className="text-sm text-zinc-500 transition hover:text-zinc-800">
                   Sign in
                 </Link>
-                <Link href="/register" className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90">
+                <Link href={`/register?next=/events/${slug}`} className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90">
                   Join IPN
                 </Link>
               </>
@@ -89,7 +99,7 @@ export default async function PublicEventPage({ params }: Props) {
       </header>
 
       {/* Hero */}
-      <div className="aspect-video w-full overflow-hidden bg-zinc-900 sm:max-h-80">
+      <div className="aspect-video w-full overflow-hidden bg-zinc-900">
         {e.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={e.thumbnail_url} alt="" className="h-full w-full object-cover" />
@@ -149,10 +159,10 @@ export default async function PublicEventPage({ params }: Props) {
                   Sign in
                 </Link>
                 <Link
-                  href="/register"
+                  href={`/register?next=/events/${slug}`}
                   className="rounded-lg bg-ipn px-4 py-2.5 text-sm font-medium text-white transition hover:bg-ipn/90"
                 >
-                  Join IPN — it&apos;s free
+                  Join IPN (it&apos;s free)
                 </Link>
               </div>
             </div>
@@ -175,6 +185,46 @@ export default async function PublicEventPage({ params }: Props) {
           <div className="mt-8">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Location</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-600">{e.location_details}</p>
+          </div>
+        )}
+
+        {otherEvents && otherEvents.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">More IPN Events</h2>
+            <div className="mt-3 flex flex-col gap-3">
+              {(otherEvents as { slug: string; title: string; event_type: string; starts_at: string; ends_at: string | null; timezone: string; thumbnail_url: string | null }[]).map((ev) => (
+                <Link
+                  key={ev.slug}
+                  href={`/events/${ev.slug}`}
+                  className="group flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition hover:border-ipn/30 hover:bg-ipn/5"
+                >
+                  <div className="aspect-video w-20 flex-shrink-0 overflow-hidden rounded-md bg-zinc-100">
+                    {ev.thumbnail_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={ev.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_28%,#18181b_70%)]" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="rounded bg-ipn-light px-1.5 py-0.5 text-[10px] font-medium text-ipn">
+                        {ev.event_type}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {formatEventDateTime(ev.starts_at, ev.ends_at, ev.timezone)}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm font-medium text-zinc-900 transition group-hover:text-ipn">
+                      {ev.title}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 text-xs font-medium text-ipn opacity-0 transition group-hover:opacity-100">
+                    →
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </div>
