@@ -59,6 +59,21 @@ function getSiteUrl(): string {
   return normalizeSiteUrl(url ?? "http://localhost:3000")
 }
 
+function getPostRegistrationPath(next?: string): string {
+  const fallback = "/dashboard"
+  const rawPath = next && next.startsWith("/") ? next : fallback
+
+  try {
+    const url = new URL(rawPath, "http://localhost")
+    if (url.pathname === "/dashboard") {
+      url.searchParams.set("onboarding", "1")
+    }
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return "/dashboard?onboarding=1"
+  }
+}
+
 export async function signUp(
   data: RegistrationData,
   next?: string,
@@ -66,12 +81,13 @@ export async function signUp(
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
   const coords = await geocodeCity(data.city, data.country)
+  const postRegistrationPath = getPostRegistrationPath(next)
 
   const { data: authData, error } = await supabase.auth.signUp({
     email: data.email,
     password: data.password,
     options: {
-      emailRedirectTo: `${siteUrl}/auth/callback`,
+      emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(postRegistrationPath)}`,
       data: {
         first_name: data.first_name,
         last_name: data.last_name,
@@ -115,7 +131,7 @@ export async function signUp(
       .eq("id", authData.user.id)
   }
 
-  redirect(next && next.startsWith("/") ? next : "/dashboard")
+  redirect(postRegistrationPath)
 }
 
 export async function signIn(

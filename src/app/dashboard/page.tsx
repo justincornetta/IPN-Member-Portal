@@ -51,7 +51,13 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub: st
   )
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const params = await searchParams
+  const showOnboarding = params.onboarding === "1"
   const supabase = await createClient()
   const {
     data: { user },
@@ -98,7 +104,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:gap-8 sm:p-8">
-      <WelcomeModal userId={user!.id} />
+      <WelcomeModal userId={user!.id} show={showOnboarding} />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

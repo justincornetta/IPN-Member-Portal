@@ -6,10 +6,18 @@ import { WHATSAPP_COMMUNITY_COPY } from "@/components/community/WhatsAppCommunit
 
 const WHATSAPP_COMMUNITY_URL = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL
 
-export default function WelcomeModal({ userId }: { userId: string }) {
+export default function WelcomeModal({
+  userId,
+  show,
+}: {
+  userId: string
+  show: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
+    if (!show) return
+
     const key = `ipn_welcome_shown_${userId}`
     if (!localStorage.getItem(key)) {
       const timer = window.setTimeout(() => {
@@ -18,7 +26,7 @@ export default function WelcomeModal({ userId }: { userId: string }) {
       }, 0)
       return () => window.clearTimeout(timer)
     }
-  }, [userId])
+  }, [show, userId])
 
   function dismiss() {
     setOpen(false)
@@ -53,19 +61,20 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           </svg>
         </div>
 
-        <h2 className="text-xl font-semibold text-zinc-900">Welcome to the IPN Member Portal</h2>
+        <h2 className="text-xl font-semibold text-zinc-900">Welcome to IPN</h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-          You&apos;re in. To get the most out of this demo and show up in the
-          member directory, complete your profile, then join the WhatsApp
-          community to connect with IPN members and conversations.
+          We&apos;re glad you&apos;re here. Two quick steps will help you get
+          settled: finish your profile so members can learn more about you, then
+          join the WhatsApp community to connect with other members and stay up
+          to date on the latest IPN events and news.
         </p>
 
         <ul className="mt-4 flex flex-col gap-2 text-sm text-zinc-600">
           {[
-            "Add a bio and photo so other members can find you",
-            "Select up to 3 interest tags to appear in directory filters",
+            "Upload a profile image",
+            "Add a short bio",
+            "Choose up to 3 interests for the member directory",
             WHATSAPP_COMMUNITY_COPY,
-            "Control your visibility and what you share",
           ].map((item) => (
             <li key={item} className="flex items-start gap-2">
               <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-ipn" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -79,6 +88,8 @@ export default function WelcomeModal({ userId }: { userId: string }) {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/dashboard/profile"
+            target="_blank"
+            rel="noreferrer"
             onClick={dismiss}
             className="flex-1 rounded-lg bg-ipn px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-ipn/90 transition"
           >

@@ -89,8 +89,8 @@ function ConfirmationModal({
               <p className="text-sm font-medium text-zinc-900">Event chat</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
                 {eventChatUrl
-                  ? "Join the WhatsApp chat for this event to discuss with other registered IPN members before and after the session."
-                  : "Join a group chat specific to this event to discuss with other registered IPN members before and after the session."}
+                  ? "Join the WhatsApp chat for this event to connect with other registered IPN members before and after the session."
+                  : "Event-specific WhatsApp chats help registered members connect before and after the session."}
               </p>
             </div>
             {eventChatUrl ? (

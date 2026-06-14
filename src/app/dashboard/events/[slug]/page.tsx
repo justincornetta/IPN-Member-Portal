@@ -536,9 +536,8 @@ export default async function EventDetailPage({ params }: Props) {
                 Event Chat
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
-                Join the WhatsApp chat for this event to connect with members,
-                ask questions, share feedback, and continue the conversation
-                before and after the session.
+                Join the WhatsApp chat for this event to connect with other
+                registered IPN members before and after the session.
               </p>
             </div>
             <a
