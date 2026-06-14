@@ -85,13 +85,13 @@ export default function WelcomeModal({
           ))}
         </ul>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Link
             href="/dashboard/profile"
             target="_blank"
             rel="noreferrer"
             onClick={dismiss}
-            className="flex-1 rounded-lg bg-ipn px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-ipn/90 transition"
+            className="rounded-lg bg-ipn px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-ipn/90 transition"
           >
             Complete your profile
           </Link>
@@ -101,7 +101,7 @@ export default function WelcomeModal({
               target="_blank"
               rel="noreferrer"
               onClick={dismiss}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-emerald-700"
+              className="rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-emerald-700"
             >
               Join WhatsApp
             </a>
@@ -109,17 +109,11 @@ export default function WelcomeModal({
             <button
               type="button"
               disabled
-              className="flex-1 cursor-not-allowed rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-400"
+              className="cursor-not-allowed rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-400"
             >
               WhatsApp coming soon
             </button>
           )}
-          <button
-            onClick={dismiss}
-            className="flex-1 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition"
-          >
-            Maybe later
-          </button>
         </div>
       </div>
     </div>

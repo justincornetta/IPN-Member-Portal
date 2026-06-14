@@ -9,7 +9,7 @@ type WhatsAppCommunityCardProps = {
 const WHATSAPP_COMMUNITY_URL = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL
 
 export const WHATSAPP_COMMUNITY_COPY =
-  "Connect with other members and stay up to date on the latest IPN events and news."
+  "Join the IPN WhatsApp Community to connect with other members and stay up to date on the latest IPN events and news."
 
 function WhatsAppIcon() {
   return (
