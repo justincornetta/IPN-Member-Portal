@@ -29,6 +29,7 @@ export type AdminContentPayload = {
   locationLabel?: string
   locationDetails?: string
   joinUrl?: string
+  chatExternalUrl?: string
   registrationUrl?: string
   registrationProvider?: string
   externalEventId?: string
@@ -244,6 +245,7 @@ export async function publishAdminContent(
       toIso(payload.startsAt) ??
       toIso(payload.publishedAt) ??
       (isRecording ? now : null)
+    const chatExternalUrl = isRecording ? null : clean(payload.chatExternalUrl)
 
     if (!startsAt) return { error: "Start date is required" }
 
@@ -260,6 +262,9 @@ export async function publishAdminContent(
       location_label: clean(payload.locationLabel) ?? (isRecording ? "YouTube" : "Online"),
       location_details: clean(payload.locationDetails),
       join_url: isRecording ? null : clean(payload.joinUrl),
+      chat_platform: chatExternalUrl ? "whatsapp" : null,
+      chat_external_url: chatExternalUrl,
+      chat_status: chatExternalUrl ? "active" : "draft",
       thumbnail_url: imageUrl,
       registration_url: isRecording ? null : clean(payload.registrationUrl),
       registration_provider: isRecording ? null : clean(payload.registrationProvider),
@@ -348,6 +353,9 @@ export type AdminEventSummary = {
   location_label: string | null
   location_details: string | null
   join_url: string | null
+  chat_platform: string | null
+  chat_external_url: string | null
+  chat_status: string | null
   thumbnail_url: string | null
   registration_url: string | null
   registration_provider: string | null
@@ -383,7 +391,7 @@ export async function listAdminEvents(): Promise<AdminEventSummary[]> {
   const admin = createAdminClient()
   const { data } = await admin
     .from("events")
-    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, is_recording, recording_url, recording_provider, recording_category, speaker_resources, status")
+    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, chat_platform, chat_external_url, chat_status, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, is_recording, recording_url, recording_provider, recording_category, speaker_resources, status")
     .order("starts_at", { ascending: true })
     .limit(200)
   return (data ?? []) as AdminEventSummary[]

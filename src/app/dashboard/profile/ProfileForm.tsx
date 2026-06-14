@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
-import { disconnectDiscord, updateProfile } from "@/lib/auth/actions"
+import { updateProfile } from "@/lib/auth/actions"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import {
@@ -22,9 +22,6 @@ import {
   CANADIAN_PROVINCES,
   SCHOOLS_BY_COUNTRY,
 } from "@/lib/constants/locations"
-
-const DISCORD_INVITE_URL =
-  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/YDdMGNF7X5"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,16 +40,9 @@ type Profile = {
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
-  discord_handle: string | null
   is_discoverable: boolean | null
   share_location: boolean | null
   avatar_url: string | null
-  discord_user_id: string | null
-  discord_username: string | null
-  discord_global_name: string | null
-  discord_avatar_url: string | null
-  discord_connected_at: string | null
-  discord_server_status: string | null
 }
 
 type FormState = {
@@ -70,7 +60,6 @@ type FormState = {
   bio: string
   interest_tags: string[]
   linkedin_url: string
-  discord_handle: string
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
@@ -92,7 +81,6 @@ function toFormState(profile: Profile | null): FormState {
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
-    discord_handle: profile?.discord_handle ?? "",
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
@@ -296,24 +284,6 @@ function Combobox({
   )
 }
 
-const UPPERCASE_TAG_WORDS = new Set([
-  "LSD", "MDMA", "DMT", "PTSD", "OCD", "CBD", "THC", "IBG", "KAP", "PAT",
-  "MAPS", "FDA", "DEA", "DNA", "RNA", "ADHD", "ASD", "TBI", "IV",
-])
-
-function toTagCase(input: string): string {
-  return input
-    .trim()
-    .split(/\s+/)
-    .slice(0, 3)
-    .map((word) =>
-      UPPERCASE_TAG_WORDS.has(word.toUpperCase())
-        ? word.toUpperCase()
-        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-    )
-    .join(" ")
-}
-
 function TagPickerModal({
   selected,
   onChange,
@@ -486,29 +456,18 @@ export default function ProfileForm({
   profile,
   userId,
   userEmail,
-  discordStatus,
   mailchimpStatus,
 }: {
   profile: Profile | null
   userId: string
   userEmail: string
-  discordStatus: string | null
   mailchimpStatus: MailchimpStatus
 }) {
   const router = useRouter()
   const [data, setData] = useState<FormState>(() => toFormState(profile))
-  const [discordProfile, setDiscordProfile] = useState(() => ({
-    userId: profile?.discord_user_id ?? null,
-    username: profile?.discord_username ?? null,
-    globalName: profile?.discord_global_name ?? null,
-    avatarUrl: profile?.discord_avatar_url ?? null,
-    connectedAt: profile?.discord_connected_at ?? null,
-    serverStatus: profile?.discord_server_status ?? null,
-  }))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [discordDisconnecting, setDiscordDisconnecting] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -588,7 +547,6 @@ export default function ProfileForm({
       bio: data.bio || null,
       interest_tags: data.interest_tags.length > 0 ? data.interest_tags : null,
       linkedin_url: data.linkedin_url || null,
-      discord_handle: data.discord_handle || null,
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
       avatar_url: data.avatar_url,
@@ -597,29 +555,6 @@ export default function ProfileForm({
     setSaving(false)
     if (result?.error) setError(result.error)
     else setSaved(true)
-  }
-
-  async function handleDisconnectDiscord() {
-    setDiscordDisconnecting(true)
-    setError(null)
-
-    const result = await disconnectDiscord()
-
-    setDiscordDisconnecting(false)
-    if (result?.error) {
-      setError(result.error)
-      return
-    }
-
-    setDiscordProfile({
-      userId: null,
-      username: null,
-      globalName: null,
-      avatarUrl: null,
-      connectedAt: null,
-      serverStatus: null,
-    })
-    router.refresh()
   }
 
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -633,34 +568,6 @@ export default function ProfileForm({
   const initials = data.first_name
     ? `${data.first_name[0]}${data.last_name?.[0] ?? ""}`.toUpperCase()
     : userId[0].toUpperCase()
-  const discordConnected = Boolean(discordProfile.userId)
-  const discordName =
-    discordProfile.globalName ?? discordProfile.username ?? "Discord account"
-  const discordConnectHref = "/auth/discord/start?next=/dashboard/profile"
-  const discordNeedsInvite =
-    discordConnected &&
-    (discordProfile.serverStatus === "failed" ||
-      discordProfile.serverStatus === "skipped" ||
-      discordStatus === "connected_invite" ||
-      discordStatus === "connected_join_failed")
-  const discordMessage =
-    discordStatus === "missing_config"
-      ? "Discord OAuth is not configured for this environment yet."
-      : discordStatus === "invalid_state"
-        ? "Discord verification expired. Please try connecting again."
-        : discordStatus === "not_authenticated"
-          ? "Sign in to the portal before connecting Discord."
-          : discordStatus === "connected_joined"
-            ? "Discord connected and server access was added."
-            : discordStatus === "connected_invite"
-              ? "Discord connected. Use the Discord button below to join the IPN server."
-              : discordStatus === "connected_join_failed"
-                ? "Discord connected, but automatic server join did not complete. Use the Discord button below to join manually."
-          : discordStatus === "token_error" ||
-              discordStatus === "user_error" ||
-              discordStatus === "save_error"
-            ? "Discord could not be connected. Please try again."
-            : null
 
   return (
     <div className="flex flex-col gap-10">
@@ -774,14 +681,6 @@ export default function ProfileForm({
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="discord_handle">Discord handle</Label>
-            <TextInput id="discord_handle" name="discord_handle" value={data.discord_handle}
-              onChange={(v) => update("discord_handle", v)}
-              placeholder="e.g. username or @username" />
-            <p className="text-xs text-zinc-400">Shared with your connections</p>
-          </div>
-
-          <div className="flex flex-col gap-1">
             <Label htmlFor="persona">What best describes you?</Label>
             <select
               id="persona"
@@ -834,83 +733,6 @@ export default function ProfileForm({
                 placeholder="Company, organization, self-employed…" />
             </div>
           )}
-        </div>
-      </section>
-
-      {/* ── Community Chat ── */}
-      <section>
-        <SectionHeading>Community Chat</SectionHeading>
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-          {discordMessage && (
-            <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              {discordMessage}
-            </p>
-          )}
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              {discordProfile.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={discordProfile.avatarUrl}
-                  alt=""
-                  className="h-11 w-11 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#5865F2] text-sm font-semibold text-white">
-                  DC
-                </div>
-              )}
-              <div>
-                <p className="text-sm font-medium text-zinc-900">
-                  {discordConnected ? discordName : "Connect Discord"}
-                </p>
-                <p className="mt-0.5 text-xs leading-5 text-zinc-500">
-                  {discordConnected
-                    ? "Your portal profile is linked for community chat access."
-                    : "Optional, but recommended for event chats and Discord updates."}
-                </p>
-                {discordConnected && discordProfile.serverStatus === "failed" && (
-                  <p className="mt-1 text-xs leading-5 text-amber-700">
-                    Discord was linked, but automatic server join did not complete. Use Reconnect to try again.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={discordConnectHref}
-                className="rounded-lg bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#4752C4]"
-              >
-                {discordConnected ? "Reconnect" : "Connect"}
-              </a>
-              {discordConnected && (
-                <a
-                  href={DISCORD_INVITE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-                    discordNeedsInvite
-                      ? "border-[#5865F2] text-[#5865F2] hover:bg-[#5865F2]/5"
-                      : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                  }`}
-                >
-                  Open Discord
-                </a>
-              )}
-              {discordConnected && (
-                <button
-                  type="button"
-                  onClick={handleDisconnectDiscord}
-                  disabled={discordDisconnecting}
-                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  {discordDisconnecting ? "Disconnecting..." : "Disconnect"}
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -990,12 +812,7 @@ export default function ProfileForm({
             <div className="h-px bg-zinc-200" />
             <div className="flex flex-col gap-0.5">
               <p className="font-semibold text-zinc-500">Connections also see</p>
-              <p className="text-zinc-400">
-                Email
-                {data.discord_handle
-                  ? `, Discord (${data.discord_handle})`
-                  : " · Discord handle (if added)"}
-              </p>
+              <p className="text-zinc-400">Email</p>
             </div>
           </div>
         </div>

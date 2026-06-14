@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { WHATSAPP_COMMUNITY_COPY } from "@/components/community/WhatsAppCommunityCard"
+
+const WHATSAPP_COMMUNITY_URL = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL
 
 export default function WelcomeModal({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false)
@@ -9,8 +12,11 @@ export default function WelcomeModal({ userId }: { userId: string }) {
   useEffect(() => {
     const key = `ipn_welcome_shown_${userId}`
     if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, "1")
-      setOpen(true)
+      const timer = window.setTimeout(() => {
+        localStorage.setItem(key, "1")
+        setOpen(true)
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
   }, [userId])
 
@@ -49,14 +55,16 @@ export default function WelcomeModal({ userId }: { userId: string }) {
 
         <h2 className="text-xl font-semibold text-zinc-900">Welcome to the IPN Member Portal</h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-          You&apos;re in. To get the most out of this demo and show up in the member directory, take a minute to complete your profile.
+          You&apos;re in. To get the most out of this demo and show up in the
+          member directory, complete your profile, then join the WhatsApp
+          community to connect with IPN members and conversations.
         </p>
 
         <ul className="mt-4 flex flex-col gap-2 text-sm text-zinc-600">
           {[
             "Add a bio and photo so other members can find you",
             "Select up to 3 interest tags to appear in directory filters",
-            "Connect Discord for event chats and community updates",
+            WHATSAPP_COMMUNITY_COPY,
             "Control your visibility and what you share",
           ].map((item) => (
             <li key={item} className="flex items-start gap-2">
@@ -76,14 +84,25 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           >
             Complete your profile
           </Link>
-          <a
-            href="/auth/discord/start?next=/dashboard/profile"
-            target="_blank"
-            rel="noreferrer"
-            className="flex-1 rounded-lg bg-[#5865F2] px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-[#4752C4]"
-          >
-            Connect Discord
-          </a>
+          {WHATSAPP_COMMUNITY_URL ? (
+            <a
+              href={WHATSAPP_COMMUNITY_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={dismiss}
+              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-emerald-700"
+            >
+              Join WhatsApp
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="flex-1 cursor-not-allowed rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-400"
+            >
+              WhatsApp coming soon
+            </button>
+          )}
           <button
             onClick={dismiss}
             className="flex-1 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition"

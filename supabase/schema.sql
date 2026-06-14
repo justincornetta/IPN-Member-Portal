@@ -32,13 +32,6 @@ create table if not exists public.profiles (
   is_discoverable           boolean not null default true,
   share_location            boolean not null default true,
   avatar_url                text,
-  discord_user_id           text,
-  discord_username          text,
-  discord_global_name       text,
-  discord_avatar_url        text,
-  discord_connected_at      timestamptz,
-  discord_server_status     text,
-  discord_server_joined_at  timestamptz,
   mailchimp_status          text not null default 'unknown'
     check (mailchimp_status in ('subscribed', 'unsubscribed', 'cleaned', 'pending', 'transactional', 'sync_failed', 'not_found', 'unknown')),
   mailchimp_synced_at       timestamptz,
@@ -62,13 +55,6 @@ create table if not exists public.profiles (
 -- alter table public.profiles add column if not exists avatar_url text;
 
 alter table public.profiles add column if not exists interest_tags text[] default '{}';
-alter table public.profiles add column if not exists discord_user_id text;
-alter table public.profiles add column if not exists discord_username text;
-alter table public.profiles add column if not exists discord_global_name text;
-alter table public.profiles add column if not exists discord_avatar_url text;
-alter table public.profiles add column if not exists discord_connected_at timestamptz;
-alter table public.profiles add column if not exists discord_server_status text;
-alter table public.profiles add column if not exists discord_server_joined_at timestamptz;
 alter table public.profiles add column if not exists mailchimp_status text not null default 'unknown';
 alter table public.profiles add column if not exists mailchimp_synced_at timestamptz;
 alter table public.profiles add column if not exists mailchimp_last_error_raw jsonb;
@@ -77,10 +63,6 @@ alter table public.profiles add column if not exists mailchimp_last_error_descri
 alter table public.profiles drop constraint if exists profiles_mailchimp_status_check;
 alter table public.profiles add constraint profiles_mailchimp_status_check
   check (mailchimp_status in ('subscribed', 'unsubscribed', 'cleaned', 'pending', 'transactional', 'sync_failed', 'not_found', 'unknown'));
-
-create unique index if not exists profiles_discord_user_id_unique
-  on public.profiles (discord_user_id)
-  where discord_user_id is not null;
 
 alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists role text;
@@ -238,8 +220,6 @@ create table if not exists public.events (
   requires_verified_ticket boolean not null default false,
   thumbnail_url       text,
   chat_platform       text,
-  chat_channel_id     text,
-  chat_widget_url     text,
   chat_external_url   text,
   chat_status         text
     check (chat_status is null or chat_status in ('draft', 'active', 'archived')),
@@ -260,8 +240,6 @@ create table if not exists public.events (
 
 alter table public.events add column if not exists speaker_resources jsonb;
 alter table public.events add column if not exists chat_platform text;
-alter table public.events add column if not exists chat_channel_id text;
-alter table public.events add column if not exists chat_widget_url text;
 alter table public.events add column if not exists chat_external_url text;
 alter table public.events add column if not exists chat_status text;
 alter table public.events add column if not exists registration_url text;

@@ -1,8 +1,7 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
-import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
-import { getJoinEventsWidgetBotUrl } from "@/lib/discord/widgetbot"
+import WhatsAppCommunityCard from "@/components/community/WhatsAppCommunityCard"
 import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
 import { protectTicketedJoinUrl } from "@/lib/events/tickets"
 import type { EventRecord } from "@/lib/events/types"
@@ -93,7 +92,6 @@ export default async function DashboardPage() {
 
   const firstName = profile?.first_name ?? user!.email?.split("@")[0] ?? "there"
   const subtitle = [profile?.persona, profile?.affiliation].filter(Boolean).join(" · ")
-  const joinEventsWidgetUrl = getJoinEventsWidgetBotUrl()
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
@@ -203,20 +201,7 @@ export default async function DashboardPage() {
 
         {/* Right column */}
         <div className="flex flex-col gap-6">
-          {/* Discord */}
-          <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-800">Discord</h2>
-              <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500">
-                Join events
-              </span>
-            </div>
-            <WidgetBotEmbed
-              title="IPN Discord join events"
-              src={joinEventsWidgetUrl}
-              height="340px"
-            />
-          </div>
+          <WhatsAppCommunityCard />
 
           {/* Resources */}
           <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">

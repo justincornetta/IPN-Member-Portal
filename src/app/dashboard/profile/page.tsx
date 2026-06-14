@@ -4,12 +4,7 @@ import { getMailchimpStatus } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import ProfileForm from "./ProfileForm"
 
-type Props = {
-  searchParams: Promise<{ discord?: string }>
-}
-
-export default async function ProfilePage({ searchParams }: Props) {
-  const query = await searchParams
+export default async function ProfilePage() {
   const supabase = await createClient()
   const {
     data: { user },
@@ -35,7 +30,6 @@ export default async function ProfilePage({ searchParams }: Props) {
         profile={profile}
         userId={user.id}
         userEmail={user.email ?? ""}
-        discordStatus={query.discord ?? null}
         mailchimpStatus={mailchimpStatus}
       />
     </div>

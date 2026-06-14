@@ -54,7 +54,8 @@ function ConfirmationModal({
   event: EventWithRegistration
   onClose: () => void
 }) {
-  const hasActiveChat = event.chat_status === "active"
+  const eventChatUrl =
+    event.chat_status === "active" ? event.chat_external_url : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
@@ -87,18 +88,20 @@ function ConfirmationModal({
             <div>
               <p className="text-sm font-medium text-zinc-900">Event chat</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
-                {hasActiveChat
-                  ? "Your RSVP unlocks the event chat on the event detail page."
+                {eventChatUrl
+                  ? "Join the WhatsApp chat for this event to discuss with other registered IPN members before and after the session."
                   : "Join a group chat specific to this event to discuss with other registered IPN members before and after the session."}
               </p>
             </div>
-            {hasActiveChat ? (
-              <Link
-                href={`/dashboard/events/${event.slug}`}
+            {eventChatUrl ? (
+              <a
+                href={eventChatUrl}
+                target="_blank"
+                rel="noreferrer"
                 className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn transition hover:bg-white/80"
               >
-                Open
-              </Link>
+                Join event chat
+              </a>
             ) : (
               <span className="flex-shrink-0 rounded-md border border-ipn/20 bg-white px-2 py-1 text-[11px] font-medium text-ipn">
                 Coming soon
@@ -128,46 +131,20 @@ function ConfirmationModal({
   )
 }
 
-function NoticeModal({
-  title,
-  message,
-  onClose,
-}: {
-  title: string
-  message: string
-  onClose: () => void
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-        <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
-        <p className="mt-2 text-sm text-zinc-500">{message}</p>
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function EventCard({ event, variant = "full" }: Props) {
   const [registered, setRegistered] = useState(event.is_registered)
   const [count, setCount] = useState(event.registration_count)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [unrsvpConfirming, setUnrsvpConfirming] = useState(false)
-  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   const countLabel = registrationBand(count)
   const isCompact = variant === "compact"
-  const hasActiveChat = event.chat_status === "active"
+  const eventChatUrl =
+    event.chat_status === "active" && registered
+      ? event.chat_external_url
+      : null
   const isExternalRegistration = Boolean(event.registration_url)
   const isLockedTicketedEvent =
     event.requires_verified_ticket && !event.has_verified_ticket
@@ -298,13 +275,23 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       {countLabel}
                     </span>
                   )}
-                  {hasActiveChat && (
-                    <Link
-                      href={`/dashboard/events/${event.slug}`}
+                  {eventChatUrl ? (
+                    <a
+                      href={eventChatUrl}
+                      target="_blank"
+                      rel="noreferrer"
                       className="rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70"
                     >
-                      Event chat
-                    </Link>
+                      Join chat
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400"
+                    >
+                      Event chat coming soon
+                    </button>
                   )}
                   {unrsvpConfirming ? (
                     <div className="flex items-center gap-1.5">
@@ -369,13 +356,6 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
       {confirmOpen && (
         <ConfirmationModal event={event} onClose={() => setConfirmOpen(false)} />
-      )}
-      {notice && (
-        <NoticeModal
-          title={notice.title}
-          message={notice.message}
-          onClose={() => setNotice(null)}
-        />
       )}
     </article>
   )

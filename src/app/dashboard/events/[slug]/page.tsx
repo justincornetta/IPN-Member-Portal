@@ -2,8 +2,6 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EventCard from "@/components/events/EventCard"
-import WidgetBotEmbed from "@/components/community/WidgetBotEmbed"
-import { buildWidgetBotUrl } from "@/lib/discord/widgetbot"
 import { formatEventDateTime } from "@/lib/events/calendar"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type {
@@ -323,9 +321,6 @@ function SpeakerResourcesSection({
 }: {
   resources: NormalizedSpeakerResources
 }) {
-  const hasResourceRows =
-    resources.papers.length > 0 || resources.resources.length > 0
-
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
@@ -519,8 +514,7 @@ export default async function EventDetailPage({ params }: Props) {
   )
   const eventChatUrl =
     eventWithRegistration.chat_status === "active" && eventWithRegistration.is_registered
-      ? eventWithRegistration.chat_widget_url ??
-        buildWidgetBotUrl(eventWithRegistration.chat_channel_id)
+      ? eventWithRegistration.chat_external_url
       : null
 
   return (
@@ -536,31 +530,26 @@ export default async function EventDetailPage({ params }: Props) {
 
       {eventChatUrl && (
         <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
                 Event Chat
               </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Discord discussion for registered members.
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
+                Join the WhatsApp chat for this event to connect with members,
+                ask questions, share feedback, and continue the conversation
+                before and after the session.
               </p>
             </div>
-            {eventRecord.chat_external_url && (
-              <a
-                href={eventRecord.chat_external_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium text-ipn hover:underline"
-              >
-                Open in Discord
-              </a>
-            )}
+            <a
+              href={eventChatUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+            >
+              Join chat
+            </a>
           </div>
-          <WidgetBotEmbed
-            title={`${eventRecord.title} Discord chat`}
-            src={eventChatUrl}
-            height="520px"
-          />
         </section>
       )}
 

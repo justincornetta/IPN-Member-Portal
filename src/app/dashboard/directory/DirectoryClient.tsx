@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { PERSONA_OPTIONS, INTEREST_TAG_OPTIONS } from "@/lib/constants/registration"
+import { PERSONA_OPTIONS } from "@/lib/constants/registration"
 import type { DirectoryMember, DirectoryParams, ConnectionEntry } from "@/lib/directory/types"
 import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
 

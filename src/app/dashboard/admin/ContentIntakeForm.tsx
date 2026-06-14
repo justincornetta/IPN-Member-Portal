@@ -243,6 +243,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
 type EventFields = {
   title: string; eventType: string; startsAt: string; endsAt: string; timezone: string
   joinUrl: string; locationLabel: string; locationDetails: string
+  whatsappChatUrl: string
   hasRegistration: boolean; registrationUrl: string; registrationProvider: string
   externalEventId: string; requiresVerifiedTicket: boolean
   summary: string; description: string; speakers: string; imageUrl: string; slug: string
@@ -254,6 +255,7 @@ type EventFields = {
 const EVENT_DEFAULTS: EventFields = {
   title: "", eventType: "IPN Labs", startsAt: "", endsAt: "", timezone: "America/New_York",
   joinUrl: "", locationLabel: "Online", locationDetails: "",
+  whatsappChatUrl: "",
   hasRegistration: false, registrationUrl: "", registrationProvider: "Eventbrite",
   externalEventId: "", requiresVerifiedTicket: false,
   summary: "", description: "", speakers: "", imageUrl: "", slug: "",
@@ -294,6 +296,7 @@ function EventForm({ initial, onSubmit, pending }: {
       startsAt: f.startsAt, endsAt: f.endsAt || undefined,
       timezone: f.timezone || "America/New_York",
       joinUrl: f.joinUrl || undefined,
+      chatExternalUrl: f.whatsappChatUrl || undefined,
       locationLabel: f.locationLabel || "Online",
       locationDetails: f.locationDetails || undefined,
       registrationUrl: f.hasRegistration ? f.registrationUrl || undefined : undefined,
@@ -348,6 +351,9 @@ function EventForm({ initial, onSubmit, pending }: {
           <div className="flex flex-col gap-4">
             <Field label="Join URL" hint="The direct Zoom / Google Meet / etc. link. Only shown to members (or ticketed attendees if gated below).">
               <input value={f.joinUrl} onChange={(e) => set("joinUrl", e.target.value)} className={inputCls()} placeholder="https://zoom.us/j/..." />
+            </Field>
+            <Field label="WhatsApp event chat invite URL" hint="Optional — when added, registered members see a Join chat button for this event">
+              <input value={f.whatsappChatUrl} onChange={(e) => set("whatsappChatUrl", e.target.value)} className={inputCls()} placeholder="https://chat.whatsapp.com/..." />
             </Field>
             <Field label="Location label" hint="Shown on the event card (e.g. 'Online', 'San Francisco', 'Zoom')">
               <input value={f.locationLabel} onChange={(e) => set("locationLabel", e.target.value)} className={inputCls()} placeholder="Online" />
@@ -717,6 +723,7 @@ function eventToFields(e: AdminEventSummary): EventFields {
     startsAt: isoToLocal(e.starts_at), endsAt: isoToLocal(e.ends_at),
     timezone: e.timezone ?? "America/New_York",
     joinUrl: e.join_url ?? "", locationLabel: e.location_label ?? "Online",
+    whatsappChatUrl: e.chat_platform === "whatsapp" ? e.chat_external_url ?? "" : "",
     locationDetails: e.location_details ?? "",
     hasRegistration: !!(e.registration_url),
     registrationUrl: e.registration_url ?? "",
@@ -966,6 +973,45 @@ function Pagination({ page, totalPages, perPage, onPage, onPerPage }: {
   )
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function ResourceGroup({
+  label,
+  items,
+  onEdit,
+  onDelete,
+}: {
+  label: string
+  items: AdminResourceSummary[]
+  onEdit: (resource: AdminResourceSummary) => void
+  onDelete: (id: string) => void
+}) {
+  if (items.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        {label} <span className="normal-case font-normal">({items.length})</span>
+      </p>
+      {items.map((r) => {
+        const date = r.published_at ? formatDate(r.published_at) : "—"
+        const typeLabel = r.resource_type === "blog_post" ? "Blog" : r.resource_type === "partner" ? "Partner" : "Benefit"
+        return (
+          <ContentRow
+            key={r.id}
+            title={r.title}
+            meta={`${typeLabel} · ${date}`}
+            onEdit={() => onEdit(r)}
+            onDelete={() => onDelete(r.id)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 type SubTab = "events" | "recordings" | "awaiting" | "resources"
@@ -985,7 +1031,6 @@ export default function ContentIntakeForm() {
   const [perPage, setPerPage] = useState(10)
   const [eventsPage, setEventsPage] = useState(1)
   const [recordingsPage, setRecordingsPage] = useState(1)
-  const [resourcesPage, setResourcesPage] = useState(1)
 
   const loadData = useCallback(async () => {
     setLoadingList(true)
@@ -995,7 +1040,10 @@ export default function ContentIntakeForm() {
     setLoadingList(false)
   }, [])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadData() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadData])
 
   const upcomingEvents = events.filter((e) => !e.is_recording && e.status === "published")
   const endedEvents = events.filter((e) => !e.is_recording && e.status === "ended")
@@ -1079,32 +1127,6 @@ export default function ContentIntakeForm() {
     : editTarget.type === "recording" ? `Edit: ${editTarget.fields.title}`
     : `Edit: ${editTarget.fields.title}`
 
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
-
-  function ResourceGroup({ label, items }: { label: string; items: AdminResourceSummary[] }) {
-    if (items.length === 0) return null
-    return (
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{label} <span className="normal-case font-normal">({items.length})</span></p>
-        {items.map((r) => {
-          const date = r.published_at ? formatDate(r.published_at) : "—"
-          const typeLabel = r.resource_type === "blog_post" ? "Blog" : r.resource_type === "partner" ? "Partner" : "Benefit"
-          return (
-            <ContentRow
-              key={r.id}
-              title={r.title}
-              meta={`${typeLabel} · ${date}`}
-              onEdit={() => openEdit({ type: "resource", fields: resourceToFields(r) })}
-              onDelete={() => handleDelete(r.id, "resources")}
-            />
-          )
-        })}
-      </div>
-    )
-  }
-
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
       {/* Header */}
@@ -1168,7 +1190,7 @@ export default function ContentIntakeForm() {
             <>
               {subTab === "events" && (
                 upcomingEvents.length === 0
-                  ? <p className="text-sm text-zinc-400">No upcoming events. Click "New event" to add one.</p>
+                  ? <p className="text-sm text-zinc-400">No upcoming events. Select New event to add one.</p>
                   : <>
                       <div className="flex flex-col gap-2">
                         {pagedEvents.map((event) => (
@@ -1189,7 +1211,7 @@ export default function ContentIntakeForm() {
 
               {subTab === "recordings" && (
                 recordings.length === 0
-                  ? <p className="text-sm text-zinc-400">No recordings. Click "New recording" to add one.</p>
+                  ? <p className="text-sm text-zinc-400">No recordings. Select New recording to add one.</p>
                   : <>
                       <div className="flex flex-col gap-2">
                         {pagedRecordings.map((event) => (
@@ -1224,11 +1246,26 @@ export default function ContentIntakeForm() {
 
               {subTab === "resources" && (
                 resources.length === 0
-                  ? <p className="text-sm text-zinc-400">No resources. Click "New resource" to add one.</p>
+                  ? <p className="text-sm text-zinc-400">No resources. Select New resource to add one.</p>
                   : <div className="flex flex-col gap-6">
-                      <ResourceGroup label="Blog posts" items={blogResources} />
-                      <ResourceGroup label="Partners" items={partnerResources} />
-                      <ResourceGroup label="Member benefits" items={benefitResources} />
+                      <ResourceGroup
+                        label="Blog posts"
+                        items={blogResources}
+                        onEdit={(resource) => openEdit({ type: "resource", fields: resourceToFields(resource) })}
+                        onDelete={(id) => handleDelete(id, "resources")}
+                      />
+                      <ResourceGroup
+                        label="Partners"
+                        items={partnerResources}
+                        onEdit={(resource) => openEdit({ type: "resource", fields: resourceToFields(resource) })}
+                        onDelete={(id) => handleDelete(id, "resources")}
+                      />
+                      <ResourceGroup
+                        label="Member benefits"
+                        items={benefitResources}
+                        onEdit={(resource) => openEdit({ type: "resource", fields: resourceToFields(resource) })}
+                        onDelete={(id) => handleDelete(id, "resources")}
+                      />
                     </div>
               )}
             </>

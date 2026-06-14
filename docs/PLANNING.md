@@ -21,9 +21,9 @@ A vibe-coded web app at `members.ipn.org` (PWA, no native app stores in v1) that
 - Discovering each other (searchable directory by persona, school, area of study, location)
 - Finding and registering for events (replaces scattered Zoom/Google Calendar embed)
 - Accessing the resource library (links to YouTube, PsychedelX, blog content)
-- A community chat surface (platform TBD — see Stack section)
+- WhatsApp Community and event chat links
 
-Replaces today's scattered experience across Mailchimp, Discord, Zoom, and the public Squarespace site. The Squarespace marketing site stays; this is a separate subdomain that the homepage CTA funnels users into.
+Replaces today's scattered experience across Mailchimp, WhatsApp, Zoom, and the public Squarespace site. The Squarespace marketing site stays; this is a separate subdomain that the homepage CTA funnels users into.
 
 **Launch target:** PsychedelX 2026 (end-June).
 
@@ -39,7 +39,7 @@ Replaces today's scattered experience across Mailchimp, Discord, Zoom, and the p
 | Auth + DB | **Supabase** | Postgres 17, Row-Level Security, free tier |
 | Email | **Mailchimp API** | Single audience post-SoT-consolidation |
 | Mobile | **PWA wrap** | Manifest + service worker; no app stores in v1 |
-| In-portal chat platform | **TBD** | Discord embed/SSO, Stream, custom build, or another vendor — pending Community Task Force input |
+| Community chat | **WhatsApp Community links** | Main community CTA plus admin-managed event-specific invite links; no in-portal chat embed in v1 |
 | AI tooling for development | Claude Code primary, v0/Lovable for occasional UI scaffolding | |
 
 **Explicitly NOT in v1:** Stream API for activity feed, native app store presence, Google SSO, push notifications, paid membership infrastructure.
@@ -63,7 +63,7 @@ From the Notion Requirements Prioritization page. Build in roughly this order:
 | 10 | Resource library (links only) | YouTube / PsychedelX / blog hub; no native content yet. |
 | 12 | Mailchimp ID spine | Auto-tag Mailchimp records with portal user ID. **Depends on Membership Single Source of Truth project.** |
 | 13 | Mobile-responsive UI | Bundled with the build (Tailwind defaults). Instagram is the primary acquisition channel. |
-| 19 | In-portal community chat | Workshop bumped from v2 → v1.0. **Platform TBD** (see Stack). |
+| 19 | Community chat | WhatsApp Community CTA plus event-specific WhatsApp invite links managed by admins. |
 | 27 | Admin portal | Workshop-added. Admins upload resources, edit text, role-based access. |
 
 **On hold** (need more info before building): #8 calendar subscription (.ics), #11 career-pipeline placeholder, #14 career-pipeline full content.

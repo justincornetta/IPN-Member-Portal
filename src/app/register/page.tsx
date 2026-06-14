@@ -111,7 +111,12 @@ function Combobox({
   const [open, setOpen] = useState(false)
 
   // Sync display text when value is cleared externally (e.g. country changes)
-  useEffect(() => { if (!value) setQuery("") }, [value])
+  useEffect(() => {
+    if (!value) {
+      const timer = window.setTimeout(() => setQuery(""), 0)
+      return () => window.clearTimeout(timer)
+    }
+  }, [value])
 
   const filtered = query.length >= 2
     ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())).slice(0, 60)
