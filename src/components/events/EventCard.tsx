@@ -78,19 +78,21 @@ function ConfirmationModal({
         <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
           <p className="text-sm text-zinc-700">
             Return to the IPN member portal on the day of the event to join. In
-            the meantime, check out our event resources and join our event group
-            chat to join discussions before and after the event.
+            the meantime, join the event-specific WhatsApp chat to connect with
+            other registered members before and after the event.
           </p>
         </div>
 
         <div className="mt-4 rounded-lg border border-ipn/20 bg-ipn/5 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-zinc-900">Event chat</p>
+              <p className="text-sm font-medium text-zinc-900">
+                IPN Event-Specific WhatsApp Chat
+              </p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
                 {eventChatUrl
-                  ? "Join the WhatsApp chat for this event to connect with other registered IPN members before and after the session."
-                  : "Event-specific WhatsApp chats help registered members connect before and after the session."}
+                  ? "Use this chat to ask questions, connect, and share thoughts with other registered members before and after the event."
+                  : "This chat will give registered members a place to ask questions, connect, and share thoughts before and after the event."}
               </p>
             </div>
             {eventChatUrl ? (
