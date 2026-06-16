@@ -2,17 +2,31 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { WHATSAPP_COMMUNITY_COPY } from "@/components/community/WhatsAppCommunityCard"
 
-export default function WelcomeModal({ userId }: { userId: string }) {
+const WHATSAPP_COMMUNITY_URL = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL
+
+export default function WelcomeModal({
+  userId,
+  show,
+}: {
+  userId: string
+  show: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
+    if (!show) return
+
     const key = `ipn_welcome_shown_${userId}`
     if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, "1")
-      setOpen(true)
+      const timer = window.setTimeout(() => {
+        localStorage.setItem(key, "1")
+        setOpen(true)
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
-  }, [userId])
+  }, [show, userId])
 
   function dismiss() {
     setOpen(false)
@@ -47,17 +61,20 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           </svg>
         </div>
 
-        <h2 className="text-xl font-semibold text-zinc-900">Welcome to the IPN Member Portal</h2>
+        <h2 className="text-xl font-semibold text-zinc-900">Welcome to IPN</h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-          You&apos;re in. To get the most out of this demo and show up in the member directory, take a minute to complete your profile.
+          We&apos;re glad you&apos;re here. Two quick steps will help you get
+          settled: finish your profile so members can learn more about you, then
+          join the WhatsApp community to connect with other members and stay up
+          to date on the latest IPN events and news.
         </p>
 
         <ul className="mt-4 flex flex-col gap-2 text-sm text-zinc-600">
           {[
-            "Add a bio and photo so other members can find you",
-            "Select up to 3 interest tags to appear in directory filters",
-            "Connect Discord for event chats and community updates",
-            "Control your visibility and what you share",
+            "Upload a profile image",
+            "Add a short bio",
+            "Choose up to 3 interests for the member directory",
+            WHATSAPP_COMMUNITY_COPY,
           ].map((item) => (
             <li key={item} className="flex items-start gap-2">
               <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-ipn" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -68,28 +85,35 @@ export default function WelcomeModal({ userId }: { userId: string }) {
           ))}
         </ul>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Link
             href="/dashboard/profile"
+            target="_blank"
+            rel="noreferrer"
             onClick={dismiss}
-            className="flex-1 rounded-lg bg-ipn px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-ipn/90 transition"
+            className="rounded-lg bg-ipn px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-ipn/90 transition"
           >
             Complete your profile
           </Link>
-          <a
-            href="/auth/discord/start?next=/dashboard/profile"
-            target="_blank"
-            rel="noreferrer"
-            className="flex-1 rounded-lg bg-[#5865F2] px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-[#4752C4]"
-          >
-            Connect Discord
-          </a>
-          <button
-            onClick={dismiss}
-            className="flex-1 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition"
-          >
-            Maybe later
-          </button>
+          {WHATSAPP_COMMUNITY_URL ? (
+            <a
+              href={WHATSAPP_COMMUNITY_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={dismiss}
+              className="rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-emerald-700"
+            >
+              Join WhatsApp
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-400"
+            >
+              WhatsApp coming soon
+            </button>
+          )}
         </div>
       </div>
     </div>

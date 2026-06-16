@@ -78,20 +78,12 @@ One row per user. Created automatically on signup via trigger.
 | `area_of_interest` | `text` | **Deprecated** — replaced by `interest_tags`; kept for historical data |
 | `interest_tags` | `text[]` | Up to 3 structured interest tags (e.g. `{Psilocybin, Harm Reduction, PTSD}`); displayed on directory cards and filterable |
 | `linkedin_url` | `text` | LinkedIn profile URL |
-| `discord_handle` | `text` | Manually entered Discord username; shared with connections |
 | `is_discoverable` | `boolean` | Default `true`; `false` hides the member from the directory |
 | `share_location` | `boolean` | Default `true`; controls location-based discovery |
 | `avatar_url` | `text` | Public URL of avatar in the `avatars` Storage bucket |
 | `role` | `text` | Portal access tier: `superadmin` (full admin access), `admin` (leadership/analytics access), `null` (regular member) |
 | `admin_role` | `text` | IPN leadership title (e.g. "Director of Strategy"); set by superadmins; displayed publicly in member profiles |
 | `team` | `text` | IPN team assignment: `Strategy`, `Media`, `PsychedelX`, or `Community`; check constraint enforced |
-| `discord_user_id` | `text` | Verified Discord user ID from OAuth |
-| `discord_username` | `text` | Discord username (from OAuth) |
-| `discord_global_name` | `text` | Discord display name, when provided |
-| `discord_avatar_url` | `text` | Discord avatar URL |
-| `discord_connected_at` | `timestamptz` | When the member linked Discord |
-| `discord_server_status` | `text` | Pilot server join result: `joined`, `skipped`, or `failed` |
-| `discord_server_joined_at` | `timestamptz` | When automatic Discord server join completed |
 | `created_at` | `timestamptz` | Set on insert |
 | `updated_at` | `timestamptz` | Updated by `updateProfile` server action on every save |
 
@@ -104,7 +96,6 @@ One row per user. Created automatically on signup via trigger.
 > alter table public.profiles add column if not exists admin_role text;
 > alter table public.profiles add column if not exists team text
 >   check (team in ('Strategy', 'Media', 'PsychedelX', 'Community'));
-> alter table public.profiles add column if not exists discord_handle text;
 >
 > -- Backfill emails from auth.users
 > update public.profiles p set email = u.email from auth.users u where p.id = u.id and p.email is null;
@@ -242,7 +233,7 @@ Portal-owned event records for the member-facing Events section.
 | `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
 | `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
 | `thumbnail_url` | `text` | Custom event graphic/PNG URL |
-| `chat_platform` / `chat_channel_id` / `chat_widget_url` / `chat_external_url` / `chat_status` | `text` | Discord WidgetBot pilot fields |
+| `chat_platform` / `chat_external_url` / `chat_status` | `text` | Optional event chat link; v1 uses `chat_platform = 'whatsapp'`, `chat_external_url` as the WhatsApp invite URL, and `chat_status = 'active'` when shown to registered members |
 | `is_recording` | `boolean` | Marks past recording rows |
 | `recording_url` / `recording_provider` / `recording_source_id` / `recording_published_at` | various | Recording metadata |
 | `speaker_resources` | `jsonb` | Optional papers, links, and event resources for IPN Lab detail pages |
