@@ -1,57 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type {
   ConnectionEntry,
   DirectoryMapCity,
   DirectoryMember,
 } from "@/lib/directory/types"
 
-type MapLibre = any
-
-declare global {
-  interface Window {
-    maplibregl?: MapLibre
-  }
-}
-
-const MAPLIBRE_VERSION = "5.24.0"
-const MAPLIBRE_JS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`
-const MAPLIBRE_CSS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`
-const MAP_STYLE_URL = "https://demotiles.maplibre.org/style.json"
-
-let maplibrePromise: Promise<MapLibre> | null = null
-
-function loadMapLibre() {
-  if (typeof window === "undefined") return Promise.reject(new Error("Browser required"))
-  if (window.maplibregl) return Promise.resolve(window.maplibregl)
-  if (maplibrePromise) return maplibrePromise
-
-  maplibrePromise = new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
-      const link = document.createElement("link")
-      link.rel = "stylesheet"
-      link.href = MAPLIBRE_CSS
-      document.head.appendChild(link)
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${MAPLIBRE_JS}"]`)
-    if (existingScript) {
-      existingScript.addEventListener("load", () => resolve(window.maplibregl))
-      existingScript.addEventListener("error", () => reject(new Error("Map failed to load")))
-      return
-    }
-
-    const script = document.createElement("script")
-    script.src = MAPLIBRE_JS
-    script.async = true
-    script.onload = () => resolve(window.maplibregl)
-    script.onerror = () => reject(new Error("Map failed to load"))
-    document.head.appendChild(script)
-  })
-
-  return maplibrePromise
-}
+const DEG_TO_RAD = Math.PI / 180
+const MIN_ZOOM = 0.85
+const MAX_ZOOM = 1.8
 
 function initials(member: DirectoryMember) {
   return `${member.first_name?.[0] ?? ""}${member.last_name?.[0] ?? ""}`.toUpperCase() || "?"
@@ -61,47 +19,122 @@ function cityLabel(city: DirectoryMapCity) {
   return [city.city, city.state || city.country].filter(Boolean).join(", ")
 }
 
-function buildFeatures(cities: DirectoryMapCity[]) {
+function getGlobeCenter(cities: DirectoryMapCity[]) {
+  if (cities.length === 0) return { lat: 20, lng: 0 }
+
+  let x = 0
+  let y = 0
+  let z = 0
+
+  for (const city of cities) {
+    const lat = city.lat * DEG_TO_RAD
+    const lng = city.lng * DEG_TO_RAD
+    x += Math.cos(lat) * Math.cos(lng)
+    y += Math.cos(lat) * Math.sin(lng)
+    z += Math.sin(lat)
+  }
+
+  const total = cities.length
+  x /= total
+  y /= total
+  z /= total
+
   return {
-    type: "FeatureCollection",
-    features: cities.map((city) => ({
-      type: "Feature",
-      id: city.id,
-      properties: {
-        id: city.id,
-        memberCount: city.memberCount,
-        label: city.city,
-      },
-      geometry: {
-        type: "Point",
-        coordinates: [city.lng, city.lat],
-      },
-    })),
+    lat: Math.atan2(z, Math.sqrt(x * x + y * y)) / DEG_TO_RAD,
+    lng: Math.atan2(y, x) / DEG_TO_RAD,
   }
 }
 
-function fitToCities(map: MapLibre, maplibregl: MapLibre, cities: DirectoryMapCity[], duration = 0) {
-  if (cities.length === 0) return
+function projectPoint(
+  lat: number,
+  lng: number,
+  center: { lat: number; lng: number },
+  radius: number,
+) {
+  const latRad = lat * DEG_TO_RAD
+  const lngRad = lng * DEG_TO_RAD
+  const centerLat = center.lat * DEG_TO_RAD
+  const centerLng = center.lng * DEG_TO_RAD
+  const deltaLng = lngRad - centerLng
 
-  if (cities.length === 1) {
-    map.easeTo({
-      center: [cities[0].lng, cities[0].lat],
-      zoom: 3.2,
-      duration,
-    })
-    return
-  }
+  const x = radius * Math.cos(latRad) * Math.sin(deltaLng)
+  const y = -radius * (
+    Math.cos(centerLat) * Math.sin(latRad) -
+    Math.sin(centerLat) * Math.cos(latRad) * Math.cos(deltaLng)
+  )
+  const z =
+    Math.sin(centerLat) * Math.sin(latRad) +
+    Math.cos(centerLat) * Math.cos(latRad) * Math.cos(deltaLng)
 
-  const bounds = new maplibregl.LngLatBounds()
-  for (const city of cities) {
-    bounds.extend([city.lng, city.lat])
-  }
+  return { x: 360 + x, y: 340 + y, visible: z > -0.05, depth: z }
+}
 
-  map.fitBounds(bounds, {
-    padding: { top: 130, right: 430, bottom: 80, left: 60 },
-    maxZoom: 4.8,
-    duration,
-  })
+function GlobeGrid({ radius }: { radius: number }) {
+  const latitudes = [-60, -30, 0, 30, 60]
+  const longitudes = [-60, -30, 0, 30, 60]
+
+  return (
+    <g opacity="0.34">
+      {latitudes.map((lat) => {
+        const ry = radius * Math.cos(lat * DEG_TO_RAD)
+        const y = 340 - radius * Math.sin(lat * DEG_TO_RAD)
+        return (
+          <ellipse
+            key={`lat-${lat}`}
+            cx="360"
+            cy={y}
+            rx={ry}
+            ry={Math.max(7, ry * 0.18)}
+            fill="none"
+            stroke="rgba(255,255,255,0.42)"
+            strokeWidth="1"
+          />
+        )
+      })}
+      {longitudes.map((lng) => (
+        <ellipse
+          key={`lng-${lng}`}
+          cx="360"
+          cy="340"
+          rx={radius * Math.abs(Math.cos(lng * DEG_TO_RAD))}
+          ry={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.32)"
+          strokeWidth="1"
+          transform={`rotate(${lng / 6} 360 340)`}
+        />
+      ))}
+    </g>
+  )
+}
+
+function LandMasses({ radius }: { radius: number }) {
+  const scale = radius / 250
+
+  return (
+    <g opacity="0.44" transform={`translate(360 340) scale(${scale}) translate(-360 -340)`}>
+      <path
+        d="M205 232c42-34 91-43 135-22 27 13 40 34 57 58 16 23 39 42 63 57 34 22 34 58 8 75-31 20-87-8-110-29-21-19-35-23-65-19-42 5-92-3-111-42-14-29-3-58 23-78Z"
+        fill="rgba(255,255,255,0.24)"
+      />
+      <path
+        d="M252 405c28-16 67 5 76 35 9 32-14 61-35 84-12 14-17 31-19 49-33-30-51-75-42-115 4-20 8-43 20-53Z"
+        fill="rgba(255,255,255,0.18)"
+      />
+      <path
+        d="M430 194c41-16 95-7 129 20 28 22 19 53-5 67-21 13-53 5-75 20-24 17-21 48-45 57-29 11-68-17-78-47-15-44 28-100 74-117Z"
+        fill="rgba(255,255,255,0.22)"
+      />
+      <path
+        d="M505 385c50-17 101 6 128 47 13 19 9 45-9 57-19 12-44 2-64 6-27 6-42 33-71 32-30-1-55-29-55-58 0-34 31-70 71-84Z"
+        fill="rgba(255,255,255,0.17)"
+      />
+    </g>
+  )
+}
+
+function clampZoom(value: number) {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 }
 
 export default function GlobeDirectoryView({
@@ -113,11 +146,9 @@ export default function GlobeDirectoryView({
   connectionMap: Record<string, ConnectionEntry>
   onOpenMember: (member: DirectoryMember) => void
 }) {
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const mapRef = useRef<MapLibre | null>(null)
-  const cityByIdRef = useRef(new Map<string, DirectoryMapCity>())
   const [selectedCityId, setSelectedCityId] = useState<string | null>(cities[0]?.id ?? null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [center, setCenter] = useState(() => getGlobeCenter(cities))
 
   const totalMembers = useMemo(
     () => cities.reduce((sum, city) => sum + city.memberCount, 0),
@@ -125,182 +156,34 @@ export default function GlobeDirectoryView({
   )
 
   useEffect(() => {
-    cityByIdRef.current = new Map(cities.map((city) => [city.id, city]))
     setSelectedCityId((current) => {
-      if (current && cityByIdRef.current.has(current)) return current
+      if (current && cities.some((city) => city.id === current)) return current
       return cities[0]?.id ?? null
     })
+    setCenter(getGlobeCenter(cities))
   }, [cities])
 
-  useEffect(() => {
-    let cancelled = false
+  const selectedCity = useMemo(
+    () => cities.find((city) => city.id === selectedCityId) ?? null,
+    [cities, selectedCityId],
+  )
 
-    async function initMap() {
-      if (!containerRef.current || mapRef.current) return
+  const radius = 240 * zoom
+  const projectedCities = useMemo(
+    () => cities
+      .map((city) => ({
+        city,
+        point: projectPoint(city.lat, city.lng, center, radius),
+      }))
+      .filter(({ point }) => point.visible)
+      .sort((a, b) => a.point.depth - b.point.depth),
+    [cities, center, radius],
+  )
 
-      try {
-        const maplibregl = await loadMapLibre()
-        if (cancelled || !containerRef.current) return
-
-        const map = new maplibregl.Map({
-          container: containerRef.current,
-          center: [-98, 38],
-          zoom: 1.15,
-          minZoom: 1,
-          maxZoom: 9,
-          attributionControl: false,
-          projection: { type: "globe" },
-          style: MAP_STYLE_URL,
-        })
-
-        map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-left")
-        mapRef.current = map
-
-        map.on("error", (event: MapLibre) => {
-          const message = event?.error?.message
-          if (message) setLoadError(message)
-        })
-
-        map.on("load", () => {
-          setLoadError(null)
-          map.addSource("cities", {
-            type: "geojson",
-            data: buildFeatures(cities),
-            cluster: true,
-            clusterMaxZoom: 5,
-            clusterRadius: 46,
-            clusterProperties: {
-              member_sum: ["+", ["get", "memberCount"]],
-            },
-          })
-
-          map.addLayer({
-            id: "clusters",
-            type: "circle",
-            source: "cities",
-            filter: ["has", "point_count"],
-            paint: {
-              "circle-color": "#ffffff",
-              "circle-opacity": 0.92,
-              "circle-stroke-color": "#664fa1",
-              "circle-stroke-width": 2,
-              "circle-radius": [
-                "step",
-                ["get", "member_sum"],
-                19,
-                5,
-                24,
-                15,
-                30,
-              ],
-            },
-          })
-
-          map.addLayer({
-            id: "cluster-count",
-            type: "symbol",
-            source: "cities",
-            filter: ["has", "point_count"],
-            layout: {
-              "text-field": ["to-string", ["get", "member_sum"]],
-              "text-font": ["Open Sans Bold"],
-              "text-size": 12,
-            },
-            paint: {
-              "text-color": "#18181b",
-            },
-          })
-
-          map.addLayer({
-            id: "city-pins",
-            type: "circle",
-            source: "cities",
-            filter: ["!", ["has", "point_count"]],
-            paint: {
-              "circle-color": "#664fa1",
-              "circle-opacity": 0.94,
-              "circle-stroke-color": "#ffffff",
-              "circle-stroke-width": 2,
-              "circle-radius": [
-                "interpolate",
-                ["linear"],
-                ["get", "memberCount"],
-                1,
-                10,
-                10,
-                20,
-              ],
-            },
-          })
-
-          map.addLayer({
-            id: "city-count",
-            type: "symbol",
-            source: "cities",
-            filter: ["!", ["has", "point_count"]],
-            layout: {
-              "text-field": ["to-string", ["get", "memberCount"]],
-              "text-font": ["Open Sans Bold"],
-              "text-size": 11,
-            },
-            paint: {
-              "text-color": "#ffffff",
-            },
-          })
-
-          fitToCities(map, maplibregl, cities)
-        })
-
-        map.on("click", "clusters", async (event: MapLibre) => {
-          const feature = map.queryRenderedFeatures(event.point, { layers: ["clusters"] })[0]
-          const clusterId = feature.properties.cluster_id
-          const source = map.getSource("cities")
-          const zoom = await source.getClusterExpansionZoom(clusterId)
-          map.easeTo({ center: feature.geometry.coordinates, zoom, duration: 450 })
-        })
-
-        map.on("click", "city-pins", (event: MapLibre) => {
-          const feature = event.features?.[0]
-          const cityId = feature?.properties?.id
-          if (!cityId) return
-
-          setSelectedCityId(cityId)
-          map.easeTo({
-            center: feature.geometry.coordinates,
-            zoom: Math.max(map.getZoom(), 4),
-            duration: 450,
-          })
-        })
-
-        map.on("mouseenter", "clusters", () => { map.getCanvas().style.cursor = "pointer" })
-        map.on("mouseleave", "clusters", () => { map.getCanvas().style.cursor = "" })
-        map.on("mouseenter", "city-pins", () => { map.getCanvas().style.cursor = "pointer" })
-        map.on("mouseleave", "city-pins", () => { map.getCanvas().style.cursor = "" })
-      } catch (error) {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Map failed to load")
-      }
-    }
-
-    void initMap()
-
-    return () => {
-      cancelled = true
-      mapRef.current?.remove()
-      mapRef.current = null
-    }
-    // The map is created once; city updates are handled by the next effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    const source = mapRef.current?.getSource("cities")
-    if (source?.setData) source.setData(buildFeatures(cities))
-
-    const maplibregl = window.maplibregl
-    if (mapRef.current && maplibregl) fitToCities(mapRef.current, maplibregl, cities, 350)
-  }, [cities])
-
-  const selectedCity = selectedCityId ? cityByIdRef.current.get(selectedCityId) : null
+  function focusCity(city: DirectoryMapCity) {
+    setSelectedCityId(city.id)
+    setCenter({ lat: city.lat, lng: city.lng })
+  }
 
   if (cities.length === 0) {
     return (
@@ -314,19 +197,128 @@ export default function GlobeDirectoryView({
   }
 
   return (
-    <div className="relative h-[680px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-950 shadow-sm">
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className="relative h-[680px] overflow-hidden rounded-xl border border-zinc-200 bg-[radial-gradient(circle_at_28%_24%,#172033_0%,#07080d_52%,#020204_100%)] shadow-sm">
+      <svg
+        data-testid="directory-globe"
+        className="absolute inset-y-0 left-0 h-full w-[calc(100%-360px)] min-w-[540px]"
+        viewBox="0 0 720 680"
+        role="img"
+        aria-label="IPN membership globe"
+      >
+        <defs>
+          <radialGradient id="ipn-globe-fill" cx="35%" cy="28%" r="72%">
+            <stop offset="0%" stopColor="#8fd3ff" stopOpacity="0.42" />
+            <stop offset="38%" stopColor="#315a86" stopOpacity="0.34" />
+            <stop offset="72%" stopColor="#121a2b" stopOpacity="0.96" />
+            <stop offset="100%" stopColor="#05060a" stopOpacity="1" />
+          </radialGradient>
+          <filter id="ipn-globe-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="18" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <circle
+          cx="360"
+          cy="340"
+          r={radius}
+          fill="url(#ipn-globe-fill)"
+          stroke="rgba(255,255,255,0.26)"
+          strokeWidth="1.5"
+          filter="url(#ipn-globe-glow)"
+        />
+        <circle
+          cx="300"
+          cy="250"
+          r={radius * 0.36}
+          fill="rgba(255,255,255,0.12)"
+        />
+        <GlobeGrid radius={radius} />
+        <LandMasses radius={radius} />
+
+        {projectedCities.map(({ city, point }) => {
+          const selected = city.id === selectedCityId
+          const pinRadius = Math.min(26, 10 + city.memberCount * 2.5)
+
+          return (
+            <g
+              key={city.id}
+              transform={`translate(${point.x} ${point.y})`}
+              opacity={0.58 + Math.max(0, point.depth) * 0.42}
+              role="button"
+              tabIndex={0}
+              aria-label={cityLabel(city)}
+              data-testid="directory-globe-pin"
+              onClick={() => focusCity(city)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  focusCity(city)
+                }
+              }}
+              className="cursor-pointer outline-none"
+            >
+              <circle
+                r={pinRadius + 8}
+                fill={selected ? "rgba(22,163,74,0.24)" : "rgba(102,79,161,0.20)"}
+              />
+              <circle
+                r={pinRadius}
+                fill={selected ? "#16a34a" : "#664fa1"}
+                stroke="white"
+                strokeWidth="3"
+                className="transition"
+              />
+              <text
+                y="4"
+                textAnchor="middle"
+                className="pointer-events-none select-none fill-white text-[12px] font-bold"
+              >
+                {city.memberCount}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
 
       <div className="absolute left-4 top-4 rounded-xl border border-white/15 bg-zinc-950/75 px-4 py-3 text-white shadow-lg backdrop-blur">
         <p className="text-xs font-medium uppercase tracking-wide text-white/60">Live membership map</p>
         <p className="mt-1 text-sm font-semibold">{totalMembers} members · {cities.length} cities</p>
       </div>
 
-      {loadError && (
-        <div className="absolute inset-x-4 top-24 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-red-700 shadow-lg">
-          {loadError}
-        </div>
-      )}
+      <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-xl border border-white/15 bg-zinc-950/70 p-1.5 text-white shadow-lg backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setZoom((value) => clampZoom(value - 0.18))}
+          className="h-8 w-8 rounded-lg text-lg font-semibold transition hover:bg-white/10 disabled:opacity-40"
+          disabled={zoom <= MIN_ZOOM}
+          aria-label="Zoom out"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          onClick={() => setZoom((value) => clampZoom(value + 0.18))}
+          className="h-8 w-8 rounded-lg text-lg font-semibold transition hover:bg-white/10 disabled:opacity-40"
+          disabled={zoom >= MAX_ZOOM}
+          aria-label="Zoom in"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setZoom(1)
+            setCenter(getGlobeCenter(cities))
+          }}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-medium transition hover:bg-white/10"
+        >
+          Reset
+        </button>
+      </div>
 
       <aside className="absolute bottom-4 right-4 top-4 flex w-[min(360px,calc(100%-2rem))] flex-col overflow-hidden rounded-xl border border-white/15 bg-white/95 shadow-2xl backdrop-blur">
         <div className="border-b border-zinc-100 px-4 py-3">
