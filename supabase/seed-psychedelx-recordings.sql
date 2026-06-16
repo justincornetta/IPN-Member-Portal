@@ -1,7 +1,7 @@
 -- Backfill reviewed PsychedelX YouTube uploads as historical recordings.
 -- Source channel: https://www.youtube.com/@psychedelx3035
 -- Generated: 2026-06-15
--- Reviewed rows: 138
+-- Reviewed rows: 143
 --
 -- This seed is idempotent by YouTube video ID and canonical YouTube URL.
 
@@ -153,7 +153,12 @@ with source_recordings (
   ('psychedelx-2025-psychedelx-2025-culture-anthropology-and-sociology-day-2-q-and-a-pkcshpqrdkw', 'PsychedelX 2025: Culture, Anthropology and Sociology Day 2 Q&A', null, 'Q&A', 'pKcShPqRDKw', 'https://www.youtube.com/watch?v=pKcShPqRDKw', 'https://i.ytimg.com/vi/pKcShPqRDKw/hqdefault.jpg', '2025-07-19 00:00:00+00'),
   ('psychedelx-2025-psychedelx-2025-psychology-public-health-and-policy-day-3-q-and-a-d-l3wuoc6r4', 'PsychedelX 2025: Psychology, Public Health and Policy Day 3 Q&A', null, 'Q&A', 'D-l3wuoC6r4', 'https://www.youtube.com/watch?v=D-l3wuoC6r4', 'https://i.ytimg.com/vi/D-l3wuoC6r4/hqdefault.jpg', '2025-07-19 00:00:00+00'),
   ('psychedelx-2025-psychedelx-2025-closing-ceremony-and-talk-competition-awards-vrdtfc8ofk4', 'PsychedelX 2025: Closing Ceremony and Talk Competition Awards', null, 'Closing Ceremony', 'VrDTfc8OFk4', 'https://www.youtube.com/watch?v=VrDTfc8OFk4', 'https://i.ytimg.com/vi/VrDTfc8OFk4/hqdefault.jpg', '2025-07-20 00:00:00+00'),
-  ('psychedelx-2025-robert-earth-a-story-about-the-third-magical-fungi-ztzr90dp6nc', 'Robert Earth - A Story About The Third Magical Fungi', 'Robert Earth', 'Participant Talk', 'ztzr90dp6nc', 'https://www.youtube.com/watch?v=ztzr90dp6nc', 'https://i.ytimg.com/vi/ztzr90dp6nc/hqdefault.jpg', '2025-07-31 00:00:00+00')
+  ('psychedelx-2025-robert-earth-a-story-about-the-third-magical-fungi-ztzr90dp6nc', 'Robert Earth - A Story About The Third Magical Fungi', 'Robert Earth', 'Participant Talk', 'ztzr90dp6nc', 'https://www.youtube.com/watch?v=ztzr90dp6nc', 'https://i.ytimg.com/vi/ztzr90dp6nc/hqdefault.jpg', '2025-07-31 00:00:00+00'),
+  ('psychedelx-2021-why-psychedelx-igxqwmmii58', 'Why PsychedelX?', null, 'Other', 'iGxqWmMII58', 'https://www.youtube.com/watch?v=iGxqWmMII58', 'https://i.ytimg.com/vi/iGxqWmMII58/hqdefault.jpg', '2021-01-28 00:00:00+00'),
+  ('psychedelx-2021-i-am-a-psychedelic-student-lcc4o681zja', 'I am a Psychedelic Student', null, 'Participant Talk', 'lCC4O681zJA', 'https://www.youtube.com/watch?v=lCC4O681zJA', 'https://i.ytimg.com/vi/lCC4O681zJA/hqdefault.jpg', '2021-02-22 00:00:00+00'),
+  ('psychedelx-2023-from-art-historian-to-psychedelic-scientist-getting-to-know-your-vehicle-sh2tiwtxv3c', 'From Art Historian to Psychedelic Scientist: Getting to Know Your Vehicle w/ Dr. Meghan DellaCrosse', 'Dr. Meghan DellaCrosse', 'Keynote Speech', 'Sh2TiWtxv3c', 'https://www.youtube.com/watch?v=Sh2TiWtxv3c', 'https://i.ytimg.com/vi/Sh2TiWtxv3c/hqdefault.jpg', '2023-08-07 00:00:00+00'),
+  ('psychedelx-2023-the-evolution-of-consciousness-and-the-consciousness-of-evolution-nrsorrexnp8', 'The Evolution of Consciousness & The Consciousness of Evolution w/ Jay & Lindy Nelson', 'Jay & Lindy Nelson', 'Panel', 'NrsorRExnP8', 'https://www.youtube.com/watch?v=NrsorRExnP8', 'https://i.ytimg.com/vi/NrsorRExnP8/hqdefault.jpg', '2023-08-07 00:00:00+00'),
+  ('psychedelx-2023-psychedelx-2023-psychedelic-training-center-series-zylee77hdhm', 'PsychedelX 2023: Psychedelic Training Center Series', null, 'Panel', 'ZYLEE77HDhM', 'https://www.youtube.com/watch?v=ZYLEE77HDhM', 'https://i.ytimg.com/vi/ZYLEE77HDhM/hqdefault.jpg', '2023-08-12 00:00:00+00')
 ), updated as (
   update public.events as events
   set

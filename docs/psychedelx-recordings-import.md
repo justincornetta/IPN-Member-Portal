@@ -1,6 +1,6 @@
 # PsychedelX Recordings Import
 
-Generated on 2026-06-15 for the one-time PsychedelX historical recording backfill.
+Generated on 2026-06-15 and updated on 2026-06-16 for the one-time PsychedelX historical recording backfill.
 
 ## Source
 
@@ -12,24 +12,24 @@ Generated on 2026-06-15 for the one-time PsychedelX historical recording backfil
 
 ## Seed Coverage
 
-- Reviewed rows in `supabase/seed-psychedelx-recordings.sql`: 138
-- Ambiguous or excluded rows below: 5
-- Category counts: Participant Talk: 101, Panel: 6, Q&A: 11, Keynote Speech: 17, Closing Ceremony: 3
-- Year counts: 2021: 25, 2022: 31, 2023: 18, 2024: 29, 2025: 35
+- Reviewed rows in `supabase/seed-psychedelx-recordings.sql`: 143
+- Ambiguous or excluded rows below: 0
+- Category counts: Participant Talk: 102, Panel: 8, Q&A: 11, Keynote Speech: 18, Closing Ceremony: 3, Other: 1
+- Year counts: 2021: 27, 2022: 31, 2023: 21, 2024: 29, 2025: 35
 
 The SQL seed updates existing rows by `recording_source_id` or canonical YouTube `recording_url`, then inserts missing rows. Imported rows are published immediately and appear in the Events recordings tab under `event_type = 'PsychedelX'`.
 
 ## Ambiguous Or Excluded Videos
 
-These were not added to the SQL seed because the member-facing label is not clear enough or the item is promotional/non-channel material. Justin should choose labels before they are added.
+All previously ambiguous videos have now been labeled and included in the seed.
 
-| Published | Raw title | URL | Source playlist | Suggested options |
-|---|---|---|---|---|
-| 2021-01-28 | Why PsychedelX? | https://www.youtube.com/watch?v=iGxqWmMII58 | Promotional Materials | Exclude as promotional material; Participant Talk |
-| 2021-02-22 | I am a Psychedelic Student | https://www.youtube.com/watch?v=lCC4O681zJA | PsychedelX Week 2021 | Participant Talk; Opening/Performance |
-| 2023-08-07 | From Art Historian to Psychedelic Scientist: Getting to Know Your Vehicle w/ Dr. Meghan DellaCrosse | https://www.youtube.com/watch?v=Sh2TiWtxv3c | PsychedelX 2023: Keynotes, Centers, and Q&As | Keynote Speech; Panel; Participant Talk |
-| 2023-08-07 | The Evolution of Consciousness & The Consciousness of Evolution w/ Jay & Lindy Nelson | https://www.youtube.com/watch?v=NrsorRExnP8 | PsychedelX 2023: Keynotes, Centers, and Q&As | Keynote Speech; Panel; Participant Talk |
-| 2023-08-12 | PsychedelX 2023: Psychedelic Training Center Series | https://www.youtube.com/watch?v=ZYLEE77HDhM | PsychedelX 2023: Keynotes, Centers, and Q&As | Panel; Keynote Speech |
+| Published | Raw title | URL | Category |
+|---|---|---|---|
+| 2021-01-28 | Why PsychedelX? | https://www.youtube.com/watch?v=iGxqWmMII58 | Other |
+| 2021-02-22 | I am a Psychedelic Student | https://www.youtube.com/watch?v=lCC4O681zJA | Participant Talk |
+| 2023-08-07 | From Art Historian to Psychedelic Scientist: Getting to Know Your Vehicle w/ Dr. Meghan DellaCrosse | https://www.youtube.com/watch?v=Sh2TiWtxv3c | Keynote Speech |
+| 2023-08-07 | The Evolution of Consciousness & The Consciousness of Evolution w/ Jay & Lindy Nelson | https://www.youtube.com/watch?v=NrsorRExnP8 | Panel |
+| 2023-08-12 | PsychedelX 2023: Psychedelic Training Center Series | https://www.youtube.com/watch?v=ZYLEE77HDhM | Panel |
 
 ## Verification SQL
 
