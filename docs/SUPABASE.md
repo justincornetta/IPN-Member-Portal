@@ -57,7 +57,7 @@ One row per user. Created automatically on signup via trigger.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key; references `auth.users.id` |
-| `email` | `text` | Copied from `auth.users.email` by `signUp()`; used for connections contact reveal |
+| `email` | `text` | Copied from `auth.users.email` by `signUp()`; mirrored into `member_contacts` for contact reveal |
 | `first_name` | `text` | |
 | `last_name` | `text` | |
 | `country` | `text` | |
@@ -185,13 +185,27 @@ Unique constraint on `(requester_id, addressee_id)`. Self-connections prevented 
 > -- update public.profiles set role = 'superadmin' where id = '<your-uuid>';
 > ```
 
+### `public.member_contacts`
+
+Private contact details that are revealed only after an accepted connection.
+
+| Column | Type | Notes |
+|---|---|---|
+| `user_id` | `uuid` | Primary key; references `auth.users.id` |
+| `email` | `text` | Mirrored from the member's Supabase Auth email |
+| `whatsapp_url` | `text` | Optional WhatsApp link managed from the profile page |
+| `created_at` | `timestamptz` | |
+| `updated_at` | `timestamptz` | |
+
+RLS allows members to view, insert, and update their own contact row. Accepted connections can select the row, which lets the directory modal reveal email and WhatsApp after the connection is accepted.
+
 ---
 
 ## Triggers
 
 ### `on_auth_user_created`
 
-Fires after every `INSERT` on `auth.users`. Reads `raw_user_meta_data` (set by `signUp()`) and creates the corresponding `profiles` row. `email` is set separately by `signUp()` after the trigger fires (the trigger doesn't capture it). Defined in `supabase/schema.sql`.
+Fires after every `INSERT` on `auth.users`. Reads `raw_user_meta_data` (set by `signUp()`) and creates the corresponding `profiles` row. It also creates or updates the member's `member_contacts` row with their auth email. Defined in `supabase/schema.sql`.
 
 ---
 
