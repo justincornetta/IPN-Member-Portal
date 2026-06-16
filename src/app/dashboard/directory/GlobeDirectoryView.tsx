@@ -18,6 +18,7 @@ declare global {
 const MAPLIBRE_VERSION = "5.24.0"
 const MAPLIBRE_JS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`
 const MAPLIBRE_CSS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`
+const MAP_STYLE_URL = "https://demotiles.maplibre.org/style.json"
 
 let maplibrePromise: Promise<MapLibre> | null = null
 
@@ -79,6 +80,30 @@ function buildFeatures(cities: DirectoryMapCity[]) {
   }
 }
 
+function fitToCities(map: MapLibre, maplibregl: MapLibre, cities: DirectoryMapCity[], duration = 0) {
+  if (cities.length === 0) return
+
+  if (cities.length === 1) {
+    map.easeTo({
+      center: [cities[0].lng, cities[0].lat],
+      zoom: 3.2,
+      duration,
+    })
+    return
+  }
+
+  const bounds = new maplibregl.LngLatBounds()
+  for (const city of cities) {
+    bounds.extend([city.lng, city.lat])
+  }
+
+  map.fitBounds(bounds, {
+    padding: { top: 130, right: 430, bottom: 80, left: 60 },
+    maxZoom: 4.8,
+    duration,
+  })
+}
+
 export default function GlobeDirectoryView({
   cities,
   connectionMap,
@@ -119,35 +144,25 @@ export default function GlobeDirectoryView({
 
         const map = new maplibregl.Map({
           container: containerRef.current,
-          center: [-20, 20],
+          center: [-98, 38],
           zoom: 1.15,
           minZoom: 1,
           maxZoom: 9,
           attributionControl: false,
           projection: { type: "globe" },
-          style: {
-            version: 8,
-            glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-            sources: {
-              satellite: {
-                type: "raster",
-                tiles: [
-                  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021_3857/default/g/{z}/{y}/{x}.jpg",
-                ],
-                tileSize: 256,
-                attribution: "EOX Sentinel-2 cloudless",
-              },
-            },
-            layers: [
-              { id: "satellite", type: "raster", source: "satellite" },
-            ],
-          },
+          style: MAP_STYLE_URL,
         })
 
         map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-left")
         mapRef.current = map
 
+        map.on("error", (event: MapLibre) => {
+          const message = event?.error?.message
+          if (message) setLoadError(message)
+        })
+
         map.on("load", () => {
+          setLoadError(null)
           map.addSource("cities", {
             type: "geojson",
             data: buildFeatures(cities),
@@ -232,6 +247,8 @@ export default function GlobeDirectoryView({
               "text-color": "#ffffff",
             },
           })
+
+          fitToCities(map, maplibregl, cities)
         })
 
         map.on("click", "clusters", async (event: MapLibre) => {
@@ -278,6 +295,9 @@ export default function GlobeDirectoryView({
   useEffect(() => {
     const source = mapRef.current?.getSource("cities")
     if (source?.setData) source.setData(buildFeatures(cities))
+
+    const maplibregl = window.maplibregl
+    if (mapRef.current && maplibregl) fitToCities(mapRef.current, maplibregl, cities, 350)
   }, [cities])
 
   const selectedCity = selectedCityId ? cityByIdRef.current.get(selectedCityId) : null
