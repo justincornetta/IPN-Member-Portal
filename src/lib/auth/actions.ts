@@ -40,6 +40,31 @@ async function geocodeCity(
   return null
 }
 
+function normalizeWhatsAppUrl(value: string | null): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+
+  try {
+    const url = new URL(trimmed)
+    const allowedHosts = new Set([
+      "wa.me",
+      "www.wa.me",
+      "api.whatsapp.com",
+      "www.api.whatsapp.com",
+      "chat.whatsapp.com",
+      "www.chat.whatsapp.com",
+    ])
+
+    if (url.protocol !== "https:" || !allowedHosts.has(url.hostname.toLowerCase())) {
+      return ""
+    }
+
+    return url.toString()
+  } catch {
+    return ""
+  }
+}
+
 function normalizeSiteUrl(url: string): string {
   const withProtocol = url.startsWith("http") ? url : `https://${url}`
   return withProtocol.replace(/\/$/, "")
@@ -61,7 +86,12 @@ function getSiteUrl(): string {
 
 function getPostRegistrationPath(next?: string): string {
   const fallback = "/dashboard"
-  const rawPath = next && next.startsWith("/") ? next : fallback
+  let rawPath = next && next.startsWith("/") ? next : fallback
+
+  // External event pages (/events/slug) should land on the member portal event page
+  if (rawPath.startsWith("/events/")) {
+    rawPath = `/dashboard${rawPath}`
+  }
 
   try {
     const url = new URL(rawPath, "http://localhost")
@@ -142,7 +172,11 @@ export async function signIn(
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: error.message }
-  redirect(next && next.startsWith("/") ? next : "/dashboard")
+  let destination = next && next.startsWith("/") ? next : "/dashboard"
+  if (destination.startsWith("/events/")) {
+    destination = `/dashboard${destination}`
+  }
+  redirect(destination)
 }
 
 export async function sendPasswordResetEmail(
@@ -177,6 +211,7 @@ export type ProfileUpdateData = {
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
+  whatsapp_url: string | null
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
@@ -191,14 +226,70 @@ export async function updateProfile(
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  const whatsappUrl = normalizeWhatsAppUrl(data.whatsapp_url)
+  if (whatsappUrl === "") {
+    return { error: "Enter a valid WhatsApp link, such as https://wa.me/15551234567." }
+  }
+
+  const profileData = {
+    first_name: data.first_name,
+    last_name: data.last_name,
+    country: data.country,
+    state: data.state,
+    city: data.city,
+    persona: data.persona,
+    affiliation: data.affiliation,
+    school: data.school,
+    field: data.field,
+    psychedelic_field_status: data.psychedelic_field_status,
+    role_and_goals: data.role_and_goals,
+    bio: data.bio,
+    interest_tags: data.interest_tags,
+    linkedin_url: data.linkedin_url,
+    is_discoverable: data.is_discoverable,
+    share_location: data.share_location,
+    avatar_url: data.avatar_url,
+  }
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("city, country")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const locationChanged =
+    currentProfile?.city !== data.city || currentProfile?.country !== data.country
+  const coords = locationChanged && data.city && data.country
+    ? await geocodeCity(data.city, data.country)
+    : undefined
+
   const { data: updatedProfile, error } = await supabase
     .from("profiles")
-    .update({ ...data, updated_at: new Date().toISOString() })
+    .update({
+      ...profileData,
+      ...(coords !== undefined
+        ? { city_lat: coords?.lat ?? null, city_lng: coords?.lng ?? null }
+        : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", user.id)
     .select("email, mailchimp_status")
     .single()
 
   if (error) return { error: error.message }
+
+  const { error: contactError } = await supabase
+    .from("member_contacts")
+    .upsert(
+      {
+        user_id: user.id,
+        email: user.email ?? null,
+        whatsapp_url: whatsappUrl,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    )
+
+  if (contactError) return { error: contactError.message }
 
   if (updatedProfile?.mailchimp_status === "subscribed" && updatedProfile.email) {
     const mailchimpResult = await setMailchimpSubscription(

@@ -17,6 +17,12 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .single()
 
+  const { data: contact } = await supabase
+    .from("member_contacts")
+    .select("whatsapp_url")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
   const storedMailchimpStatus = profile?.mailchimp_status as MailchimpStatus | null
   const mailchimpStatus =
     storedMailchimpStatus ?? (user.email ? await getMailchimpStatus(user.email) : "unknown")
@@ -28,6 +34,7 @@ export default async function ProfilePage() {
       </div>
       <ProfileForm
         profile={profile}
+        contact={contact}
         userId={user.id}
         userEmail={user.email ?? ""}
         mailchimpStatus={mailchimpStatus}

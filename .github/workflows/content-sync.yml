@@ -12,7 +12,16 @@ jobs:
     steps:
       - name: Trigger content sync
         run: |
-          curl -s -X POST "${{ secrets.SITE_URL }}/api/admin/sync-content" \
+          SITE_URL="${{ secrets.SITE_URL }}"
+          SITE_URL="${SITE_URL%/}"
+          RESPONSE=$(curl -s -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/api/admin/sync-content" \
             -H "x-content-sync-secret: ${{ secrets.CONTENT_SYNC_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail-with-body
+            -H "Content-Type: application/json")
+          HTTP_STATUS=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS__[0-9]*' | grep -o '[0-9]*')
+          BODY=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS__[0-9]*//')
+          echo "Response: $BODY"
+          echo "HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: sync-content returned HTTP $HTTP_STATUS"
+            exit 1
+          fi

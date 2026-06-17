@@ -45,6 +45,10 @@ type Profile = {
   avatar_url: string | null
 }
 
+type Contact = {
+  whatsapp_url: string | null
+}
+
 type FormState = {
   first_name: string
   last_name: string
@@ -60,12 +64,13 @@ type FormState = {
   bio: string
   interest_tags: string[]
   linkedin_url: string
+  whatsapp_url: string
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
 }
 
-function toFormState(profile: Profile | null): FormState {
+function toFormState(profile: Profile | null, contact: Contact | null): FormState {
   return {
     first_name: profile?.first_name ?? "",
     last_name: profile?.last_name ?? "",
@@ -81,6 +86,7 @@ function toFormState(profile: Profile | null): FormState {
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
+    whatsapp_url: contact?.whatsapp_url ?? "",
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
@@ -454,17 +460,19 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
 
 export default function ProfileForm({
   profile,
+  contact,
   userId,
   userEmail,
   mailchimpStatus,
 }: {
   profile: Profile | null
+  contact: Contact | null
   userId: string
   userEmail: string
   mailchimpStatus: MailchimpStatus
 }) {
   const router = useRouter()
-  const [data, setData] = useState<FormState>(() => toFormState(profile))
+  const [data, setData] = useState<FormState>(() => toFormState(profile, contact))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -547,6 +555,7 @@ export default function ProfileForm({
       bio: data.bio || null,
       interest_tags: data.interest_tags.length > 0 ? data.interest_tags : null,
       linkedin_url: data.linkedin_url || null,
+      whatsapp_url: data.whatsapp_url || null,
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
       avatar_url: data.avatar_url,
@@ -634,7 +643,9 @@ export default function ProfileForm({
       {/* ── Public Profile ── */}
       <section>
         <SectionHeading>Public Profile</SectionHeading>
-
+        <p className="-mt-2 mb-4 text-xs text-zinc-400">
+          Email and WhatsApp are only shown after you accept a connection.
+        </p>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -678,6 +689,16 @@ export default function ProfileForm({
             <TextInput id="linkedin_url" name="linkedin_url" value={data.linkedin_url}
               onChange={(v) => update("linkedin_url", v)}
               placeholder="https://linkedin.com/in/yourname" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="whatsapp_url">WhatsApp</Label>
+            <TextInput id="whatsapp_url" name="whatsapp_url" value={data.whatsapp_url}
+              onChange={(v) => update("whatsapp_url", v)}
+              placeholder="https://wa.me/15551234567" />
+            <p className="text-xs text-zinc-400">
+              Shown only to accepted connections, alongside your account email.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">

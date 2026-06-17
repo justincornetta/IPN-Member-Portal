@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import DirectoryClient from "./DirectoryClient"
-import type { DirectoryMember, DirectoryParams, ConnectionEntry } from "@/lib/directory/types"
+import type {
+  ConnectionEntry,
+  DirectoryMapCity,
+  DirectoryMapMember,
+  DirectoryMember,
+  DirectoryParams,
+} from "@/lib/directory/types"
 
 export default async function DirectoryPage({
   searchParams,
@@ -113,13 +119,123 @@ export default async function DirectoryPage({
     .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
 
   const connectionMap: Record<string, ConnectionEntry> = {}
+  const acceptedConnectionIds: string[] = []
   for (const c of connRows ?? []) {
     const otherId = c.requester_id === user.id ? c.addressee_id : c.requester_id
     connectionMap[otherId] = {
       status: c.status as ConnectionEntry["status"],
       amRequester: c.requester_id === user.id,
     }
+    if (c.status === "accepted") acceptedConnectionIds.push(otherId)
   }
+
+  const { data: contacts } = acceptedConnectionIds.length > 0
+    ? await supabase
+      .from("member_contacts")
+      .select("user_id, email, whatsapp_url")
+      .in("user_id", acceptedConnectionIds)
+    : { data: [] }
+
+  const contactMap = new Map(
+    (contacts ?? []).map((c) => [
+      c.user_id as string,
+      {
+        email: (c.email as string | null) ?? null,
+        whatsapp_url: (c.whatsapp_url as string | null) ?? null,
+      },
+    ]),
+  )
+
+  const membersWithContacts = ((members ?? []) as DirectoryMember[]).map((member) => ({
+    ...member,
+    contact: contactMap.get(member.id) ?? null,
+  }))
+
+  let mapQuery = supabase
+    .from("profiles")
+    .select(
+      "id, first_name, last_name, persona, school, affiliation, field, city, state, country, city_lat, city_lng, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
+    )
+    .eq("is_discoverable", true)
+    .eq("share_location", true)
+    .not("city", "is", null)
+    .not("city_lat", "is", null)
+    .not("city_lng", "is", null)
+    .neq("id", user.id)
+    .order("first_name", { ascending: true })
+
+  if (tab === "school" && userSchool) {
+    mapQuery = mapQuery.eq("school", userSchool)
+  }
+
+  if (q) {
+    mapQuery = mapQuery.or(
+      `first_name.ilike.%${q}%,last_name.ilike.%${q}%,school.ilike.%${q}%,affiliation.ilike.%${q}%,field.ilike.%${q}%,bio.ilike.%${q}%`,
+    )
+  }
+
+  if (personas.length > 0) {
+    mapQuery = mapQuery.in("persona", personas)
+  }
+
+  if (schoolFilter) {
+    mapQuery = mapQuery.or(
+      `school.ilike.%${schoolFilter}%,affiliation.ilike.%${schoolFilter}%`,
+    )
+  }
+
+  if (fieldFilter) {
+    mapQuery = mapQuery.ilike("field", `%${fieldFilter}%`)
+  }
+
+  if (tagFilter.length > 0) {
+    mapQuery = mapQuery.overlaps("interest_tags", tagFilter)
+  }
+
+  const { data: mapRows } = await mapQuery
+  const cityMap = new Map<string, DirectoryMapCity>()
+
+  for (const row of (mapRows ?? []) as DirectoryMapMember[]) {
+    if (!row.city || row.city_lat == null || row.city_lng == null) continue
+
+    const lat = Number(row.city_lat)
+    const lng = Number(row.city_lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+
+    const id = [
+      row.city.trim().toLowerCase(),
+      row.state?.trim().toLowerCase() ?? "",
+      row.country?.trim().toLowerCase() ?? "",
+      lat.toFixed(2),
+      lng.toFixed(2),
+    ].join(":")
+
+    const member = {
+      ...row,
+      city_lat: lat,
+      city_lng: lng,
+      contact: contactMap.get(row.id) ?? null,
+    }
+
+    const existing = cityMap.get(id)
+    if (existing) {
+      existing.members.push(member)
+      existing.memberCount += 1
+    } else {
+      cityMap.set(id, {
+        id,
+        city: row.city,
+        state: row.state,
+        country: row.country,
+        lat,
+        lng,
+        memberCount: 1,
+        members: [member],
+      })
+    }
+  }
+
+  const mapCities = [...cityMap.values()].sort((a, b) => b.memberCount - a.memberCount)
 
   const currentParams: DirectoryParams = {
     q,
@@ -132,7 +248,8 @@ export default async function DirectoryPage({
 
   return (
     <DirectoryClient
-      members={(members ?? []) as DirectoryMember[]}
+      members={membersWithContacts}
+      mapCities={mapCities}
       showSchoolTab={showSchoolTab}
       currentParams={currentParams}
       schools={schools}

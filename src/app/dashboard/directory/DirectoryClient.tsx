@@ -1,10 +1,25 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { PERSONA_OPTIONS } from "@/lib/constants/registration"
-import type { DirectoryMember, DirectoryParams, ConnectionEntry } from "@/lib/directory/types"
+import type {
+  ConnectionEntry,
+  DirectoryMapCity,
+  DirectoryMember,
+  DirectoryParams,
+} from "@/lib/directory/types"
 import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
+
+const GlobeDirectoryView = dynamic(() => import("./GlobeDirectoryView"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[620px] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-950 text-sm font-medium text-white">
+      Loading map...
+    </div>
+  ),
+})
 
 const PERSONAS = PERSONA_OPTIONS.map((o) => o.value)
 
@@ -143,11 +158,13 @@ function MemberModal({
   onConnectionChange: (entry: ConnectionEntry) => void
   onClose: () => void
 }) {
+  const router = useRouter()
   const [, startTransition] = useTransition()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const initials = getInitials(member.first_name, member.last_name)
   const location = [member.city, member.state].filter(Boolean).join(", ")
   const institution = member.school ?? member.affiliation
+  const isConnected = connectionEntry?.status === "accepted"
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -238,11 +255,39 @@ function MemberModal({
               <p className="mt-1 text-sm text-zinc-700">{member.interest_tags.join(" · ")}</p>
             </div>
           )}
+          {isConnected && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Contact</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {member.contact?.email && (
+                  <a
+                    href={`mailto:${member.contact.email}`}
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-ipn hover:text-ipn"
+                  >
+                    Email
+                  </a>
+                )}
+                {member.contact?.whatsapp_url && (
+                  <a
+                    href={member.contact.whatsapp_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
+                  >
+                    WhatsApp
+                  </a>
+                )}
+                {!member.contact?.email && !member.contact?.whatsapp_url && (
+                  <p className="text-sm text-zinc-500">No contact details added yet.</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-4">
-          {connectionEntry?.status === "accepted" ? (
+          {isConnected ? (
             <button
               type="button"
               onClick={() => setConfirmRemove(true)}
@@ -293,7 +338,10 @@ function MemberModal({
                   type="button"
                   onClick={() => {
                     onConnectionChange({ status: "accepted", amRequester: false })
-                    startTransition(() => { acceptConnection(member.id) })
+                    startTransition(async () => {
+                      const result = await acceptConnection(member.id)
+                      if (!result.error) router.refresh()
+                    })
                   }}
                   className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
                 >
@@ -307,7 +355,10 @@ function MemberModal({
                 type="button"
                 onClick={() => {
                   onConnectionChange({ status: "pending", amRequester: true })
-                  startTransition(() => { sendConnectionRequest(member.id) })
+                  startTransition(async () => {
+                    const result = await sendConnectionRequest(member.id)
+                    if (!result.error) router.refresh()
+                  })
                 }}
                 className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
               >
@@ -319,7 +370,7 @@ function MemberModal({
 
         {(!connectionEntry || connectionEntry.status === "declined") && (
           <p className="px-6 pb-4 text-center text-xs text-zinc-400">
-            When you connect, you both get access to each other&apos;s email so you can take the conversation further.
+            Connecting lets you share email and WhatsApp details with each other.
           </p>
         )}
       </div>
@@ -329,7 +380,10 @@ function MemberModal({
           name={`${member.first_name ?? ""} ${member.last_name ?? ""}`.trim()}
           onConfirm={() => {
             onConnectionChange({ status: "declined", amRequester: true })
-            startTransition(() => { removeConnection(member.id) })
+            startTransition(async () => {
+              const result = await removeConnection(member.id)
+              if (!result.error) router.refresh()
+            })
             setConfirmRemove(false)
           }}
           onCancel={() => setConfirmRemove(false)}
@@ -528,6 +582,7 @@ function FilterDrawer({
 
 type Props = {
   members: DirectoryMember[]
+  mapCities: DirectoryMapCity[]
   showSchoolTab: boolean
   currentParams: DirectoryParams
   schools: string[]
@@ -535,11 +590,20 @@ type Props = {
   connectionMap: Record<string, ConnectionEntry>
 }
 
-export default function DirectoryClient({ members, showSchoolTab, currentParams, schools, availableTags, connectionMap: initialConnectionMap }: Props) {
+export default function DirectoryClient({
+  members,
+  mapCities,
+  showSchoolTab,
+  currentParams,
+  schools,
+  availableTags,
+  connectionMap: initialConnectionMap,
+}: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
+  const [view, setView] = useState<"list" | "globe">("list")
   const [searchInput, setSearchInput] = useState(currentParams.q)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPersonas, setDrawerPersonas] = useState<string[]>(currentParams.personas)
@@ -549,6 +613,17 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
   const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(null)
   const [connMap, setConnMap] = useState<Record<string, ConnectionEntry>>(initialConnectionMap)
   const closeModal = useCallback(() => setSelectedMember(null), [])
+
+  useEffect(() => {
+    setConnMap(initialConnectionMap)
+  }, [initialConnectionMap])
+
+  useEffect(() => {
+    if (!selectedMember) return
+
+    const refreshed = members.find((member) => member.id === selectedMember.id)
+    if (refreshed) setSelectedMember(refreshed)
+  }, [members, selectedMember])
 
   function buildUrl(overrides: Partial<DirectoryParams>) {
     const merged = { ...currentParams, searchInput, ...overrides }
@@ -789,13 +864,38 @@ export default function DirectoryClient({ members, showSchoolTab, currentParams,
         </div>
       )}
 
-      {/* Count + pending indicator */}
-      <p className={`mb-4 text-sm text-zinc-500 transition-opacity ${isPending ? "opacity-50" : ""}`}>
-        {members.length} member{members.length !== 1 ? "s" : ""}
-      </p>
+      {/* Count + view switch */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className={`text-sm text-zinc-500 transition-opacity ${isPending ? "opacity-50" : ""}`}>
+          {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"}
+        </p>
+        <div className="inline-flex self-start rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:self-auto">
+          {(["list", "globe"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setView(option)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                view === option
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              {option === "list" ? "List" : "Globe"}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* Grid */}
-      {members.length > 0 ? (
+      {view === "globe" ? (
+        <div className={`transition-opacity ${isPending ? "opacity-50" : ""}`}>
+          <GlobeDirectoryView
+            cities={mapCities}
+            connectionMap={connMap}
+            onOpenMember={setSelectedMember}
+          />
+        </div>
+      ) : members.length > 0 ? (
         <div className={`grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
           {members.map((member) => (
             <MemberCard key={member.id} member={member} connectionEntry={connMap[member.id]} onOpen={setSelectedMember} />

@@ -529,18 +529,34 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
           </div>
 
           {analytics.recent && (() => {
-            const PAGE_SIZE = 10
+            const PAGE_SIZE = 5
             const totalPages = Math.ceil(analytics.recent.length / PAGE_SIZE)
             const pageItems = analytics.recent.slice(signupsPage * PAGE_SIZE, (signupsPage + 1) * PAGE_SIZE)
             return (
               <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
                   <h2 className="text-sm font-semibold text-zinc-800">Recent signups</h2>
-                  <span className="text-xs text-zinc-400">{analytics.recent.length} total</span>
+                  <span className="text-xs text-zinc-400">{analytics.recent.length} most recent</span>
                 </div>
                 <div className="divide-y divide-zinc-100">
                   {pageItems.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between px-5 py-3">
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSelectedMember({
+                        id: m.id,
+                        first_name: m.first_name,
+                        last_name: m.last_name,
+                        email: m.email,
+                        avatar_url: null,
+                        role: null,
+                        admin_role: null,
+                        team: null,
+                        persona: m.persona,
+                        bio: null,
+                      })}
+                      className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left transition hover:bg-zinc-50"
+                    >
                       <div>
                         <p className="text-sm font-medium text-zinc-800">{m.first_name} {m.last_name}</p>
                         <p className="text-xs text-zinc-400">{m.email}</p>
@@ -556,7 +572,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
                           )
                         })()}
                         {m.mailchimp_status === "sync_failed" && (
-                          <details className="max-w-xs text-left text-[11px] text-zinc-500">
+                          <details className="max-w-xs text-left text-[11px] text-zinc-500" onClick={(e) => e.stopPropagation()}>
                             <summary className="cursor-pointer text-right text-zinc-400 hover:text-zinc-600">
                               Mailchimp details
                             </summary>
@@ -576,7 +592,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
                           {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
                 {totalPages > 1 && (

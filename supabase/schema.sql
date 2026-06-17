@@ -77,6 +77,102 @@ alter table public.profiles add constraint profiles_team_check
   check (team is null or team in ('Strategy and Operations', 'Media', 'PsychedelX', 'Community', 'IPN Labs'));
 
 
+-- ── 1b. Connections and private contact details ─────────────
+
+create table if not exists public.connections (
+  id            uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references auth.users on delete cascade,
+  addressee_id uuid not null references auth.users on delete cascade,
+  status        text not null default 'pending'
+    check (status in ('pending', 'accepted', 'declined')),
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now(),
+  constraint connections_not_self_check check (requester_id <> addressee_id),
+  constraint connections_unique_pair unique (requester_id, addressee_id)
+);
+
+create index if not exists connections_requester_status_idx
+  on public.connections (requester_id, status);
+
+create index if not exists connections_addressee_status_idx
+  on public.connections (addressee_id, status);
+
+alter table public.connections enable row level security;
+
+drop policy if exists "Connection participants can view rows" on public.connections;
+create policy "Connection participants can view rows"
+  on public.connections for select
+  using (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+drop policy if exists "Users can request connections" on public.connections;
+create policy "Users can request connections"
+  on public.connections for insert
+  with check (auth.uid() = requester_id);
+
+drop policy if exists "Connection participants can update rows" on public.connections;
+create policy "Connection participants can update rows"
+  on public.connections for update
+  using (auth.uid() = requester_id or auth.uid() = addressee_id)
+  with check (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+drop policy if exists "Connection participants can delete rows" on public.connections;
+create policy "Connection participants can delete rows"
+  on public.connections for delete
+  using (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+create table if not exists public.member_contacts (
+  user_id      uuid primary key references auth.users on delete cascade,
+  email        text,
+  whatsapp_url text,
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now()
+);
+
+alter table public.member_contacts enable row level security;
+
+drop policy if exists "Users can view own contact details" on public.member_contacts;
+create policy "Users can view own contact details"
+  on public.member_contacts for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Accepted connections can view contact details" on public.member_contacts;
+create policy "Accepted connections can view contact details"
+  on public.member_contacts for select
+  using (
+    exists (
+      select 1
+      from public.connections
+      where status = 'accepted'
+        and (
+          (requester_id = auth.uid() and addressee_id = member_contacts.user_id)
+          or (addressee_id = auth.uid() and requester_id = member_contacts.user_id)
+        )
+    )
+  );
+
+drop policy if exists "Users can insert own contact details" on public.member_contacts;
+create policy "Users can insert own contact details"
+  on public.member_contacts for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own contact details" on public.member_contacts;
+create policy "Users can update own contact details"
+  on public.member_contacts for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on public.connections to authenticated;
+grant select, insert, update on public.member_contacts to authenticated;
+
+insert into public.member_contacts (user_id, email)
+select id, email
+from public.profiles
+where email is not null
+on conflict (user_id) do update
+set email = excluded.email,
+    updated_at = now();
+
+
 -- ── 2. Row-Level Security ────────────────────────────────────
 
 alter table public.profiles enable row level security;
@@ -85,6 +181,12 @@ drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile"
   on public.profiles for select
   using (auth.uid() = id);
+
+drop policy if exists "Members can view discoverable profiles" on public.profiles;
+create policy "Members can view discoverable profiles"
+  on public.profiles for select
+  to authenticated
+  using (is_discoverable = true);
 
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
@@ -155,6 +257,18 @@ begin
     new.raw_user_meta_data->>'inspiration',
     new.raw_user_meta_data->>'referral_source'
   );
+
+  insert into public.member_contacts (
+    user_id,
+    email
+  ) values (
+    new.id,
+    new.email
+  )
+  on conflict (user_id) do update
+  set email = excluded.email,
+      updated_at = now();
+
   return new;
 end;
 $$;
