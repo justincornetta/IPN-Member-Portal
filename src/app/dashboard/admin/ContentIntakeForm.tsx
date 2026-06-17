@@ -159,7 +159,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
   return (
     <div className="flex flex-col gap-2">
       {value && (
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-zinc-100">
+        <div className="relative aspect-video w-56 overflow-hidden rounded-lg bg-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value} alt="" className="h-full w-full object-cover" />
           <button

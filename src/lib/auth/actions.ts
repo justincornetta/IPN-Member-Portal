@@ -86,7 +86,12 @@ function getSiteUrl(): string {
 
 function getPostRegistrationPath(next?: string): string {
   const fallback = "/dashboard"
-  const rawPath = next && next.startsWith("/") ? next : fallback
+  let rawPath = next && next.startsWith("/") ? next : fallback
+
+  // External event pages (/events/slug) should land on the member portal event page
+  if (rawPath.startsWith("/events/")) {
+    rawPath = `/dashboard${rawPath}`
+  }
 
   try {
     const url = new URL(rawPath, "http://localhost")
@@ -167,7 +172,11 @@ export async function signIn(
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: error.message }
-  redirect(next && next.startsWith("/") ? next : "/dashboard")
+  let destination = next && next.startsWith("/") ? next : "/dashboard"
+  if (destination.startsWith("/events/")) {
+    destination = `/dashboard${destination}`
+  }
+  redirect(destination)
 }
 
 export async function sendPasswordResetEmail(

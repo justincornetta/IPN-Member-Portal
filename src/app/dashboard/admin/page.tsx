@@ -77,7 +77,7 @@ export default async function AdminPage() {
       .from("profiles")
       .select("id, first_name, last_name, email, persona, created_at, mailchimp_status, mailchimp_last_error_raw, mailchimp_last_error_description")
       .order("created_at", { ascending: false })
-      .limit(50)
+      .limit(25)
     recent = await Promise.all((data ?? []).map(async (profile) => {
       if (profile.mailchimp_status !== "unknown" || !profile.email) {
         return profile

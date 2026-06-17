@@ -98,19 +98,19 @@ export default async function PublicEventPage({ params }: Props) {
         </div>
       </header>
 
-      {/* Hero */}
-      <div className="aspect-video w-full overflow-hidden bg-zinc-900">
-        {e.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={e.thumbnail_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_28%,#18181b_70%)]" />
-        )}
-      </div>
-
       {/* Content */}
       <div className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Hero image */}
+        <div className="aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-sm">
+          {e.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={e.thumbnail_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_28%,#18181b_70%)]" />
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           <span className="rounded-md bg-ipn-light px-2 py-1 text-xs font-medium text-ipn">
             {e.event_type}
           </span>

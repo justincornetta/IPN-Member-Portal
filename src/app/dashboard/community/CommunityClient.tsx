@@ -254,10 +254,12 @@ function RequestCard({
   row,
   onAccepted,
   onDeclined,
+  onView,
 }: {
   row: ConnectionRow
   onAccepted: (id: string) => void
   onDeclined: (id: string) => void
+  onView: (profile: ConnectionProfile) => void
 }) {
   const [, startTransition] = useTransition()
   const requester = row.requester
@@ -275,6 +277,12 @@ function RequestCard({
         )}
       </div>
       <div className="flex flex-shrink-0 gap-2">
+        <button
+          onClick={() => onView(requester)}
+          className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 transition"
+        >
+          View profile
+        </button>
         <button
           onClick={() => {
             onAccepted(row.requester_id)
@@ -400,6 +408,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
                   row={row}
                   onAccepted={handleAccepted}
                   onDeclined={handleDeclined}
+                  onView={setViewProfile}
                 />
               ))}
             </div>

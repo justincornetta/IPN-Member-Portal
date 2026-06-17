@@ -321,47 +321,52 @@ function SpeakerResourcesSection({
 }: {
   resources: NormalizedSpeakerResources
 }) {
+  const hasContent = resources.papers.length > 0 || resources.resources.length > 0
+  const hasLinks = resources.speakerLinks.length > 0
+
   return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              IPN Lab materials
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-zinc-900">
-              Relevant Papers and Event Resources
-            </h2>
+    <section className={`grid gap-4 ${hasContent && hasLinks ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+      {hasContent && (
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                IPN Lab materials
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-zinc-900">
+                Relevant Papers and Event Resources
+              </h2>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3">
+            {resources.papers.map((paper) => (
+              <ResourceRow
+                key={`paper-${paper.title}`}
+                title={paper.title}
+                label="Relevant paper"
+                url={paper.url}
+                detail={paper.citation}
+                note={paper.note}
+                kind="paper"
+              />
+            ))}
+            {resources.resources.map((resource) => (
+              <ResourceRow
+                key={`resource-${resource.title}`}
+                title={resource.title}
+                label="Event resource"
+                url={resource.url}
+                detail={resource.source}
+                note={resource.note}
+                kind="resource"
+              />
+            ))}
           </div>
         </div>
+      )}
 
-        <div className="mt-5 flex flex-col gap-3">
-          {resources.papers.map((paper) => (
-            <ResourceRow
-              key={`paper-${paper.title}`}
-              title={paper.title}
-              label="Relevant paper"
-              url={paper.url}
-              detail={paper.citation}
-              note={paper.note}
-              kind="paper"
-            />
-          ))}
-          {resources.resources.map((resource) => (
-            <ResourceRow
-              key={`resource-${resource.title}`}
-              title={resource.title}
-              label="Event resource"
-              url={resource.url}
-              detail={resource.source}
-              note={resource.note}
-              kind="resource"
-            />
-          ))}
-        </div>
-      </div>
-
-      <SpeakerLinksPanel links={resources.speakerLinks} />
+      {hasLinks && <SpeakerLinksPanel links={resources.speakerLinks} />}
     </section>
   )
 }
@@ -482,7 +487,10 @@ export default async function EventDetailPage({ params }: Props) {
 
         <RecordingDetail event={eventRecord} />
 
-        {isIpnLabEvent(eventRecord) && (
+        {isIpnLabEvent(eventRecord) &&
+          (speakerResources.papers.length > 0 ||
+            speakerResources.resources.length > 0 ||
+            speakerResources.speakerLinks.length > 0) && (
           <SpeakerResourcesSection resources={speakerResources} />
         )}
       </div>
