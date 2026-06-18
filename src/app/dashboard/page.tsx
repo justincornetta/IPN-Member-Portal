@@ -251,77 +251,155 @@ function MemberOnboarding() {
 }
 
 function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
-  const visibleCities = cities.slice(0, 12)
-  const lngs = visibleCities.map((city) => city.lng)
-  const lats = visibleCities.map((city) => city.lat)
-  const minLng = Math.min(...lngs)
-  const maxLng = Math.max(...lngs)
-  const minLat = Math.min(...lats)
-  const maxLat = Math.max(...lats)
-  const lngSpan = Math.max(1, maxLng - minLng)
-  const latSpan = Math.max(1, maxLat - minLat)
+  const projectCity = (city: DirectoryMapCity) => {
+    const lng = Math.max(-180, Math.min(180, city.lng))
+    const lat = Math.max(-70, Math.min(70, city.lat))
+    const rawX = 110 + (lng / 180) * 56
+    const rawY = 76 - (lat / 70) * 44
+    const dx = rawX - 110
+    const dy = rawY - 76
+    const distance = Math.hypot(dx, dy)
+    const maxDistance = 52
+    const scale = distance > maxDistance ? maxDistance / distance : 1
+
+    return {
+      x: 110 + dx * scale,
+      y: 76 + dy * scale,
+      memberCount: city.memberCount,
+      cityCount: 1,
+      label: city.city,
+    }
+  }
+
+  const clusters = cities
+    .map(projectCity)
+    .reduce<Array<ReturnType<typeof projectCity>>>((grouped, point) => {
+      const nearby = grouped.find(
+        (cluster) => Math.hypot(cluster.x - point.x, cluster.y - point.y) < 18,
+      )
+
+      if (!nearby) {
+        grouped.push(point)
+        return grouped
+      }
+
+      const nextMemberCount = nearby.memberCount + point.memberCount
+      nearby.x =
+        (nearby.x * nearby.memberCount + point.x * point.memberCount) /
+        nextMemberCount
+      nearby.y =
+        (nearby.y * nearby.memberCount + point.y * point.memberCount) /
+        nextMemberCount
+      nearby.memberCount = nextMemberCount
+      nearby.cityCount += 1
+      nearby.label = `${nearby.cityCount} cities`
+
+      return grouped
+    }, [])
+    .sort((a, b) => b.memberCount - a.memberCount)
+    .slice(0, 8)
 
   return (
-    <div className="relative min-h-36 overflow-hidden rounded-lg border border-zinc-200 bg-[#f8fafc]">
+    <div className="relative flex min-h-36 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox="0 0 220 150"
         role="img"
         aria-label="IPN member locations preview"
       >
-        <rect width="220" height="150" fill="#f8fafc" />
-        <path
-          d="M0 96c28-18 58-26 93-23 31 3 48 17 75 16 20-1 36-10 52-18v79H0Z"
-          fill="#eef2f7"
+        <defs>
+          <radialGradient id="mini-directory-globe" cx="40%" cy="28%" r="70%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="58%" stopColor="#f1f5f9" />
+            <stop offset="100%" stopColor="#dfe5ee" />
+          </radialGradient>
+          <clipPath id="mini-directory-globe-clip">
+            <circle cx="110" cy="76" r="60" />
+          </clipPath>
+        </defs>
+        <rect width="220" height="150" fill="#fafafa" />
+        <circle
+          cx="110"
+          cy="76"
+          r="60"
+          fill="url(#mini-directory-globe)"
+          stroke="#d7dce5"
+          strokeWidth="1"
         />
-        <path
-          d="M16 38c31-15 68-15 99-1 22 10 31 24 49 34 17 9 36 7 56-2v81H16Z"
-          fill="#e5e7eb"
-          opacity="0.86"
-        />
-        <path
-          d="M44 43c20-10 49-11 70-2 17 7 27 18 45 22 16 3 35-1 55-10"
-          fill="none"
-          stroke="#d4d8e1"
-          strokeWidth="9"
-          strokeLinecap="round"
-          opacity="0.55"
-        />
-        <path
-          d="M14 90c35-8 62-4 87 10 23 12 49 15 78 4 17-7 28-9 41-5"
-          fill="none"
-          stroke="#d4d8e1"
-          strokeWidth="8"
-          strokeLinecap="round"
-          opacity="0.48"
-        />
-        {[28, 64, 100, 136, 172, 208].map((x) => (
-          <path key={x} d={`M${x} 0v150`} stroke="#e5e7eb" strokeWidth="1" opacity="0.7" />
-        ))}
-        {[28, 58, 88, 118].map((y) => (
-          <path key={y} d={`M0 ${y}h220`} stroke="#e5e7eb" strokeWidth="1" opacity="0.7" />
-        ))}
-        {visibleCities.map((city) => {
-          const xPercent = visibleCities.length === 1
-            ? 50
-            : 18 + ((city.lng - minLng) / lngSpan) * 64
-          const yPercent = visibleCities.length === 1
-            ? 50
-            : 18 + ((maxLat - city.lat) / latSpan) * 64
-          const radius = Math.min(12, 6 + city.memberCount * 1.5)
+        <g clipPath="url(#mini-directory-globe-clip)">
+          <ellipse
+            cx="110"
+            cy="76"
+            rx="60"
+            ry="20"
+            fill="none"
+            stroke="#cfd6e1"
+            strokeWidth="1"
+            opacity="0.72"
+          />
+          <ellipse
+            cx="110"
+            cy="76"
+            rx="60"
+            ry="40"
+            fill="none"
+            stroke="#d8dee8"
+            strokeWidth="1"
+            opacity="0.72"
+          />
+          <ellipse
+            cx="110"
+            cy="76"
+            rx="40"
+            ry="60"
+            fill="none"
+            stroke="#d8dee8"
+            strokeWidth="1"
+            opacity="0.72"
+          />
+          <ellipse
+            cx="110"
+            cy="76"
+            rx="20"
+            ry="60"
+            fill="none"
+            stroke="#d8dee8"
+            strokeWidth="1"
+            opacity="0.72"
+          />
+          <path d="M50 76h120M110 16v120" stroke="#cfd6e1" strokeWidth="1" opacity="0.7" />
+          <path
+            d="M60 63c15-15 39-22 62-17 16 4 25 13 39 16 10 2 18 0 28-4v48c-15 4-28 2-41-5-18-10-28-25-49-30-16-4-28-1-39 6Z"
+            fill="#d9dee7"
+            opacity="0.62"
+          />
+          <path
+            d="M72 39c10-8 24-10 35-5 8 4 11 11 17 15 8 5 18 3 27 1-7 12-19 18-34 17-14-2-25-9-38-5-10 3-17 9-24 16 0-17 5-30 17-39Z"
+            fill="#e6e9ef"
+            opacity="0.82"
+          />
+          <path
+            d="M123 98c12-4 24-3 35 3 8 5 14 7 23 5-6 10-17 16-31 17-13 1-24-4-34-12-6-5-6-9 7-13Z"
+            fill="#e3e7ee"
+            opacity="0.82"
+          />
+        </g>
+        {clusters.map((cluster) => {
+          const radius = Math.min(13, 7 + Math.sqrt(cluster.memberCount) * 1.8)
           return (
-            <g
-              key={city.id}
-              transform={`translate(${(xPercent / 100) * 220} ${(yPercent / 100) * 150})`}
-            >
-              <circle r={radius + 4} fill="rgba(102,79,161,0.24)" />
+            <g key={`${cluster.x}-${cluster.y}`} transform={`translate(${cluster.x} ${cluster.y})`}>
+              <title>
+                {cluster.label}: {cluster.memberCount} member
+                {cluster.memberCount === 1 ? "" : "s"}
+              </title>
+              <circle r={radius + 4} fill="rgba(102,79,161,0.22)" />
               <circle r={radius} fill="#664fa1" stroke="white" strokeWidth="2" />
               <text
-                y="3"
+                y="4"
                 textAnchor="middle"
-                className="select-none fill-white text-[8px] font-bold"
+                className="select-none fill-white text-[9px] font-bold"
               >
-                {city.memberCount}
+                {cluster.memberCount}
               </text>
             </g>
           )
