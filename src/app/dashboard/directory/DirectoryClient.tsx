@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState, useEffect, useTransition, useCallback } from "react"
+import { useState, useEffect, useTransition, useCallback, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { PERSONA_OPTIONS } from "@/lib/constants/registration"
 import type {
@@ -12,10 +12,10 @@ import type {
 } from "@/lib/directory/types"
 import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
 
-const GlobeDirectoryView = dynamic(() => import("./GlobeDirectoryView"), {
+const MapDirectoryView = dynamic(() => import("./MapDirectoryView"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[620px] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-950 text-sm font-medium text-white">
+    <div className="flex h-[680px] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-sm font-medium text-zinc-500">
       Loading map...
     </div>
   ),
@@ -65,10 +65,12 @@ function PersonaBadge({ persona }: { persona: string | null }) {
 function MemberCard({
   member,
   connectionEntry,
+  isSelf,
   onOpen,
 }: {
   member: DirectoryMember
   connectionEntry?: ConnectionEntry
+  isSelf: boolean
   onOpen: (m: DirectoryMember) => void
 }) {
   const initials = getInitials(member.first_name, member.last_name)
@@ -95,7 +97,12 @@ function MemberCard({
       <p className="mt-3 text-center text-sm font-semibold text-zinc-900 group-hover:text-ipn">
         {member.first_name} {member.last_name}
       </p>
-      <div className="mt-1.5">
+      <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+        {isSelf && (
+          <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+            You
+          </span>
+        )}
         <PersonaBadge persona={member.persona} />
       </div>
       {institution && (
@@ -150,11 +157,13 @@ function ConfirmRemoveModal({
 function MemberModal({
   member,
   connectionEntry,
+  isSelf,
   onConnectionChange,
   onClose,
 }: {
   member: DirectoryMember
   connectionEntry: ConnectionEntry | undefined
+  isSelf: boolean
   onConnectionChange: (entry: ConnectionEntry) => void
   onClose: () => void
 }) {
@@ -215,8 +224,13 @@ function MemberModal({
           <h2 className="mt-4 text-xl font-semibold text-zinc-900">
             {member.first_name} {member.last_name}
           </h2>
-          {member.persona && (
-            <div className="mt-2">
+          {(isSelf || member.persona) && (
+            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+              {isSelf && (
+                <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+                  You
+                </span>
+              )}
               <PersonaBadge persona={member.persona} />
             </div>
           )}
@@ -287,7 +301,23 @@ function MemberModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-4">
-          {isConnected ? (
+          {isSelf ? (
+            member.linkedin_url ? (
+              <a
+                href={member.linkedin_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.27c-.97 0-1.75-.79-1.75-1.76s.78-1.75 1.75-1.75 1.75.78 1.75 1.75-.78 1.76-1.75 1.76zm13.5 11.27h-3v-5.6c0-1.34-.03-3.07-1.87-3.07-1.87 0-2.16 1.46-2.16 2.97v5.7h-3v-10h2.88v1.36h.04c.4-.76 1.38-1.56 2.84-1.56 3.04 0 3.6 2 3.6 4.59v5.61z" />
+                </svg>
+                LinkedIn
+              </a>
+            ) : (
+              <span />
+            )
+          ) : isConnected ? (
             <button
               type="button"
               onClick={() => setConfirmRemove(true)}
@@ -311,6 +341,14 @@ function MemberModal({
             <span />
           )}
           {(() => {
+            if (isSelf) {
+              return (
+                <span className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-500">
+                  Your profile
+                </span>
+              )
+            }
+
             const { status, amRequester } = connectionEntry ?? {}
 
             if (status === "accepted") {
@@ -368,7 +406,7 @@ function MemberModal({
           })()}
         </div>
 
-        {(!connectionEntry || connectionEntry.status === "declined") && (
+        {!isSelf && (!connectionEntry || connectionEntry.status === "declined") && (
           <p className="px-6 pb-4 text-center text-xs text-zinc-400">
             Connecting lets you share email and WhatsApp details with each other.
           </p>
@@ -588,6 +626,7 @@ type Props = {
   schools: string[]
   availableTags: string[]
   connectionMap: Record<string, ConnectionEntry>
+  currentUserId: string
 }
 
 export default function DirectoryClient({
@@ -598,32 +637,51 @@ export default function DirectoryClient({
   schools,
   availableTags,
   connectionMap: initialConnectionMap,
+  currentUserId,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
-  const [view, setView] = useState<"list" | "globe">("list")
+  const [view, setView] = useState<"list" | "map">("list")
   const [searchInput, setSearchInput] = useState(currentParams.q)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPersonas, setDrawerPersonas] = useState<string[]>(currentParams.personas)
   const [drawerSchool, setDrawerSchool] = useState(currentParams.school)
   const [drawerField, setDrawerField] = useState(currentParams.field)
   const [drawerTags, setDrawerTags] = useState<string[]>(currentParams.tags)
-  const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(null)
-  const [connMap, setConnMap] = useState<Record<string, ConnectionEntry>>(initialConnectionMap)
-  const closeModal = useCallback(() => setSelectedMember(null), [])
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [connectionState, setConnectionState] = useState(() => ({
+    source: initialConnectionMap,
+    value: initialConnectionMap,
+  }))
+  const selectedMember = useMemo(
+    () => members.find((member) => member.id === selectedMemberId) ?? null,
+    [members, selectedMemberId],
+  )
+  const countryCount = useMemo(
+    () => new Set(mapCities.map((city) => city.country).filter(Boolean)).size,
+    [mapCities],
+  )
+  const connMap = connectionState.source === initialConnectionMap
+    ? connectionState.value
+    : initialConnectionMap
+  const closeModal = useCallback(() => setSelectedMemberId(null), [])
+  const openMember = useCallback((member: DirectoryMember) => {
+    setSelectedMemberId(member.id)
+  }, [])
+  const updateConnectionMap = useCallback((memberId: string, entry: ConnectionEntry) => {
+    setConnectionState((current) => {
+      const base = current.source === initialConnectionMap
+        ? current.value
+        : initialConnectionMap
 
-  useEffect(() => {
-    setConnMap(initialConnectionMap)
+      return {
+        source: initialConnectionMap,
+        value: { ...base, [memberId]: entry },
+      }
+    })
   }, [initialConnectionMap])
-
-  useEffect(() => {
-    if (!selectedMember) return
-
-    const refreshed = members.find((member) => member.id === selectedMember.id)
-    if (refreshed) setSelectedMember(refreshed)
-  }, [members, selectedMember])
 
   function buildUrl(overrides: Partial<DirectoryParams>) {
     const merged = { ...currentParams, searchInput, ...overrides }
@@ -867,10 +925,10 @@ export default function DirectoryClient({
       {/* Count + view switch */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className={`text-sm text-zinc-500 transition-opacity ${isPending ? "opacity-50" : ""}`}>
-          {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"}
+          {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
         </p>
         <div className="inline-flex self-start rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:self-auto">
-          {(["list", "globe"] as const).map((option) => (
+          {(["list", "map"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -881,24 +939,32 @@ export default function DirectoryClient({
                   : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
-              {option === "list" ? "List" : "Globe"}
+              {option === "list" ? "List" : "Map"}
             </button>
           ))}
         </div>
       </div>
 
-      {view === "globe" ? (
+      {view === "map" ? (
         <div className={`transition-opacity ${isPending ? "opacity-50" : ""}`}>
-          <GlobeDirectoryView
+          <MapDirectoryView
             cities={mapCities}
+            totalMemberCount={members.length}
             connectionMap={connMap}
-            onOpenMember={setSelectedMember}
+            currentUserId={currentUserId}
+            onOpenMember={openMember}
           />
         </div>
       ) : members.length > 0 ? (
         <div className={`grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
           {members.map((member) => (
-            <MemberCard key={member.id} member={member} connectionEntry={connMap[member.id]} onOpen={setSelectedMember} />
+            <MemberCard
+              key={member.id}
+              member={member}
+              connectionEntry={connMap[member.id]}
+              isSelf={member.id === currentUserId}
+              onOpen={openMember}
+            />
           ))}
         </div>
       ) : (
@@ -940,8 +1006,9 @@ export default function DirectoryClient({
         <MemberModal
           member={selectedMember}
           connectionEntry={connMap[selectedMember.id]}
+          isSelf={selectedMember.id === currentUserId}
           onConnectionChange={(entry) =>
-            setConnMap((prev) => ({ ...prev, [selectedMember.id]: entry }))
+            updateConnectionMap(selectedMember.id, entry)
           }
           onClose={closeModal}
         />
