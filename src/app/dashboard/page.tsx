@@ -251,9 +251,15 @@ function MemberOnboarding() {
 }
 
 function mapPreviewPoint(city: DirectoryMapCity) {
+  const usHeavy = city.country === "United States" || city.country === "USA"
+  const lngMin = usHeavy ? -130 : -170
+  const lngMax = usHeavy ? -60 : 40
+  const latMin = usHeavy ? 20 : -5
+  const latMax = usHeavy ? 58 : 62
+
   return {
-    x: Math.max(8, Math.min(92, ((city.lng + 180) / 360) * 100)),
-    y: Math.max(12, Math.min(88, ((84 - city.lat) / 168) * 100)),
+    x: Math.max(12, Math.min(88, ((city.lng - lngMin) / (lngMax - lngMin)) * 100)),
+    y: Math.max(14, Math.min(84, ((latMax - city.lat) / (latMax - latMin)) * 100)),
   }
 }
 
@@ -261,29 +267,48 @@ function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
   const visibleCities = cities.slice(0, 12)
 
   return (
-    <div className="relative min-h-36 overflow-hidden rounded-lg border border-zinc-200 bg-[radial-gradient(circle_at_24%_20%,#f3eeff_0%,#ffffff_44%,#f8fafc_100%)]">
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 220 150" role="img" aria-label="IPN member locations preview">
+    <div className="relative min-h-36 overflow-hidden rounded-lg border border-zinc-200 bg-[#f8fafc]">
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 220 150"
+        role="img"
+        aria-label="IPN member locations preview"
+      >
+        <rect width="220" height="150" fill="#f8fafc" />
         <path
-          d="M18 46c27-25 62-30 92-14 15 8 22 20 31 34 9 13 24 22 38 31 21 13 20 34 4 45-20 13-52-6-67-18-12-10-23-13-41-10-28 4-59-4-70-29-8-17-2-31 13-39Z"
+          d="M0 92c24-19 53-27 84-24 29 2 46 16 72 16 27 0 42-14 64-20v86H0Z"
+          fill="#eef2f7"
+        />
+        <path
+          d="M18 34c30-13 66-12 96 2 21 10 30 24 47 33 18 9 40 6 59-3v84H18Z"
           fill="#e5e7eb"
+          opacity="0.86"
         />
         <path
-          d="M124 28c30-12 69-4 88 17 15 16 8 36-8 44-14 8-35 4-49 15-14 11-12 32-27 38-19 8-43-13-49-33-9-31 17-68 45-81Z"
-          fill="#e5e7eb"
+          d="M56 38c18-10 45-10 64-2 15 6 25 18 42 21 13 3 31 0 50-8"
+          fill="none"
+          stroke="#d4d8e1"
+          strokeWidth="12"
+          strokeLinecap="round"
+          opacity="0.55"
         />
         <path
-          d="M34 112c18-9 42 2 48 21 3 8 1 15-3 20H25c-9-15-7-33 9-41Z"
-          fill="#eef0f4"
+          d="M16 84c32-7 57-4 80 9 23 12 48 15 77 4 18-7 31-9 47-4"
+          fill="none"
+          stroke="#d4d8e1"
+          strokeWidth="10"
+          strokeLinecap="round"
+          opacity="0.48"
         />
-        {[20, 55, 90, 125, 160, 195].map((x) => (
-          <path key={x} d={`M${x} 0v150`} stroke="#e5e7eb" strokeWidth="1" />
+        {[28, 64, 100, 136, 172, 208].map((x) => (
+          <path key={x} d={`M${x} 0v150`} stroke="#e5e7eb" strokeWidth="1" opacity="0.7" />
         ))}
-        {[25, 55, 85, 115].map((y) => (
-          <path key={y} d={`M0 ${y}h220`} stroke="#e5e7eb" strokeWidth="1" />
+        {[28, 58, 88, 118].map((y) => (
+          <path key={y} d={`M0 ${y}h220`} stroke="#e5e7eb" strokeWidth="1" opacity="0.7" />
         ))}
         {visibleCities.map((city) => {
           const point = mapPreviewPoint(city)
-          const radius = Math.min(14, 7 + city.memberCount * 1.7)
+          const radius = Math.min(12, 6 + city.memberCount * 1.5)
           return (
             <g
               key={city.id}
@@ -302,12 +327,6 @@ function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
           )
         })}
       </svg>
-      <div className="absolute inset-x-3 bottom-3 rounded-lg border border-zinc-200 bg-white/90 px-3 py-2 text-zinc-900 shadow-sm backdrop-blur">
-        <p className="text-[10px] font-medium uppercase text-zinc-400">Live membership map</p>
-        <p className="mt-0.5 text-xs font-semibold text-zinc-900">
-          {cities.length ? `${cities.length} cities` : "Locations coming soon"}
-        </p>
-      </div>
     </div>
   )
 }
@@ -388,17 +407,6 @@ function DirectoryPreview({
             Search by school, field, location, and interests to find collaborators
             and peers across the network.
           </p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {["Field", "School", "Location", "Interests"].map((label) => (
-              <span
-                key={label}
-                className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-500"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-zinc-50 px-3 py-3">
             <span>
