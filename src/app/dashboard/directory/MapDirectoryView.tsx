@@ -98,7 +98,21 @@ function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450)
   })
 }
 
-function ConnectionPill({ entry }: { entry?: ConnectionEntry }) {
+function ConnectionPill({
+  entry,
+  isSelf,
+}: {
+  entry?: ConnectionEntry
+  isSelf: boolean
+}) {
+  if (isSelf) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-500">
+        You
+      </span>
+    )
+  }
+
   if (entry?.status === "accepted") {
     return (
       <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-700">
@@ -125,10 +139,12 @@ function ConnectionPill({ entry }: { entry?: ConnectionEntry }) {
 function MemberPreviewRow({
   member,
   connectionEntry,
+  isSelf,
   onOpen,
 }: {
   member: DirectoryMember
   connectionEntry?: ConnectionEntry
+  isSelf: boolean
   onOpen: (member: DirectoryMember) => void
 }) {
   const institution = member.school ?? member.affiliation
@@ -151,7 +167,7 @@ function MemberPreviewRow({
               {initials(member)}
             </div>
           )}
-          {connectionEntry?.status === "accepted" && (
+          {!isSelf && connectionEntry?.status === "accepted" && (
             <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 ring-2 ring-white">
               <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -169,7 +185,7 @@ function MemberPreviewRow({
                 <p className="truncate text-xs text-zinc-500">{institution}</p>
               )}
             </div>
-            <ConnectionPill entry={connectionEntry} />
+            <ConnectionPill entry={connectionEntry} isSelf={isSelf} />
           </div>
           {member.persona && (
             <div className="mt-1.5">
@@ -198,12 +214,14 @@ function CityDrawer({
   cities,
   selectedCity,
   connectionMap,
+  currentUserId,
   onSelectCity,
   onOpenMember,
 }: {
   cities: DirectoryMapCity[]
   selectedCity: DirectoryMapCity | null
   connectionMap: Record<string, ConnectionEntry>
+  currentUserId: string
   onSelectCity: (city: DirectoryMapCity) => void
   onOpenMember: (member: DirectoryMember) => void
 }) {
@@ -227,6 +245,7 @@ function CityDrawer({
               key={member.id}
               member={member}
               connectionEntry={connectionMap[member.id]}
+              isSelf={member.id === currentUserId}
               onOpen={onOpenMember}
             />
           ))
@@ -292,11 +311,13 @@ export default function MapDirectoryView({
   cities,
   totalMemberCount,
   connectionMap,
+  currentUserId,
   onOpenMember,
 }: {
   cities: DirectoryMapCity[]
   totalMemberCount: number
   connectionMap: Record<string, ConnectionEntry>
+  currentUserId: string
   onOpenMember: (member: DirectoryMember) => void
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -568,6 +589,7 @@ export default function MapDirectoryView({
         cities={cities}
         selectedCity={selectedCity}
         connectionMap={connectionMap}
+        currentUserId={currentUserId}
         onSelectCity={selectCity}
         onOpenMember={onOpenMember}
       />

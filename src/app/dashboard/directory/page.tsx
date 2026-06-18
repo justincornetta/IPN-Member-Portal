@@ -49,7 +49,6 @@ export default async function DirectoryPage({
       "id, first_name, last_name, persona, school, affiliation, field, city, state, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
     )
     .eq("is_discoverable", true)
-    .neq("id", user.id)
     .order("first_name", { ascending: true })
 
   if (tab === "school" && userSchool) {
@@ -89,7 +88,6 @@ export default async function DirectoryPage({
       .select("id", { count: "exact", head: true })
       .eq("school", userSchool)
       .eq("is_discoverable", true)
-      .neq("id", user.id)
     showSchoolTab = (count ?? 0) > 0
   }
 
@@ -161,7 +159,6 @@ export default async function DirectoryPage({
     .not("city", "is", null)
     .not("city_lat", "is", null)
     .not("city_lng", "is", null)
-    .neq("id", user.id)
     .order("first_name", { ascending: true })
 
   if (tab === "school" && userSchool) {
@@ -255,6 +252,7 @@ export default async function DirectoryPage({
       schools={schools}
       availableTags={availableTags}
       connectionMap={connectionMap}
+      currentUserId={user.id}
     />
   )
 }
