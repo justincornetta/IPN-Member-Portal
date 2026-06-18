@@ -569,29 +569,34 @@ export default function MapDirectoryView({
 
         fitToCities(map, citiesRef.current, 0)
 
-        map.on("click", CLUSTER_LAYER_ID, (event: MapLayerMouseEvent) => {
-          const feature = map.queryRenderedFeatures(event.point, { layers: [CLUSTER_LAYER_ID] })[0]
-          const clusterId = feature?.properties?.cluster_id
-          const coordinates = feature?.geometry.type === "Point" ? feature.geometry.coordinates : null
-          const source = map.getSource(CITY_SOURCE_ID) as GeoJSONSource | undefined
-
-          if (clusterId == null || !coordinates || !source) return
-
-          selectNearbyCities(Number(clusterId))
-
-          source.getClusterExpansionZoom(Number(clusterId), (error, zoom) => {
-            if (error || zoom == null) return
-            map.easeTo({
-              center: coordinates as [number, number],
-              zoom,
-              duration: 450,
-            })
+        map.on("click", (event: MapLayerMouseEvent) => {
+          const features = map.queryRenderedFeatures(event.point, {
+            layers: [CLUSTER_LAYER_ID, CITY_PIN_LAYER_ID],
           })
-        })
+          const clusterFeature = features.find((feature) => feature.layer?.id === CLUSTER_LAYER_ID)
+          const cityFeature = features.find((feature) => feature.layer?.id === CITY_PIN_LAYER_ID)
 
-        map.on("click", CITY_PIN_LAYER_ID, (event: MapLayerMouseEvent) => {
-          const feature = event.features?.[0]
-          const id = feature?.properties?.id as string | undefined
+          if (clusterFeature) {
+            const clusterId = clusterFeature.properties?.cluster_id
+            const coordinates = clusterFeature.geometry.type === "Point" ? clusterFeature.geometry.coordinates : null
+            const source = map.getSource(CITY_SOURCE_ID) as GeoJSONSource | undefined
+
+            if (clusterId == null || !coordinates || !source) return
+
+            selectNearbyCities(Number(clusterId))
+
+            source.getClusterExpansionZoom(Number(clusterId), (error, zoom) => {
+              if (error || zoom == null) return
+              map.easeTo({
+                center: coordinates as [number, number],
+                zoom,
+                duration: 450,
+              })
+            })
+            return
+          }
+
+          const id = cityFeature?.properties?.id as string | undefined
           const city = id ? citiesRef.current.find((item) => item.id === id) : null
           if (city) selectCity(city)
         })
