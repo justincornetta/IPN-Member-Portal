@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types"
+import { resolveDirectoryMapState } from "@/lib/directory/location"
 import WelcomeModal from "./WelcomeModal"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
 
@@ -19,15 +20,12 @@ type MemberProfile = {
   interest_tags: string[] | null
 }
 
-const DEG_TO_RAD = Math.PI / 180
-
 type ChecklistItemProps = {
   number: number
   title: string
   body: string
   href: string
   icon: ReactNode
-  status?: string
   external?: boolean
 }
 
@@ -36,26 +34,6 @@ type PortalFeature = {
   body: string
   href: string
   icon: ReactNode
-}
-
-function profileCompletion(profile: MemberProfile | null) {
-  const checks = [
-    Boolean(profile?.first_name),
-    Boolean(profile?.persona),
-    Boolean(profile?.affiliation ?? profile?.school),
-    Boolean(profile?.field),
-    Boolean(profile?.avatar_url),
-    Boolean(profile?.bio),
-    Boolean(profile?.interest_tags?.length),
-  ]
-  const completeCount = checks.filter(Boolean).length
-  const percent = Math.round((completeCount / checks.length) * 100)
-
-  return {
-    completeCount,
-    percent,
-    isComplete: completeCount === checks.length,
-  }
 }
 
 function GlobeIcon() {
@@ -161,25 +139,6 @@ function WhatsAppIcon() {
   )
 }
 
-function InviteIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M18 18.72a8.25 8.25 0 1 0-12 0m12 0a8.217 8.217 0 0 1-6 1.53 8.217 8.217 0 0 1-6-1.53m12 0a5.25 5.25 0 0 0-12 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-      />
-    </svg>
-  )
-}
-
 function ArrowIcon() {
   return (
     <svg
@@ -205,7 +164,6 @@ function ChecklistItem({
   body,
   href,
   icon,
-  status,
   external = false,
 }: ChecklistItemProps) {
   const content = (
@@ -219,7 +177,6 @@ function ChecklistItem({
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-zinc-900">{title}</span>
-          {status && <span className="text-xs text-zinc-400">{status}</span>}
         </span>
         <span className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{body}</span>
       </span>
@@ -245,11 +202,7 @@ function ChecklistItem({
   )
 }
 
-function MemberOnboarding({
-  completion,
-}: {
-  completion: ReturnType<typeof profileCompletion>
-}) {
+function MemberOnboarding() {
   const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
 
   return (
@@ -268,7 +221,6 @@ function MemberOnboarding({
           body="Add a profile picture, bio, and top interests."
           href="/dashboard/profile"
           icon={<ProfileIcon />}
-          status={completion.isComplete ? "Done" : `${completion.percent}%`}
         />
         <ChecklistItem
           number={2}
@@ -276,7 +228,6 @@ function MemberOnboarding({
           body="Connect with members and updates."
           href={whatsappUrl || "/dashboard/community"}
           icon={<WhatsAppIcon />}
-          status={whatsappUrl ? "Open" : "Soon"}
           external={Boolean(whatsappUrl)}
         />
         <ChecklistItem
@@ -285,151 +236,58 @@ function MemberOnboarding({
           body="Start with the next IPN event."
           href="/dashboard/events"
           icon={<CalendarIcon />}
-          status="Browse"
         />
         <ChecklistItem
           number={4}
           title="Connect with IPN Members"
           body="Find members; check requests in Community."
-          href="/dashboard/directory?view=globe"
+          href="/dashboard/directory?view=map"
           icon={<GlobeIcon />}
-          status="Map"
         />
-        <ChecklistItem
-          number={5}
-          title="Invite Friends to IPN"
-          body="Share IPN with peers who should join."
-          href="#invite-friends"
-          icon={<InviteIcon />}
-          status="Share"
-        />
+        <InviteFriendsCard variant="checklist" checklistNumber={5} />
       </div>
     </section>
   )
 }
 
-function getGlobeCenter(cities: DirectoryMapCity[]) {
-  if (cities.length === 0) return { lat: 20, lng: 0 }
-
-  let x = 0
-  let y = 0
-  let z = 0
-
-  for (const city of cities) {
-    const lat = city.lat * DEG_TO_RAD
-    const lng = city.lng * DEG_TO_RAD
-    x += Math.cos(lat) * Math.cos(lng)
-    y += Math.cos(lat) * Math.sin(lng)
-    z += Math.sin(lat)
-  }
-
-  const total = cities.length
-  x /= total
-  y /= total
-  z /= total
-
+function mapPreviewPoint(city: DirectoryMapCity) {
   return {
-    lat: Math.atan2(z, Math.sqrt(x * x + y * y)) / DEG_TO_RAD,
-    lng: Math.atan2(y, x) / DEG_TO_RAD,
+    x: Math.max(8, Math.min(92, ((city.lng + 180) / 360) * 100)),
+    y: Math.max(12, Math.min(88, ((84 - city.lat) / 168) * 100)),
   }
 }
 
-function projectMiniGlobePoint(
-  lat: number,
-  lng: number,
-  center: { lat: number; lng: number },
-) {
-  const radius = 68
-  const latRad = lat * DEG_TO_RAD
-  const lngRad = lng * DEG_TO_RAD
-  const centerLat = center.lat * DEG_TO_RAD
-  const centerLng = center.lng * DEG_TO_RAD
-  const deltaLng = lngRad - centerLng
-
-  const x = radius * Math.cos(latRad) * Math.sin(deltaLng)
-  const y = -radius * (
-    Math.cos(centerLat) * Math.sin(latRad) -
-    Math.sin(centerLat) * Math.cos(latRad) * Math.cos(deltaLng)
-  )
-  const z =
-    Math.sin(centerLat) * Math.sin(latRad) +
-    Math.cos(centerLat) * Math.cos(latRad) * Math.cos(deltaLng)
-
-  return { x: 80 + x, y: 80 + y, visible: z > -0.05, depth: z }
-}
-
-function MiniDirectoryGlobe({ cities }: { cities: DirectoryMapCity[] }) {
-  const center = getGlobeCenter(cities)
-  const projected = cities
-    .map((city) => ({
-      city,
-      point: projectMiniGlobePoint(city.lat, city.lng, center),
-    }))
-    .filter(({ point }) => point.visible)
-    .sort((a, b) => a.point.depth - b.point.depth)
-    .slice(-10)
+function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
+  const visibleCities = cities.slice(0, 12)
 
   return (
-    <div className="relative min-h-36 overflow-hidden rounded-lg bg-[radial-gradient(circle_at_28%_24%,#172033_0%,#07080d_58%,#020204_100%)]">
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 160 160"
-        role="img"
-        aria-label="IPN member locations preview"
-      >
-        <defs>
-          <radialGradient id="dashboard-directory-globe" cx="35%" cy="28%" r="72%">
-            <stop offset="0%" stopColor="#8fd3ff" stopOpacity="0.42" />
-            <stop offset="40%" stopColor="#315a86" stopOpacity="0.32" />
-            <stop offset="74%" stopColor="#121a2b" stopOpacity="0.96" />
-            <stop offset="100%" stopColor="#05060a" stopOpacity="1" />
-          </radialGradient>
-        </defs>
-        <circle
-          cx="80"
-          cy="80"
-          r="68"
-          fill="url(#dashboard-directory-globe)"
-          stroke="rgba(255,255,255,0.24)"
-        />
-        {[44, 62, 80, 98, 116].map((y) => (
-          <ellipse
-            key={y}
-            cx="80"
-            cy={y}
-            rx={Math.max(16, 68 - Math.abs(80 - y) * 0.9)}
-            ry="6"
-            fill="none"
-            stroke="rgba(255,255,255,0.18)"
-          />
-        ))}
-        {[35, 60, 85, 110, 135].map((x, index) => (
-          <ellipse
-            key={x}
-            cx="80"
-            cy="80"
-            rx={Math.max(12, 60 - Math.abs(80 - x) * 0.55)}
-            ry="68"
-            fill="none"
-            stroke="rgba(255,255,255,0.14)"
-            transform={`rotate(${(index - 2) * 8} 80 80)`}
-          />
-        ))}
+    <div className="relative min-h-36 overflow-hidden rounded-lg border border-zinc-200 bg-[radial-gradient(circle_at_24%_20%,#f3eeff_0%,#ffffff_44%,#f8fafc_100%)]">
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 220 150" role="img" aria-label="IPN member locations preview">
         <path
-          d="M36 58c18-15 39-18 58-9 12 6 17 15 24 26 7 10 17 18 28 25 15 10 15 25 4 33-14 9-38-4-48-13-9-8-15-10-28-8-18 2-40-2-48-18-6-13-1-26 10-36Z"
-          fill="rgba(255,255,255,0.16)"
+          d="M18 46c27-25 62-30 92-14 15 8 22 20 31 34 9 13 24 22 38 31 21 13 20 34 4 45-20 13-52-6-67-18-12-10-23-13-41-10-28 4-59-4-70-29-8-17-2-31 13-39Z"
+          fill="#e5e7eb"
         />
         <path
-          d="M88 45c18-7 42-3 56 9 12 10 8 23-2 29-9 6-23 2-33 9-10 7-9 21-19 25-13 5-30-8-34-21-7-19 12-44 32-51Z"
-          fill="rgba(255,255,255,0.12)"
+          d="M124 28c30-12 69-4 88 17 15 16 8 36-8 44-14 8-35 4-49 15-14 11-12 32-27 38-19 8-43-13-49-33-9-31 17-68 45-81Z"
+          fill="#e5e7eb"
         />
-        {projected.map(({ city, point }) => {
-          const radius = Math.min(13, 6 + city.memberCount * 1.6)
+        <path
+          d="M34 112c18-9 42 2 48 21 3 8 1 15-3 20H25c-9-15-7-33 9-41Z"
+          fill="#eef0f4"
+        />
+        {[20, 55, 90, 125, 160, 195].map((x) => (
+          <path key={x} d={`M${x} 0v150`} stroke="#e5e7eb" strokeWidth="1" />
+        ))}
+        {[25, 55, 85, 115].map((y) => (
+          <path key={y} d={`M0 ${y}h220`} stroke="#e5e7eb" strokeWidth="1" />
+        ))}
+        {visibleCities.map((city) => {
+          const point = mapPreviewPoint(city)
+          const radius = Math.min(14, 7 + city.memberCount * 1.7)
           return (
             <g
               key={city.id}
-              transform={`translate(${point.x} ${point.y})`}
-              opacity={0.62 + Math.max(0, point.depth) * 0.38}
+              transform={`translate(${(point.x / 100) * 220} ${(point.y / 100) * 150})`}
             >
               <circle r={radius + 4} fill="rgba(102,79,161,0.24)" />
               <circle r={radius} fill="#664fa1" stroke="white" strokeWidth="2" />
@@ -444,11 +302,9 @@ function MiniDirectoryGlobe({ cities }: { cities: DirectoryMapCity[] }) {
           )
         })}
       </svg>
-      <div className="absolute inset-x-3 bottom-3 rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-white backdrop-blur">
-        <p className="text-[10px] font-medium uppercase text-white/60">
-          Member map
-        </p>
-        <p className="mt-0.5 text-xs font-semibold">
+      <div className="absolute inset-x-3 bottom-3 rounded-lg border border-zinc-200 bg-white/90 px-3 py-2 text-zinc-900 shadow-sm backdrop-blur">
+        <p className="text-[10px] font-medium uppercase text-zinc-400">Live membership map</p>
+        <p className="mt-0.5 text-xs font-semibold text-zinc-900">
           {cities.length ? `${cities.length} cities` : "Locations coming soon"}
         </p>
       </div>
@@ -466,34 +322,34 @@ function buildDirectoryMapCities(rows: DirectoryMapMember[]) {
     const lng = Number(row.city_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
 
-    const id = [
-      row.city.trim().toLowerCase(),
-      row.state?.trim().toLowerCase() ?? "",
-      row.country?.trim().toLowerCase() ?? "",
-      lat.toFixed(2),
-      lng.toFixed(2),
-    ].join(":")
-
     const member = {
       ...row,
       city_lat: lat,
       city_lng: lng,
     }
+    const displayState = resolveDirectoryMapState(member)
+
+    const id = [
+      row.city.trim().toLowerCase(),
+      row.country?.trim().toLowerCase() ?? "",
+      lat.toFixed(2),
+      lng.toFixed(2),
+    ].join(":")
 
     const existing = cityMap.get(id)
     if (existing) {
-      existing.members.push(member)
+      existing.members.push({ ...member, state: existing.state })
       existing.memberCount += 1
     } else {
       cityMap.set(id, {
         id,
         city: row.city,
-        state: row.state,
+        state: displayState,
         country: row.country,
         lat,
         lng,
         memberCount: 1,
-        members: [member],
+        members: [{ ...member, state: displayState }],
       })
     }
   }
@@ -521,7 +377,7 @@ function DirectoryPreview({
             Find IPN members
           </h2>
         </div>
-        <Link href="/dashboard/directory?view=globe" className="text-sm font-medium text-ipn hover:underline">
+        <Link href="/dashboard/directory?view=map" className="text-sm font-medium text-ipn hover:underline">
           Search
         </Link>
       </div>
@@ -565,8 +421,8 @@ function DirectoryPreview({
             </span>
           </div>
         </div>
-        <Link href="/dashboard/directory?view=globe" className="block">
-          <MiniDirectoryGlobe cities={mapCities} />
+        <Link href="/dashboard/directory?view=map" className="block">
+          <MiniDirectoryMapPreview cities={mapCities} />
         </Link>
       </div>
     </section>
@@ -676,7 +532,6 @@ export default async function DashboardPage({
       .not("city", "is", null)
       .not("city_lat", "is", null)
       .not("city_lng", "is", null)
-      .neq("id", user!.id)
       .order("first_name", { ascending: true }),
   ])
 
@@ -725,8 +580,6 @@ export default async function DashboardPage({
   const subtitle = [profile?.persona, profile?.affiliation ?? profile?.school]
     .filter(Boolean)
     .join(" · ")
-  const completion = profileCompletion(profile)
-
   const hour = new Date().getHours()
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
@@ -756,9 +609,7 @@ export default async function DashboardPage({
           events={upcomingEvents}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
-        <MemberOnboarding
-          completion={completion}
-        />
+        <MemberOnboarding />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

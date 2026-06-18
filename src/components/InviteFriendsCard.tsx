@@ -5,7 +5,8 @@ import { useMemo, useState } from "react"
 type InviteFriendsCardProps = {
   id?: string
   className?: string
-  variant?: "default" | "compact" | "header"
+  variant?: "default" | "compact" | "header" | "checklist"
+  checklistNumber?: number
 }
 
 const SITE_URL =
@@ -81,11 +82,13 @@ export default function InviteFriendsCard({
   id,
   className = "",
   variant = "default",
+  checklistNumber = 5,
 }: InviteFriendsCardProps) {
   const [copied, setCopied] = useState(false)
   const inviteUrl = useMemo(buildInviteUrl, [])
   const isCompact = variant === "compact"
   const isHeader = variant === "header"
+  const isChecklist = variant === "checklist"
   const emailHref = `mailto:?subject=${encodeURIComponent(
     "Join me in the IPN Member Portal",
   )}&body=${encodeURIComponent(
@@ -132,6 +135,41 @@ export default function InviteFriendsCard({
           type="button"
           onClick={shareInviteLink}
           className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+          aria-label="Share IPN invite link"
+        >
+          <ShareIcon />
+        </button>
+      </div>
+    )
+  }
+
+  if (isChecklist) {
+    return (
+      <div id={id} className={`flex items-center gap-2 ${className}`}>
+        <button
+          type="button"
+          onClick={copyInviteLink}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition hover:border-ipn/30 hover:bg-zinc-50"
+        >
+          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-ipn-light text-xs font-semibold text-ipn">
+            {checklistNumber}
+          </span>
+          <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+            <CopyIcon />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-zinc-900">
+              Invite Friends to IPN
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+              {copied ? "Invite link copied." : "Copy an invite link for peers."}
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={shareInviteLink}
+          className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
           aria-label="Share IPN invite link"
         >
           <ShareIcon />
