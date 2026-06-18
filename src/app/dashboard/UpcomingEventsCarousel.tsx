@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import EventCard from "@/components/events/EventCard"
-import { formatEventDateTime } from "@/lib/events/calendar"
+import AddToCalendarButton from "@/components/events/AddToCalendarButton"
+import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
 import type { EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
@@ -38,6 +38,96 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
   )
 }
 
+function EventArtwork({ event }: { event: EventWithRegistration }) {
+  return (
+    <Link
+      href={`/dashboard/events/${event.slug}`}
+      className="relative block aspect-[4/3] min-h-32 overflow-hidden rounded-lg bg-zinc-950 sm:aspect-auto sm:h-full"
+    >
+      {event.thumbnail_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={event.thumbnail_url}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
+      )}
+      <span className="absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-zinc-800">
+        {event.event_type}
+      </span>
+    </Link>
+  )
+}
+
+function EventCta({ event }: { event: EventWithRegistration }) {
+  if (event.registration_url && event.requires_verified_ticket && !event.has_verified_ticket) {
+    return (
+      <a
+        href={event.registration_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+      >
+        Register
+      </a>
+    )
+  }
+
+  return (
+    <Link
+      href={`/dashboard/events/${event.slug}`}
+      className="inline-flex items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+    >
+      {event.is_registered ? "View event" : "Details"}
+    </Link>
+  )
+}
+
+function CompactEventCard({ event }: { event: EventWithRegistration }) {
+  const countLabel = registrationBand(event.registration_count)
+
+  return (
+    <article className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:grid-cols-[180px_1fr]">
+      <EventArtwork event={event} />
+
+      <div className="flex min-w-0 flex-col">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
+            {event.event_type}
+          </span>
+          <span className="line-clamp-1 text-xs text-zinc-400">
+            {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+          </span>
+          {countLabel && (
+            <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
+              {countLabel}
+            </span>
+          )}
+        </div>
+
+        <Link href={`/dashboard/events/${event.slug}`} className="group mt-2">
+          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-zinc-900 group-hover:text-ipn">
+            {event.title}
+          </h3>
+        </Link>
+
+        {event.summary && (
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
+            {event.summary}
+          </p>
+        )}
+
+        <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+          <EventCta event={event} />
+          <AddToCalendarButton event={event} compact />
+        </div>
+      </div>
+    </article>
+  )
+}
+
 export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
@@ -45,6 +135,7 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
   const hasMultiple = events.length > 1
 
   function goTo(index: number) {
+    if (!events.length) return
     setActiveIndex((index + events.length) % events.length)
   }
 
@@ -59,21 +150,24 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
   }
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5 lg:col-span-2">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-ipn">Upcoming Events</p>
-          <h2 className="mt-1 text-xl font-semibold text-zinc-900">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-medium text-ipn">Upcoming Events</p>
+            {totalCount > events.length && (
+              <span className="text-xs text-zinc-400">
+                Showing {events.length} of {totalCount}
+              </span>
+            )}
+          </div>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-900">
             What&apos;s coming up at IPN
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-            Register for upcoming programming, add events to your calendar, and
-            jump into event chats when they are available.
-          </p>
         </div>
         <Link
           href="/dashboard/events"
-          className="inline-flex w-fit items-center rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+          className="text-sm font-medium text-ipn hover:underline"
         >
           View all events
         </Link>
@@ -82,84 +176,54 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
       {activeEvent ? (
         <>
           <div
-            className="mt-5"
+            className="mt-4"
             onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
-            <EventCard key={activeEvent.id} event={activeEvent} />
+            <CompactEventCard key={activeEvent.id} event={activeEvent} />
           </div>
 
           {hasMultiple && (
-            <div className="mt-4 flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  {events.map((event, index) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      onClick={() => goTo(index)}
-                      className={`h-2.5 rounded-full transition ${
-                        index === activeIndex
-                          ? "w-7 bg-ipn"
-                          : "w-2.5 bg-zinc-200 hover:bg-zinc-300"
-                      }`}
-                      aria-label={`Show event ${index + 1}`}
-                      aria-current={index === activeIndex ? "true" : undefined}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => goTo(activeIndex - 1)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
-                    aria-label="Previous event"
-                  >
-                    <ArrowIcon direction="left" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => goTo(activeIndex + 1)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
-                    aria-label="Next event"
-                  >
-                    <ArrowIcon direction="right" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5">
                 {events.map((event, index) => (
                   <button
                     key={event.id}
                     type="button"
                     onClick={() => goTo(index)}
-                    className={`rounded-lg border p-3 text-left transition ${
+                    className={`h-2.5 rounded-full transition ${
                       index === activeIndex
-                        ? "border-ipn/30 bg-ipn/5"
-                        : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
+                        ? "w-7 bg-ipn"
+                        : "w-2.5 bg-zinc-200 hover:bg-zinc-300"
                     }`}
-                  >
-                    <p className="line-clamp-1 text-xs font-medium text-zinc-900">
-                      {event.title}
-                    </p>
-                    <p className="mt-1 line-clamp-1 text-[11px] text-zinc-400">
-                      {formatEventDateTime(event.starts_at, null, event.timezone)}
-                    </p>
-                  </button>
+                    aria-label={`Show event ${index + 1}`}
+                    aria-current={index === activeIndex ? "true" : undefined}
+                  />
                 ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => goTo(activeIndex - 1)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
+                  aria-label="Previous event"
+                >
+                  <ArrowIcon direction="left" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goTo(activeIndex + 1)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
+                  aria-label="Next event"
+                >
+                  <ArrowIcon direction="right" />
+                </button>
               </div>
             </div>
           )}
-
-          {totalCount > events.length && (
-            <p className="mt-4 text-xs text-zinc-400">
-              Showing {events.length} of {totalCount} upcoming events.
-            </p>
-          )}
         </>
       ) : (
-        <div className="mt-5 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center">
+        <div className="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center">
           <h3 className="text-base font-semibold text-zinc-900">
             New events are coming soon
           </h3>

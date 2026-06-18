@@ -1,12 +1,9 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
-import WhatsAppCommunityCard from "@/components/community/WhatsAppCommunityCard"
 import { createClient } from "@/lib/supabase/server"
-import { formatEventDateTime } from "@/lib/events/calendar"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
-import type { ResourceRecord } from "@/lib/resources/types"
 import WelcomeModal from "./WelcomeModal"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
 
@@ -19,12 +16,21 @@ type MemberProfile = {
   bio: string | null
 }
 
-type QuickActionCardProps = {
+type ChecklistItemProps = {
+  number: number
   title: string
   body: string
   href: string
   icon: ReactNode
-  cta: string
+  status?: string
+  external?: boolean
+}
+
+type PortalFeature = {
+  title: string
+  body: string
+  href: string
+  icon: ReactNode
 }
 
 function profileCompletion(profile: MemberProfile | null) {
@@ -102,15 +108,48 @@ function ProfileIcon() {
   )
 }
 
-function PlayIcon() {
+function CalendarIcon() {
   return (
     <svg
       className="h-4 w-4"
-      fill="currentColor"
+      fill="none"
       viewBox="0 0 24 24"
+      strokeWidth={1.7}
+      stroke="currentColor"
       aria-hidden="true"
     >
-      <path d="M8 5.14v13.72c0 .6.67.96 1.16.62l10.04-6.86a.75.75 0 0 0 0-1.24L9.16 4.52A.75.75 0 0 0 8 5.14Z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+      />
+    </svg>
+  )
+}
+
+function WhatsAppIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M19.05 4.91A9.8 9.8 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.27-1.38a9.9 9.9 0 0 0 4.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91a9.86 9.86 0 0 0-2.9-7.01ZM12.04 20.15h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.39c0-4.54 3.69-8.23 8.24-8.23a8.2 8.2 0 0 1 5.82 2.41 8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.23 8.24Z" />
+    </svg>
+  )
+}
+
+function InviteIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.7}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M18 18.72a8.25 8.25 0 1 0-12 0m12 0a8.217 8.217 0 0 1-6 1.53 8.217 8.217 0 0 1-6-1.53m12 0a5.25 5.25 0 0 0-12 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+      />
     </svg>
   )
 }
@@ -134,100 +173,108 @@ function ArrowIcon() {
   )
 }
 
-function QuickActionCard({ title, body, href, icon, cta }: QuickActionCardProps) {
+function ChecklistItem({
+  number,
+  title,
+  body,
+  href,
+  icon,
+  status,
+  external = false,
+}: ChecklistItemProps) {
+  const content = (
+    <>
+      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-ipn-light text-xs font-semibold text-ipn">
+        {number}
+      </span>
+      <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold text-zinc-900">{title}</span>
+          {status && <span className="text-xs text-zinc-400">{status}</span>}
+        </span>
+        <span className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{body}</span>
+      </span>
+      <ArrowIcon />
+    </>
+  )
+
+  const className =
+    "flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition hover:border-ipn/30 hover:bg-zinc-50"
+
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={className}>
+        {content}
+      </a>
+    )
+  }
+
   return (
-    <Link
-      href={href}
-      className="group rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-ipn/30 hover:shadow-md"
-    >
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">
-          {icon}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-zinc-900">
-            {title}
-          </span>
-          <span className="mt-1 block text-sm leading-6 text-zinc-500">
-            {body}
-          </span>
-          <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-ipn">
-            {cta}
-            <ArrowIcon />
-          </span>
-        </span>
-      </div>
+    <Link href={href} className={className}>
+      {content}
     </Link>
   )
 }
 
-function ResourcePreview({ resources }: { resources: ResourceRecord[] }) {
+function MemberOnboarding({
+  completion,
+  nextEvent,
+}: {
+  completion: ReturnType<typeof profileCompletion>
+  nextEvent: EventWithRegistration | null
+}) {
+  const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
+
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-ipn">Resources</p>
-          <h2 className="mt-1 text-base font-semibold text-zinc-900">
-            Member resources
-          </h2>
-        </div>
-        <Link
-          href="/dashboard/resources"
-          className="text-sm font-medium text-ipn hover:underline"
-        >
-          Browse
-        </Link>
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div>
+        <p className="text-sm font-medium text-ipn">Member setup</p>
+        <h2 className="mt-1 text-lg font-semibold text-zinc-900">
+          Make the portal useful
+        </h2>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3">
-        {resources.length > 0 ? (
-          resources.map((resource) => {
-            const href =
-              resource.resource_type === "partner"
-                ? resource.url
-                : `/dashboard/resources/${resource.slug}`
-            const content = (
-              <span className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
-                  <ResourceIcon />
-                </span>
-                <span className="min-w-0">
-                  <span className="line-clamp-1 block text-sm font-medium text-zinc-900">
-                    {resource.title}
-                  </span>
-                  <span className="mt-0.5 line-clamp-1 block text-xs text-zinc-400">
-                    {resource.category}
-                  </span>
-                </span>
-              </span>
-            )
-
-            return resource.resource_type === "partner" ? (
-              <a
-                key={resource.id}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg p-2 transition hover:bg-zinc-50"
-              >
-                {content}
-              </a>
-            ) : (
-              <Link
-                key={resource.id}
-                href={href}
-                className="rounded-lg p-2 transition hover:bg-zinc-50"
-              >
-                {content}
-              </Link>
-            )
-          })
-        ) : (
-          <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-5 text-sm leading-6 text-zinc-500">
-            Benefits, writing, partners, and recordings will appear here as
-            they are published.
-          </p>
-        )}
+      <div className="mt-4 flex flex-col gap-2">
+        <ChecklistItem
+          number={1}
+          title="Review profile"
+          body={
+            completion.isComplete
+              ? "Keep your member details current."
+              : "Add details so members can find you."
+          }
+          href="/dashboard/profile"
+          icon={<ProfileIcon />}
+          status={completion.isComplete ? "Done" : `${completion.percent}%`}
+        />
+        <ChecklistItem
+          number={2}
+          title="Join WhatsApp"
+          body="Connect with members and updates."
+          href={whatsappUrl || "/dashboard/community"}
+          icon={<WhatsAppIcon />}
+          status={whatsappUrl ? "Open" : "Soon"}
+          external={Boolean(whatsappUrl)}
+        />
+        <ChecklistItem
+          number={3}
+          title="Register for an event"
+          body="Start with the next IPN event."
+          href={nextEvent ? `/dashboard/events/${nextEvent.slug}` : "/dashboard/events"}
+          icon={<CalendarIcon />}
+          status={nextEvent ? "Next" : "Browse"}
+        />
+        <ChecklistItem
+          number={4}
+          title="Invite friends"
+          body="Share IPN with peers who should join."
+          href="#invite-friends"
+          icon={<InviteIcon />}
+          status="Share"
+        />
       </div>
     </section>
   )
@@ -235,18 +282,15 @@ function ResourcePreview({ resources }: { resources: ResourceRecord[] }) {
 
 function DirectoryPreview({ memberCount }: { memberCount: number | null }) {
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-ipn">Directory</p>
-          <h2 className="mt-1 text-base font-semibold text-zinc-900">
+          <h2 className="mt-1 text-lg font-semibold text-zinc-900">
             Find IPN members
           </h2>
         </div>
-        <Link
-          href="/dashboard/directory"
-          className="text-sm font-medium text-ipn hover:underline"
-        >
+        <Link href="/dashboard/directory" className="text-sm font-medium text-ipn hover:underline">
           Search
         </Link>
       </div>
@@ -267,68 +311,76 @@ function DirectoryPreview({ memberCount }: { memberCount: number | null }) {
         ))}
       </div>
 
-      <div className="mt-5 rounded-lg bg-zinc-50 px-4 py-3">
-        <p className="text-2xl font-semibold text-zinc-900">
-          {memberCount?.toLocaleString() ?? "Members"}
-        </p>
-        <p className="mt-0.5 text-xs text-zinc-400">
-          Discoverable member profiles
-        </p>
+      <div className="mt-4 flex items-center justify-between rounded-lg bg-zinc-50 px-4 py-3">
+        <span>
+          <span className="block text-2xl font-semibold text-zinc-900">
+            {memberCount?.toLocaleString() ?? "Members"}
+          </span>
+          <span className="text-xs text-zinc-400">Discoverable profiles</span>
+        </span>
+        <DirectoryIcon />
       </div>
     </section>
   )
 }
 
-function RecordingsPreview({ recordings }: { recordings: EventRecord[] }) {
+function ExplorePortal() {
+  const features: PortalFeature[] = [
+    {
+      title: "Member Benefits",
+      body: "Training discounts and member-only resources.",
+      href: "/dashboard/resources",
+      icon: <ResourceIcon />,
+    },
+    {
+      title: "Event Recordings",
+      body: "Past IPN Labs and PsychedelX sessions.",
+      href: "/dashboard/events",
+      icon: <CalendarIcon />,
+    },
+    {
+      title: "IPN Blog",
+      body: "Writing from the IPN network.",
+      href: "/dashboard/resources",
+      icon: <ResourceIcon />,
+    },
+    {
+      title: "IPN Partners",
+      body: "Organizations connected to the network.",
+      href: "/dashboard/resources",
+      icon: <DirectoryIcon />,
+    },
+  ]
+
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-ipn">Recordings</p>
-          <h2 className="mt-1 text-base font-semibold text-zinc-900">
-            Watch past sessions
-          </h2>
-        </div>
-        <Link
-          href="/dashboard/events"
-          className="text-sm font-medium text-ipn hover:underline"
-        >
-          View
-        </Link>
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div>
+        <p className="text-sm font-medium text-ipn">Portal</p>
+        <h2 className="mt-1 text-lg font-semibold text-zinc-900">
+          Explore the member portal
+        </h2>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3">
-        {recordings.length > 0 ? (
-          recordings.map((recording) => (
-            <Link
-              key={recording.id}
-              href={`/dashboard/events/${recording.slug}`}
-              className="flex items-start gap-3 rounded-lg p-2 transition hover:bg-zinc-50"
-            >
-              <span className="mt-0.5 inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
-                <PlayIcon />
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {features.map((feature) => (
+          <Link
+            key={feature.title}
+            href={feature.href}
+            className="flex items-start gap-3 rounded-lg border border-zinc-200 px-3 py-3 transition hover:border-ipn/30 hover:bg-zinc-50"
+          >
+            <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">
+              {feature.icon}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-zinc-900">
+                {feature.title}
               </span>
-              <span className="min-w-0">
-                <span className="line-clamp-2 block text-sm font-medium leading-snug text-zinc-900">
-                  {recording.title}
-                </span>
-                <span className="mt-1 line-clamp-1 block text-xs text-zinc-400">
-                  {recording.event_type} ·{" "}
-                  {formatEventDateTime(
-                    recording.recording_published_at ?? recording.starts_at,
-                    null,
-                    recording.timezone,
-                  )}
-                </span>
+              <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-zinc-500">
+                {feature.body}
               </span>
-            </Link>
-          ))
-        ) : (
-          <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-5 text-sm leading-6 text-zinc-500">
-            Past IPN Labs and PsychedelX recordings will appear here once they
-            are published.
-          </p>
-        )}
+            </span>
+          </Link>
+        ))}
       </div>
     </section>
   )
@@ -347,13 +399,7 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
-  const [
-    profileResult,
-    upcomingResult,
-    resourcesResult,
-    recordingsResult,
-    memberCountResult,
-  ] = await Promise.all([
+  const [profileResult, upcomingResult, memberCountResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, persona, affiliation, school, field, bio")
@@ -367,22 +413,6 @@ export default async function DashboardPage({
       .or(`starts_at.gte.${now},ends_at.gte.${now}`)
       .order("starts_at", { ascending: true })
       .limit(5),
-    supabase
-      .from("resources")
-      .select("*")
-      .eq("status", "published")
-      .in("resource_type", ["affiliate_benefit", "blog_post", "partner"])
-      .order("featured", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("title", { ascending: true })
-      .limit(3),
-    supabase
-      .from("events")
-      .select("*")
-      .eq("status", "published")
-      .eq("is_recording", true)
-      .order("starts_at", { ascending: false })
-      .limit(2),
     supabase
       .from("profiles")
       .select("id", { count: "exact", head: true })
@@ -432,19 +462,16 @@ export default async function DashboardPage({
     .filter(Boolean)
     .join(" · ")
   const completion = profileCompletion(profile)
-  const profileActionBody = completion.isComplete
-    ? "Keep your role, interests, and contact preferences up to date."
-    : `${completion.percent}% complete · add a few details so members can find you.`
 
   const hour = new Date().getHours()
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
       <WelcomeModal userId={user!.id} show={showOnboarding} />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">
             {greeting}, {firstName}
@@ -457,54 +484,23 @@ export default async function DashboardPage({
             </p>
           )}
         </div>
-        <Link
-          href="/dashboard/events"
-          className="inline-flex w-fit items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
-        >
-          See upcoming events
-        </Link>
+        <InviteFriendsCard id="invite-friends" variant="header" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
         <UpcomingEventsCarousel
           events={upcomingEvents}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
-
-        <div className="flex flex-col gap-4">
-          <WhatsAppCommunityCard compact />
-          <QuickActionCard
-            title={completion.isComplete ? "Review your profile" : "Complete your profile"}
-            body={profileActionBody}
-            href="/dashboard/profile"
-            icon={<ProfileIcon />}
-            cta={completion.isComplete ? "Review profile" : "Finish profile"}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <InviteFriendsCard variant="compact" />
-        <QuickActionCard
-          title="Find members"
-          body="Search the directory by school, field, location, and interests."
-          href="/dashboard/directory"
-          icon={<DirectoryIcon />}
-          cta="Open directory"
-        />
-        <QuickActionCard
-          title="Browse resources"
-          body="Find benefits, partner links, articles, and member-only materials."
-          href="/dashboard/resources"
-          icon={<ResourceIcon />}
-          cta="Browse resources"
+        <MemberOnboarding
+          completion={completion}
+          nextEvent={upcomingEvents[0] ?? null}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ResourcePreview resources={(resourcesResult.data ?? []) as ResourceRecord[]} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DirectoryPreview memberCount={memberCountResult.count} />
-        <RecordingsPreview recordings={(recordingsResult.data ?? []) as EventRecord[]} />
+        <ExplorePortal />
       </div>
     </div>
   )

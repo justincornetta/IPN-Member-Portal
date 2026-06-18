@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react"
 
 type InviteFriendsCardProps = {
+  id?: string
   className?: string
-  variant?: "default" | "compact"
+  variant?: "default" | "compact" | "header"
 }
 
 const SITE_URL =
@@ -77,12 +78,14 @@ function ShareIcon() {
 }
 
 export default function InviteFriendsCard({
+  id,
   className = "",
   variant = "default",
 }: InviteFriendsCardProps) {
   const [copied, setCopied] = useState(false)
   const inviteUrl = useMemo(buildInviteUrl, [])
   const isCompact = variant === "compact"
+  const isHeader = variant === "header"
   const emailHref = `mailto:?subject=${encodeURIComponent(
     "Join me in the IPN Member Portal",
   )}&body=${encodeURIComponent(
@@ -114,8 +117,32 @@ export default function InviteFriendsCard({
     await copyInviteLink()
   }
 
+  if (isHeader) {
+    return (
+      <div id={id} className={`flex flex-wrap items-center gap-2 ${className}`}>
+        <button
+          type="button"
+          onClick={copyInviteLink}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+        >
+          <CopyIcon />
+          {copied ? "Copied" : "Invite Your Friends to IPN"}
+        </button>
+        <button
+          type="button"
+          onClick={shareInviteLink}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+          aria-label="Share IPN invite link"
+        >
+          <ShareIcon />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div
+      id={id}
       className={`rounded-xl border border-zinc-200 bg-white shadow-sm ${
         isCompact ? "p-4" : "p-5"
       } ${className}`}
