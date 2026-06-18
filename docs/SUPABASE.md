@@ -63,7 +63,7 @@ One row per user. Created automatically on signup via trigger.
 | `country` | `text` | |
 | `state` | `text` | US state/territory or Canadian province |
 | `city` | `text` | Display name as entered by the user |
-| `city_lat` | `float8` | Latitude — geocoded from city + country via Nominatim on signup; `null` if lookup failed |
+| `city_lat` | `float8` | Latitude — geocoded from city + state/province + country via Nominatim on signup/profile update; `null` if lookup failed |
 | `city_lng` | `float8` | Longitude — same source as `city_lat`; used for map view (v1.1) |
 | `persona` | `text` | One of: `High School`, `Undergraduate`, `Graduate Student`, `Professional Degree Student`, `Psychedelic Professional`, `Professional`, `Other` |
 | `affiliation` | `text` | Organization or employer; set for professional personas not affiliated with a university |

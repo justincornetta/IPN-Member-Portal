@@ -3,10 +3,19 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 
+type EventRegistrationResult = {
+  error?: string
+  event?: {
+    chat_platform: string | null
+    chat_external_url: string | null
+    chat_status: string | null
+  }
+}
+
 export async function registerForEvent(
   eventId: string,
   eventSlug: string,
-): Promise<{ error?: string }> {
+): Promise<EventRegistrationResult> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -16,7 +25,7 @@ export async function registerForEvent(
 
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id")
+    .select("id, chat_platform, chat_external_url, chat_status")
     .eq("id", eventId)
     .eq("status", "published")
     .single()
@@ -36,7 +45,13 @@ export async function registerForEvent(
   revalidatePath("/dashboard/events")
   revalidatePath(`/dashboard/events/${eventSlug}`)
 
-  return {}
+  return {
+    event: {
+      chat_platform: event.chat_platform,
+      chat_external_url: event.chat_external_url,
+      chat_status: event.chat_status,
+    },
+  }
 }
 
 export async function unregisterFromEvent(
