@@ -16,6 +16,17 @@ type Props = {
   variant?: "compact" | "full"
 }
 
+type EventChatState = Pick<
+  EventWithRegistration,
+  "chat_platform" | "chat_external_url" | "chat_status"
+>
+
+function getEventChatUrl(event: EventChatState) {
+  if (!event.chat_external_url) return null
+  if (event.chat_status === "archived") return null
+  return event.chat_external_url
+}
+
 function EventArtwork({ event }: { event: EventWithRegistration }) {
   return (
     <div className="relative h-36 overflow-hidden rounded-lg bg-zinc-950 sm:h-full sm:min-h-40">
@@ -54,8 +65,7 @@ function ConfirmationModal({
   event: EventWithRegistration
   onClose: () => void
 }) {
-  const eventChatUrl =
-    event.chat_status === "active" ? event.chat_external_url : null
+  const eventChatUrl = getEventChatUrl(event)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
@@ -136,6 +146,11 @@ function ConfirmationModal({
 export default function EventCard({ event, variant = "full" }: Props) {
   const [registered, setRegistered] = useState(event.is_registered)
   const [count, setCount] = useState(event.registration_count)
+  const [chat, setChat] = useState<EventChatState>({
+    chat_platform: event.chat_platform,
+    chat_external_url: event.chat_external_url,
+    chat_status: event.chat_status,
+  })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [unrsvpConfirming, setUnrsvpConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -143,10 +158,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
   const countLabel = registrationBand(count)
   const isCompact = variant === "compact"
-  const eventChatUrl =
-    event.chat_status === "active" && registered
-      ? event.chat_external_url
-      : null
+  const eventChatUrl = registered ? getEventChatUrl(chat) : null
   const isExternalRegistration = Boolean(event.registration_url)
   const isLockedTicketedEvent =
     event.requires_verified_ticket && !event.has_verified_ticket
@@ -162,6 +174,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
       }
 
       if (!registered) setCount((current) => current + 1)
+      if (result.event) setChat(result.event)
       setRegistered(true)
       setConfirmOpen(true)
     })
@@ -357,7 +370,10 @@ export default function EventCard({ event, variant = "full" }: Props) {
       </div>
 
       {confirmOpen && (
-        <ConfirmationModal event={event} onClose={() => setConfirmOpen(false)} />
+        <ConfirmationModal
+          event={{ ...event, ...chat }}
+          onClose={() => setConfirmOpen(false)}
+        />
       )}
     </article>
   )
