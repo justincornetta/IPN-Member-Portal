@@ -558,7 +558,12 @@ export default function MapDirectoryView({
       </div>
 
       {mapboxToken && !mapError ? (
-        <div ref={mapContainerRef} className="absolute inset-0" data-testid="directory-map" />
+        <div
+          ref={mapContainerRef}
+          className="absolute inset-0"
+          data-testid="directory-map"
+          style={{ position: "absolute", inset: 0 }}
+        />
       ) : (
         <MapFallback cities={cities} reason={fallbackReason} onSelectCity={selectCity} />
       )}
