@@ -132,8 +132,7 @@ function MemberPreviewRow({
   onOpen: (member: DirectoryMember) => void
 }) {
   const institution = member.school ?? member.affiliation
-  const tags = member.interest_tags?.slice(0, 2) ?? []
-  const field = member.field
+  const tags = member.interest_tags ?? []
   const bio = member.bio?.trim()
 
   return (
@@ -172,25 +171,18 @@ function MemberPreviewRow({
             </div>
             <ConnectionPill entry={connectionEntry} />
           </div>
-          {(member.persona || field || tags.length > 0) && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+          {member.persona && (
+            <div className="mt-1.5">
               {member.persona && (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                <span className="inline-block rounded-full bg-ipn-light px-2.5 py-0.5 text-xs font-medium text-ipn">
                   {member.persona}
                 </span>
               )}
-              {field && (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-                  {field}
-                </span>
-              )}
-              {tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-ipn-light px-2 py-0.5 text-[11px] font-medium text-ipn">
-                  {tag}
-                </span>
-              ))}
             </div>
           )}
+          <p className="mt-1.5 text-xs leading-5 text-zinc-400">
+            {tags.length > 0 ? tags.join(" · ") : " "}
+          </p>
           {bio && (
             <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-zinc-500">
               {bio}
