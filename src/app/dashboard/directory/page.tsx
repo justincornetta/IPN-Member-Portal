@@ -8,6 +8,7 @@ import type {
   DirectoryMember,
   DirectoryParams,
 } from "@/lib/directory/types"
+import { resolveDirectoryMapState } from "@/lib/directory/location"
 
 export default async function DirectoryPage({
   searchParams,
@@ -199,35 +200,35 @@ export default async function DirectoryPage({
     const lng = Number(row.city_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
 
-    const id = [
-      row.city.trim().toLowerCase(),
-      row.state?.trim().toLowerCase() ?? "",
-      row.country?.trim().toLowerCase() ?? "",
-      lat.toFixed(2),
-      lng.toFixed(2),
-    ].join(":")
-
     const member = {
       ...row,
       city_lat: lat,
       city_lng: lng,
       contact: contactMap.get(row.id) ?? null,
     }
+    const displayState = resolveDirectoryMapState(member)
+
+    const id = [
+      row.city.trim().toLowerCase(),
+      row.country?.trim().toLowerCase() ?? "",
+      lat.toFixed(2),
+      lng.toFixed(2),
+    ].join(":")
 
     const existing = cityMap.get(id)
     if (existing) {
-      existing.members.push(member)
+      existing.members.push({ ...member, state: existing.state })
       existing.memberCount += 1
     } else {
       cityMap.set(id, {
         id,
         city: row.city,
-        state: row.state,
+        state: displayState,
         country: row.country,
         lat,
         lng,
         memberCount: 1,
-        members: [member],
+        members: [{ ...member, state: displayState }],
       })
     }
   }

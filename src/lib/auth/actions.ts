@@ -26,10 +26,11 @@ export type RegistrationData = {
 
 async function geocodeCity(
   city: string,
+  state: string,
   country: string,
 ): Promise<{ lat: number; lng: number } | null> {
   try {
-    const q = encodeURIComponent(`${city}, ${country}`)
+    const q = encodeURIComponent([city, state, country].filter(Boolean).join(", "))
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
       { headers: { "User-Agent": "IPN-Member-Portal (members.ipn.org)" } },
@@ -110,7 +111,7 @@ export async function signUp(
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
-  const coords = await geocodeCity(data.city, data.country)
+  const coords = await geocodeCity(data.city, data.state, data.country)
   const postRegistrationPath = getPostRegistrationPath(next)
 
   const { data: authData, error } = await supabase.auth.signUp({
@@ -252,14 +253,16 @@ export async function updateProfile(
   }
   const { data: currentProfile } = await supabase
     .from("profiles")
-    .select("city, country")
+    .select("city, state, country")
     .eq("id", user.id)
     .maybeSingle()
 
   const locationChanged =
-    currentProfile?.city !== data.city || currentProfile?.country !== data.country
+    currentProfile?.city !== data.city ||
+    currentProfile?.state !== data.state ||
+    currentProfile?.country !== data.country
   const coords = locationChanged && data.city && data.country
-    ? await geocodeCity(data.city, data.country)
+    ? await geocodeCity(data.city, data.state, data.country)
     : undefined
 
   const { data: updatedProfile, error } = await supabase
