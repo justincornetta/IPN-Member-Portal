@@ -49,7 +49,7 @@ async function getCropped169Blob(imageSrc: string, pixelCrop: Area): Promise<Blo
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
 function inputCls() {
-  return "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+  return "min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
 }
 
 function Field({
@@ -98,18 +98,18 @@ function NavRow({
   pending: boolean; submitLabel: string
 }) {
   return (
-    <div className="mt-7 flex items-center justify-between border-t border-zinc-100 pt-5">
+    <div className="mt-7 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
       {step > 1 ? (
-        <button type="button" onClick={onBack} className="cursor-pointer text-sm text-zinc-500 transition hover:text-zinc-800">
+        <button type="button" onClick={onBack} className="min-h-11 w-full cursor-pointer rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-800 sm:w-auto sm:border-transparent">
           ← Back
         </button>
-      ) : <span />}
+      ) : <span className="hidden sm:block" />}
       {step < total ? (
-        <button type="button" onClick={onNext} className="cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90">
+        <button type="button" onClick={onNext} className="min-h-11 w-full cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 sm:w-auto">
           Next →
         </button>
       ) : (
-        <button type="button" onClick={onSubmit} disabled={pending} className="cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="button" onClick={onSubmit} disabled={pending} className="min-h-11 w-full cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
           {pending ? "Publishing…" : submitLabel}
         </button>
       )}
@@ -159,33 +159,33 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
   return (
     <div className="flex flex-col gap-2">
       {value && (
-        <div className="relative aspect-video w-56 overflow-hidden rounded-lg bg-zinc-100">
+        <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-lg bg-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value} alt="" className="h-full w-full object-cover" />
           <button
             type="button"
             onClick={() => onChange("")}
-            className="absolute right-2 top-2 cursor-pointer rounded-md bg-black/50 px-2 py-1 text-xs text-white transition hover:bg-black/70"
+            className="absolute right-2 top-2 min-h-8 cursor-pointer rounded-md bg-black/50 px-2 py-1 text-xs text-white transition hover:bg-black/70"
           >
             Remove
           </button>
         </div>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="cursor-pointer rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-600 transition hover:border-ipn hover:text-ipn disabled:opacity-50"
+          className="min-h-11 cursor-pointer rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-600 transition hover:border-ipn hover:text-ipn disabled:opacity-50"
         >
           {uploading ? "Uploading…" : value ? "Replace" : "Upload image"}
         </button>
-        <span className="text-xs text-zinc-400">or paste a URL</span>
+        <span className="text-xs text-zinc-400 sm:shrink-0">or paste a URL</span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="https://..."
-          className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
         />
       </div>
       {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
@@ -211,7 +211,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
               onCropComplete={onCropComplete}
             />
           </div>
-          <div className="flex items-center justify-between border-t border-white/10 px-5 py-4">
+          <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <span className="text-xs text-zinc-400">Zoom</span>
               <input
@@ -227,7 +227,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
             <button
               type="button"
               onClick={handleCropConfirm}
-              className="cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
+              className="min-h-11 cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
             >
               Use this crop
             </button>
@@ -328,7 +328,7 @@ function EventForm({ initial, onSubmit, pending }: {
                 {EVENT_TYPES.map((t) => <option key={t}>{t}</option>)}
               </select>
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Start date & time" required hint="Your local time; pick the timezone below.">
                 <input type="datetime-local" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inputCls()} />
                 {errors.startsAt && <p className="text-xs text-red-600">{errors.startsAt}</p>}
@@ -424,7 +424,7 @@ function EventForm({ initial, onSubmit, pending }: {
               <p className="text-xs font-medium text-zinc-600">Speaker links</p>
               <p className="text-[11px] text-zinc-400">Website, email, research profile, or social links for the speaker</p>
               {f.speakerLinks.map((link, i) => (
-                <div key={i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                <div key={i} className="grid grid-cols-1 gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                   <input
                     value={link.label}
                     onChange={(e) => { const next = [...f.speakerLinks]; next[i] = { ...next[i], label: e.target.value }; set("speakerLinks", next) }}
@@ -444,10 +444,10 @@ function EventForm({ initial, onSubmit, pending }: {
                   >
                     {["website", "email", "profile", "social", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <button type="button" onClick={() => set("speakerLinks", f.speakerLinks.filter((_, j) => j !== i))} className="cursor-pointer rounded-lg border border-zinc-200 px-2 text-zinc-400 hover:border-red-200 hover:text-red-500 transition">✕</button>
+                  <button type="button" onClick={() => set("speakerLinks", f.speakerLinks.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
                 </div>
               ))}
-              <button type="button" onClick={() => set("speakerLinks", [...f.speakerLinks, { label: "", url: "", linkType: "website" }])} className="cursor-pointer self-start rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn">
+              <button type="button" onClick={() => set("speakerLinks", [...f.speakerLinks, { label: "", url: "", linkType: "website" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add link
               </button>
             </div>
@@ -458,16 +458,16 @@ function EventForm({ initial, onSubmit, pending }: {
               <p className="text-[11px] text-zinc-400">Academic papers or pre-reads for attendees</p>
               {f.papers.map((paper, i) => (
                 <div key={i} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                     <input value={paper.title} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], title: e.target.value }; set("papers", next) }} placeholder="Paper title" className={inputCls()} />
                     <input value={paper.url} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], url: e.target.value }; set("papers", next) }} placeholder="URL (optional)" className={inputCls()} />
-                    <button type="button" onClick={() => set("papers", f.papers.filter((_, j) => j !== i))} className="cursor-pointer rounded-lg border border-zinc-200 px-2 text-zinc-400 hover:border-red-200 hover:text-red-500 transition">✕</button>
+                    <button type="button" onClick={() => set("papers", f.papers.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
                   </div>
                   <input value={paper.citation} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], citation: e.target.value }; set("papers", next) }} placeholder="Citation (optional: author, journal, year)" className={inputCls()} />
                   <input value={paper.note} onChange={(e) => { const next = [...f.papers]; next[i] = { ...next[i], note: e.target.value }; set("papers", next) }} placeholder="Note (optional, e.g. 'Focus on section 3')" className={inputCls()} />
                 </div>
               ))}
-              <button type="button" onClick={() => set("papers", [...f.papers, { title: "", url: "", citation: "", note: "" }])} className="cursor-pointer self-start rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn">
+              <button type="button" onClick={() => set("papers", [...f.papers, { title: "", url: "", citation: "", note: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add paper
               </button>
             </div>
@@ -478,16 +478,16 @@ function EventForm({ initial, onSubmit, pending }: {
               <p className="text-[11px] text-zinc-400">Slides, recordings, supplementary reading, or any other materials</p>
               {f.eventMaterials.map((resource, i) => (
                 <div key={i} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                     <input value={resource.title} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], title: e.target.value }; set("eventMaterials", next) }} placeholder="Resource title" className={inputCls()} />
                     <input value={resource.url} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], url: e.target.value }; set("eventMaterials", next) }} placeholder="URL (optional)" className={inputCls()} />
-                    <button type="button" onClick={() => set("eventMaterials", f.eventMaterials.filter((_, j) => j !== i))} className="cursor-pointer rounded-lg border border-zinc-200 px-2 text-zinc-400 hover:border-red-200 hover:text-red-500 transition">✕</button>
+                    <button type="button" onClick={() => set("eventMaterials", f.eventMaterials.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
                   </div>
                   <input value={resource.source} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], source: e.target.value }; set("eventMaterials", next) }} placeholder="Source (optional, e.g. 'Google Drive')" className={inputCls()} />
                   <input value={resource.note} onChange={(e) => { const next = [...f.eventMaterials]; next[i] = { ...next[i], note: e.target.value }; set("eventMaterials", next) }} placeholder="Note (optional)" className={inputCls()} />
                 </div>
               ))}
-              <button type="button" onClick={() => set("eventMaterials", [...f.eventMaterials, { title: "", url: "", source: "", note: "" }])} className="cursor-pointer self-start rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn">
+              <button type="button" onClick={() => set("eventMaterials", [...f.eventMaterials, { title: "", url: "", source: "", note: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add resource
               </button>
             </div>
@@ -556,7 +556,7 @@ function RecordingForm({ initial, onSubmit, pending }: {
               <input value={f.url} onChange={(e) => set("url", e.target.value)} className={inputCls()} placeholder="https://youtube.com/watch?v=..." />
               {errors.url && <p className="text-xs text-red-600">{errors.url}</p>}
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Published date" hint="When the video was released">
                 <input type="datetime-local" value={f.publishedAt} onChange={(e) => set("publishedAt", e.target.value)} className={inputCls()} />
               </Field>
@@ -711,17 +711,43 @@ function ResourceForm({ initial, onSubmit, pending }: {
 
 // ─── DB record → form fields ──────────────────────────────────────────────────
 
-function isoToLocal(iso: string | null | undefined): string {
+function isoToLocal(
+  iso: string | null | undefined,
+  timezone = "America/New_York",
+): string {
   if (!iso) return ""
-  return iso.slice(0, 16)
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date)
+    const values = Object.fromEntries(
+      parts
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    )
+
+    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`
+  } catch {
+    return iso.slice(0, 16)
+  }
 }
 
 function eventToFields(e: AdminEventSummary): EventFields {
   const sr = e.speaker_resources
+  const timezone = e.timezone ?? "America/New_York"
   return {
     title: e.title ?? "", eventType: e.event_type ?? "IPN Labs",
-    startsAt: isoToLocal(e.starts_at), endsAt: isoToLocal(e.ends_at),
-    timezone: e.timezone ?? "America/New_York",
+    startsAt: isoToLocal(e.starts_at, timezone), endsAt: isoToLocal(e.ends_at, timezone),
+    timezone,
     joinUrl: e.join_url ?? "", locationLabel: e.location_label ?? "Online",
     whatsappChatUrl: e.chat_platform === "whatsapp" ? e.chat_external_url ?? "" : "",
     locationDetails: e.location_details ?? "",
@@ -739,9 +765,10 @@ function eventToFields(e: AdminEventSummary): EventFields {
 }
 
 function recordingToFields(e: AdminEventSummary): RecordingFields {
+  const timezone = e.timezone ?? "America/New_York"
   return {
     title: e.title ?? "", url: e.recording_url ?? "",
-    publishedAt: isoToLocal(e.starts_at),
+    publishedAt: isoToLocal(e.starts_at, timezone),
     recordingCategory: e.recording_category ?? "Participant Talk",
     summary: e.summary ?? "", description: e.description ?? "",
     imageUrl: e.thumbnail_url ?? "", slug: e.slug ?? "",
@@ -785,16 +812,16 @@ function PromoteRow({
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-zinc-900">{event.title}</p>
           <p className="truncate text-xs text-zinc-400">{event.event_type} · {formatDate(event.starts_at)}</p>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0 sm:justify-end">
           <button
             type="button"
             onClick={() => { setExpanded((v) => !v); setConfirming(false) }}
-            className="cursor-pointer rounded-md border border-ipn/30 bg-ipn/5 px-2.5 py-1 text-xs font-medium text-ipn transition hover:bg-ipn/10"
+            className="min-h-11 cursor-pointer rounded-md border border-ipn/30 bg-ipn/5 px-3 py-2 text-xs font-medium text-ipn transition hover:bg-ipn/10"
           >
             {expanded ? "Cancel" : "Add recording"}
           </button>
@@ -803,14 +830,14 @@ function PromoteRow({
               <button
                 type="button"
                 onClick={() => { onDelete(); setConfirming(false) }}
-                className="cursor-pointer rounded-md border border-ipn bg-ipn px-2.5 py-1 text-xs font-medium text-white transition hover:bg-ipn/90"
+                className="min-h-11 cursor-pointer rounded-md border border-ipn bg-ipn px-3 py-2 text-xs font-medium text-white transition hover:bg-ipn/90"
               >
                 Confirm delete
               </button>
               <button
                 type="button"
                 onClick={() => setConfirming(false)}
-                className="cursor-pointer text-xs text-zinc-400 transition hover:text-zinc-600"
+                className="min-h-11 cursor-pointer rounded-md px-3 py-2 text-xs text-zinc-400 transition hover:text-zinc-600"
               >
                 Cancel
               </button>
@@ -819,7 +846,7 @@ function PromoteRow({
             <button
               type="button"
               onClick={() => setConfirming(true)}
-              className="cursor-pointer rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-ipn/30 hover:bg-ipn/5 hover:text-ipn"
+              className="min-h-11 cursor-pointer rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-400 transition hover:border-ipn/30 hover:bg-ipn/5 hover:text-ipn"
             >
               Delete
             </button>
@@ -828,18 +855,18 @@ function PromoteRow({
       </div>
 
       {expanded && (
-        <div className="mt-3 flex gap-2 border-t border-zinc-100 pt-3">
+        <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row">
           <input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Paste YouTube or recording URL…"
-            className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+            className="min-h-11 min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
           />
           <button
             type="button"
             onClick={() => { if (url.trim()) onPromote(event.id, url.trim()) }}
             disabled={!url.trim() || promoting}
-            className="cursor-pointer flex-shrink-0 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 cursor-pointer rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-shrink-0"
           >
             {promoting ? "Saving…" : "Mark as recording"}
           </button>
@@ -873,18 +900,18 @@ function ContentRow({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-zinc-900">{title}</p>
         <p className="truncate text-xs text-zinc-400">{meta}</p>
       </div>
-      <div className="flex flex-shrink-0 items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0 sm:justify-end">
         {showPublicLink && slug && (
           <button
             type="button"
             onClick={copyPublicLink}
             title="Copy public event link"
-            className="cursor-pointer rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-800"
+            className="min-h-11 cursor-pointer rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-800"
           >
             {copied ? "Copied!" : "Copy link"}
           </button>
@@ -892,7 +919,7 @@ function ContentRow({
         <button
           type="button"
           onClick={onEdit}
-          className="cursor-pointer rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
+          className="min-h-11 cursor-pointer rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
         >
           Edit
         </button>
@@ -901,14 +928,14 @@ function ContentRow({
             <button
               type="button"
               onClick={() => { onDelete(); setConfirming(false) }}
-              className="cursor-pointer rounded-md border border-ipn bg-ipn px-2.5 py-1 text-xs font-medium text-white transition hover:bg-ipn/90"
+              className="min-h-11 cursor-pointer rounded-md border border-ipn bg-ipn px-3 py-2 text-xs font-medium text-white transition hover:bg-ipn/90"
             >
               Confirm delete
             </button>
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="cursor-pointer text-xs text-zinc-400 transition hover:text-zinc-600"
+              className="min-h-11 cursor-pointer rounded-md px-3 py-2 text-xs text-zinc-400 transition hover:text-zinc-600"
             >
               Cancel
             </button>
@@ -917,7 +944,7 @@ function ContentRow({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="cursor-pointer rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-ipn/30 hover:bg-ipn/5 hover:text-ipn"
+            className="min-h-11 cursor-pointer rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-400 transition hover:border-ipn/30 hover:bg-ipn/5 hover:text-ipn"
           >
             Delete
           </button>
@@ -936,13 +963,13 @@ function Pagination({ page, totalPages, perPage, onPage, onPerPage }: {
   onPage: (p: number) => void; onPerPage: (n: number) => void
 }) {
   return (
-    <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+    <div className="mt-3 flex flex-col gap-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2">
         <span>Show</span>
         <select
           value={perPage}
           onChange={(e) => { onPerPage(Number(e.target.value)); onPage(1) }}
-          className="cursor-pointer rounded border border-zinc-200 bg-white px-2 py-1 text-xs"
+          className="min-h-11 cursor-pointer rounded border border-zinc-200 bg-white px-2 py-1 text-xs"
         >
           {PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
@@ -954,7 +981,7 @@ function Pagination({ page, totalPages, perPage, onPage, onPerPage }: {
             type="button"
             onClick={() => onPage(page - 1)}
             disabled={page === 1}
-            className="cursor-pointer rounded border border-zinc-200 px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-zinc-50"
+            className="min-h-11 cursor-pointer rounded border border-zinc-200 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-zinc-50"
           >
             ←
           </button>
@@ -963,7 +990,7 @@ function Pagination({ page, totalPages, perPage, onPage, onPerPage }: {
             type="button"
             onClick={() => onPage(page + 1)}
             disabled={page === totalPages}
-            className="cursor-pointer rounded border border-zinc-200 px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-zinc-50"
+            className="min-h-11 cursor-pointer rounded border border-zinc-200 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-zinc-50"
           >
             →
           </button>
@@ -1130,7 +1157,7 @@ export default function ContentIntakeForm() {
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+      <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-zinc-900">
             {view === "list" ? "Content" : formTitle}
@@ -1138,13 +1165,13 @@ export default function ContentIntakeForm() {
           {view === "list" ? (
             <p className="mt-0.5 text-sm text-zinc-400">Manage events, recordings, and resources</p>
           ) : (
-            <button type="button" onClick={backToList} className="cursor-pointer mt-0.5 flex items-center gap-1 text-xs text-zinc-400 transition hover:text-zinc-700">
+            <button type="button" onClick={backToList} className="mt-0.5 flex min-h-8 cursor-pointer items-center gap-1 text-xs text-zinc-400 transition hover:text-zinc-700">
               ← Back to list
             </button>
           )}
         </div>
         {view === "list" && subTab !== "awaiting" && (
-          <button type="button" onClick={openNew} className="cursor-pointer ml-4 flex-shrink-0 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90">
+          <button type="button" onClick={openNew} className="min-h-11 cursor-pointer rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 sm:ml-4 sm:flex-shrink-0">
             {newLabel}
           </button>
         )}
@@ -1152,13 +1179,13 @@ export default function ContentIntakeForm() {
 
       {/* Sub-tabs (list only) */}
       {view === "list" && (
-        <div className="flex border-b border-zinc-100">
+        <div className="flex overflow-x-auto border-b border-zinc-100">
           {(["events", "recordings", "awaiting", "resources"] as SubTab[]).map((id) => (
             <button
               key={id}
               type="button"
               onClick={() => setSubTab(id)}
-              className={`cursor-pointer px-5 py-2.5 text-sm font-medium transition ${
+              className={`min-h-11 shrink-0 cursor-pointer px-5 py-2.5 text-sm font-medium transition ${
                 subTab === id ? "-mb-px border-b-2 border-ipn text-ipn" : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
@@ -1183,7 +1210,7 @@ export default function ContentIntakeForm() {
 
       {/* List view */}
       {view === "list" && (
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           {loadingList ? (
             <p className="text-sm text-zinc-400">Loading…</p>
           ) : (
@@ -1275,7 +1302,7 @@ export default function ContentIntakeForm() {
 
       {/* Form view (awaiting tab has no form — all actions are inline) */}
       {view === "form" && subTab !== "awaiting" && (
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           {subTab === "events" && (
             <EventForm
               initial={editTarget?.type === "event" ? editTarget.fields : undefined}

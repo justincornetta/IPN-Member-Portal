@@ -97,13 +97,110 @@ function toIso(value: string | null | undefined) {
   return date.toISOString()
 }
 
+function isValidTimeZone(timezone: string) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date())
+    return true
+  } catch {
+    return false
+  }
+}
+
+function parseDateTimeLocal(value: string) {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  )
+  if (!match) return null
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] ?? "0"),
+  }
+}
+
+function timeZoneOffsetMs(timezone: string, date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date)
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, Number(part.value)]),
+  ) as Record<string, number>
+
+  const asUtc = Date.UTC(
+    values.year,
+    values.month - 1,
+    values.day,
+    values.hour,
+    values.minute,
+    values.second,
+  )
+
+  return asUtc - date.getTime()
+}
+
+function toIsoInTimeZone(
+  value: string | null | undefined,
+  timezone: string,
+): string | null {
+  const trimmed = clean(value)
+  if (!trimmed) return null
+
+  if (!parseDateTimeLocal(trimmed)) return toIso(trimmed)
+
+  const local = parseDateTimeLocal(trimmed)
+  if (!local) return null
+
+  let utcMs = Date.UTC(
+    local.year,
+    local.month - 1,
+    local.day,
+    local.hour,
+    local.minute,
+    local.second,
+  )
+
+  utcMs -= timeZoneOffsetMs(timezone, new Date(utcMs))
+  utcMs =
+    Date.UTC(
+      local.year,
+      local.month - 1,
+      local.day,
+      local.hour,
+      local.minute,
+      local.second,
+    ) - timeZoneOffsetMs(timezone, new Date(utcMs))
+
+  const date = new Date(utcMs)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
 function youtubeId(url: string | null) {
   if (!url) return null
   return (
     url.match(/[?&]v=([^&]+)/)?.[1] ??
-    url.match(/youtu\.be\/([^?]+)/)?.[1] ??
+    url.match(/youtu\.be\/([^?&]+)/)?.[1] ??
+    url.match(/youtube\.com\/embed\/([^?&]+)/)?.[1] ??
     null
   )
+}
+
+function youtubeThumbnailUrl(videoId: string | null) {
+  return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null
 }
 
 async function canPublishContent(
@@ -241,21 +338,26 @@ export async function publishAdminContent(
     const recordingUrl = clean(payload.url)
     const sourceId = clean(payload.sourceId) ?? youtubeId(recordingUrl)
     const isRecording = payload.contentType === "past_recording"
+    const timezone = clean(payload.timezone) ?? "America/New_York"
+    if (!isValidTimeZone(timezone)) return { error: "Timezone is invalid" }
+
     const startsAt =
-      toIso(payload.startsAt) ??
-      toIso(payload.publishedAt) ??
+      toIsoInTimeZone(payload.startsAt, timezone) ??
+      toIsoInTimeZone(payload.publishedAt, timezone) ??
       (isRecording ? now : null)
+    const endsAt = toIsoInTimeZone(payload.endsAt, timezone)
     const chatExternalUrl = isRecording ? null : clean(payload.chatExternalUrl)
 
     if (!startsAt) return { error: "Start date is required" }
+    if (payload.endsAt && !endsAt) return { error: "End date is invalid" }
 
     const eventPayload = {
       slug,
       title,
       event_type: clean(payload.eventType) ?? (isRecording ? "PsychedelX" : "IPN Labs"),
       starts_at: startsAt,
-      ends_at: toIso(payload.endsAt),
-      timezone: clean(payload.timezone) ?? "America/New_York",
+      ends_at: endsAt,
+      timezone,
       summary,
       description,
       speakers: clean(payload.speakers),
@@ -265,7 +367,7 @@ export async function publishAdminContent(
       chat_platform: chatExternalUrl ? "whatsapp" : null,
       chat_external_url: chatExternalUrl,
       chat_status: chatExternalUrl ? "active" : "draft",
-      thumbnail_url: imageUrl,
+      thumbnail_url: imageUrl ?? (isRecording ? youtubeThumbnailUrl(sourceId) : null),
       registration_url: isRecording ? null : clean(payload.registrationUrl),
       registration_provider: isRecording ? null : clean(payload.registrationProvider),
       external_event_id: isRecording ? null : clean(payload.externalEventId),
