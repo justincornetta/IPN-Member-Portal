@@ -30,6 +30,7 @@ Add these in Netlify project settings:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Same value | Public anon client config |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Same value | Public anon client config |
 | `NEXT_PUBLIC_SITE_URL` | Leave unset until the production domain moves | Leave unset | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this to `https://members.ipn.org` only after the production domain moves |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox public access token | Same value | Public token for the Directory Map; restrict by domain in Mapbox |
 | `NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL` | WhatsApp Community invite link | Optional / same value when available | Public link used by dashboard, welcome modal, and Community page CTAs |
 
 Do not add service-role keys, Mailchimp keys, or webhook secrets until a feature needs them.
