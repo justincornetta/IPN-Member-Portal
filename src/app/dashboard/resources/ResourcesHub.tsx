@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type { ResourceRecord, ResourceType } from "@/lib/resources/types"
 
 const BLOG_IDEA_FORM_URL =
@@ -90,6 +91,18 @@ function resourceImage(resource: ResourceRecord) {
 
 function resourcesByType(resources: ResourceRecord[], type: ResourceType) {
   return resources.filter((resource) => resource.resource_type === type)
+}
+
+function resourceTabFromParam(value: string | null): ResourceType {
+  if (value === "blog") return "blog_post"
+  if (value === "partners") return "partner"
+  return "affiliate_benefit"
+}
+
+function resourceTabToParam(value: ResourceType) {
+  if (value === "blog_post") return "blog"
+  if (value === "partner") return "partners"
+  return "benefits"
 }
 
 function ResourceMedia({ resource }: { resource: ResourceRecord }) {
@@ -289,7 +302,12 @@ function EmptyTab({ title, body }: { title: string; body: string }) {
 }
 
 export default function ResourcesHub({ resources }: Props) {
-  const [activeTab, setActiveTab] = useState<ResourceType>("affiliate_benefit")
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<ResourceType>(() =>
+    resourceTabFromParam(searchParams.get("tab")),
+  )
   const [blogQuery, setBlogQuery] = useState("")
 
   const benefits = resourcesByType(resources, "affiliate_benefit")
@@ -321,6 +339,18 @@ export default function ResourcesHub({ resources }: Props) {
     return blogs.filter((blog) => blog.title.toLowerCase().includes(query))
   }, [blogQuery, blogs])
 
+  useEffect(() => {
+    setActiveTab(resourceTabFromParam(searchParams.get("tab")))
+  }, [searchParams])
+
+  function setResourceTab(tab: ResourceType) {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", resourceTabToParam(tab))
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <section className="rounded-lg border border-ipn/20 bg-ipn/5 p-5">
@@ -340,7 +370,7 @@ export default function ResourcesHub({ resources }: Props) {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setResourceTab(tab.id)}
                 className="rounded-lg border border-white bg-white px-3 py-3 text-left shadow-sm transition hover:border-ipn/20"
               >
                 <span className="block text-sm font-semibold text-zinc-900">
@@ -360,7 +390,7 @@ export default function ResourcesHub({ resources }: Props) {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => setResourceTab(tab.id)}
             className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
               activeTab === tab.id
                 ? "bg-ipn text-white shadow-sm"
