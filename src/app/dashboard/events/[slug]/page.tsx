@@ -106,6 +106,18 @@ function isIpnLabEvent(event: EventRecord) {
   return eventType === "ipn lab" || eventType === "ipn labs"
 }
 
+function getYouTubeVideoId(event: EventRecord) {
+  if (event.recording_source_id) return event.recording_source_id
+  if (!event.recording_url) return null
+
+  return (
+    event.recording_url.match(/[?&]v=([^&]+)/)?.[1] ??
+    event.recording_url.match(/youtu\.be\/([^?&]+)/)?.[1] ??
+    event.recording_url.match(/youtube\.com\/embed\/([^?&]+)/)?.[1] ??
+    null
+  )
+}
+
 function ExternalLinkIcon() {
   return (
     <svg
@@ -207,7 +219,7 @@ function ResourceRow({
 }) {
   const content = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">
+      <span className={`${kind === "paper" ? "h-8 w-8" : "h-9 w-9"} flex shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn`}>
         {kind === "paper" ? <DocumentIcon /> : <ResourceIcon />}
       </span>
       <span className="min-w-0 flex-1">
@@ -240,13 +252,18 @@ function ResourceRow({
     </>
   )
 
+  const rowClass =
+    kind === "paper"
+      ? "group flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition hover:border-ipn/30 hover:bg-ipn/5"
+      : "group flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 transition hover:border-ipn/30 hover:bg-ipn/5"
+
   if (url) {
     return (
       <a
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="group flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 transition hover:border-ipn/30 hover:bg-ipn/5"
+        className={rowClass}
       >
         {content}
       </a>
@@ -254,7 +271,7 @@ function ResourceRow({
   }
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-3 py-3">
+    <div className={`${kind === "paper" ? "py-2.5" : "py-3"} flex items-start gap-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-3`}>
       {content}
     </div>
   )
@@ -331,26 +348,15 @@ function SpeakerResourcesSection({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                IPN Lab materials
+                Event materials
               </p>
               <h2 className="mt-1 text-lg font-semibold text-zinc-900">
-                Relevant Papers and Event Resources
+                Resources and suggested reading
               </h2>
             </div>
           </div>
 
           <div className="mt-5 flex flex-col gap-3">
-            {resources.papers.map((paper) => (
-              <ResourceRow
-                key={`paper-${paper.title}`}
-                title={paper.title}
-                label="Relevant paper"
-                url={paper.url}
-                detail={paper.citation}
-                note={paper.note}
-                kind="paper"
-              />
-            ))}
             {resources.resources.map((resource) => (
               <ResourceRow
                 key={`resource-${resource.title}`}
@@ -362,6 +368,26 @@ function SpeakerResourcesSection({
                 kind="resource"
               />
             ))}
+            {resources.papers.length > 0 && (
+              <div className={resources.resources.length > 0 ? "pt-2" : ""}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                  Suggested reading
+                </p>
+                <div className="flex flex-col gap-2">
+                  {resources.papers.map((paper) => (
+                    <ResourceRow
+                      key={`paper-${paper.title}`}
+                      title={paper.title}
+                      label="Paper"
+                      url={paper.url}
+                      detail={paper.citation}
+                      note={paper.note}
+                      kind="paper"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -377,11 +403,21 @@ function RecordingDetail({ event }: { event: EventRecord }) {
     null,
     event.timezone,
   )
+  const youtubeVideoId = getYouTubeVideoId(event)
 
   return (
     <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
       <div className="relative aspect-video bg-zinc-950">
-        {event.thumbnail_url ? (
+        {youtubeVideoId ? (
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}`}
+            title={event.title}
+            className="h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        ) : event.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={event.thumbnail_url}
@@ -391,11 +427,13 @@ function RecordingDetail({ event }: { event: EventRecord }) {
         ) : (
           <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
         )}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-ipn shadow-sm">
-            <PlayIcon />
-          </span>
-        </div>
+        {!youtubeVideoId && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-ipn shadow-sm">
+              <PlayIcon />
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="p-5 sm:p-7">
@@ -428,7 +466,7 @@ function RecordingDetail({ event }: { event: EventRecord }) {
           </p>
         )}
 
-        {event.recording_url && (
+        {event.recording_url && !youtubeVideoId && (
           <a
             href={event.recording_url}
             target="_blank"
