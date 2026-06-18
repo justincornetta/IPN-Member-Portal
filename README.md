@@ -11,6 +11,7 @@ Auth completed
 - **Next.js 16** (App Router) + React 19 + TypeScript
 - **Tailwind CSS v4**
 - **Supabase** — Postgres + Auth + Row-Level Security
+- **Mapbox GL JS** — interactive directory map
 - **Netlify** — hosting, production deploys, and PR deploy previews
 - **Mailchimp API** — member email integration (planned)
 

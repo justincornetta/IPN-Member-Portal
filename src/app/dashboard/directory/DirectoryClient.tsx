@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState, useEffect, useTransition, useCallback } from "react"
+import { useState, useEffect, useTransition, useCallback, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { PERSONA_OPTIONS } from "@/lib/constants/registration"
 import type {
@@ -12,10 +12,10 @@ import type {
 } from "@/lib/directory/types"
 import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
 
-const GlobeDirectoryView = dynamic(() => import("./GlobeDirectoryView"), {
+const MapDirectoryView = dynamic(() => import("./MapDirectoryView"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[620px] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-950 text-sm font-medium text-white">
+    <div className="flex h-[680px] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-sm font-medium text-zinc-500">
       Loading map...
     </div>
   ),
@@ -603,27 +603,41 @@ export default function DirectoryClient({
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
-  const [view, setView] = useState<"list" | "globe">("list")
+  const [view, setView] = useState<"list" | "map">("list")
   const [searchInput, setSearchInput] = useState(currentParams.q)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPersonas, setDrawerPersonas] = useState<string[]>(currentParams.personas)
   const [drawerSchool, setDrawerSchool] = useState(currentParams.school)
   const [drawerField, setDrawerField] = useState(currentParams.field)
   const [drawerTags, setDrawerTags] = useState<string[]>(currentParams.tags)
-  const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(null)
-  const [connMap, setConnMap] = useState<Record<string, ConnectionEntry>>(initialConnectionMap)
-  const closeModal = useCallback(() => setSelectedMember(null), [])
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [connectionState, setConnectionState] = useState(() => ({
+    source: initialConnectionMap,
+    value: initialConnectionMap,
+  }))
+  const selectedMember = useMemo(
+    () => members.find((member) => member.id === selectedMemberId) ?? null,
+    [members, selectedMemberId],
+  )
+  const connMap = connectionState.source === initialConnectionMap
+    ? connectionState.value
+    : initialConnectionMap
+  const closeModal = useCallback(() => setSelectedMemberId(null), [])
+  const openMember = useCallback((member: DirectoryMember) => {
+    setSelectedMemberId(member.id)
+  }, [])
+  const updateConnectionMap = useCallback((memberId: string, entry: ConnectionEntry) => {
+    setConnectionState((current) => {
+      const base = current.source === initialConnectionMap
+        ? current.value
+        : initialConnectionMap
 
-  useEffect(() => {
-    setConnMap(initialConnectionMap)
+      return {
+        source: initialConnectionMap,
+        value: { ...base, [memberId]: entry },
+      }
+    })
   }, [initialConnectionMap])
-
-  useEffect(() => {
-    if (!selectedMember) return
-
-    const refreshed = members.find((member) => member.id === selectedMember.id)
-    if (refreshed) setSelectedMember(refreshed)
-  }, [members, selectedMember])
 
   function buildUrl(overrides: Partial<DirectoryParams>) {
     const merged = { ...currentParams, searchInput, ...overrides }
@@ -870,7 +884,7 @@ export default function DirectoryClient({
           {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"}
         </p>
         <div className="inline-flex self-start rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:self-auto">
-          {(["list", "globe"] as const).map((option) => (
+          {(["list", "map"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -881,24 +895,24 @@ export default function DirectoryClient({
                   : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
-              {option === "list" ? "List" : "Globe"}
+              {option === "list" ? "List" : "Map"}
             </button>
           ))}
         </div>
       </div>
 
-      {view === "globe" ? (
+      {view === "map" ? (
         <div className={`transition-opacity ${isPending ? "opacity-50" : ""}`}>
-          <GlobeDirectoryView
+          <MapDirectoryView
             cities={mapCities}
             connectionMap={connMap}
-            onOpenMember={setSelectedMember}
+            onOpenMember={openMember}
           />
         </div>
       ) : members.length > 0 ? (
         <div className={`grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
           {members.map((member) => (
-            <MemberCard key={member.id} member={member} connectionEntry={connMap[member.id]} onOpen={setSelectedMember} />
+            <MemberCard key={member.id} member={member} connectionEntry={connMap[member.id]} onOpen={openMember} />
           ))}
         </div>
       ) : (
@@ -941,7 +955,7 @@ export default function DirectoryClient({
           member={selectedMember}
           connectionEntry={connMap[selectedMember.id]}
           onConnectionChange={(entry) =>
-            setConnMap((prev) => ({ ...prev, [selectedMember.id]: entry }))
+            updateConnectionMap(selectedMember.id, entry)
           }
           onClose={closeModal}
         />
