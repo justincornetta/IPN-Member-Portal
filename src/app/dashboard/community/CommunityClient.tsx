@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
+import InviteFriendsCard from "@/components/InviteFriendsCard"
 import WhatsAppCommunityCard from "@/components/community/WhatsAppCommunityCard"
 import { acceptConnection, declineConnection, removeConnection } from "@/lib/connections/actions"
 import type { ConnectionRow, ConnectionProfile } from "./page"
@@ -355,7 +356,10 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
         </p>
       </div>
 
-      <WhatsAppCommunityCard compact />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <WhatsAppCommunityCard compact />
+        <InviteFriendsCard variant="compact" />
+      </div>
 
       <div className="flex gap-1 rounded-xl border border-zinc-200 bg-white p-1 w-fit shadow-sm">
         {(["connections", "requests"] as const).map((t) => (
