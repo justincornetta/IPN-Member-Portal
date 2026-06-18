@@ -290,10 +290,12 @@ function MapFallback({
 
 export default function MapDirectoryView({
   cities,
+  totalMemberCount,
   connectionMap,
   onOpenMember,
 }: {
   cities: DirectoryMapCity[]
+  totalMemberCount: number
   connectionMap: Record<string, ConnectionEntry>
   onOpenMember: (member: DirectoryMember) => void
 }) {
@@ -305,8 +307,8 @@ export default function MapDirectoryView({
   const [mapError, setMapError] = useState<string | null>(null)
 
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  const totalMembers = useMemo(
-    () => cities.reduce((sum, city) => sum + city.memberCount, 0),
+  const countryCount = useMemo(
+    () => new Set(cities.map((city) => city.country).filter(Boolean)).size,
     [cities],
   )
   const selectedCity = useMemo(
@@ -546,7 +548,9 @@ export default function MapDirectoryView({
     <div className="relative h-[680px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm" data-testid="directory-map-shell">
       <div className="absolute left-4 top-4 z-10 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-lg backdrop-blur">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Live membership map</p>
-        <p className="mt-1 text-sm font-semibold">{totalMembers} members · {cities.length} cit{cities.length === 1 ? "y" : "ies"}</p>
+        <p className="mt-1 text-sm font-semibold">
+          {totalMemberCount} member{totalMemberCount === 1 ? "" : "s"} · {cities.length} cit{cities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
+        </p>
       </div>
 
       {mapboxToken && !mapError ? (

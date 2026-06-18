@@ -619,6 +619,10 @@ export default function DirectoryClient({
     () => members.find((member) => member.id === selectedMemberId) ?? null,
     [members, selectedMemberId],
   )
+  const countryCount = useMemo(
+    () => new Set(mapCities.map((city) => city.country).filter(Boolean)).size,
+    [mapCities],
+  )
   const connMap = connectionState.source === initialConnectionMap
     ? connectionState.value
     : initialConnectionMap
@@ -881,7 +885,7 @@ export default function DirectoryClient({
       {/* Count + view switch */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className={`text-sm text-zinc-500 transition-opacity ${isPending ? "opacity-50" : ""}`}>
-          {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"}
+          {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
         </p>
         <div className="inline-flex self-start rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:self-auto">
           {(["list", "map"] as const).map((option) => (
@@ -905,6 +909,7 @@ export default function DirectoryClient({
         <div className={`transition-opacity ${isPending ? "opacity-50" : ""}`}>
           <MapDirectoryView
             cities={mapCities}
+            totalMemberCount={members.length}
             connectionMap={connMap}
             onOpenMember={openMember}
           />
