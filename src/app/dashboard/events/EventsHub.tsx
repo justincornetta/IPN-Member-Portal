@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import EventCard from "@/components/events/EventCard"
 import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
@@ -89,6 +90,10 @@ function recordingsByType(recordings: EventRecord[], type: RecordingTab) {
   return recordings.filter((recording) => recording.event_type === type)
 }
 
+function eventTabFromParam(value: string | null): EventTab {
+  return value === "recordings" ? "recordings" : "upcoming"
+}
+
 function RecordingCard({ recording }: { recording: EventRecord }) {
   return (
     <Link href={`/dashboard/events/${recording.slug}`} className="block h-full">
@@ -165,7 +170,12 @@ function EmptyPanel({ title, body }: { title: string; body: string }) {
 }
 
 export default function EventsHub({ upcomingEvents, recordings }: Props) {
-  const [activeTab, setActiveTab] = useState<EventTab>("upcoming")
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<EventTab>(() =>
+    eventTabFromParam(searchParams.get("tab")),
+  )
   const [recordingTab, setRecordingTab] = useState<RecordingTab>("PsychedelX")
   const [recordingQuery, setRecordingQuery] = useState("")
   const [psychedelXYear, setPsychedelXYear] = useState(ALL_RECORDING_YEARS)
@@ -237,6 +247,18 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
     recordingTab,
   ])
 
+  useEffect(() => {
+    setActiveTab(eventTabFromParam(searchParams.get("tab")))
+  }, [searchParams])
+
+  function setEventTab(tab: EventTab) {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", tab)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <section className="rounded-lg border border-ipn/20 bg-ipn/5 p-5">
@@ -254,7 +276,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab("upcoming")}
+              onClick={() => setEventTab("upcoming")}
               className="rounded-lg border border-white bg-white px-3 py-3 text-left shadow-sm transition hover:border-ipn/20"
             >
               <span className="block text-sm font-semibold text-zinc-900">
@@ -266,7 +288,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("recordings")}
+              onClick={() => setEventTab("recordings")}
               className="rounded-lg border border-white bg-white px-3 py-3 text-left shadow-sm transition hover:border-ipn/20"
             >
               <span className="block text-sm font-semibold text-zinc-900">
@@ -288,7 +310,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
           <button
             key={id}
             type="button"
-            onClick={() => setActiveTab(id as EventTab)}
+            onClick={() => setEventTab(id as EventTab)}
             className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
               activeTab === id
                 ? "bg-ipn text-white shadow-sm"

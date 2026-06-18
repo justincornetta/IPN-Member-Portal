@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
 import WhatsAppCommunityCard from "@/components/community/WhatsAppCommunityCard"
 import { acceptConnection, declineConnection, removeConnection } from "@/lib/connections/actions"
@@ -314,9 +315,22 @@ type Props = {
   outgoing: ConnectionRow[]
 }
 
+type CommunityTab = "connections" | "requests"
+
+function communityTabFromParam(
+  value: string | null,
+  hasIncomingRequests: boolean,
+): CommunityTab {
+  if (value === "connections" || value === "requests") return value
+  return hasIncomingRequests ? "requests" : "connections"
+}
+
 export default function CommunityClient({ userId, accepted: initialAccepted, incoming: initialIncoming, outgoing: initialOutgoing }: Props) {
-  const [tab, setTab] = useState<"connections" | "requests">(
-    initialIncoming.length > 0 ? "requests" : "connections",
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<CommunityTab>(() =>
+    communityTabFromParam(searchParams.get("tab"), initialIncoming.length > 0),
   )
   const [accepted, setAccepted] = useState(initialAccepted)
   const [incoming, setIncoming] = useState(initialIncoming)
@@ -324,6 +338,18 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
   const [viewProfile, setViewProfile] = useState<ConnectionProfile | null>(null)
   const [pendingRemove, setPendingRemove] = useState<ConnectionProfile | null>(null)
   const [, startTransition] = useTransition()
+
+  useEffect(() => {
+    setTab(communityTabFromParam(searchParams.get("tab"), incoming.length > 0))
+  }, [incoming.length, searchParams])
+
+  function setCommunityTab(nextTab: CommunityTab) {
+    setTab(nextTab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", nextTab)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
 
   function handleRemoved(otherUserId: string) {
     setAccepted((prev) => prev.filter((c) =>
@@ -365,7 +391,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
         {(["connections", "requests"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => setCommunityTab(t)}
             className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               tab === t ? "bg-ipn text-white shadow-sm" : "text-zinc-500 hover:text-zinc-800"
             }`}

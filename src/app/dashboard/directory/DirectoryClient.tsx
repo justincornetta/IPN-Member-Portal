@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { useState, useEffect, useTransition, useCallback } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { PERSONA_OPTIONS } from "@/lib/constants/registration"
 import type {
   ConnectionEntry,
@@ -22,11 +22,16 @@ const GlobeDirectoryView = dynamic(() => import("./GlobeDirectoryView"), {
 })
 
 const PERSONAS = PERSONA_OPTIONS.map((o) => o.value)
+type DirectoryView = "list" | "globe"
 
 // DB values are the display labels — this is an identity map kept for future flexibility
 const PERSONA_LABEL: Record<string, string> = Object.fromEntries(
   PERSONA_OPTIONS.map((o) => [o.value, o.value]),
 )
+
+function directoryViewFromParam(value: string | null): DirectoryView {
+  return value === "globe" ? "globe" : "list"
+}
 
 function getInitials(first: string | null, last: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?"
@@ -601,9 +606,12 @@ export default function DirectoryClient({
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  const [view, setView] = useState<"list" | "globe">("list")
+  const [view, setView] = useState<DirectoryView>(() =>
+    directoryViewFromParam(searchParams.get("view")),
+  )
   const [searchInput, setSearchInput] = useState(currentParams.q)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPersonas, setDrawerPersonas] = useState<string[]>(currentParams.personas)
@@ -619,13 +627,20 @@ export default function DirectoryClient({
   }, [initialConnectionMap])
 
   useEffect(() => {
+    setView(directoryViewFromParam(searchParams.get("view")))
+  }, [searchParams])
+
+  useEffect(() => {
     if (!selectedMember) return
 
     const refreshed = members.find((member) => member.id === selectedMember.id)
     if (refreshed) setSelectedMember(refreshed)
   }, [members, selectedMember])
 
-  function buildUrl(overrides: Partial<DirectoryParams>) {
+  function buildUrl(
+    overrides: Partial<DirectoryParams>,
+    viewOverride: DirectoryView = view,
+  ) {
     const merged = { ...currentParams, searchInput, ...overrides }
     const p = new URLSearchParams()
     if (merged.q) p.set("q", merged.q)
@@ -634,6 +649,7 @@ export default function DirectoryClient({
     if (merged.field) p.set("field", merged.field)
     if (merged.tab && merged.tab !== "all") p.set("tab", merged.tab)
     merged.tags.forEach((v) => p.append("tag", v))
+    if (viewOverride === "globe") p.set("view", "globe")
     const qs = p.toString()
     return qs ? `${pathname}?${qs}` : pathname
   }
@@ -650,6 +666,11 @@ export default function DirectoryClient({
 
   function setTab(tab: string) {
     startTransition(() => router.replace(buildUrl({ tab })))
+  }
+
+  function setDirectoryView(nextView: DirectoryView) {
+    setView(nextView)
+    startTransition(() => router.replace(buildUrl({}, nextView), { scroll: false }))
   }
 
   function openDrawer() {
@@ -874,7 +895,7 @@ export default function DirectoryClient({
             <button
               key={option}
               type="button"
-              onClick={() => setView(option)}
+              onClick={() => setDirectoryView(option)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 view === option
                   ? "bg-zinc-900 text-white"
