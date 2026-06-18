@@ -250,21 +250,16 @@ function MemberOnboarding() {
   )
 }
 
-function mapPreviewPoint(city: DirectoryMapCity) {
-  const usHeavy = city.country === "United States" || city.country === "USA"
-  const lngMin = usHeavy ? -130 : -170
-  const lngMax = usHeavy ? -60 : 40
-  const latMin = usHeavy ? 20 : -5
-  const latMax = usHeavy ? 58 : 62
-
-  return {
-    x: Math.max(12, Math.min(88, ((city.lng - lngMin) / (lngMax - lngMin)) * 100)),
-    y: Math.max(14, Math.min(84, ((latMax - city.lat) / (latMax - latMin)) * 100)),
-  }
-}
-
 function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
   const visibleCities = cities.slice(0, 12)
+  const lngs = visibleCities.map((city) => city.lng)
+  const lats = visibleCities.map((city) => city.lat)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const lngSpan = Math.max(1, maxLng - minLng)
+  const latSpan = Math.max(1, maxLat - minLat)
 
   return (
     <div className="relative min-h-36 overflow-hidden rounded-lg border border-zinc-200 bg-[#f8fafc]">
@@ -276,27 +271,27 @@ function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
       >
         <rect width="220" height="150" fill="#f8fafc" />
         <path
-          d="M0 92c24-19 53-27 84-24 29 2 46 16 72 16 27 0 42-14 64-20v86H0Z"
+          d="M0 96c28-18 58-26 93-23 31 3 48 17 75 16 20-1 36-10 52-18v79H0Z"
           fill="#eef2f7"
         />
         <path
-          d="M18 34c30-13 66-12 96 2 21 10 30 24 47 33 18 9 40 6 59-3v84H18Z"
+          d="M16 38c31-15 68-15 99-1 22 10 31 24 49 34 17 9 36 7 56-2v81H16Z"
           fill="#e5e7eb"
           opacity="0.86"
         />
         <path
-          d="M56 38c18-10 45-10 64-2 15 6 25 18 42 21 13 3 31 0 50-8"
+          d="M44 43c20-10 49-11 70-2 17 7 27 18 45 22 16 3 35-1 55-10"
           fill="none"
           stroke="#d4d8e1"
-          strokeWidth="12"
+          strokeWidth="9"
           strokeLinecap="round"
           opacity="0.55"
         />
         <path
-          d="M16 84c32-7 57-4 80 9 23 12 48 15 77 4 18-7 31-9 47-4"
+          d="M14 90c35-8 62-4 87 10 23 12 49 15 78 4 17-7 28-9 41-5"
           fill="none"
           stroke="#d4d8e1"
-          strokeWidth="10"
+          strokeWidth="8"
           strokeLinecap="round"
           opacity="0.48"
         />
@@ -307,12 +302,17 @@ function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
           <path key={y} d={`M0 ${y}h220`} stroke="#e5e7eb" strokeWidth="1" opacity="0.7" />
         ))}
         {visibleCities.map((city) => {
-          const point = mapPreviewPoint(city)
+          const xPercent = visibleCities.length === 1
+            ? 50
+            : 18 + ((city.lng - minLng) / lngSpan) * 64
+          const yPercent = visibleCities.length === 1
+            ? 50
+            : 18 + ((maxLat - city.lat) / latSpan) * 64
           const radius = Math.min(12, 6 + city.memberCount * 1.5)
           return (
             <g
               key={city.id}
-              transform={`translate(${(point.x / 100) * 220} ${(point.y / 100) * 150})`}
+              transform={`translate(${(xPercent / 100) * 220} ${(yPercent / 100) * 150})`}
             >
               <circle r={radius + 4} fill="rgba(102,79,161,0.24)" />
               <circle r={radius} fill="#664fa1" stroke="white" strokeWidth="2" />
