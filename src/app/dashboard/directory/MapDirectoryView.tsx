@@ -7,7 +7,7 @@ import mapboxgl, {
   type Map as MapboxMap,
   type MapLayerMouseEvent,
 } from "mapbox-gl"
-import type { FeatureCollection, Point } from "geojson"
+import type { Feature, FeatureCollection, Point } from "geojson"
 import type {
   ConnectionEntry,
   DirectoryMapCity,
@@ -27,12 +27,57 @@ type CityFeatureProperties = {
   memberCount: number
 }
 
+type SelectedMapGroup = {
+  id: string
+  label: string
+  memberCount: number
+  members: DirectoryMember[]
+  cityIds: string[]
+}
+
+type ClusterLeafSource = GeoJSONSource & {
+  getClusterLeaves: (
+    clusterId: number,
+    limit: number,
+    offset: number,
+    callback: (
+      error: Error | null,
+      features: Array<Feature<Point, CityFeatureProperties>> | null,
+    ) => void,
+  ) => void
+}
+
 function initials(member: DirectoryMember) {
   return `${member.first_name?.[0] ?? ""}${member.last_name?.[0] ?? ""}`.toUpperCase() || "?"
 }
 
 function cityLabel(city: DirectoryMapCity) {
   return [city.city, city.state || city.country].filter(Boolean).join(", ")
+}
+
+function cityToGroup(city: DirectoryMapCity): SelectedMapGroup {
+  return {
+    id: city.id,
+    label: cityLabel(city),
+    memberCount: city.memberCount,
+    members: city.members,
+    cityIds: [city.id],
+  }
+}
+
+function nearbyCitiesToGroup(cities: DirectoryMapCity[]): SelectedMapGroup | null {
+  if (cities.length === 0) return null
+  if (cities.length === 1) return cityToGroup(cities[0])
+
+  const memberCount = cities.reduce((sum, city) => sum + city.memberCount, 0)
+
+  return {
+    id: `cluster:${cities.map((city) => city.id).sort().join("|")}`,
+    label: `${memberCount} members nearby`,
+    memberCount,
+    members: cities.flatMap((city) => city.members),
+    cityIds: cities.map((city) => city.id),
+  }
 }
 
 function buildCityGeoJson(cities: DirectoryMapCity[]): FeatureCollection<Point, CityFeatureProperties> {
@@ -212,14 +257,14 @@ function MemberPreviewRow({
 
 function CityDrawer({
   cities,
-  selectedCity,
+  selectedGroup,
   connectionMap,
   currentUserId,
   onSelectCity,
   onOpenMember,
 }: {
   cities: DirectoryMapCity[]
-  selectedCity: DirectoryMapCity | null
+  selectedGroup: SelectedMapGroup | null
   connectionMap: Record<string, ConnectionEntry>
   currentUserId: string
   onSelectCity: (city: DirectoryMapCity) => void
@@ -229,18 +274,18 @@ function CityDrawer({
     <aside className="absolute inset-x-3 bottom-3 z-10 flex max-h-[48%] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/95 shadow-2xl backdrop-blur lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[390px]">
       <div className="border-b border-zinc-100 px-4 py-3">
         <p className="text-sm font-semibold text-zinc-900">
-          {selectedCity ? cityLabel(selectedCity) : "Select a city"}
+          {selectedGroup ? selectedGroup.label : "Select a city"}
         </p>
         <p className="mt-0.5 text-xs text-zinc-500">
-          {selectedCity
-            ? `${selectedCity.memberCount} member${selectedCity.memberCount === 1 ? "" : "s"}`
+          {selectedGroup
+            ? `${selectedGroup.memberCount} member${selectedGroup.memberCount === 1 ? "" : "s"}`
             : "Choose a pin or browse visible cities."}
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">
-        {selectedCity ? (
-          selectedCity.members.map((member) => (
+        {selectedGroup ? (
+          selectedGroup.members.map((member) => (
             <MemberPreviewRow
               key={member.id}
               member={member}
@@ -323,8 +368,8 @@ export default function MapDirectoryView({
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapboxMap | null>(null)
   const citiesRef = useRef(cities)
-  const previousSelectedCityIdRef = useRef<string | null>(null)
-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null)
+  const previousSelectedCityIdsRef = useRef<string[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<SelectedMapGroup | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
 
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -332,17 +377,39 @@ export default function MapDirectoryView({
     () => new Set(cities.map((city) => city.country).filter(Boolean)).size,
     [cities],
   )
-  const selectedCity = useMemo(
-    () => cities.find((city) => city.id === selectedCityId) ?? null,
-    [cities, selectedCityId],
-  )
+  const resolvedSelectedGroup = useMemo(() => {
+    if (!selectedGroup) return null
+
+    const selectedCityIds = new Set(selectedGroup.cityIds)
+    const selectedCities = cities.filter((city) => selectedCityIds.has(city.id))
+    return nearbyCitiesToGroup(selectedCities)
+  }, [cities, selectedGroup])
+  const selectedCityIdsKey = resolvedSelectedGroup?.cityIds.join("|") ?? null
 
   function selectCity(city: DirectoryMapCity) {
-    setSelectedCityId(city.id)
+    setSelectedGroup(cityToGroup(city))
     mapRef.current?.flyTo({
       center: [city.lng, city.lat],
       zoom: Math.max(mapRef.current.getZoom(), 5),
       duration: 500,
+    })
+  }
+
+  function selectNearbyCities(clusterId: number) {
+    const source = mapRef.current?.getSource(CITY_SOURCE_ID) as ClusterLeafSource | undefined
+    if (!source) return
+
+    source.getClusterLeaves(clusterId, Number.MAX_SAFE_INTEGER, 0, (error, features) => {
+      if (error || !features) return
+
+      const cityIds = new Set(
+        features
+          .map((feature) => feature.properties?.id)
+          .filter((id): id is string => Boolean(id)),
+      )
+      const clusterCities = citiesRef.current.filter((city) => cityIds.has(city.id))
+      const group = nearbyCitiesToGroup(clusterCities)
+      if (group) setSelectedGroup(group)
     })
   }
 
@@ -359,29 +426,23 @@ export default function MapDirectoryView({
 
   useEffect(() => {
     const map = mapRef.current
-    const previousSelectedCityId = previousSelectedCityIdRef.current
+    const previousSelectedCityIds = previousSelectedCityIdsRef.current
 
     if (!map?.getSource(CITY_SOURCE_ID)) {
-      previousSelectedCityIdRef.current = selectedCityId
+      previousSelectedCityIdsRef.current = resolvedSelectedGroup?.cityIds ?? []
       return
     }
 
-    if (previousSelectedCityId) {
-      map.setFeatureState(
-        { source: CITY_SOURCE_ID, id: previousSelectedCityId },
-        { selected: false },
-      )
+    for (const previousSelectedCityId of previousSelectedCityIds) {
+      map.setFeatureState({ source: CITY_SOURCE_ID, id: previousSelectedCityId }, { selected: false })
     }
 
-    if (selectedCityId) {
-      map.setFeatureState(
-        { source: CITY_SOURCE_ID, id: selectedCityId },
-        { selected: true },
-      )
+    for (const selectedCityId of resolvedSelectedGroup?.cityIds ?? []) {
+      map.setFeatureState({ source: CITY_SOURCE_ID, id: selectedCityId }, { selected: true })
     }
 
-    previousSelectedCityIdRef.current = selectedCityId
-  }, [selectedCityId])
+    previousSelectedCityIdsRef.current = resolvedSelectedGroup?.cityIds ?? []
+  }, [selectedCityIdsKey, resolvedSelectedGroup])
 
   useEffect(() => {
     if (!mapboxToken || mapRef.current || !mapContainerRef.current) return
@@ -516,6 +577,8 @@ export default function MapDirectoryView({
 
           if (clusterId == null || !coordinates || !source) return
 
+          selectNearbyCities(Number(clusterId))
+
           source.getClusterExpansionZoom(Number(clusterId), (error, zoom) => {
             if (error || zoom == null) return
             map.easeTo({
@@ -587,7 +650,7 @@ export default function MapDirectoryView({
 
       <CityDrawer
         cities={cities}
-        selectedCity={selectedCity}
+        selectedGroup={resolvedSelectedGroup}
         connectionMap={connectionMap}
         currentUserId={currentUserId}
         onSelectCity={selectCity}
