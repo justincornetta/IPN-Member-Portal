@@ -54,16 +54,28 @@ function buildCityGeoJson(cities: DirectoryMapCity[]): FeatureCollection<Point, 
   }
 }
 
-function getMapPadding() {
-  if (typeof window !== "undefined" && window.innerWidth < 1024) {
-    return { top: 80, right: 32, bottom: 300, left: 32 }
-  }
+function getMapPadding(map: MapboxMap) {
+  const canvas = map.getCanvas()
+  const width = canvas.clientWidth || 1
+  const height = canvas.clientHeight || 1
+  const basePadding = width < 1024
+    ? { top: 72, right: 24, bottom: 220, left: 24 }
+    : { top: 72, right: 380, bottom: 72, left: 72 }
+  const maxHorizontalPadding = Math.max(24, Math.floor((width - 120) / 2))
+  const maxVerticalPadding = Math.max(24, Math.floor((height - 120) / 2))
 
-  return { top: 80, right: 440, bottom: 80, left: 80 }
+  return {
+    top: Math.min(basePadding.top, maxVerticalPadding),
+    right: Math.min(basePadding.right, maxHorizontalPadding),
+    bottom: Math.min(basePadding.bottom, maxVerticalPadding),
+    left: Math.min(basePadding.left, maxHorizontalPadding),
+  }
 }
 
 function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450) {
   if (cities.length === 0) return
+
+  map.resize()
 
   if (cities.length === 1) {
     map.easeTo({
@@ -80,7 +92,7 @@ function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450)
   }
 
   map.fitBounds(bounds as LngLatBoundsLike, {
-    padding: getMapPadding(),
+    padding: getMapPadding(map),
     maxZoom: 5,
     duration,
   })
@@ -362,6 +374,8 @@ export default function MapDirectoryView({
     let cancelled = false
 
     try {
+      mapContainerRef.current.replaceChildren()
+
       const map = new mapboxgl.Map({
         accessToken: mapboxToken,
         container: mapContainerRef.current,
