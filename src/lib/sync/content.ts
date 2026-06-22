@@ -177,7 +177,7 @@ async function syncSubstack() {
       ? supabase.from("resources").update(payload).eq("id", existing.id)
       : supabase.from("resources").insert(payload)
     const { error } = await query
-    if (error) throw error
+    if (error) throw new Error(error.message)
     if (existing) result.updated += 1
     else result.inserted += 1
   }
@@ -233,7 +233,7 @@ async function syncYouTube() {
       ? supabase.from("events").update(payload).eq("id", existing.id)
       : supabase.from("events").insert(payload)
     const { error } = await query
-    if (error) throw error
+    if (error) throw new Error(error.message)
     if (existing) result.updated += 1
     else result.inserted += 1
   }
@@ -266,7 +266,10 @@ async function syncEventbrite() {
       `https://www.eventbriteapi.com/v3/events/${externalEventId}/attendees/?${params.toString()}`,
       { headers: { Authorization: `Bearer ${token}` } },
     )
-    if (!response.ok) throw new Error(`Eventbrite attendees sync failed: ${response.status}`)
+    if (!response.ok) {
+      const body = await response.text().catch(() => "")
+      throw new Error(`Eventbrite attendees sync failed: ${response.status}${body ? ` — ${body}` : ""}`)
+    }
     const payload = (await response.json()) as {
       attendees?: EventbriteAttendee[]
       pagination?: { has_more_items?: boolean; continuation?: string }
@@ -308,7 +311,7 @@ async function syncEventbrite() {
       const { error } = await supabase
         .from("event_ticket_access")
         .upsert(rows, { onConflict: "event_id,attendee_email_normalized" })
-      if (error) throw error
+      if (error) throw new Error(error.message)
 
       result.inserted += rows.filter(
         (row) => !existingEmails.has(row.attendee_email_normalized),
@@ -362,7 +365,7 @@ async function markEndedEvents() {
     .update({ status: "ended" })
     .in("id", ids)
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return { marked: ids.length }
 }
 
