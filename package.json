@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "recording:seed:summary": "node scripts/recording-directory-seed.mjs summarize",
+    "recording:seed": "node scripts/recording-directory-seed.mjs seed",
+    "recording:seed:login": "node scripts/recording-directory-seed.mjs create-login",
+    "recording:seed:cleanup": "node scripts/recording-directory-seed.mjs cleanup"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

@@ -24,6 +24,11 @@
 .DS_Store
 *.pem
 
+# one-off recording seed inputs/outputs
+/data/recording-seed/
+recording-seed-*.json
+recording-seed-*.csv
+
 # debug
 npm-debug.log*
 yarn-debug.log*
