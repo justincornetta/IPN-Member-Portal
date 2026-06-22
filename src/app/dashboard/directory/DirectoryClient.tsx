@@ -707,6 +707,7 @@ export default function DirectoryClient({
     if (merged.field) p.set("field", merged.field)
     if (merged.tab && merged.tab !== "all") p.set("tab", merged.tab)
     merged.tags.forEach((v) => p.append("tag", v))
+    if (merged.recording) p.set("recording", "1")
     if (viewOverride === "map") p.set("view", "map")
     const qs = p.toString()
     return qs ? `${pathname}?${qs}` : pathname
@@ -973,6 +974,7 @@ export default function DirectoryClient({
             totalMemberCount={members.length}
             connectionMap={connMap}
             currentUserId={currentUserId}
+            recordingMode={currentParams.recording}
             onOpenMember={openMember}
           />
         </div>

@@ -43,6 +43,7 @@ export default async function DirectoryPage({
   const tagParam = params.tag
   const tagFilter = Array.isArray(tagParam) ? tagParam : tagParam ? [tagParam] : []
   const tab = params.tab === "school" && userSchool ? "school" : "all"
+  const recording = params.recording === "1" || params.recording === "true"
 
   let query = supabase
     .from("profiles")
@@ -242,6 +243,7 @@ export default async function DirectoryPage({
     field: fieldFilter,
     tab,
     tags: tagFilter,
+    recording,
   }
 
   return (

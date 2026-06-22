@@ -5,8 +5,8 @@ import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
-const DEFAULT_MAX_MEMBERS = 650
-const DEFAULT_CAP_PER_LOCATION = 5
+const DEFAULT_MAX_MEMBERS = 1000
+const DEFAULT_CAP_PER_LOCATION = 25
 
 const COMMANDS = new Set(["summarize", "seed", "create-login", "cleanup"])
 
@@ -290,22 +290,54 @@ function aggregateLocations(source, geocodes) {
 }
 
 function buildSeedPlan(locations, { maxMembers, capPerLocation }) {
-  const plan = []
+  const cappedLocations = locations
+    .filter((location) => location.count > 0)
+    .map((location) => ({
+      location,
+      allocation: 1,
+      maxAllocation: Math.max(1, capPerLocation),
+      remainder: 0,
+    }))
 
-  for (const location of locations) {
-    if (plan.length >= maxMembers) break
-    plan.push({ location, locationIndex: 1 })
+  if (cappedLocations.length === 0) return []
+
+  let remaining = Math.max(0, maxMembers - cappedLocations.length)
+  const totalCount = cappedLocations.reduce((sum, entry) => sum + entry.location.count, 0)
+
+  for (const entry of cappedLocations) {
+    if (remaining === 0) break
+    const capacity = entry.maxAllocation - entry.allocation
+    if (capacity <= 0) continue
+
+    const rawExtra = (remaining * entry.location.count) / totalCount
+    const extra = Math.min(capacity, Math.floor(rawExtra))
+    entry.allocation += extra
+    entry.remainder = rawExtra - extra
   }
 
-  for (const location of locations) {
-    const desired = Math.min(capPerLocation, Math.max(1, Math.ceil(Math.sqrt(location.count))))
-    for (let i = 2; i <= desired; i += 1) {
-      if (plan.length >= maxMembers) return plan
-      plan.push({ location, locationIndex: i })
-    }
+  remaining = maxMembers - cappedLocations.reduce((sum, entry) => sum + entry.allocation, 0)
+
+  while (remaining > 0) {
+    const next = cappedLocations
+      .filter((entry) => entry.allocation < entry.maxAllocation)
+      .sort((a, b) => {
+        const remainderDiff = b.remainder - a.remainder
+        if (remainderDiff !== 0) return remainderDiff
+        return b.location.count - a.location.count
+      })[0]
+
+    if (!next) break
+    next.allocation += 1
+    next.remainder = 0
+    remaining -= 1
   }
 
-  return plan
+  return cappedLocations.flatMap((entry) =>
+    Array.from({ length: entry.allocation }, (_, index) => ({
+      location: entry.location,
+      locationIndex: index + 1,
+    })),
+  )
 }
 
 function printSummary(locations, skipped, plan) {

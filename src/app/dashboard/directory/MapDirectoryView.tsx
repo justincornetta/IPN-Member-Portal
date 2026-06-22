@@ -99,13 +99,13 @@ function buildCityGeoJson(cities: DirectoryMapCity[]): FeatureCollection<Point, 
   }
 }
 
-function getMapPadding(map: MapboxMap) {
+function getMapPadding(map: MapboxMap, reserveDrawer = true) {
   const canvas = map.getCanvas()
   const width = canvas.clientWidth || 1
   const height = canvas.clientHeight || 1
   const basePadding = width < 1024
-    ? { top: 72, right: 24, bottom: 220, left: 24 }
-    : { top: 72, right: 380, bottom: 72, left: 72 }
+    ? { top: 72, right: 24, bottom: reserveDrawer ? 220 : 72, left: 24 }
+    : { top: 72, right: reserveDrawer ? 380 : 72, bottom: 72, left: 72 }
   const maxHorizontalPadding = Math.max(24, Math.floor((width - 120) / 2))
   const maxVerticalPadding = Math.max(24, Math.floor((height - 120) / 2))
 
@@ -117,7 +117,7 @@ function getMapPadding(map: MapboxMap) {
   }
 }
 
-function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450) {
+function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450, reserveDrawer = true) {
   if (cities.length === 0) return
 
   map.resize()
@@ -137,7 +137,7 @@ function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450)
   }
 
   map.fitBounds(bounds as LngLatBoundsLike, {
-    padding: getMapPadding(map),
+    padding: getMapPadding(map, reserveDrawer),
     maxZoom: 5,
     duration,
   })
@@ -357,17 +357,20 @@ export default function MapDirectoryView({
   totalMemberCount,
   connectionMap,
   currentUserId,
+  recordingMode = false,
   onOpenMember,
 }: {
   cities: DirectoryMapCity[]
   totalMemberCount: number
   connectionMap: Record<string, ConnectionEntry>
   currentUserId: string
+  recordingMode?: boolean
   onOpenMember: (member: DirectoryMember) => void
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapboxMap | null>(null)
   const citiesRef = useRef(cities)
+  const recordingModeRef = useRef(recordingMode)
   const previousSelectedCityIdsRef = useRef<string[]>([])
   const [selectedGroup, setSelectedGroup] = useState<SelectedMapGroup | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -378,16 +381,18 @@ export default function MapDirectoryView({
     [cities],
   )
   const resolvedSelectedGroup = useMemo(() => {
-    if (!selectedGroup) return null
+    if (recordingMode || !selectedGroup) return null
 
     const selectedCityIds = new Set(selectedGroup.cityIds)
     const selectedCities = cities.filter((city) => selectedCityIds.has(city.id))
     return nearbyCitiesToGroup(selectedCities)
-  }, [cities, selectedGroup])
+  }, [cities, recordingMode, selectedGroup])
   const selectedCityIdsKey = resolvedSelectedGroup?.cityIds.join("|") ?? null
 
   function selectCity(city: DirectoryMapCity) {
-    setSelectedGroup(cityToGroup(city))
+    if (!recordingModeRef.current) {
+      setSelectedGroup(cityToGroup(city))
+    }
     mapRef.current?.flyTo({
       center: [city.lng, city.lat],
       zoom: Math.max(mapRef.current.getZoom(), 5),
@@ -409,9 +414,16 @@ export default function MapDirectoryView({
       )
       const clusterCities = citiesRef.current.filter((city) => cityIds.has(city.id))
       const group = nearbyCitiesToGroup(clusterCities)
-      if (group) setSelectedGroup(group)
+      if (group && !recordingModeRef.current) setSelectedGroup(group)
     })
   }
+
+  useEffect(() => {
+    recordingModeRef.current = recordingMode
+    if (mapRef.current && citiesRef.current.length > 0) {
+      fitToCities(mapRef.current, citiesRef.current, 250, !recordingMode)
+    }
+  }, [recordingMode])
 
   useEffect(() => {
     citiesRef.current = cities
@@ -420,7 +432,7 @@ export default function MapDirectoryView({
     source?.setData(buildCityGeoJson(cities))
 
     if (mapRef.current && cities.length > 0) {
-      fitToCities(mapRef.current, cities)
+      fitToCities(mapRef.current, cities, 450, !recordingModeRef.current)
     }
   }, [cities])
 
@@ -567,7 +579,7 @@ export default function MapDirectoryView({
           },
         })
 
-        fitToCities(map, citiesRef.current, 0)
+        fitToCities(map, citiesRef.current, 0, !recordingModeRef.current)
 
         map.on("click", (event: MapLayerMouseEvent) => {
           const features = map.queryRenderedFeatures(event.point, {
@@ -653,14 +665,16 @@ export default function MapDirectoryView({
         <MapFallback cities={cities} reason={fallbackReason} onSelectCity={selectCity} />
       )}
 
-      <CityDrawer
-        cities={cities}
-        selectedGroup={resolvedSelectedGroup}
-        connectionMap={connectionMap}
-        currentUserId={currentUserId}
-        onSelectCity={selectCity}
-        onOpenMember={onOpenMember}
-      />
+      {!recordingMode && (
+        <CityDrawer
+          cities={cities}
+          selectedGroup={resolvedSelectedGroup}
+          connectionMap={connectionMap}
+          currentUserId={currentUserId}
+          onSelectCity={selectCity}
+          onOpenMember={onOpenMember}
+        />
+      )}
     </div>
   )
 }

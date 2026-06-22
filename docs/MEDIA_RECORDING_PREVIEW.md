@@ -42,8 +42,8 @@ npm install
 npm run recording:seed:summary -- \
   --source "/path/to/sot_dashboard.json" \
   --geocodes "/path/to/location_geocodes.json" \
-  --max-members 650 \
-  --cap-per-location 5
+  --max-members 1000 \
+  --cap-per-location 25
 ```
 
 The summary should show the number of geocoded locations, planned placeholder profiles, skipped rows, top countries, and top cities.
@@ -67,8 +67,8 @@ npm run recording:seed -- \
   --source "/path/to/sot_dashboard.json" \
   --geocodes "/path/to/location_geocodes.json" \
   --batch recording_seed_2026_06_22 \
-  --max-members 650 \
-  --cap-per-location 5 \
+  --max-members 1000 \
+  --cap-per-location 25 \
   --yes
 ```
 
@@ -80,7 +80,7 @@ After Netlify finishes the PR Deploy Preview, share:
 
 - Deploy Preview URL
 - test login email/password
-- route: `/dashboard/directory?view=map`
+- route: `/dashboard/directory?view=map&recording=1`
 - instruction: clear filters before recording
 
 ## Cleanup after recording

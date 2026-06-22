@@ -49,6 +49,7 @@ export type DirectoryParams = {
   field: string
   tab: string
   tags: string[]
+  recording: boolean
 }
 
 export type DirectoryProps = {
