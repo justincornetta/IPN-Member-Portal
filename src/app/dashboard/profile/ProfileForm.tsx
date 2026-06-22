@@ -64,13 +64,57 @@ type FormState = {
   bio: string
   interest_tags: string[]
   linkedin_url: string
-  whatsapp_url: string
+  whatsapp_country_code: string
+  whatsapp_number: string
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
 }
 
+const COUNTRY_DIAL_CODES: Record<string, string> = {
+  "United States": "1", "Canada": "1", "United Kingdom": "44",
+  "Australia": "61", "Germany": "49", "Netherlands": "31",
+  "Israel": "972", "Switzerland": "41", "Spain": "34", "France": "33",
+  "Brazil": "55", "Mexico": "52", "Italy": "39", "Ireland": "353",
+  "New Zealand": "64", "South Africa": "27", "India": "91",
+  "Japan": "81", "Sweden": "46", "Norway": "47", "Denmark": "45",
+  "Belgium": "32", "Austria": "43", "Portugal": "351", "Poland": "48",
+  "Greece": "30", "Turkey": "90", "Argentina": "54", "Chile": "56",
+  "Colombia": "57", "Finland": "358", "Czech Republic": "420",
+}
+
+function parseWhatsappUrl(
+  url: string | null,
+  country: string | null,
+): { countryCode: string; number: string } {
+  const dialCode = country ? (COUNTRY_DIAL_CODES[country] ?? "") : ""
+
+  if (!url) {
+    return { countryCode: dialCode ? `+${dialCode}` : "", number: "" }
+  }
+
+  const match = url.match(/wa\.me\/(\d+)/)
+  if (!match) return { countryCode: dialCode ? `+${dialCode}` : "", number: "" }
+
+  const allDigits = match[1]
+  if (dialCode && allDigits.startsWith(dialCode)) {
+    return { countryCode: `+${dialCode}`, number: allDigits.slice(dialCode.length) }
+  }
+  return { countryCode: "", number: allDigits }
+}
+
+function buildWhatsappUrl(code: string, number: string): string | null {
+  const numberDigits = number.replace(/\D/g, "")
+  if (!numberDigits) return null
+  const codeDigits = code.replace(/\D/g, "")
+  return `https://wa.me/${codeDigits}${numberDigits}`
+}
+
 function toFormState(profile: Profile | null, contact: Contact | null): FormState {
+  const { countryCode, number } = parseWhatsappUrl(
+    contact?.whatsapp_url ?? null,
+    profile?.country ?? null,
+  )
   return {
     first_name: profile?.first_name ?? "",
     last_name: profile?.last_name ?? "",
@@ -86,7 +130,8 @@ function toFormState(profile: Profile | null, contact: Contact | null): FormStat
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
-    whatsapp_url: contact?.whatsapp_url ?? "",
+    whatsapp_country_code: countryCode,
+    whatsapp_number: number,
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
@@ -555,7 +600,7 @@ export default function ProfileForm({
       bio: data.bio || null,
       interest_tags: data.interest_tags.length > 0 ? data.interest_tags : null,
       linkedin_url: data.linkedin_url || null,
-      whatsapp_url: data.whatsapp_url || null,
+      whatsapp_url: buildWhatsappUrl(data.whatsapp_country_code, data.whatsapp_number),
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
       avatar_url: data.avatar_url,
@@ -692,12 +737,29 @@ export default function ProfileForm({
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="whatsapp_url">WhatsApp</Label>
-            <TextInput id="whatsapp_url" name="whatsapp_url" value={data.whatsapp_url}
-              onChange={(v) => update("whatsapp_url", v)}
-              placeholder="https://wa.me/15551234567" />
+            <Label htmlFor="whatsapp_number">WhatsApp</Label>
+            <div className="flex gap-2">
+              <input
+                id="whatsapp_country_code"
+                name="whatsapp_country_code"
+                type="text"
+                value={data.whatsapp_country_code}
+                onChange={(e) => update("whatsapp_country_code", e.target.value)}
+                placeholder="+1"
+                className="w-16 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+              />
+              <input
+                id="whatsapp_number"
+                name="whatsapp_number"
+                type="tel"
+                value={data.whatsapp_number}
+                onChange={(e) => update("whatsapp_number", e.target.value)}
+                placeholder="555 123 4567"
+                className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+              />
+            </div>
             <p className="text-xs text-zinc-400">
-              Shown only to accepted connections, alongside your account email.
+              Shown only to accepted connections, alongside your email.
             </p>
           </div>
 
@@ -833,7 +895,7 @@ export default function ProfileForm({
             <div className="h-px bg-zinc-200" />
             <div className="flex flex-col gap-0.5">
               <p className="font-semibold text-zinc-500">Connections also see</p>
-              <p className="text-zinc-400">Email</p>
+              <p className="text-zinc-400">Email and WhatsApp (if added)</p>
             </div>
           </div>
         </div>

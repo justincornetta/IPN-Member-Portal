@@ -6,8 +6,8 @@ import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import AdminClient from "./AdminClient"
 import type { AnalyticsData } from "./AdminClient"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
-import { getTeamPermissions } from "@/lib/admin/actions"
-import type { TeamPermissionsMap } from "@/lib/admin/actions"
+import { getTeamPermissions, listFeedbackSubmissions } from "@/lib/admin/actions"
+import type { TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -91,6 +91,7 @@ export default async function AdminPage() {
   }
 
   const teamPermissions: TeamPermissionsMap = isSuperadmin ? await getTeamPermissions() : {}
+  const feedback: FeedbackSubmission[] = isSuperadmin ? await listFeedbackSubmissions() : []
 
   const analytics: AnalyticsData = {
     total,
@@ -110,6 +111,7 @@ export default async function AdminPage() {
       leadership={leadership}
       analytics={analytics}
       teamPermissions={teamPermissions}
+      feedback={feedback}
     />
   )
 }

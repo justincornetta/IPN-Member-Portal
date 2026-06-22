@@ -6,7 +6,14 @@ type WhatsAppCommunityCardProps = {
   onJoin?: () => void
 }
 
-const WHATSAPP_COMMUNITY_URL = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL
+// Resolve URL from explicit link or generate from phone number
+const WHATSAPP_URL: string | null = (() => {
+  const url = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
+  if (url) return url
+  const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
+  if (phone) return `https://wa.me/${phone.replace(/\D/g, "")}`
+  return null
+})()
 
 export const WHATSAPP_COMMUNITY_COPY =
   "Join the IPN WhatsApp Community to connect with other members and stay up to date on the latest IPN events and news."
@@ -48,9 +55,9 @@ export default function WhatsAppCommunityCard({
       </div>
 
       <div className="mt-4">
-        {WHATSAPP_COMMUNITY_URL ? (
+        {WHATSAPP_URL ? (
           <a
-            href={WHATSAPP_COMMUNITY_URL}
+            href={WHATSAPP_URL}
             target="_blank"
             rel="noreferrer"
             onClick={onJoin}

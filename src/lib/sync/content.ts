@@ -18,11 +18,19 @@ type SyncResult = {
   skipped: number
 }
 
+type SyncError = { error: string }
+
 type SyncSummary = {
-  substack: SyncResult
-  youtube: SyncResult
-  eventbrite: SyncResult
-  cleanup: { marked: number }
+  substack: SyncResult | SyncError
+  youtube: SyncResult | SyncError
+  eventbrite: SyncResult | SyncError
+  cleanup: { marked: number } | SyncError
+}
+
+function catchSync<T>(fn: () => Promise<T>): Promise<T | SyncError> {
+  return fn().catch((e: unknown) => ({
+    error: e instanceof Error ? e.message : String(e),
+  }))
 }
 
 type EventbriteAttendee = {
@@ -360,11 +368,11 @@ async function markEndedEvents() {
 
 export async function runContentSync(): Promise<SyncSummary> {
   const [substack, youtube, eventbrite] = await Promise.all([
-    syncSubstack(),
-    syncYouTube(),
-    syncEventbrite(),
+    catchSync(syncSubstack),
+    catchSync(syncYouTube),
+    catchSync(syncEventbrite),
   ])
-  const cleanup = await markEndedEvents()
+  const cleanup = await catchSync(markEndedEvents)
 
   return { substack, youtube, eventbrite, cleanup }
 }
