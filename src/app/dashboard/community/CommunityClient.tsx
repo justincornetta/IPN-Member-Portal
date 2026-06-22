@@ -75,10 +75,14 @@ function ProfileModal({
   profile,
   onRemove,
   onClose,
+  removeLabel = "Remove connection",
+  showEmail = true,
 }: {
   profile: ConnectionProfile
   onRemove: () => void
   onClose: () => void
+  removeLabel?: string
+  showEmail?: boolean
 }) {
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -121,14 +125,32 @@ function ProfileModal({
         <div className="border-t border-zinc-100" />
 
         <div className="flex flex-col gap-4 px-6 py-5">
-          <div className="flex items-center gap-2 rounded-lg bg-ipn/5 border border-ipn/20 px-4 py-3">
-            <svg className="h-4 w-4 flex-shrink-0 text-ipn" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-            </svg>
-            <a href={`mailto:${profile.email}`} className="text-sm font-medium text-ipn hover:underline">
-              {profile.email}
+          {showEmail && profile.email && (
+            <div className="flex items-center gap-2 rounded-lg bg-ipn/5 border border-ipn/20 px-4 py-3">
+              <svg className="h-4 w-4 flex-shrink-0 text-ipn" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+              </svg>
+              <a href={`mailto:${profile.email}`} className="text-sm font-medium text-ipn hover:underline">
+                {profile.email}
+              </a>
+            </div>
+          )}
+          {showEmail && profile.whatsapp_url && (
+            <a
+              href={profile.whatsapp_url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 transition hover:border-emerald-300 hover:bg-emerald-100"
+            >
+              <svg className="h-4 w-4 flex-shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19.05 4.91A9.8 9.8 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.27-1.38a9.9 9.9 0 0 0 4.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91a9.86 9.86 0 0 0-2.9-7.01ZM12.04 20.15h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.39c0-4.54 3.69-8.23 8.24-8.23a8.2 8.2 0 0 1 5.82 2.41 8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.23 8.24Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.08-.39-.12-.56.12-.16.25-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.01 2.56c.12.16 1.75 2.67 4.24 3.75.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.08.14-1.18-.06-.11-.23-.17-.48-.29Z" />
+              </svg>
+              <span className="flex-1 text-sm font-medium text-emerald-700">Message on WhatsApp</span>
+              <svg className="h-4 w-4 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
             </a>
-          </div>
+          )}
           {profile.field && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Field</p>
@@ -162,7 +184,7 @@ function ProfileModal({
             onClick={onRemove}
             className="rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn hover:bg-ipn/5 transition"
           >
-            Remove connection
+            {removeLabel}
           </button>
         </div>
       </div>
@@ -173,9 +195,11 @@ function ProfileModal({
 function OutgoingCard({
   row,
   onCancelled,
+  onView,
 }: {
   row: ConnectionRow
   onCancelled: (addresseeId: string) => void
+  onView: (profile: ConnectionProfile) => void
 }) {
   const addressee = row.addressee
   const [, startTransition] = useTransition()
@@ -192,15 +216,23 @@ function OutgoingCard({
         )}
         <p className="mt-0.5 text-xs text-zinc-400">Request pending</p>
       </div>
-      <button
-        onClick={() => {
-          onCancelled(row.addressee_id)
-          startTransition(() => { removeConnection(row.addressee_id) })
-        }}
-        className="flex-shrink-0 rounded-md border border-zinc-200 px-3 py-1.5 text-xs text-zinc-400 hover:border-red-200 hover:text-red-500 transition cursor-pointer"
-      >
-        Cancel
-      </button>
+      <div className="flex flex-shrink-0 gap-2">
+        <button
+          onClick={() => onView(addressee)}
+          className="rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white hover:bg-ipn/90 transition"
+        >
+          View profile
+        </button>
+        <button
+          onClick={() => {
+            onCancelled(row.addressee_id)
+            startTransition(() => { removeConnection(row.addressee_id) })
+          }}
+          className="rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn hover:bg-ipn/5 transition"
+        >
+          Cancel request
+        </button>
+      </div>
     </div>
   )
 }
@@ -281,7 +313,7 @@ function RequestCard({
       <div className="flex flex-shrink-0 gap-2">
         <button
           onClick={() => onView(requester)}
-          className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 transition"
+          className="rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white hover:bg-ipn/90 transition"
         >
           View profile
         </button>
@@ -299,7 +331,7 @@ function RequestCard({
             onDeclined(row.id)
             startTransition(() => { declineConnection(row.requester_id) })
           }}
-          className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 transition"
+          className="rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn hover:bg-ipn/5 transition"
         >
           Decline
         </button>
@@ -336,6 +368,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
   const [incoming, setIncoming] = useState(initialIncoming)
   const [outgoing, setOutgoing] = useState(initialOutgoing)
   const [viewProfile, setViewProfile] = useState<ConnectionProfile | null>(null)
+  const [viewOutgoingProfile, setViewOutgoingProfile] = useState<ConnectionProfile | null>(null)
   const [pendingRemove, setPendingRemove] = useState<ConnectionProfile | null>(null)
   const [, startTransition] = useTransition()
 
@@ -382,9 +415,9 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <WhatsAppCommunityCard compact />
-        <InviteFriendsCard variant="compact" />
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <WhatsAppCommunityCard className="flex-1" />
+        <InviteFriendsCard className="flex-1" />
       </div>
 
       <div className="flex gap-1 rounded-xl border border-zinc-200 bg-white p-1 w-fit shadow-sm">
@@ -451,6 +484,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
                   key={row.id}
                   row={row}
                   onCancelled={handleCancelledOutgoing}
+                  onView={setViewOutgoingProfile}
                 />
               ))}
             </div>
@@ -469,6 +503,20 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
             setViewProfile(null)
           }}
           onClose={() => setViewProfile(null)}
+        />
+      )}
+
+      {viewOutgoingProfile && (
+        <ProfileModal
+          profile={viewOutgoingProfile}
+          removeLabel="Cancel request"
+          showEmail={false}
+          onRemove={() => {
+            handleCancelledOutgoing(viewOutgoingProfile.id)
+            startTransition(() => { removeConnection(viewOutgoingProfile.id) })
+            setViewOutgoingProfile(null)
+          }}
+          onClose={() => setViewOutgoingProfile(null)}
         />
       )}
 

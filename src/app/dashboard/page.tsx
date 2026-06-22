@@ -204,43 +204,46 @@ function ChecklistItem({
 
 function MemberOnboarding() {
   const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
+    || (process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
+      ? `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE!.trim().replace(/\D/g, "")}`
+      : undefined)
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div>
-        <p className="text-sm font-medium text-ipn">Member setup</p>
+        <p className="text-sm font-medium text-ipn">Get involved</p>
         <h2 className="mt-1 text-lg font-semibold text-zinc-900">
-          Make the portal useful
+          Make the most of your membership
         </h2>
       </div>
 
       <div className="mt-4 flex flex-col gap-2">
         <ChecklistItem
           number={1}
-          title="Review profile"
-          body="Add a profile picture, bio, and top interests."
+          title="Complete your profile"
+          body="Help members find and connect with you."
           href="/dashboard/profile"
           icon={<ProfileIcon />}
         />
         <ChecklistItem
           number={2}
           title="Join WhatsApp"
-          body="Connect with members and updates."
+          body="Stay in the loop and connect with members."
           href={whatsappUrl || "/dashboard/community"}
           icon={<WhatsAppIcon />}
           external={Boolean(whatsappUrl)}
         />
         <ChecklistItem
           number={3}
-          title="Register for an event"
-          body="Start with the next IPN event."
+          title="Attend an event"
+          body="Join the next IPN gathering or webinar."
           href="/dashboard/events"
           icon={<CalendarIcon />}
         />
         <ChecklistItem
           number={4}
-          title="Connect with IPN Members"
-          body="Find members; check requests in Community."
+          title="Explore the member map"
+          body="Find collaborators and peers across the network."
           href="/dashboard/directory?view=map"
           icon={<GlobeIcon />}
         />
@@ -406,12 +409,14 @@ function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
         </g>
         {clusters.map((cluster) => {
           const radius = Math.min(13, 7 + Math.sqrt(cluster.memberCount) * 1.8)
+          const label = `${cluster.label}: ${cluster.memberCount} member${cluster.memberCount === 1 ? "" : "s"}`
           return (
-            <g key={`${cluster.x}-${cluster.y}`} transform={`translate(${cluster.x} ${cluster.y})`}>
-              <title>
-                {cluster.label}: {cluster.memberCount} member
-                {cluster.memberCount === 1 ? "" : "s"}
-              </title>
+            <g
+              key={`${cluster.x}-${cluster.y}`}
+              transform={`translate(${cluster.x} ${cluster.y})`}
+              role="img"
+              aria-label={label}
+            >
               <circle r={radius + 4} fill="rgba(102,79,161,0.22)" />
               <circle r={radius} fill="#664fa1" stroke="white" strokeWidth="2" />
               <text
@@ -638,7 +643,8 @@ export default async function DashboardPage({
       .not("city", "is", null)
       .not("city_lat", "is", null)
       .not("city_lng", "is", null)
-      .order("first_name", { ascending: true }),
+      .order("first_name", { ascending: true })
+      .limit(500),
   ])
 
   const profile = profileResult.data as MemberProfile | null

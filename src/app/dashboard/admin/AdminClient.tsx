@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { searchMembersForAdmin, assignAdminAccess, setTeamPermission } from "@/lib/admin/actions"
-import type { AdminMemberProfile, AdminContentType, TeamPermissionsMap } from "@/lib/admin/actions"
+import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission } from "@/lib/admin/actions"
+import type { AdminMemberProfile, AdminContentType, TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import ContentIntakeForm from "./ContentIntakeForm"
 
@@ -325,6 +325,7 @@ type Props = {
   leadership: AdminMemberProfile[]
   analytics: AnalyticsData | null
   teamPermissions: TeamPermissionsMap
+  feedback: FeedbackSubmission[]
 }
 
 function TeamPermissionsMatrix({ initialPerms }: { initialPerms: TeamPermissionsMap }) {
@@ -457,17 +458,139 @@ function mailchimpBadge(status: MailchimpStatus | null) {
   }
 }
 
-export default function AdminClient({ isSuperadmin, leadership, analytics, teamPermissions }: Props) {
-  type Tab = "analytics" | "content" | "leadership"
+function FeedbackStatusBadge({ status }: { status: string }) {
+  const cfg =
+    status === "resolved"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : status === "in_progress"
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-zinc-200 bg-zinc-50 text-zinc-500"
+  const label =
+    status === "resolved" ? "Resolved" : status === "in_progress" ? "In progress" : "New"
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cfg}`}>
+      {label}
+    </span>
+  )
+}
+
+function FeedbackTypeBadge({ type }: { type: string }) {
+  const cfg =
+    type === "bug"
+      ? "border-red-200 bg-red-50 text-red-600"
+      : type === "suggestion"
+        ? "border-ipn/30 bg-ipn/5 text-ipn"
+        : "border-zinc-200 bg-zinc-50 text-zinc-500"
+  const label = type === "bug" ? "Bug" : type === "suggestion" ? "Suggestion" : "Feedback"
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cfg}`}>
+      {label}
+    </span>
+  )
+}
+
+function FeedbackTab({
+  submissions,
+  onStatusChange,
+  onDelete,
+}: {
+  submissions: FeedbackSubmission[]
+  onStatusChange: (id: string, status: "new" | "in_progress" | "resolved") => void
+  onDelete: (id: string) => void
+}) {
+  const newCount = submissions.filter((s) => s.status === "new").length
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          {submissions.length} submission{submissions.length !== 1 ? "s" : ""}
+        </p>
+        {newCount > 0 && (
+          <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+            {newCount} new
+          </span>
+        )}
+      </div>
+
+      {submissions.length === 0 ? (
+        <p className="text-sm text-zinc-400">No submissions yet.</p>
+      ) : (
+        <div className="rounded-xl border border-zinc-200 bg-white shadow-sm divide-y divide-zinc-100">
+          {submissions.map((s) => (
+            <div key={s.id} className="flex flex-col gap-2 px-5 py-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <FeedbackTypeBadge type={s.type} />
+                <FeedbackStatusBadge status={s.status} />
+                <span className="ml-auto text-xs text-zinc-400">
+                  {new Date(s.created_at).toLocaleDateString("en-US", {
+                    month: "short", day: "numeric", year: "numeric",
+                  })}
+                </span>
+              </div>
+              <p className="text-sm text-zinc-800 whitespace-pre-wrap">{s.message}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs text-zinc-400">
+                  <span className="font-medium text-zinc-600">{s.user_name ?? "Unknown"}</span>
+                  {s.user_email && <> · {s.user_email}</>}
+                  {s.page && <> · <span className="font-mono">{s.page}</span></>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={s.status}
+                    onChange={(e) => onStatusChange(s.id, e.target.value as "new" | "in_progress" | "resolved")}
+                    className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 outline-none focus:border-ipn focus:ring-1 focus:ring-ipn/20"
+                  >
+                    <option value="new">New</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(s.id)}
+                    className="rounded-lg border border-zinc-200 p-1.5 text-zinc-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                    aria-label="Delete submission"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function AdminClient({ isSuperadmin, leadership, analytics, teamPermissions, feedback: initialFeedback }: Props) {
+  type Tab = "analytics" | "content" | "leadership" | "feedback"
   const defaultTab: Tab = analytics ? "analytics" : "content"
   const [tab, setTab] = useState<Tab>(defaultTab)
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
   const [signupsPage, setSignupsPage] = useState(0)
+  const [feedback, setFeedback] = useState(initialFeedback)
+  const [, startTransition] = useTransition()
 
-  const tabs: { id: Tab; label: string }[] = [
+  function handleFeedbackStatusChange(id: string, status: "new" | "in_progress" | "resolved") {
+    setFeedback((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)))
+    startTransition(() => { updateFeedbackStatus(id, status) })
+  }
+
+  function handleFeedbackDelete(id: string) {
+    setFeedback((prev) => prev.filter((s) => s.id !== id))
+    startTransition(() => { deleteFeedbackSubmission(id) })
+  }
+
+  const newFeedbackCount = feedback.filter((f) => f.status === "new").length
+
+  const tabs: { id: Tab; label: string; badge?: number }[] = [
     ...(analytics ? [{ id: "analytics" as Tab, label: "Analytics" }] : []),
     { id: "content", label: "Content" },
     { id: "leadership", label: "Leadership" },
+    ...(isSuperadmin ? [{ id: "feedback" as Tab, label: "Feedback", badge: newFeedbackCount || undefined }] : []),
   ]
 
   const rosterByTeam = TEAM_ORDER.map((team) => ({
@@ -494,18 +617,23 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
 
       {/* Tab bar */}
       <div className="flex border-b border-zinc-200">
-        {tabs.map(({ id, label }) => (
+        {tabs.map(({ id, label, badge }) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`cursor-pointer px-5 py-2.5 text-sm font-medium transition ${
+            className={`relative flex cursor-pointer items-center gap-1.5 px-5 py-2.5 text-sm font-medium transition ${
               tab === id
                 ? "-mb-px border-b-2 border-ipn text-ipn"
                 : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
             {label}
+            {badge ? (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+                {badge > 9 ? "9+" : badge}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -737,6 +865,15 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Feedback tab ── */}
+      {tab === "feedback" && isSuperadmin && (
+        <FeedbackTab
+          submissions={feedback}
+          onStatusChange={handleFeedbackStatusChange}
+          onDelete={handleFeedbackDelete}
+        />
       )}
 
       {/* Shared member modal */}

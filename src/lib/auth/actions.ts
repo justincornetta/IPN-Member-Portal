@@ -247,6 +247,7 @@ export async function updateProfile(
     bio: data.bio,
     interest_tags: data.interest_tags,
     linkedin_url: data.linkedin_url,
+    whatsapp_url: whatsappUrl,
     is_discoverable: data.is_discoverable,
     share_location: data.share_location,
     avatar_url: data.avatar_url,
@@ -279,20 +280,6 @@ export async function updateProfile(
     .single()
 
   if (error) return { error: error.message }
-
-  const { error: contactError } = await supabase
-    .from("member_contacts")
-    .upsert(
-      {
-        user_id: user.id,
-        email: user.email ?? null,
-        whatsapp_url: whatsappUrl,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    )
-
-  if (contactError) return { error: contactError.message }
 
   if (updatedProfile?.mailchimp_status === "subscribed" && updatedProfile.email) {
     const mailchimpResult = await setMailchimpSubscription(

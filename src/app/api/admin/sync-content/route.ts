@@ -13,6 +13,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const result = await runContentSync()
-  return NextResponse.json({ ok: true, result })
+  const TIMEOUT_MS = 9000
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Sync timed out after 9s")), TIMEOUT_MS),
+  )
+
+  try {
+    const result = await Promise.race([runContentSync(), timeout])
+    return NextResponse.json({ ok: true, result })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("[sync-content] Unhandled error:", message)
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
+  }
 }

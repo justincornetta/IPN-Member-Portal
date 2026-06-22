@@ -605,6 +605,54 @@ export async function setTeamPermission(
   return {}
 }
 
+export type FeedbackSubmission = {
+  id: string
+  user_id: string | null
+  user_name: string | null
+  user_email: string | null
+  page: string | null
+  type: string
+  message: string
+  status: string
+  created_at: string
+}
+
+export async function listFeedbackSubmissions(): Promise<FeedbackSubmission[]> {
+  const authError = await verifySuperadmin()
+  if (authError) return []
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("feedback_submissions")
+    .select("id, user_id, user_name, user_email, page, type, message, status, created_at")
+    .order("created_at", { ascending: false })
+    .limit(200)
+  return (data ?? []) as FeedbackSubmission[]
+}
+
+export async function updateFeedbackStatus(
+  id: string,
+  status: "new" | "in_progress" | "resolved",
+): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from("feedback_submissions")
+    .update({ status })
+    .eq("id", id)
+  if (error) return { error: error.message }
+  return {}
+}
+
+export async function deleteFeedbackSubmission(id: string): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+  const admin = createAdminClient()
+  const { error } = await admin.from("feedback_submissions").delete().eq("id", id)
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function uploadContentImage(
   formData: FormData,
 ): Promise<{ url?: string; error?: string }> {
