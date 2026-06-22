@@ -294,14 +294,18 @@ async function syncEventbrite() {
       }
     })
 
-    if (rows.length) {
+    const uniqueRows = Array.from(
+      new Map(rows.map((r) => [r.attendee_email_normalized, r])).values(),
+    )
+
+    if (uniqueRows.length) {
       const { data: existingRows } = await supabase
         .from("event_ticket_access")
         .select("attendee_email_normalized")
         .eq("event_id", portalEvent.id)
         .in(
           "attendee_email_normalized",
-          rows.map((row) => row.attendee_email_normalized),
+          uniqueRows.map((row) => row.attendee_email_normalized),
         )
       const existingEmails = new Set(
         ((existingRows ?? []) as { attendee_email_normalized: string }[]).map(
@@ -311,13 +315,13 @@ async function syncEventbrite() {
 
       const { error } = await supabase
         .from("event_ticket_access")
-        .upsert(rows, { onConflict: "event_id,attendee_email_normalized" })
+        .upsert(uniqueRows, { onConflict: "event_id,attendee_email_normalized" })
       if (error) throw new Error(error.message)
 
-      result.inserted += rows.filter(
+      result.inserted += uniqueRows.filter(
         (row) => !existingEmails.has(row.attendee_email_normalized),
       ).length
-      result.updated += rows.filter((row) =>
+      result.updated += uniqueRows.filter((row) =>
         existingEmails.has(row.attendee_email_normalized),
       ).length
     }
