@@ -33,7 +33,7 @@ async function geocodeCity(
     const q = encodeURIComponent([city, state, country].filter(Boolean).join(", "))
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-      { headers: { "User-Agent": "IPN-Member-Portal (members.ipn.org)" } },
+      { headers: { "User-Agent": "IPN-Member-Portal (members.intercollegiatepsychedelics.net)" } },
     )
     const results: { lat: string; lon: string }[] = await res.json()
     if (results[0]) return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) }

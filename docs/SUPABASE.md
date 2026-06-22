@@ -39,12 +39,12 @@ In your Supabase project → Authentication → Settings:
 
 | Setting | Value |
 |---|---|
-| **Site URL** | `https://ipn-member-portal.netlify.app` until `members.ipn.org` moves to Netlify |
-| **Redirect URLs** | Add `http://localhost:3000/**`, `https://ipn-member-portal.netlify.app/**`, and `https://deploy-preview-*--ipn-member-portal.netlify.app/**` |
+| **Site URL** | `https://members.intercollegiatepsychedelics.net` |
+| **Redirect URLs** | Add `http://localhost:3000/**`, `https://members.intercollegiatepsychedelics.net/**`, `https://ipn-member-portal.netlify.app/**`, and `https://deploy-preview-*--ipn-member-portal.netlify.app/**` |
 | **Email confirmation** | Disabled (skip for demo) |
 | **Secure email change** | Enabled (default) |
 
-> Tip: Supabase allows multiple redirect URLs, including wildcard patterns for Netlify Deploy Previews. Keep `https://members.ipn.org/**` listed if the production domain is already in use or about to move.
+> Tip: Supabase allows multiple redirect URLs, including wildcard patterns for Netlify Deploy Previews. Keep the Netlify app URL listed during the cutover so existing links continue to complete auth callbacks.
 
 ---
 

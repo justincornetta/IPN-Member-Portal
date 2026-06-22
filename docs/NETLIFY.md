@@ -29,7 +29,7 @@ Add these in Netlify project settings:
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Same value | Public anon client config |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Same value | Public anon client config |
-| `NEXT_PUBLIC_SITE_URL` | Leave unset until the production domain moves | Leave unset | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this to `https://members.ipn.org` only after the production domain moves |
+| `NEXT_PUBLIC_SITE_URL` | `https://members.intercollegiatepsychedelics.net` | Leave unset | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this only for production so deploy previews keep their own callback URL |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox public access token | Same value | Public token for the Directory Map; restrict by domain in Mapbox |
 | `NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL` | WhatsApp Community invite link | Optional / same value when available | Public link used by dashboard, welcome modal, and Community page CTAs |
 
@@ -41,13 +41,13 @@ In Supabase, go to Authentication -> URL Configuration.
 
 | Setting | Value |
 |---|---|
-| Site URL | `https://ipn-member-portal.netlify.app` until the production domain moves |
+| Site URL | `https://members.intercollegiatepsychedelics.net` |
 | Redirect URL | `http://localhost:3000/**` |
-| Redirect URL | `https://members.ipn.org/**` |
-| Redirect URL | `https://<netlify-site-name>.netlify.app/**` |
-| Redirect URL | `https://deploy-preview-*--<netlify-site-name>.netlify.app/**` |
+| Redirect URL | `https://members.intercollegiatepsychedelics.net/**` |
+| Redirect URL | `https://ipn-member-portal.netlify.app/**` |
+| Redirect URL | `https://deploy-preview-*--ipn-member-portal.netlify.app/**` |
 
-Replace `<netlify-site-name>` with the real Netlify site subdomain. Supabase supports wildcard redirect patterns for Netlify preview URLs.
+Supabase supports wildcard redirect patterns for Netlify Deploy Preview URLs.
 
 ## Validation checklist
 
@@ -59,10 +59,19 @@ Replace `<netlify-site-name>` with the real Netlify site subdomain. Supabase sup
 
 ## Production domain cutover
 
-1. Move `members.ipn.org` DNS to Netlify.
-2. Set Supabase Site URL to `https://members.ipn.org`.
-3. Set Netlify `NEXT_PUBLIC_SITE_URL` to `https://members.ipn.org`.
-4. Verify signup/login callbacks on the production domain.
+Use the existing Squarespace-managed `intercollegiatepsychedelics.net` domain. Do not buy a new domain and do not move DNS authority to Netlify.
+
+1. In Netlify, add `members.intercollegiatepsychedelics.net` as a custom domain for this site.
+2. In Squarespace DNS for `intercollegiatepsychedelics.net`, add one custom record:
+   - Type: `CNAME`
+   - Host: `members`
+   - Value: `ipn-member-portal.netlify.app`
+3. Leave the existing apex, `www`, MX, TXT, and Squarespace records unchanged.
+4. Wait for Netlify DNS verification and HTTPS certificate provisioning.
+5. Set `members.intercollegiatepsychedelics.net` as the primary domain in Netlify.
+6. Set Supabase Site URL to `https://members.intercollegiatepsychedelics.net`.
+7. Set Netlify production `NEXT_PUBLIC_SITE_URL` to `https://members.intercollegiatepsychedelics.net`.
+8. Verify signup/login callbacks on the production domain.
 
 ## Vercel deprecation
 

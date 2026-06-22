@@ -16,7 +16,7 @@ When the inlined summaries below diverge from Notion, **Notion wins**. Refresh t
 
 ## What we're building
 
-A vibe-coded web app at `members.ipn.org` (PWA, no native app stores in v1) that gives IPN members a single home for:
+A vibe-coded web app at `members.intercollegiatepsychedelics.net` (PWA, no native app stores in v1) that gives IPN members a single home for:
 
 - Discovering each other (searchable directory by persona, school, area of study, location)
 - Finding and registering for events (replaces scattered Zoom/Google Calendar embed)

@@ -9,12 +9,10 @@ type InviteFriendsCardProps = {
   checklistNumber?: number
 }
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://members.ipn.org"
+const MEMBER_PORTAL_URL = "https://members.intercollegiatepsychedelics.net"
 
 function buildInviteUrl() {
-  const baseUrl = SITE_URL.replace(/\/$/, "")
-  const url = new URL("/register", baseUrl)
+  const url = new URL("/register", MEMBER_PORTAL_URL)
   url.searchParams.set("utm_source", "member_portal")
   url.searchParams.set("utm_medium", "member_invite")
   url.searchParams.set("utm_campaign", "member_referral")
@@ -85,7 +83,7 @@ export default function InviteFriendsCard({
   checklistNumber = 5,
 }: InviteFriendsCardProps) {
   const [copied, setCopied] = useState(false)
-  const inviteUrl = useMemo(buildInviteUrl, [])
+  const inviteUrl = useMemo(() => buildInviteUrl(), [])
   const isCompact = variant === "compact"
   const isHeader = variant === "header"
   const isChecklist = variant === "checklist"

@@ -122,7 +122,7 @@ export function buildIcsContent(event: EventRecord): string {
     "VERSION:2.0",
     "PRODID:-//IPN//Member Portal//EN",
     "BEGIN:VEVENT",
-    `UID:${event.id}@members.ipn.org`,
+    `UID:${event.id}@members.intercollegiatepsychedelics.net`,
     `DTSTAMP:${toUtcCalendarStamp(new Date().toISOString())}`,
     `DTSTART:${toUtcCalendarStamp(event.starts_at)}`,
     `DTEND:${toUtcCalendarStamp(event.ends_at ?? event.starts_at)}`,
