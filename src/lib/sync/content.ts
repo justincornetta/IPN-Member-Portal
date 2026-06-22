@@ -28,9 +28,11 @@ type SyncSummary = {
 }
 
 function catchSync<T>(fn: () => Promise<T>): Promise<T | SyncError> {
-  return fn().catch((e: unknown) => ({
-    error: e instanceof Error ? e.message : String(e),
-  }))
+  return fn().catch((e: unknown) => {
+    if (e instanceof Error) return { error: e.message }
+    if (e && typeof e === "object" && "message" in e) return { error: String((e as { message: unknown }).message) }
+    return { error: String(e) }
+  })
 }
 
 type EventbriteAttendee = {
@@ -259,11 +261,10 @@ async function syncEventbrite() {
 
   let continuation: string | null = null
   do {
-    const params = new URLSearchParams({ page_size: "200" })
-    if (continuation) params.set("continuation", continuation)
+    const url = new URL(`https://www.eventbriteapi.com/v3/events/${externalEventId}/attendees/`)
+    if (continuation) url.searchParams.set("continuation", continuation)
 
-    const response = await fetch(
-      `https://www.eventbriteapi.com/v3/events/${externalEventId}/attendees/?${params.toString()}`,
+    const response = await fetch(url.toString(),
       { headers: { Authorization: `Bearer ${token}` } },
     )
     if (!response.ok) {
