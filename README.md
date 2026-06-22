@@ -1,6 +1,6 @@
 # IPN Member Portal
 
-The web application powering [`members.ipn.org`](https://members.ipn.org) — community discovery, events, and resources for the [Intercollegiate Psychedelics Network](https://intercollegiatepsychedelics.net).
+The web application powering [`members.intercollegiatepsychedelics.net`](https://members.intercollegiatepsychedelics.net) — community discovery, events, and resources for the [Intercollegiate Psychedelics Network](https://intercollegiatepsychedelics.net).
 
 **Status:** v0 scaffold. Auth, profiles, directory, and events are coming. Launch target: PsychedelX 2026 (end-June).
 
