@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 
 type EventRegistrationResult = {
   error?: string
@@ -41,6 +42,7 @@ export async function registerForEvent(
 
   if (error) return { error: error.message }
 
+  await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/events")
   revalidatePath(`/dashboard/events/${eventSlug}`)

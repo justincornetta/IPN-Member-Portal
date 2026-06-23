@@ -1,9 +1,15 @@
 "use server"
 
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
+import {
+  isProfileOnboardingComplete,
+  markOnboardingStepsComplete,
+  type OnboardingStep,
+} from "@/lib/onboarding/progress"
 
 export type RegistrationData = {
   email: string
@@ -159,7 +165,13 @@ export async function signIn(
   next?: string,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { error } = await supabase.auth
+    .signInWithPassword({ email, password })
+    .catch((signInError) => ({
+      error: signInError instanceof Error
+        ? signInError
+        : new Error("Could not reach the authentication server."),
+    }))
   if (error) return { error: error.message }
   let destination = next && next.startsWith("/") ? next : "/dashboard"
   if (destination.startsWith("/events/")) {
@@ -275,6 +287,20 @@ export async function updateProfile(
     .single()
 
   if (error) return { error: error.message }
+
+  const completedSteps: OnboardingStep[] = []
+  if (isProfileOnboardingComplete({
+    avatar_url: data.avatar_url,
+    bio: data.bio,
+    interest_tags: data.interest_tags,
+  })) {
+    completedSteps.push("profile")
+  }
+  if (whatsappUrl) {
+    completedSteps.push("whatsapp")
+  }
+  await markOnboardingStepsComplete(supabase, user.id, completedSteps)
+  revalidatePath("/dashboard")
 
   if (updatedProfile?.mailchimp_status === "subscribed" && updatedProfile.email) {
     const mailchimpResult = await setMailchimpSubscription(

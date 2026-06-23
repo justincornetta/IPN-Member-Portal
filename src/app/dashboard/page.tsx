@@ -6,6 +6,7 @@ import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
+import type { OnboardingProgress } from "@/lib/onboarding/progress"
 import WelcomeModal from "./WelcomeModal"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
 
@@ -26,6 +27,7 @@ type ChecklistItemProps = {
   body: string
   href: string
   icon: ReactNode
+  completed?: boolean
   external?: boolean
 }
 
@@ -34,25 +36,6 @@ type PortalFeature = {
   body: string
   href: string
   icon: ReactNode
-}
-
-function GlobeIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 21a9 9 0 1 0 0-18m0 18a9 9 0 1 1 0-18m0 18c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m-7.5 9h15"
-      />
-    </svg>
-  )
 }
 
 function ResourceIcon() {
@@ -158,27 +141,48 @@ function ArrowIcon() {
   )
 }
 
+function CheckIcon() {
+  return (
+    <svg
+      className="h-3.5 w-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2.4}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+    </svg>
+  )
+}
+
 function ChecklistItem({
   number,
   title,
   body,
   href,
   icon,
+  completed = false,
   external = false,
 }: ChecklistItemProps) {
   const content = (
     <>
-      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-ipn-light text-xs font-semibold text-ipn">
-        {number}
+      <span
+        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+          completed ? "bg-emerald-100 text-emerald-700" : "bg-ipn-light text-ipn"
+        }`}
+        aria-label={completed ? "Completed" : `Step ${number}`}
+      >
+        {completed ? <CheckIcon /> : number}
       </span>
       <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-zinc-900">{title}</span>
+          <span className="text-sm font-semibold leading-tight text-zinc-900">{title}</span>
         </span>
-        <span className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{body}</span>
+        <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-500">{body}</span>
       </span>
       <ArrowIcon />
     </>
@@ -202,7 +206,7 @@ function ChecklistItem({
   )
 }
 
-function MemberOnboarding() {
+function MemberOnboarding({ progress }: { progress: OnboardingProgress | null }) {
   const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
     || (process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
       ? `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE!.trim().replace(/\D/g, "")}`
@@ -221,16 +225,18 @@ function MemberOnboarding() {
         <ChecklistItem
           number={1}
           title="Complete your profile"
-          body="Help members find and connect with you."
+          body="Add profile picture, bio, and interests."
           href="/dashboard/profile"
           icon={<ProfileIcon />}
+          completed={Boolean(progress?.profile_completed_at)}
         />
         <ChecklistItem
           number={2}
-          title="Join WhatsApp"
-          body="Stay in the loop and connect with members."
+          title="Join IPN WhatsApp Community"
+          body="Stay updated and connect with members."
           href={whatsappUrl || "/dashboard/community"}
           icon={<WhatsAppIcon />}
+          completed={Boolean(progress?.whatsapp_completed_at)}
           external={Boolean(whatsappUrl)}
         />
         <ChecklistItem
@@ -239,15 +245,22 @@ function MemberOnboarding() {
           body="Join the next IPN gathering or webinar."
           href="/dashboard/events"
           icon={<CalendarIcon />}
+          completed={Boolean(progress?.event_rsvp_completed_at)}
         />
         <ChecklistItem
           number={4}
-          title="Explore the member map"
-          body="Find collaborators and peers across the network."
-          href="/dashboard/directory?view=map"
-          icon={<GlobeIcon />}
+          title="Connect with a member"
+          body="Send a request to start a connection."
+          href="/dashboard/directory"
+          icon={<DirectoryIcon />}
+          completed={Boolean(progress?.connection_request_completed_at)}
         />
-        <InviteFriendsCard variant="checklist" checklistNumber={5} />
+        <InviteFriendsCard
+          variant="checklist"
+          checklistNumber={5}
+          checklistCompleted={Boolean(progress?.invite_completed_at)}
+          trackOnboardingInvite
+        />
       </div>
     </section>
   )
@@ -615,7 +628,7 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
-  const [profileResult, upcomingResult, memberCountResult, mapRowsResult] = await Promise.all([
+  const [profileResult, upcomingResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags")
@@ -645,9 +658,17 @@ export default async function DashboardPage({
       .not("city_lng", "is", null)
       .order("first_name", { ascending: true })
       .limit(500),
+    supabase
+      .from("member_onboarding_progress")
+      .select(
+        "profile_completed_at, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
+      )
+      .eq("user_id", user!.id)
+      .maybeSingle(),
   ])
 
   const profile = profileResult.data as MemberProfile | null
+  const onboardingProgress = onboardingResult.data as OnboardingProgress | null
   const mapCities = buildDirectoryMapCities(
     (mapRowsResult.data ?? []) as DirectoryMapMember[],
   )
@@ -713,7 +734,7 @@ export default async function DashboardPage({
             </p>
           )}
         </div>
-        <InviteFriendsCard id="invite-friends" variant="header" />
+        <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
@@ -721,7 +742,7 @@ export default async function DashboardPage({
           events={upcomingEvents}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
-        <MemberOnboarding />
+        <MemberOnboarding progress={onboardingProgress} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

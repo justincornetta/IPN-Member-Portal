@@ -1,12 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, type MouseEvent } from "react"
+import { useRouter } from "next/navigation"
+import { completeOnboardingStep } from "@/lib/onboarding/actions"
 
 type InviteFriendsCardProps = {
   id?: string
   className?: string
   variant?: "default" | "compact" | "header" | "checklist"
   checklistNumber?: number
+  checklistCompleted?: boolean
+  trackOnboardingInvite?: boolean
 }
 
 const MEMBER_PORTAL_URL = "https://members.intercollegiatepsychedelics.net"
@@ -76,12 +80,30 @@ function ShareIcon() {
   )
 }
 
+function CheckIcon() {
+  return (
+    <svg
+      className="h-3.5 w-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2.4}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+    </svg>
+  )
+}
+
 export default function InviteFriendsCard({
   id,
   className = "",
   variant = "default",
   checklistNumber = 5,
+  checklistCompleted = false,
+  trackOnboardingInvite = false,
 }: InviteFriendsCardProps) {
+  const router = useRouter()
   const [copied, setCopied] = useState(false)
   const inviteUrl = useMemo(() => buildInviteUrl(), [])
   const isCompact = variant === "compact"
@@ -93,10 +115,17 @@ export default function InviteFriendsCard({
     `IPN has a member portal for events, resources, and finding other members. You can join here: ${inviteUrl}`,
   )}`
 
+  async function markInviteComplete() {
+    if (!trackOnboardingInvite) return
+    await completeOnboardingStep("invite")
+    router.refresh()
+  }
+
   async function copyInviteLink() {
     if (!navigator.clipboard) return
 
     await navigator.clipboard.writeText(inviteUrl)
+    await markInviteComplete()
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1800)
   }
@@ -112,10 +141,19 @@ export default function InviteFriendsCard({
       } catch {
         return
       }
+      await markInviteComplete()
       return
     }
 
     await copyInviteLink()
+  }
+
+  async function openEmailInvite(event: MouseEvent<HTMLAnchorElement>) {
+    if (!trackOnboardingInvite) return
+
+    event.preventDefault()
+    await markInviteComplete()
+    window.location.href = emailHref
   }
 
   if (isHeader) {
@@ -149,8 +187,13 @@ export default function InviteFriendsCard({
           onClick={copyInviteLink}
           className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition hover:border-ipn/30 hover:bg-zinc-50"
         >
-          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-ipn-light text-xs font-semibold text-ipn">
-            {checklistNumber}
+          <span
+            className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+              checklistCompleted ? "bg-emerald-100 text-emerald-700" : "bg-ipn-light text-ipn"
+            }`}
+            aria-label={checklistCompleted ? "Completed" : `Step ${checklistNumber}`}
+          >
+            {checklistCompleted ? <CheckIcon /> : checklistNumber}
           </span>
           <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
             <CopyIcon />
@@ -222,6 +265,7 @@ export default function InviteFriendsCard({
         {!isCompact && (
           <a
             href={emailHref}
+            onClick={openEmailInvite}
             className="inline-flex items-center justify-center rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
           >
             Email
