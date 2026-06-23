@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
-import { formatEventDateTime, registrationBand } from "@/lib/events/calendar"
+import EventDateTime from "@/components/events/EventDateTime"
+import { registrationBand } from "@/lib/events/calendar"
 import type { EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
@@ -98,7 +99,11 @@ function CompactEventCard({ event }: { event: EventWithRegistration }) {
             {event.event_type}
           </span>
           <span className="line-clamp-1 text-xs text-zinc-400">
-            {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+            <EventDateTime
+              startsAt={event.starts_at}
+              endsAt={event.ends_at}
+              timezone={event.timezone}
+            />
           </span>
           {countLabel && (
             <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
@@ -206,7 +211,11 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
                         {event.title}
                       </span>
                       <span className="mt-0.5 block truncate text-[11px] text-zinc-400">
-                        {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+                        <EventDateTime
+                          startsAt={event.starts_at}
+                          endsAt={event.ends_at}
+                          timezone={event.timezone}
+                        />
                       </span>
                     </span>
                   </button>

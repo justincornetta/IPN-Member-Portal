@@ -467,6 +467,7 @@ export type AdminEventSummary = {
   recording_url: string | null
   recording_provider: string | null
   recording_category: string | null
+  recording_published_at: string | null
   speaker_resources: EventSpeakerResources | null
   status: string
 }
@@ -493,7 +494,7 @@ export async function listAdminEvents(): Promise<AdminEventSummary[]> {
   const admin = createAdminClient()
   const { data } = await admin
     .from("events")
-    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, chat_platform, chat_external_url, chat_status, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, is_recording, recording_url, recording_provider, recording_category, speaker_resources, status")
+    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, chat_platform, chat_external_url, chat_status, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, is_recording, recording_url, recording_provider, recording_category, recording_published_at, speaker_resources, status")
     .order("starts_at", { ascending: true })
     .limit(200)
   return (data ?? []) as AdminEventSummary[]
@@ -638,7 +639,7 @@ export async function updateFeedbackStatus(
   const admin = createAdminClient()
   const { error } = await admin
     .from("feedback_submissions")
-    .update({ status })
+    .update({ status, updated_at: new Date().toISOString() })
     .eq("id", id)
   if (error) return { error: error.message }
   return {}

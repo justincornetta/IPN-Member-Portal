@@ -264,6 +264,21 @@ const EVENT_DEFAULTS: EventFields = {
 
 const EVENT_TYPES = ["IPN Labs", "PsychedelX", "Symposium", "Workshop", "Webinar", "Other"]
 
+const EVENT_TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Toronto",
+  "Europe/London",
+  "Europe/Lisbon",
+  "Europe/Amsterdam",
+  "Europe/Berlin",
+  "Asia/Jerusalem",
+  "Asia/Seoul",
+  "Australia/Sydney",
+]
+
 function EventForm({ initial, onSubmit, pending }: {
   initial?: Partial<EventFields>; onSubmit: (p: AdminContentPayload) => void; pending: boolean
 }) {
@@ -337,8 +352,19 @@ function EventForm({ initial, onSubmit, pending }: {
                 <input type="datetime-local" value={f.endsAt} onChange={(e) => set("endsAt", e.target.value)} className={inputCls()} />
               </Field>
             </div>
-            <Field label="Timezone" hint="IANA name (e.g. America/New_York, America/Chicago, America/Los_Angeles)">
-              <input value={f.timezone} onChange={(e) => set("timezone", e.target.value)} className={inputCls()} placeholder="America/New_York" />
+            <Field label="Timezone" hint="Pick the event timezone. Members see this converted to their local timezone.">
+              <input
+                list="event-timezones"
+                value={f.timezone}
+                onChange={(e) => set("timezone", e.target.value)}
+                className={inputCls()}
+                placeholder="America/New_York"
+              />
+              <datalist id="event-timezones">
+                {EVENT_TIMEZONES.map((timezone) => (
+                  <option key={timezone} value={timezone} />
+                ))}
+              </datalist>
             </Field>
           </div>
           <NavRow step={1} total={3} onBack={() => {}} onNext={() => { if (validate1()) setStep(2) }} onSubmit={() => {}} pending={pending} submitLabel="" />
@@ -768,11 +794,15 @@ function recordingToFields(e: AdminEventSummary): RecordingFields {
   const timezone = e.timezone ?? "America/New_York"
   return {
     title: e.title ?? "", url: e.recording_url ?? "",
-    publishedAt: isoToLocal(e.starts_at, timezone),
+    publishedAt: isoToLocal(e.recording_published_at ?? e.starts_at, timezone),
     recordingCategory: e.recording_category ?? "Participant Talk",
     summary: e.summary ?? "", description: e.description ?? "",
     imageUrl: e.thumbnail_url ?? "", slug: e.slug ?? "",
   }
+}
+
+function recordingTimestamp(event: AdminEventSummary) {
+  return new Date(event.recording_published_at ?? event.starts_at).getTime()
 }
 
 function resourceToFields(r: AdminResourceSummary): ResourceFields {
@@ -1074,7 +1104,9 @@ export default function ContentIntakeForm() {
 
   const upcomingEvents = events.filter((e) => !e.is_recording && e.status === "published")
   const endedEvents = events.filter((e) => !e.is_recording && e.status === "ended")
-  const recordings = events.filter((e) => e.is_recording)
+  const recordings = events
+    .filter((e) => e.is_recording)
+    .sort((a, b) => recordingTimestamp(b) - recordingTimestamp(a))
 
   // Paginated slices
   function paginate<T>(items: T[], page: number) {
@@ -1245,7 +1277,7 @@ export default function ContentIntakeForm() {
                           <ContentRow
                             key={event.id}
                             title={event.title}
-                            meta={`${event.event_type} · ${formatDate(event.starts_at)}`}
+                            meta={`${event.event_type} · ${formatDate(event.recording_published_at ?? event.starts_at)}`}
                             onEdit={() => openEdit({ type: "recording", fields: recordingToFields(event) })}
                             onDelete={() => handleDelete(event.id, "events")}
                           />

@@ -649,9 +649,7 @@ export default function DirectoryClient({
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  const [view, setView] = useState<DirectoryView>(() =>
-    directoryViewFromParam(searchParams.get("view")),
-  )
+  const view = directoryViewFromParam(searchParams.get("view"))
   const [searchInput, setSearchInput] = useState(currentParams.q)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPersonas, setDrawerPersonas] = useState<string[]>(currentParams.personas)
@@ -691,10 +689,6 @@ export default function DirectoryClient({
     })
   }, [initialConnectionMap])
 
-  useEffect(() => {
-    setView(directoryViewFromParam(searchParams.get("view")))
-  }, [searchParams])
-
   function buildUrl(
     overrides: Partial<DirectoryParams>,
     viewOverride: DirectoryView = view,
@@ -727,7 +721,6 @@ export default function DirectoryClient({
   }
 
   function setDirectoryView(nextView: DirectoryView) {
-    setView(nextView)
     startTransition(() => router.replace(buildUrl({}, nextView), { scroll: false }))
   }
 

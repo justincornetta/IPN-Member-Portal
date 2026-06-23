@@ -1,6 +1,5 @@
 import type { EventRecord } from "./types"
 
-
 function toUtcCalendarStamp(value: string): string {
   return new Date(value)
     .toISOString()
@@ -34,6 +33,7 @@ export function formatEventDateTime(
   const startTime = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: end ? undefined : "short",
     timeZone: timezone,
   }).format(start)
 

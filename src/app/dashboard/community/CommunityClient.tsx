@@ -361,9 +361,6 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [tab, setTab] = useState<CommunityTab>(() =>
-    communityTabFromParam(searchParams.get("tab"), initialIncoming.length > 0),
-  )
   const [accepted, setAccepted] = useState(initialAccepted)
   const [incoming, setIncoming] = useState(initialIncoming)
   const [outgoing, setOutgoing] = useState(initialOutgoing)
@@ -371,13 +368,9 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
   const [viewOutgoingProfile, setViewOutgoingProfile] = useState<ConnectionProfile | null>(null)
   const [pendingRemove, setPendingRemove] = useState<ConnectionProfile | null>(null)
   const [, startTransition] = useTransition()
-
-  useEffect(() => {
-    setTab(communityTabFromParam(searchParams.get("tab"), incoming.length > 0))
-  }, [incoming.length, searchParams])
+  const tab = communityTabFromParam(searchParams.get("tab"), incoming.length > 0)
 
   function setCommunityTab(nextTab: CommunityTab) {
-    setTab(nextTab)
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", nextTab)
     const qs = params.toString()

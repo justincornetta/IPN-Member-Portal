@@ -13,6 +13,8 @@ export type RegistrationData = {
   country: string
   state: string
   city: string
+  city_lat: number | null
+  city_lng: number | null
   persona: string
   affiliation: string | null
   school: string | null
@@ -22,23 +24,6 @@ export type RegistrationData = {
   role_and_goals: string
   inspiration: string
   referral_source: string
-}
-
-async function geocodeCity(
-  city: string,
-  state: string,
-  country: string,
-): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const q = encodeURIComponent([city, state, country].filter(Boolean).join(", "))
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-      { headers: { "User-Agent": "IPN-Member-Portal (members.intercollegiatepsychedelics.net)" } },
-    )
-    const results: { lat: string; lon: string }[] = await res.json()
-    if (results[0]) return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) }
-  } catch { /* non-fatal — registration proceeds without coordinates */ }
-  return null
 }
 
 function normalizeWhatsAppUrl(value: string | null): string | null {
@@ -105,13 +90,16 @@ function getPostRegistrationPath(next?: string): string {
   }
 }
 
+function cleanCoordinate(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
 export async function signUp(
   data: RegistrationData,
   next?: string,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
-  const coords = await geocodeCity(data.city, data.state, data.country)
   const postRegistrationPath = getPostRegistrationPath(next)
 
   const { data: authData, error } = await supabase.auth.signUp({
@@ -125,8 +113,8 @@ export async function signUp(
         country: data.country,
         state: data.state,
         city: data.city,
-        city_lat: coords?.lat ?? null,
-        city_lng: coords?.lng ?? null,
+        city_lat: cleanCoordinate(data.city_lat),
+        city_lng: cleanCoordinate(data.city_lng),
         persona: data.persona,
         affiliation: data.affiliation,
         school: data.school,
@@ -203,6 +191,8 @@ export type ProfileUpdateData = {
   country: string
   state: string
   city: string
+  city_lat: number | null
+  city_lng: number | null
   persona: string
   affiliation: string | null
   school: string | null
@@ -254,24 +244,29 @@ export async function updateProfile(
   }
   const { data: currentProfile } = await supabase
     .from("profiles")
-    .select("city, state, country")
+    .select("city, state, country, city_lat, city_lng")
     .eq("id", user.id)
     .maybeSingle()
 
+  const nextCityLat = cleanCoordinate(data.city_lat)
+  const nextCityLng = cleanCoordinate(data.city_lng)
   const locationChanged =
     currentProfile?.city !== data.city ||
     currentProfile?.state !== data.state ||
     currentProfile?.country !== data.country
-  const coords = locationChanged && data.city && data.country
-    ? await geocodeCity(data.city, data.state, data.country)
-    : undefined
+  const coordinatesChanged =
+    currentProfile?.city_lat !== nextCityLat ||
+    currentProfile?.city_lng !== nextCityLng
 
   const { data: updatedProfile, error } = await supabase
     .from("profiles")
     .update({
       ...profileData,
-      ...(coords !== undefined
-        ? { city_lat: coords?.lat ?? null, city_lng: coords?.lng ?? null }
+      ...(locationChanged || coordinatesChanged
+        ? {
+            city_lat: nextCityLat,
+            city_lng: nextCityLng,
+          }
         : {}),
       updated_at: new Date().toISOString(),
     })

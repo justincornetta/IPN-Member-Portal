@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { formatEventDateTime } from "@/lib/events/calendar"
+import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord } from "@/lib/events/types"
 import icon from "../../../../assets/purple_icon.png"
 
@@ -65,7 +65,6 @@ export default async function PublicEventPage({ params }: Props) {
   if (!event) notFound()
 
   const e = event as EventRecord
-  const dateStr = formatEventDateTime(e.starts_at, e.ends_at, e.timezone)
 
   return (
     <div className="flex min-h-full flex-col bg-zinc-50">
@@ -114,7 +113,13 @@ export default async function PublicEventPage({ params }: Props) {
           <span className="rounded-md bg-ipn-light px-2 py-1 text-xs font-medium text-ipn">
             {e.event_type}
           </span>
-          <span className="text-sm text-zinc-500">{dateStr}</span>
+          <span className="text-sm text-zinc-500">
+            <EventDateTime
+              startsAt={e.starts_at}
+              endsAt={e.ends_at}
+              timezone={e.timezone}
+            />
+          </span>
           {e.location_label && (
             <span className="text-sm text-zinc-500">· {e.location_label}</span>
           )}
@@ -212,7 +217,11 @@ export default async function PublicEventPage({ params }: Props) {
                         {ev.event_type}
                       </span>
                       <span className="text-xs text-zinc-400">
-                        {formatEventDateTime(ev.starts_at, ev.ends_at, ev.timezone)}
+                        <EventDateTime
+                          startsAt={ev.starts_at}
+                          endsAt={ev.ends_at}
+                          timezone={ev.timezone}
+                        />
                       </span>
                     </div>
                     <p className="mt-1 truncate text-sm font-medium text-zinc-900 transition group-hover:text-ipn">
