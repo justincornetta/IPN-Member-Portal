@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type { ResourceRecord, ResourceType } from "@/lib/resources/types"
@@ -305,9 +305,7 @@ export default function ResourcesHub({ resources }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<ResourceType>(() =>
-    resourceTabFromParam(searchParams.get("tab")),
-  )
+  const activeTab = resourceTabFromParam(searchParams.get("tab"))
   const [blogQuery, setBlogQuery] = useState("")
 
   const benefits = resourcesByType(resources, "affiliate_benefit")
@@ -339,12 +337,7 @@ export default function ResourcesHub({ resources }: Props) {
     return blogs.filter((blog) => blog.title.toLowerCase().includes(query))
   }, [blogQuery, blogs])
 
-  useEffect(() => {
-    setActiveTab(resourceTabFromParam(searchParams.get("tab")))
-  }, [searchParams])
-
   function setResourceTab(tab: ResourceType) {
-    setActiveTab(tab)
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", resourceTabToParam(tab))
     const qs = params.toString()

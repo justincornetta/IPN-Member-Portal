@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/client"
 import { updateProfile } from "@/lib/auth/actions"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
+import CityVerificationField from "@/components/location/CityVerificationField"
+import type { VerifiedLocation } from "@/components/location/CityVerificationField"
 import {
   PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
@@ -31,6 +33,8 @@ type Profile = {
   country: string | null
   state: string | null
   city: string | null
+  city_lat: number | null
+  city_lng: number | null
   persona: string | null
   affiliation: string | null
   school: string | null
@@ -55,6 +59,8 @@ type FormState = {
   country: string
   state: string
   city: string
+  city_lat: number | null
+  city_lng: number | null
   persona: string
   affiliation: string
   school: string
@@ -121,6 +127,8 @@ function toFormState(profile: Profile | null, contact: Contact | null): FormStat
     country: profile?.country ?? "",
     state: profile?.state ?? "",
     city: profile?.city ?? "",
+    city_lat: profile?.city_lat ?? null,
+    city_lng: profile?.city_lng ?? null,
     persona: profile?.persona ?? "",
     affiliation: profile?.affiliation ?? "",
     school: profile?.school ?? "",
@@ -540,6 +548,19 @@ export default function ProfileForm({
     setSaved(false)
   }
 
+  function handleVerifiedLocation(location: VerifiedLocation | null) {
+    setData((prev) => ({
+      ...prev,
+      city: location?.city ?? prev.city,
+      state: location?.state ?? prev.state,
+      country: location?.country ?? prev.country,
+      city_lat: location?.lat ?? null,
+      city_lng: location?.lng ?? null,
+    }))
+    setSaved(false)
+    setError(null)
+  }
+
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -591,6 +612,8 @@ export default function ProfileForm({
       country: data.country,
       state: data.state,
       city: data.city,
+      city_lat: data.city_lat,
+      city_lng: data.city_lng,
       persona: data.persona,
       affiliation: data.affiliation || null,
       school: data.school || null,
@@ -826,7 +849,13 @@ export default function ProfileForm({
           <div className="flex flex-col gap-1">
             <Label htmlFor="country">Country</Label>
             <Select id="country" name="country" value={data.country}
-              onChange={(v) => { update("country", v); update("state", ""); update("school", "") }}
+              onChange={(v) => {
+                update("country", v)
+                update("state", "")
+                update("school", "")
+                update("city_lat", null)
+                update("city_lng", null)
+              }}
               options={COUNTRIES} placeholder="Select a country" />
           </div>
 
@@ -836,16 +865,26 @@ export default function ProfileForm({
                 {data.country === "Canada" ? "Province / Territory" : "State / Territory"}
               </Label>
               <Select id="state" name="state" value={data.state}
-                onChange={(v) => update("state", v)}
+                onChange={(v) => {
+                  update("state", v)
+                  update("city_lat", null)
+                  update("city_lng", null)
+                }}
                 options={stateOptions} placeholder="Select…" />
             </div>
           )}
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="city">City</Label>
-            <TextInput id="city" name="city" value={data.city}
-              onChange={(v) => update("city", v)}
-              placeholder="Your current city or town" />
+            <CityVerificationField
+              city={data.city}
+              state={data.state}
+              country={data.country}
+              inputClassName="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+              onCityChange={(value) => update("city", value)}
+              onVerifiedLocationChange={handleVerifiedLocation}
+              onStatusChange={() => {}}
+            />
           </div>
         </div>
       </section>

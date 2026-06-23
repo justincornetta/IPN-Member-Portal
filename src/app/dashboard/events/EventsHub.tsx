@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import EventCard from "@/components/events/EventCard"
-import { formatEventDateTime } from "@/lib/events/calendar"
+import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
@@ -76,11 +76,6 @@ function SearchIcon() {
   )
 }
 
-function recordingDate(event: EventRecord) {
-  const value = event.recording_published_at ?? event.starts_at
-  return formatEventDateTime(value, null, event.timezone)
-}
-
 function recordingYear(event: EventRecord) {
   const value = event.recording_published_at ?? event.starts_at
   return new Date(value).getUTCFullYear().toString()
@@ -137,7 +132,11 @@ function RecordingCard({ recording }: { recording: EventRecord }) {
             {recording.title}
           </h3>
           <p className="mt-2 text-xs text-zinc-400">
-            {recordingDate(recording)}
+            <EventDateTime
+              startsAt={recording.recording_published_at ?? recording.starts_at}
+              endsAt={null}
+              timezone={recording.timezone}
+            />
           </p>
           {recording.speakers && (
             <p className="mt-2 line-clamp-1 text-xs text-zinc-500">
@@ -173,9 +172,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<EventTab>(() =>
-    eventTabFromParam(searchParams.get("tab")),
-  )
+  const activeTab = eventTabFromParam(searchParams.get("tab"))
   const [recordingTab, setRecordingTab] = useState<RecordingTab>("PsychedelX")
   const [recordingQuery, setRecordingQuery] = useState("")
   const [psychedelXYear, setPsychedelXYear] = useState(ALL_RECORDING_YEARS)
@@ -247,12 +244,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
     recordingTab,
   ])
 
-  useEffect(() => {
-    setActiveTab(eventTabFromParam(searchParams.get("tab")))
-  }, [searchParams])
-
   function setEventTab(tab: EventTab) {
-    setActiveTab(tab)
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", tab)
     const qs = params.toString()

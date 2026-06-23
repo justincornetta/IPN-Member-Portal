@@ -5,8 +5,8 @@ import {
   buildGoogleCalendarUrl,
   buildIcsContent,
   buildOutlookCalendarUrl,
-  formatEventDateTime,
 } from "@/lib/events/calendar"
+import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord } from "@/lib/events/types"
 
 type Props = {
@@ -52,7 +52,11 @@ export default function AddToCalendarButton({ event, compact = false }: Props) {
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500">{event.title}</p>
                 <p className="mt-1 text-xs text-zinc-400">
-                  {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+                  <EventDateTime
+                    startsAt={event.starts_at}
+                    endsAt={event.ends_at}
+                    timezone={event.timezone}
+                  />
                 </p>
               </div>
               <button

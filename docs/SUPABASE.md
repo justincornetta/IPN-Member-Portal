@@ -62,9 +62,9 @@ One row per user. Created automatically on signup via trigger.
 | `last_name` | `text` | |
 | `country` | `text` | |
 | `state` | `text` | US state/territory or Canadian province |
-| `city` | `text` | Display name as entered by the user |
-| `city_lat` | `float8` | Latitude — geocoded from city + state/province + country via Nominatim on signup/profile update; `null` if lookup failed |
-| `city_lng` | `float8` | Longitude — same source as `city_lat`; used for map view (v1.1) |
+| `city` | `text` | Display name as entered by the user or selected from city autocomplete |
+| `city_lat` | `float8` | Latitude from the selected city autocomplete result; `null` when the user continues without selecting a result |
+| `city_lng` | `float8` | Longitude from the selected city autocomplete result; used for map view (v1.1) |
 | `persona` | `text` | One of: `High School`, `Undergraduate`, `Graduate Student`, `Professional Degree Student`, `Psychedelic Professional`, `Professional`, `Other` |
 | `affiliation` | `text` | Organization or employer; set for professional personas not affiliated with a university |
 | `school` | `text` | Canonical school name; set for student personas and university-affiliated professionals |

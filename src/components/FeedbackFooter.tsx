@@ -159,17 +159,34 @@ export default function FeedbackFooter() {
 
   return (
     <>
-      <footer className="mt-auto px-6 py-5 text-center">
-        <p className="text-xs text-zinc-400">
-          Found a bug or have feedback?{" "}
+      <footer className="mt-auto px-4 py-5 sm:px-6">
+        <div className="mx-auto flex max-w-md justify-center">
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="underline underline-offset-2 transition hover:text-zinc-600"
+            className="group flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-600 shadow-sm transition hover:border-ipn/30 hover:bg-ipn/5 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-ipn/20 sm:w-auto"
+            aria-label="Send feedback or report a bug"
           >
-            Let us know
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition group-hover:bg-white group-hover:text-ipn">
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.7}
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.625 9.75h6.75m-6.75 3h4.5m8.625-.75c0 4.142-4.03 7.5-9 7.5a10.6 10.6 0 0 1-3.45-.566L3 20.25l1.316-3.95A6.9 6.9 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z"
+                />
+              </svg>
+            </span>
+            <span>Found a bug or have feedback?</span>
+            <span className="text-ipn underline underline-offset-2">Send feedback</span>
           </button>
-        </p>
+        </div>
       </footer>
 
       {open && <FeedbackModal onClose={() => setOpen(false)} />}

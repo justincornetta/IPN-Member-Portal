@@ -3,12 +3,9 @@
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
+import EventDateTime from "@/components/events/EventDateTime"
 import { registerForEvent, unregisterFromEvent } from "@/lib/events/actions"
-import {
-  canJoinEvent,
-  formatEventDateTime,
-  registrationBand,
-} from "@/lib/events/calendar"
+import { canJoinEvent, registrationBand } from "@/lib/events/calendar"
 import type { EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
@@ -80,7 +77,11 @@ function ConfirmationModal({
             <h2 className="text-base font-semibold text-zinc-900">RSVP confirmed</h2>
             <p className="mt-1 text-sm text-zinc-500">{event.title}</p>
             <p className="mt-1 text-xs text-zinc-400">
-              {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+              <EventDateTime
+                startsAt={event.starts_at}
+                endsAt={event.ends_at}
+                timezone={event.timezone}
+              />
             </p>
           </div>
         </div>
@@ -210,7 +211,11 @@ export default function EventCard({ event, variant = "full" }: Props) {
               {event.event_type}
             </span>
             <span className="text-xs text-zinc-400">
-              {formatEventDateTime(event.starts_at, event.ends_at, event.timezone)}
+              <EventDateTime
+                startsAt={event.starts_at}
+                endsAt={event.ends_at}
+                timezone={event.timezone}
+              />
             </span>
           </div>
 
@@ -352,7 +357,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       <button
                         type="button"
                         disabled
-                        title="Join link will be available on the day of the event"
+                        title="Join link will be available 24 hours before the event starts"
                         className="cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-400"
                       >
                         Join
@@ -360,7 +365,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     )}
                   </div>
                   {!canJoin && (
-                    <p className="text-[11px] text-zinc-400">Event link available on day of event</p>
+                    <p className="text-[11px] text-zinc-400">Event link available 24 hours before start</p>
                   )}
                 </div>
               </div>

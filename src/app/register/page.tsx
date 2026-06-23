@@ -7,6 +7,11 @@ import Image from "next/image"
 import icon from "../../../assets/purple_icon.png"
 import { signUp } from "@/lib/auth/actions"
 import NeuralBackground from "@/components/NeuralBackground"
+import CityVerificationField from "@/components/location/CityVerificationField"
+import type {
+  LocationVerificationStatus,
+  VerifiedLocation,
+} from "@/components/location/CityVerificationField"
 import {
   PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
@@ -33,6 +38,8 @@ type FormData = {
   country: string
   state: string
   city: string
+  city_lat: number | null
+  city_lng: number | null
   persona: string
   affiliation: string
   school: string
@@ -45,9 +52,13 @@ type FormData = {
   referral_source: string
 }
 
+type StringFormKey = {
+  [K in keyof FormData]: FormData[K] extends string ? K : never
+}[keyof FormData]
+
 const EMPTY: FormData = {
   first_name: "", last_name: "", email: "", password: "", confirm_password: "",
-  country: "", state: "", city: "",
+  country: "", state: "", city: "", city_lat: null, city_lng: null,
   persona: "", affiliation: "", school: "",
   field: "", field_status: "",
   barriers: [], barriers_other: "",
@@ -181,7 +192,7 @@ function StepAccount({
   data, update, errors,
 }: {
   data: FormData
-  update: (k: keyof FormData, v: string) => void
+  update: (k: StringFormKey, v: string) => void
   errors: Record<string, string>
 }) {
   return (
@@ -228,11 +239,17 @@ function StepAccount({
 }
 
 function StepLocation({
-  data, update, errors,
+  data,
+  update,
+  errors,
+  onVerifiedLocation,
+  onLocationStatus,
 }: {
   data: FormData
-  update: (k: keyof FormData, v: string) => void
+  update: (k: StringFormKey, v: string) => void
   errors: Record<string, string>
+  onVerifiedLocation: (location: VerifiedLocation | null) => void
+  onLocationStatus: (status: LocationVerificationStatus) => void
 }) {
   const [atUniversity, setAtUniversity] = useState(false)
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -248,7 +265,12 @@ function StepLocation({
       <div className="flex flex-col gap-1">
         <Label htmlFor="country">Country</Label>
         <Select id="country" name="country" value={data.country}
-          onChange={(v) => { update("country", v); update("state", ""); update("school", "") }}
+          onChange={(v) => {
+            update("country", v)
+            update("state", "")
+            update("school", "")
+            onVerifiedLocation(null)
+          }}
           options={COUNTRIES} placeholder="Select a country" required />
         <FieldError msg={errors.country} />
       </div>
@@ -259,17 +281,26 @@ function StepLocation({
             {data.country === "Canada" ? "Province / Territory" : "State / Territory"}
           </Label>
           <Select id="state" name="state" value={data.state}
-            onChange={(v) => update("state", v)}
+            onChange={(v) => {
+              update("state", v)
+              onVerifiedLocation(null)
+            }}
             options={stateOptions} placeholder="Select…" />
         </div>
       )}
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="city">City</Label>
-        <TextInput id="city" name="city" value={data.city}
-          onChange={(v) => update("city", v)} required
-          placeholder="Your current city or town" />
-        <FieldError msg={errors.city} />
+        <CityVerificationField
+          city={data.city}
+          state={data.state}
+          country={data.country}
+          required
+          error={errors.city}
+          onCityChange={(value) => update("city", value)}
+          onVerifiedLocationChange={onVerifiedLocation}
+          onStatusChange={onLocationStatus}
+        />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -335,7 +366,7 @@ function StepBackground({
   data, update, updateBarriers, errors,
 }: {
   data: FormData
-  update: (k: keyof FormData, v: string) => void
+  update: (k: StringFormKey, v: string) => void
   updateBarriers: (v: string[]) => void
   errors: Record<string, string>
 }) {
@@ -412,7 +443,7 @@ function StepAbout({
   data, update, errors,
 }: {
   data: FormData
-  update: (k: keyof FormData, v: string) => void
+  update: (k: StringFormKey, v: string) => void
   errors: Record<string, string>
 }) {
   return (
@@ -464,9 +495,21 @@ function RegisterPageContent() {
   const [loading, setLoading] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  function update(key: keyof FormData, value: string) {
+  function update(key: StringFormKey, value: string) {
     setData((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => { const e = { ...prev }; delete e[key]; return e })
+  }
+
+  function handleVerifiedLocation(location: VerifiedLocation | null) {
+    setData((prev) => ({
+      ...prev,
+      city: location?.city ?? prev.city,
+      state: location?.state ?? prev.state,
+      country: location?.country ?? prev.country,
+      city_lat: location?.lat ?? null,
+      city_lng: location?.lng ?? null,
+    }))
+    setErrors((prev) => { const e = { ...prev }; delete e.city; return e })
   }
 
   function updateBarriers(value: string[]) {
@@ -526,6 +569,8 @@ function RegisterPageContent() {
       country: data.country,
       state: data.state,
       city: data.city,
+      city_lat: data.city_lat,
+      city_lng: data.city_lng,
       persona: data.persona,
       affiliation: data.affiliation || null,
       school: data.school || null,
@@ -590,7 +635,15 @@ function RegisterPageContent() {
         </div>
 
         {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
-        {step === 2 && <StepLocation data={data} update={update} errors={errors} />}
+        {step === 2 && (
+          <StepLocation
+            data={data}
+            update={update}
+            errors={errors}
+            onVerifiedLocation={handleVerifiedLocation}
+            onLocationStatus={() => {}}
+          />
+        )}
         {step === 3 && (
           <StepBackground data={data} update={update} updateBarriers={updateBarriers} errors={errors} />
         )}

@@ -1,6 +1,5 @@
 import type { EventRecord } from "./types"
 
-
 function toUtcCalendarStamp(value: string): string {
   return new Date(value)
     .toISOString()
@@ -34,6 +33,7 @@ export function formatEventDateTime(
   const startTime = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: end ? undefined : "short",
     timeZone: timezone,
   }).format(start)
 
@@ -63,14 +63,10 @@ export function registrationBand(count: number): string | null {
   return `${Math.floor(count / 10) * 10}+ registered`
 }
 
-export function canJoinEvent(startsAt: string, timezone: string, now = new Date()): boolean {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-  return fmt.format(now) >= fmt.format(new Date(startsAt))
+export function canJoinEvent(startsAt: string, _timezone: string, now = new Date()): boolean {
+  const startsAtMs = new Date(startsAt).getTime()
+  if (Number.isNaN(startsAtMs)) return false
+  return now.getTime() >= startsAtMs - 24 * 60 * 60 * 1000
 }
 
 export function buildCalendarDescription(event: EventRecord): string {

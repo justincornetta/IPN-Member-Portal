@@ -26,7 +26,8 @@ export default async function EventsPage() {
       .select("*")
       .eq("status", "published")
       .eq("is_recording", true)
-      .order("starts_at", { ascending: false })
+      .order("recording_published_at", { ascending: false, nullsFirst: false })
+      .order("starts_at", { ascending: false, nullsFirst: false })
       .order("title", { ascending: true }),
   ])
 

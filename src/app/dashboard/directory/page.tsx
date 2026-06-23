@@ -9,6 +9,7 @@ import type {
   DirectoryParams,
 } from "@/lib/directory/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
+import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 
 export default async function DirectoryPage({
   searchParams,
@@ -47,19 +48,13 @@ export default async function DirectoryPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, first_name, last_name, persona, school, affiliation, field, city, state, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
+      "id, first_name, last_name, persona, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
     )
     .eq("is_discoverable", true)
     .order("first_name", { ascending: true })
 
   if (tab === "school" && userSchool) {
     query = query.eq("school", userSchool)
-  }
-
-  if (q) {
-    query = query.or(
-      `first_name.ilike.%${q}%,last_name.ilike.%${q}%,school.ilike.%${q}%,affiliation.ilike.%${q}%,field.ilike.%${q}%,bio.ilike.%${q}%`,
-    )
   }
 
   if (personas.length > 0) {
@@ -81,6 +76,9 @@ export default async function DirectoryPage({
   }
 
   const { data: members } = await query
+  const filteredMembers = ((members ?? []) as DirectoryMember[]).filter((member) =>
+    memberMatchesDirectorySearch(member, q),
+  )
 
   let showSchoolTab = false
   if (userSchool) {
@@ -145,7 +143,7 @@ export default async function DirectoryPage({
     ]),
   )
 
-  const membersWithContacts = ((members ?? []) as DirectoryMember[]).map((member) => ({
+  const membersWithContacts = filteredMembers.map((member) => ({
     ...member,
     contact: contactMap.get(member.id) ?? null,
   }))
@@ -164,12 +162,6 @@ export default async function DirectoryPage({
 
   if (tab === "school" && userSchool) {
     mapQuery = mapQuery.eq("school", userSchool)
-  }
-
-  if (q) {
-    mapQuery = mapQuery.or(
-      `first_name.ilike.%${q}%,last_name.ilike.%${q}%,school.ilike.%${q}%,affiliation.ilike.%${q}%,field.ilike.%${q}%,bio.ilike.%${q}%`,
-    )
   }
 
   if (personas.length > 0) {
@@ -191,9 +183,12 @@ export default async function DirectoryPage({
   }
 
   const { data: mapRows } = await mapQuery
+  const filteredMapRows = ((mapRows ?? []) as DirectoryMapMember[]).filter((member) =>
+    memberMatchesDirectorySearch(member, q),
+  )
   const cityMap = new Map<string, DirectoryMapCity>()
 
-  for (const row of (mapRows ?? []) as DirectoryMapMember[]) {
+  for (const row of filteredMapRows) {
     if (!row.city || row.city_lat == null || row.city_lng == null) continue
 
     const lat = Number(row.city_lat)

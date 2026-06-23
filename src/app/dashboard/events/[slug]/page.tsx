@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EventCard from "@/components/events/EventCard"
-import { formatEventDateTime } from "@/lib/events/calendar"
+import EventDateTime from "@/components/events/EventDateTime"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type {
   EventRecord,
@@ -398,11 +398,6 @@ function SpeakerResourcesSection({
 }
 
 function RecordingDetail({ event }: { event: EventRecord }) {
-  const recordingDate = formatEventDateTime(
-    event.recording_published_at ?? event.starts_at,
-    null,
-    event.timezone,
-  )
   const youtubeVideoId = getYouTubeVideoId(event)
 
   return (
@@ -457,7 +452,13 @@ function RecordingDetail({ event }: { event: EventRecord }) {
           {event.title}
         </h1>
 
-        <p className="mt-3 text-sm text-zinc-500">{recordingDate}</p>
+        <p className="mt-3 text-sm text-zinc-500">
+          <EventDateTime
+            startsAt={event.recording_published_at ?? event.starts_at}
+            endsAt={null}
+            timezone={event.timezone}
+          />
+        </p>
 
         {event.speakers && (
           <p className="mt-2 text-sm text-zinc-500">
