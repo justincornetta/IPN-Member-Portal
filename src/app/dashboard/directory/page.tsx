@@ -9,7 +9,7 @@ import type {
   DirectoryParams,
 } from "@/lib/directory/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
-import { buildDirectorySearchOrFilter, memberMatchesDirectorySearch } from "@/lib/directory/search"
+import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 
 export default async function DirectoryPage({
   searchParams,
@@ -48,19 +48,13 @@ export default async function DirectoryPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, first_name, last_name, persona, school, affiliation, field, city, state, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
+      "id, first_name, last_name, persona, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
     )
     .eq("is_discoverable", true)
     .order("first_name", { ascending: true })
 
   if (tab === "school" && userSchool) {
     query = query.eq("school", userSchool)
-  }
-
-  const searchOrFilter = buildDirectorySearchOrFilter(q)
-
-  if (searchOrFilter) {
-    query = query.or(searchOrFilter)
   }
 
   if (personas.length > 0) {
@@ -168,10 +162,6 @@ export default async function DirectoryPage({
 
   if (tab === "school" && userSchool) {
     mapQuery = mapQuery.eq("school", userSchool)
-  }
-
-  if (searchOrFilter) {
-    mapQuery = mapQuery.or(searchOrFilter)
   }
 
   if (personas.length > 0) {

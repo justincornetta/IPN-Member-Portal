@@ -689,11 +689,11 @@ export default function DirectoryClient({
     })
   }, [initialConnectionMap])
 
-  function buildUrl(
+  const buildUrl = useCallback((
     overrides: Partial<DirectoryParams>,
     viewOverride: DirectoryView = view,
-  ) {
-    const merged = { ...currentParams, searchInput, ...overrides }
+  ) => {
+    const merged = { ...currentParams, q: searchInput, ...overrides }
     const p = new URLSearchParams()
     if (merged.q) p.set("q", merged.q)
     merged.personas.forEach((v) => p.append("persona", v))
@@ -704,17 +704,26 @@ export default function DirectoryClient({
     if (viewOverride === "map") p.set("view", "map")
     const qs = p.toString()
     return qs ? `${pathname}?${qs}` : pathname
-  }
+  }, [currentParams, pathname, searchInput, view])
+
+  const replaceDirectoryUrl = useCallback((url: string) => {
+    startTransition(() => router.replace(url, { scroll: false }))
+  }, [router])
+
+  const clearSearch = useCallback(() => {
+    setSearchInput("")
+    replaceDirectoryUrl(buildUrl({ q: "" }))
+  }, [buildUrl, replaceDirectoryUrl])
 
   // Debounce search input → URL
   useEffect(() => {
+    if (searchInput.trim() === currentParams.q) return
+
     const timer = setTimeout(() => {
-      const url = buildUrl({ q: searchInput })
-      startTransition(() => router.replace(url))
-    }, 400)
+      replaceDirectoryUrl(buildUrl({ q: searchInput.trim() }))
+    }, searchInput.trim() ? 400 : 0)
     return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput])
+  }, [buildUrl, currentParams.q, replaceDirectoryUrl, searchInput])
 
   function setTab(tab: string) {
     startTransition(() => router.replace(buildUrl({ tab })))
@@ -809,7 +818,7 @@ export default function DirectoryClient({
           {searchInput && (
             <button
               type="button"
-              onClick={() => setSearchInput("")}
+              onClick={clearSearch}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
               aria-label="Clear search"
             >
