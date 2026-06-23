@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 
 export async function sendConnectionRequest(
   addresseeId: string,
@@ -33,6 +34,8 @@ export async function sendConnectionRequest(
     )
 
   if (error) return { error: error.message }
+  await markOnboardingStepsComplete(supabase, user.id, ["connection_request"])
+  revalidatePath("/dashboard")
   revalidatePath("/dashboard/community")
   revalidatePath("/dashboard/directory")
   return {}

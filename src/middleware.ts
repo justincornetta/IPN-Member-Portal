@@ -2,6 +2,12 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  if (!pathname.startsWith("/dashboard")) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -25,22 +31,20 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  // getUser() validates the token server-side — never use getSession() here
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let isAuthenticated = false
+  try {
+    // getUser() validates the token server-side — never use getSession() here
+    const { data } = await supabase.auth.getUser()
+    isAuthenticated = Boolean(data.user)
+  } catch (error) {
+    console.error("Unable to validate Supabase session in middleware", error)
+  }
 
-  const { pathname } = request.nextUrl
-
-  if (!user && pathname.startsWith("/dashboard")) {
+  if (!isAuthenticated) {
     const loginUrl = new URL("/login", request.url)
     const destination = pathname + (request.nextUrl.search || "")
     loginUrl.searchParams.set("next", destination)
     return NextResponse.redirect(loginUrl)
-  }
-
-  if (user && (pathname === "/login" || pathname === "/register")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
   return supabaseResponse

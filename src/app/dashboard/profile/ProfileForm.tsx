@@ -6,6 +6,8 @@ import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
 import { updateProfile } from "@/lib/auth/actions"
+import { completeOnboardingStep } from "@/lib/onboarding/actions"
+import { isProfileOnboardingComplete } from "@/lib/onboarding/progress"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import CityVerificationField from "@/components/location/CityVerificationField"
@@ -594,6 +596,13 @@ export default function ProfileForm({
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
       await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
+      if (isProfileOnboardingComplete({
+        avatar_url: publicUrl,
+        bio: data.bio,
+        interest_tags: data.interest_tags,
+      })) {
+        await completeOnboardingStep("profile")
+      }
       update("avatar_url", publicUrl)
       router.refresh()
     } finally {
