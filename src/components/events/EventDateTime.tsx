@@ -10,6 +10,7 @@ type Props = {
   className?: string
   secondaryClassName?: string
   secondaryPrefix?: string
+  showEventTimezone?: boolean
 }
 
 function browserTimezone() {
@@ -27,6 +28,7 @@ export default function EventDateTime({
   className,
   secondaryClassName,
   secondaryPrefix = "Event time",
+  showEventTimezone = false,
 }: Props) {
   const viewerTimezone = useSyncExternalStore(
     () => () => {},
@@ -43,7 +45,7 @@ export default function EventDateTime({
     () => formatEventDateTime(startsAt, endsAt, timezone),
     [endsAt, startsAt, timezone],
   )
-  const showSecondary = Boolean(viewerTimezone && viewerTimezone !== timezone)
+  const showSecondary = Boolean(showEventTimezone && viewerTimezone && viewerTimezone !== timezone)
 
   return (
     <span className={className}>
