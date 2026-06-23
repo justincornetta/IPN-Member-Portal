@@ -493,8 +493,6 @@ function RegisterPageContent() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [locationStatus, setLocationStatus] =
-    useState<LocationVerificationStatus>("unverified")
   const contentRef = useRef<HTMLDivElement>(null)
 
   function update(key: StringFormKey, value: string) {
@@ -530,8 +528,6 @@ function RegisterPageContent() {
     if (s === 2) {
       if (!data.country) e.country = "Required"
       if (!data.city.trim()) e.city = "Required"
-      if (data.city.trim() && data.country && locationStatus === "unverified")
-        e.city = "Verify your city before continuing, or continue after no match is found."
       if (!data.persona) e.persona = "Required"
       if (STUDENT_BACKGROUNDS.has(data.persona) && !data.school)
         e.school = "Please select your school from the list"
@@ -645,7 +641,7 @@ function RegisterPageContent() {
             update={update}
             errors={errors}
             onVerifiedLocation={handleVerifiedLocation}
-            onLocationStatus={setLocationStatus}
+            onLocationStatus={() => {}}
           />
         )}
         {step === 3 && (

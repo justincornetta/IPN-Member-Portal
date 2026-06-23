@@ -9,10 +9,7 @@ import { updateProfile } from "@/lib/auth/actions"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import CityVerificationField from "@/components/location/CityVerificationField"
-import type {
-  LocationVerificationStatus,
-  VerifiedLocation,
-} from "@/components/location/CityVerificationField"
+import type { VerifiedLocation } from "@/components/location/CityVerificationField"
 import {
   PERSONA_OPTIONS,
   STUDENT_BACKGROUNDS,
@@ -541,9 +538,6 @@ export default function ProfileForm({
   const [subscribed, setSubscribed] = useState(mailchimpStatus === "subscribed")
   const [subscriptionSaving, setSubscriptionSaving] = useState(false)
   const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
-  const [locationStatus, setLocationStatus] = useState<LocationVerificationStatus>(() =>
-    profile?.city_lat != null && profile?.city_lng != null ? "verified" : "no_results",
-  )
   const [atUniversity, setAtUniversity] = useState(() =>
     PROFESSIONAL_BACKGROUNDS.has(profile?.persona ?? "") && !!profile?.school,
   )
@@ -608,11 +602,6 @@ export default function ProfileForm({
   }
 
   async function handleSave() {
-    if (data.city.trim() && data.country && locationStatus === "unverified") {
-      setError("Verify your city before saving, or save after no match is found.")
-      return
-    }
-
     setSaving(true)
     setError(null)
     setSaved(false)
@@ -866,7 +855,6 @@ export default function ProfileForm({
                 update("school", "")
                 update("city_lat", null)
                 update("city_lng", null)
-                setLocationStatus(data.city.trim() ? "unverified" : "no_results")
               }}
               options={COUNTRIES} placeholder="Select a country" />
           </div>
@@ -881,7 +869,6 @@ export default function ProfileForm({
                   update("state", v)
                   update("city_lat", null)
                   update("city_lng", null)
-                  setLocationStatus(data.city.trim() ? "unverified" : "no_results")
                 }}
                 options={stateOptions} placeholder="Select…" />
             </div>
@@ -896,7 +883,7 @@ export default function ProfileForm({
               inputClassName="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
               onCityChange={(value) => update("city", value)}
               onVerifiedLocationChange={handleVerifiedLocation}
-              onStatusChange={setLocationStatus}
+              onStatusChange={() => {}}
             />
           </div>
         </div>
