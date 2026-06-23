@@ -357,7 +357,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       <button
                         type="button"
                         disabled
-                        title="Join link will be available on the day of the event"
+                        title="Join link will be available 24 hours before the event starts"
                         className="cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-400"
                       >
                         Join
@@ -365,7 +365,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     )}
                   </div>
                   {!canJoin && (
-                    <p className="text-[11px] text-zinc-400">Event link available on day of event</p>
+                    <p className="text-[11px] text-zinc-400">Event link available 24 hours before start</p>
                   )}
                 </div>
               </div>
