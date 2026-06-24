@@ -86,27 +86,14 @@ export default async function ResourceDetailPage({ params }: Props) {
 
       <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         {image && (
-          isBenefit ? (
-            <div className="w-full bg-zinc-50 px-4 py-5 sm:px-6 sm:py-6">
-              <div className="mx-auto aspect-[4/5] max-h-[32rem] max-w-sm overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={image}
-                  alt={resource.image_alt ?? ""}
-                  className="h-full w-full object-contain"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="aspect-video w-full bg-zinc-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={image}
-                alt={resource.image_alt ?? ""}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          )
+          <div className={`aspect-video w-full ${isBenefit ? "bg-white" : "bg-zinc-100"}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image}
+              alt={resource.image_alt ?? ""}
+              className={`h-full w-full ${isBenefit ? "object-contain" : "object-cover"}`}
+            />
+          </div>
         )}
 
         <div className="p-5 sm:p-7">

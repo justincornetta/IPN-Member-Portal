@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission } from "@/lib/admin/actions"
-import type { AdminMemberProfile, AdminContentType, TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
+import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail } from "@/lib/admin/actions"
+import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import ContentIntakeForm from "./ContentIntakeForm"
 
@@ -119,14 +119,24 @@ function AdminMemberModal({
         <div className="border-t border-zinc-100" />
 
         {/* Body */}
-        <div className="flex flex-col gap-4 px-6 py-5">
+        <div className="flex flex-col gap-3 px-6 py-5">
           {member.email && (
             <div className="flex items-center gap-2 rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-2.5">
               <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
               </svg>
-              <span className="text-sm text-zinc-600">{member.email}</span>
+              <a href={`mailto:${member.email}`} className="text-sm text-zinc-600 hover:text-ipn hover:underline">{member.email}</a>
             </div>
+          )}
+          {member.whatsapp_url && (
+            <a href={member.whatsapp_url} target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 transition hover:bg-emerald-100"
+            >
+              <svg className="h-4 w-4 flex-shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+              </svg>
+              <span className="text-sm text-emerald-700">WhatsApp</span>
+            </a>
           )}
           {member.bio && (
             <div>
@@ -326,6 +336,7 @@ type Props = {
   analytics: AnalyticsData | null
   teamPermissions: TeamPermissionsMap
   feedback: FeedbackSubmission[]
+  bannedMembers: AdminMemberProfile[]
 }
 
 function TeamPermissionsMatrix({ initialPerms }: { initialPerms: TeamPermissionsMap }) {
@@ -458,6 +469,317 @@ function mailchimpBadge(status: MailchimpStatus | null) {
   }
 }
 
+function ModerationMemberModal({
+  member: initialMember,
+  onBanToggle,
+  onClose,
+}: {
+  member: AdminMemberProfile
+  onBanToggle: (member: AdminMemberProfile, banned: boolean) => void
+  onClose: () => void
+}) {
+  const [detail, setDetail] = useState<AdminMemberDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [banning, setBanning] = useState(false)
+  const [banError, setBanError] = useState<string | null>(null)
+  const [isBanned, setIsBanned] = useState(initialMember.is_banned ?? false)
+  const [, startTransition] = useTransition()
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = "" }
+  }, [])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  useEffect(() => {
+    startTransition(async () => {
+      const d = await getMemberDetail(initialMember.id)
+      setDetail(d)
+      setLoading(false)
+    })
+  }, [initialMember.id])
+
+  function handleBanToggle() {
+    setBanning(true)
+    setBanError(null)
+    startTransition(async () => {
+      const result = isBanned ? await unbanMember(initialMember.id) : await banMember(initialMember.id)
+      setBanning(false)
+      if (result.error) {
+        setBanError(result.error)
+      } else {
+        const newBanned = !isBanned
+        setIsBanned(newBanned)
+        onBanToggle(initialMember, newBanned)
+      }
+    })
+  }
+
+  const displayMember = detail ?? initialMember
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-xl max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" onClick={onClose}
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
+          aria-label="Close"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Header */}
+        <div className="flex flex-col items-center px-6 pb-4 pt-8">
+          <MemberAvatar member={displayMember} size="lg" />
+          <h2 className="mt-4 text-xl font-semibold text-zinc-900">
+            {displayMember.first_name} {displayMember.last_name}
+          </h2>
+          {displayMember.persona && (
+            <p className="mt-1 text-sm text-zinc-500">{displayMember.persona}</p>
+          )}
+          {isBanned && (
+            <span className="mt-2 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600">
+              Banned
+            </span>
+          )}
+        </div>
+
+        <div className="border-t border-zinc-100" />
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-sm text-zinc-400">Loading profile…</div>
+        ) : (
+          <div className="flex flex-col gap-5 px-6 py-5">
+            {/* Contact */}
+            <div className="flex flex-col gap-2">
+              {detail?.email && (
+                <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5">
+                  <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                  </svg>
+                  <a href={`mailto:${detail.email}`} className="text-sm text-zinc-600 hover:text-ipn hover:underline">{detail.email}</a>
+                </div>
+              )}
+              {detail?.whatsapp_url && (
+                <a href={detail.whatsapp_url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 transition hover:bg-emerald-100"
+                >
+                  <svg className="h-4 w-4 flex-shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                  </svg>
+                  <span className="text-sm text-emerald-700">WhatsApp</span>
+                </a>
+              )}
+            </div>
+
+            {detail?.bio && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Bio</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-700">{detail.bio}</p>
+              </div>
+            )}
+
+            {(detail?.city || detail?.state || detail?.country) && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Location</p>
+                <p className="mt-1 text-sm text-zinc-700">
+                  {[detail.city, detail.state, detail.country].filter(Boolean).join(", ")}
+                </p>
+              </div>
+            )}
+
+            {detail?.field && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Field</p>
+                <p className="mt-1 text-sm text-zinc-700">{detail.field}</p>
+              </div>
+            )}
+
+            {(detail?.school || detail?.affiliation) && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                  {detail.school ? "School" : "Affiliation"}
+                </p>
+                <p className="mt-1 text-sm text-zinc-700">{detail.school ?? detail.affiliation}</p>
+              </div>
+            )}
+
+            {detail?.interest_tags && detail.interest_tags.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Interests</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {detail.interest_tags.map((t) => (
+                    <span key={t} className="rounded-full bg-ipn/10 px-3 py-1 text-xs font-medium text-ipn">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {detail?.role_and_goals && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Role &amp; goals</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-700">{detail.role_and_goals}</p>
+              </div>
+            )}
+
+            {detail?.linkedin_url && (
+              <a href={detail.linkedin_url} target="_blank" rel="noreferrer" className="text-sm text-ipn hover:underline">
+                LinkedIn profile
+              </a>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-zinc-100 px-6 py-5">
+          {banError && <p className="mb-3 text-xs text-red-600">{banError}</p>}
+          <button
+            type="button"
+            onClick={handleBanToggle}
+            disabled={banning || loading}
+            className={`w-full cursor-pointer rounded-lg py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              isBanned
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                : "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+            }`}
+          >
+            {banning ? "…" : isBanned ? "Unban member" : "Ban member"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModerationTab({
+  initialBanned,
+}: {
+  initialBanned: AdminMemberProfile[]
+}) {
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<AdminMemberProfile[]>([])
+  const [searching, setSearching] = useState(false)
+  const [bannedMembers, setBannedMembers] = useState(initialBanned)
+  const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
+  const [, startTransition] = useTransition()
+
+  function handleSearch(value: string) {
+    setQuery(value)
+    if (value.trim().length < 2) { setResults([]); return }
+    setSearching(true)
+    startTransition(async () => {
+      const res = await searchMembersForAdmin(value)
+      setResults(res)
+      setSearching(false)
+    })
+  }
+
+  function handleBanToggle(member: AdminMemberProfile, banned: boolean) {
+    if (banned) {
+      setBannedMembers((prev) => [{ ...member, is_banned: true }, ...prev.filter((m) => m.id !== member.id)])
+    } else {
+      setBannedMembers((prev) => prev.filter((m) => m.id !== member.id))
+    }
+    setResults((prev) => prev.map((m) => m.id === member.id ? { ...m, is_banned: banned } : m))
+    setSelectedMember(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Search */}
+      <div className="flex flex-col gap-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Search members</p>
+        <div className="relative">
+          <svg className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search members by name…"
+            className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
+          />
+        </div>
+        {searching && <p className="text-xs text-zinc-400">Searching…</p>}
+        {!searching && query.trim().length >= 2 && results.length === 0 && (
+          <p className="text-sm text-zinc-400">No members found.</p>
+        )}
+        {results.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {results.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <MemberAvatar member={m} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-zinc-900">{m.first_name} {m.last_name}</p>
+                  <p className="truncate text-xs text-zinc-400">{m.email}</p>
+                </div>
+                {m.is_banned && (
+                  <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
+                    Banned
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedMember(m)}
+                  className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-ipn hover:text-ipn"
+                >
+                  View profile
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Banned list */}
+      <div className="flex flex-col gap-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Banned members{bannedMembers.length > 0 ? ` (${bannedMembers.length})` : ""}
+        </p>
+        {bannedMembers.length === 0 ? (
+          <p className="text-sm text-zinc-400">No banned members.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {bannedMembers.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-4">
+                <MemberAvatar member={m} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-zinc-900">{m.first_name} {m.last_name}</p>
+                  <p className="truncate text-xs text-zinc-500">{m.email}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMember({ ...m, is_banned: true })}
+                  className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-ipn hover:text-ipn"
+                >
+                  View profile
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedMember && (
+        <ModerationMemberModal
+          member={selectedMember}
+          onBanToggle={handleBanToggle}
+          onClose={() => setSelectedMember(null)}
+        />
+      )}
+    </div>
+  )
+}
+
 function FeedbackStatusBadge({ status }: { status: string }) {
   const cfg =
     status === "resolved"
@@ -565,8 +887,8 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, analytics, teamPermissions, feedback: initialFeedback }: Props) {
-  type Tab = "analytics" | "content" | "leadership" | "feedback"
+export default function AdminClient({ isSuperadmin, leadership, analytics, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+  type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
   const defaultTab: Tab = analytics ? "analytics" : "content"
   const [tab, setTab] = useState<Tab>(defaultTab)
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
@@ -576,12 +898,12 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
 
   function handleFeedbackStatusChange(id: string, status: "new" | "in_progress" | "resolved") {
     setFeedback((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)))
-    startTransition(() => { updateFeedbackStatus(id, status) })
+    startTransition(async () => { await updateFeedbackStatus(id, status) })
   }
 
   function handleFeedbackDelete(id: string) {
     setFeedback((prev) => prev.filter((s) => s.id !== id))
-    startTransition(() => { deleteFeedbackSubmission(id) })
+    startTransition(async () => { await deleteFeedbackSubmission(id) })
   }
 
   const newFeedbackCount = feedback.filter((f) => f.status === "new").length
@@ -591,6 +913,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
     { id: "content", label: "Content" },
     { id: "leadership", label: "Leadership" },
     ...(isSuperadmin ? [{ id: "feedback" as Tab, label: "Feedback", badge: newFeedbackCount || undefined }] : []),
+    ...(isSuperadmin ? [{ id: "moderation" as Tab, label: "Moderation" }] : []),
   ]
 
   const rosterByTeam = TEAM_ORDER.map((team) => ({
@@ -874,6 +1197,11 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
           onStatusChange={handleFeedbackStatusChange}
           onDelete={handleFeedbackDelete}
         />
+      )}
+
+      {/* ── Moderation tab ── */}
+      {tab === "moderation" && isSuperadmin && (
+        <ModerationTab initialBanned={bannedMembers} />
       )}
 
       {/* Shared member modal */}

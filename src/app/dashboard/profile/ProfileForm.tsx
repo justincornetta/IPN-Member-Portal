@@ -73,22 +73,281 @@ type FormState = {
   interest_tags: string[]
   linkedin_url: string
   whatsapp_country_code: string
+  whatsapp_country_iso: string
   whatsapp_number: string
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
 }
 
-const COUNTRY_DIAL_CODES: Record<string, string> = {
-  "United States": "1", "Canada": "1", "United Kingdom": "44",
-  "Australia": "61", "Germany": "49", "Netherlands": "31",
-  "Israel": "972", "Switzerland": "41", "Spain": "34", "France": "33",
-  "Brazil": "55", "Mexico": "52", "Italy": "39", "Ireland": "353",
-  "New Zealand": "64", "South Africa": "27", "India": "91",
-  "Japan": "81", "Sweden": "46", "Norway": "47", "Denmark": "45",
-  "Belgium": "32", "Austria": "43", "Portugal": "351", "Poland": "48",
-  "Greece": "30", "Turkey": "90", "Argentina": "54", "Chile": "56",
-  "Colombia": "57", "Finland": "358", "Czech Republic": "420",
+const WHATSAPP_COUNTRIES: { name: string; iso: string; dial: string }[] = [
+  { name: "Afghanistan", iso: "AF", dial: "93" },
+  { name: "Albania", iso: "AL", dial: "355" },
+  { name: "Algeria", iso: "DZ", dial: "213" },
+  { name: "Andorra", iso: "AD", dial: "376" },
+  { name: "Angola", iso: "AO", dial: "244" },
+  { name: "Argentina", iso: "AR", dial: "54" },
+  { name: "Armenia", iso: "AM", dial: "374" },
+  { name: "Australia", iso: "AU", dial: "61" },
+  { name: "Austria", iso: "AT", dial: "43" },
+  { name: "Azerbaijan", iso: "AZ", dial: "994" },
+  { name: "Bahamas", iso: "BS", dial: "1" },
+  { name: "Bahrain", iso: "BH", dial: "973" },
+  { name: "Bangladesh", iso: "BD", dial: "880" },
+  { name: "Barbados", iso: "BB", dial: "1" },
+  { name: "Belarus", iso: "BY", dial: "375" },
+  { name: "Belgium", iso: "BE", dial: "32" },
+  { name: "Belize", iso: "BZ", dial: "501" },
+  { name: "Benin", iso: "BJ", dial: "229" },
+  { name: "Bolivia", iso: "BO", dial: "591" },
+  { name: "Bosnia and Herzegovina", iso: "BA", dial: "387" },
+  { name: "Botswana", iso: "BW", dial: "267" },
+  { name: "Brazil", iso: "BR", dial: "55" },
+  { name: "Bulgaria", iso: "BG", dial: "359" },
+  { name: "Burkina Faso", iso: "BF", dial: "226" },
+  { name: "Burundi", iso: "BI", dial: "257" },
+  { name: "Cambodia", iso: "KH", dial: "855" },
+  { name: "Cameroon", iso: "CM", dial: "237" },
+  { name: "Canada", iso: "CA", dial: "1" },
+  { name: "Cape Verde", iso: "CV", dial: "238" },
+  { name: "Central African Republic", iso: "CF", dial: "236" },
+  { name: "Chad", iso: "TD", dial: "235" },
+  { name: "Chile", iso: "CL", dial: "56" },
+  { name: "China", iso: "CN", dial: "86" },
+  { name: "Colombia", iso: "CO", dial: "57" },
+  { name: "Congo (DRC)", iso: "CD", dial: "243" },
+  { name: "Congo (Republic)", iso: "CG", dial: "242" },
+  { name: "Costa Rica", iso: "CR", dial: "506" },
+  { name: "Côte d'Ivoire", iso: "CI", dial: "225" },
+  { name: "Croatia", iso: "HR", dial: "385" },
+  { name: "Cuba", iso: "CU", dial: "53" },
+  { name: "Cyprus", iso: "CY", dial: "357" },
+  { name: "Czech Republic", iso: "CZ", dial: "420" },
+  { name: "Denmark", iso: "DK", dial: "45" },
+  { name: "Dominican Republic", iso: "DO", dial: "1" },
+  { name: "Ecuador", iso: "EC", dial: "593" },
+  { name: "Egypt", iso: "EG", dial: "20" },
+  { name: "El Salvador", iso: "SV", dial: "503" },
+  { name: "Estonia", iso: "EE", dial: "372" },
+  { name: "Ethiopia", iso: "ET", dial: "251" },
+  { name: "Fiji", iso: "FJ", dial: "679" },
+  { name: "Finland", iso: "FI", dial: "358" },
+  { name: "France", iso: "FR", dial: "33" },
+  { name: "Gabon", iso: "GA", dial: "241" },
+  { name: "Gambia", iso: "GM", dial: "220" },
+  { name: "Georgia", iso: "GE", dial: "995" },
+  { name: "Germany", iso: "DE", dial: "49" },
+  { name: "Ghana", iso: "GH", dial: "233" },
+  { name: "Greece", iso: "GR", dial: "30" },
+  { name: "Guatemala", iso: "GT", dial: "502" },
+  { name: "Guinea", iso: "GN", dial: "224" },
+  { name: "Guinea-Bissau", iso: "GW", dial: "245" },
+  { name: "Guyana", iso: "GY", dial: "592" },
+  { name: "Haiti", iso: "HT", dial: "509" },
+  { name: "Honduras", iso: "HN", dial: "504" },
+  { name: "Hong Kong", iso: "HK", dial: "852" },
+  { name: "Hungary", iso: "HU", dial: "36" },
+  { name: "Iceland", iso: "IS", dial: "354" },
+  { name: "India", iso: "IN", dial: "91" },
+  { name: "Indonesia", iso: "ID", dial: "62" },
+  { name: "Iran", iso: "IR", dial: "98" },
+  { name: "Iraq", iso: "IQ", dial: "964" },
+  { name: "Ireland", iso: "IE", dial: "353" },
+  { name: "Israel", iso: "IL", dial: "972" },
+  { name: "Italy", iso: "IT", dial: "39" },
+  { name: "Jamaica", iso: "JM", dial: "1" },
+  { name: "Japan", iso: "JP", dial: "81" },
+  { name: "Jordan", iso: "JO", dial: "962" },
+  { name: "Kazakhstan", iso: "KZ", dial: "7" },
+  { name: "Kenya", iso: "KE", dial: "254" },
+  { name: "Kosovo", iso: "XK", dial: "383" },
+  { name: "Kuwait", iso: "KW", dial: "965" },
+  { name: "Kyrgyzstan", iso: "KG", dial: "996" },
+  { name: "Laos", iso: "LA", dial: "856" },
+  { name: "Latvia", iso: "LV", dial: "371" },
+  { name: "Lebanon", iso: "LB", dial: "961" },
+  { name: "Libya", iso: "LY", dial: "218" },
+  { name: "Lithuania", iso: "LT", dial: "370" },
+  { name: "Luxembourg", iso: "LU", dial: "352" },
+  { name: "Macau", iso: "MO", dial: "853" },
+  { name: "Madagascar", iso: "MG", dial: "261" },
+  { name: "Malawi", iso: "MW", dial: "265" },
+  { name: "Malaysia", iso: "MY", dial: "60" },
+  { name: "Maldives", iso: "MV", dial: "960" },
+  { name: "Mali", iso: "ML", dial: "223" },
+  { name: "Malta", iso: "MT", dial: "356" },
+  { name: "Mauritania", iso: "MR", dial: "222" },
+  { name: "Mauritius", iso: "MU", dial: "230" },
+  { name: "Mexico", iso: "MX", dial: "52" },
+  { name: "Moldova", iso: "MD", dial: "373" },
+  { name: "Mongolia", iso: "MN", dial: "976" },
+  { name: "Montenegro", iso: "ME", dial: "382" },
+  { name: "Morocco", iso: "MA", dial: "212" },
+  { name: "Mozambique", iso: "MZ", dial: "258" },
+  { name: "Myanmar", iso: "MM", dial: "95" },
+  { name: "Namibia", iso: "NA", dial: "264" },
+  { name: "Nepal", iso: "NP", dial: "977" },
+  { name: "Netherlands", iso: "NL", dial: "31" },
+  { name: "New Zealand", iso: "NZ", dial: "64" },
+  { name: "Nicaragua", iso: "NI", dial: "505" },
+  { name: "Niger", iso: "NE", dial: "227" },
+  { name: "Nigeria", iso: "NG", dial: "234" },
+  { name: "North Macedonia", iso: "MK", dial: "389" },
+  { name: "Norway", iso: "NO", dial: "47" },
+  { name: "Oman", iso: "OM", dial: "968" },
+  { name: "Pakistan", iso: "PK", dial: "92" },
+  { name: "Palestine", iso: "PS", dial: "970" },
+  { name: "Panama", iso: "PA", dial: "507" },
+  { name: "Papua New Guinea", iso: "PG", dial: "675" },
+  { name: "Paraguay", iso: "PY", dial: "595" },
+  { name: "Peru", iso: "PE", dial: "51" },
+  { name: "Philippines", iso: "PH", dial: "63" },
+  { name: "Poland", iso: "PL", dial: "48" },
+  { name: "Portugal", iso: "PT", dial: "351" },
+  { name: "Qatar", iso: "QA", dial: "974" },
+  { name: "Romania", iso: "RO", dial: "40" },
+  { name: "Russia", iso: "RU", dial: "7" },
+  { name: "Rwanda", iso: "RW", dial: "250" },
+  { name: "Saudi Arabia", iso: "SA", dial: "966" },
+  { name: "Senegal", iso: "SN", dial: "221" },
+  { name: "Serbia", iso: "RS", dial: "381" },
+  { name: "Sierra Leone", iso: "SL", dial: "232" },
+  { name: "Singapore", iso: "SG", dial: "65" },
+  { name: "Slovakia", iso: "SK", dial: "421" },
+  { name: "Slovenia", iso: "SI", dial: "386" },
+  { name: "Somalia", iso: "SO", dial: "252" },
+  { name: "South Africa", iso: "ZA", dial: "27" },
+  { name: "South Korea", iso: "KR", dial: "82" },
+  { name: "South Sudan", iso: "SS", dial: "211" },
+  { name: "Spain", iso: "ES", dial: "34" },
+  { name: "Sri Lanka", iso: "LK", dial: "94" },
+  { name: "Sudan", iso: "SD", dial: "249" },
+  { name: "Suriname", iso: "SR", dial: "597" },
+  { name: "Sweden", iso: "SE", dial: "46" },
+  { name: "Switzerland", iso: "CH", dial: "41" },
+  { name: "Syria", iso: "SY", dial: "963" },
+  { name: "Taiwan", iso: "TW", dial: "886" },
+  { name: "Tajikistan", iso: "TJ", dial: "992" },
+  { name: "Tanzania", iso: "TZ", dial: "255" },
+  { name: "Thailand", iso: "TH", dial: "66" },
+  { name: "Togo", iso: "TG", dial: "228" },
+  { name: "Trinidad and Tobago", iso: "TT", dial: "1" },
+  { name: "Tunisia", iso: "TN", dial: "216" },
+  { name: "Turkey", iso: "TR", dial: "90" },
+  { name: "Turkmenistan", iso: "TM", dial: "993" },
+  { name: "Uganda", iso: "UG", dial: "256" },
+  { name: "Ukraine", iso: "UA", dial: "380" },
+  { name: "United Arab Emirates", iso: "AE", dial: "971" },
+  { name: "United Kingdom", iso: "GB", dial: "44" },
+  { name: "United States", iso: "US", dial: "1" },
+  { name: "Uruguay", iso: "UY", dial: "598" },
+  { name: "Uzbekistan", iso: "UZ", dial: "998" },
+  { name: "Venezuela", iso: "VE", dial: "58" },
+  { name: "Vietnam", iso: "VN", dial: "84" },
+  { name: "Yemen", iso: "YE", dial: "967" },
+  { name: "Zambia", iso: "ZM", dial: "260" },
+  { name: "Zimbabwe", iso: "ZW", dial: "263" },
+]
+
+const COUNTRY_DIAL_CODES: Record<string, string> = Object.fromEntries(
+  WHATSAPP_COUNTRIES.map((c) => [c.name, c.dial]),
+)
+
+function flagEmoji(iso: string) {
+  return [...iso.toUpperCase()].map((c) => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join("")
+}
+
+// Expected subscriber-number digit counts by ISO2 code (after stripping trunk prefix 0).
+// Ranges are used for countries where mobile vs. landline differ significantly.
+const COUNTRY_PHONE_LENGTHS: Record<string, { min: number; max: number }> = {
+  // NANP (+1) — always 10 digits
+  US: { min: 10, max: 10 }, CA: { min: 10, max: 10 }, JM: { min: 10, max: 10 },
+  DO: { min: 10, max: 10 }, TT: { min: 10, max: 10 }, BS: { min: 10, max: 10 },
+  BB: { min: 10, max: 10 },
+  // Europe
+  GB: { min: 10, max: 10 }, IE: { min: 9, max: 9 }, FR: { min: 9, max: 9 },
+  DE: { min: 5, max: 12 }, ES: { min: 9, max: 9 }, PT: { min: 9, max: 9 },
+  IT: { min: 6, max: 11 }, NL: { min: 9, max: 9 }, BE: { min: 8, max: 9 },
+  CH: { min: 9, max: 9 }, AT: { min: 7, max: 13 }, PL: { min: 9, max: 9 },
+  SE: { min: 7, max: 9 }, NO: { min: 8, max: 8 }, DK: { min: 8, max: 8 },
+  FI: { min: 7, max: 10 }, CZ: { min: 9, max: 9 }, SK: { min: 9, max: 9 },
+  HU: { min: 8, max: 9 }, RO: { min: 9, max: 9 }, BG: { min: 9, max: 9 },
+  HR: { min: 8, max: 9 }, RS: { min: 8, max: 9 }, BA: { min: 8, max: 8 },
+  ME: { min: 8, max: 8 }, MK: { min: 8, max: 8 }, SI: { min: 8, max: 8 },
+  EE: { min: 7, max: 8 }, LV: { min: 8, max: 8 }, LT: { min: 8, max: 8 },
+  LU: { min: 8, max: 9 }, MT: { min: 8, max: 8 }, CY: { min: 8, max: 8 },
+  IS: { min: 7, max: 7 }, AD: { min: 6, max: 6 }, GR: { min: 10, max: 10 },
+  AL: { min: 8, max: 9 }, XK: { min: 8, max: 8 },
+  // Former Soviet / Caucasus / Central Asia
+  RU: { min: 10, max: 10 }, UA: { min: 9, max: 9 }, BY: { min: 9, max: 9 },
+  MD: { min: 8, max: 8 }, GE: { min: 9, max: 9 }, AM: { min: 8, max: 8 },
+  AZ: { min: 9, max: 9 }, KZ: { min: 10, max: 10 }, KG: { min: 9, max: 9 },
+  TJ: { min: 9, max: 9 }, TM: { min: 8, max: 8 }, UZ: { min: 9, max: 9 },
+  // Middle East
+  TR: { min: 10, max: 10 }, IL: { min: 9, max: 9 }, SA: { min: 9, max: 9 },
+  AE: { min: 9, max: 9 }, JO: { min: 9, max: 9 }, IQ: { min: 10, max: 10 },
+  IR: { min: 10, max: 10 }, KW: { min: 8, max: 8 }, BH: { min: 8, max: 8 },
+  OM: { min: 8, max: 8 }, QA: { min: 8, max: 8 }, LB: { min: 7, max: 8 },
+  PS: { min: 9, max: 9 }, YE: { min: 9, max: 9 }, SY: { min: 9, max: 9 },
+  // South Asia
+  IN: { min: 10, max: 10 }, PK: { min: 10, max: 10 }, BD: { min: 10, max: 10 },
+  LK: { min: 9, max: 9 }, NP: { min: 10, max: 10 }, MV: { min: 7, max: 7 },
+  // East / Southeast Asia
+  CN: { min: 11, max: 11 }, JP: { min: 10, max: 11 }, KR: { min: 10, max: 11 },
+  HK: { min: 8, max: 8 }, MO: { min: 8, max: 8 }, TW: { min: 9, max: 10 },
+  SG: { min: 8, max: 8 }, MY: { min: 7, max: 11 }, ID: { min: 8, max: 11 },
+  PH: { min: 10, max: 10 }, VN: { min: 9, max: 10 }, TH: { min: 9, max: 9 },
+  KH: { min: 8, max: 9 }, MM: { min: 7, max: 10 }, LA: { min: 8, max: 9 },
+  MN: { min: 8, max: 8 },
+  // Oceania
+  AU: { min: 9, max: 9 }, NZ: { min: 8, max: 9 }, PG: { min: 8, max: 8 },
+  FJ: { min: 7, max: 7 },
+  // Africa
+  ZA: { min: 9, max: 9 }, NG: { min: 10, max: 10 }, KE: { min: 9, max: 9 },
+  GH: { min: 9, max: 9 }, EG: { min: 10, max: 10 }, MA: { min: 9, max: 9 },
+  TN: { min: 8, max: 8 }, DZ: { min: 9, max: 9 }, LY: { min: 9, max: 9 },
+  ET: { min: 9, max: 9 }, TZ: { min: 9, max: 9 }, UG: { min: 9, max: 9 },
+  RW: { min: 9, max: 9 }, ZM: { min: 9, max: 9 }, ZW: { min: 9, max: 9 },
+  MZ: { min: 9, max: 9 }, SD: { min: 9, max: 9 }, SS: { min: 9, max: 9 },
+  CM: { min: 9, max: 9 }, SN: { min: 9, max: 9 }, CI: { min: 10, max: 10 },
+  GN: { min: 9, max: 9 }, ML: { min: 8, max: 8 }, BF: { min: 8, max: 8 },
+  NE: { min: 8, max: 8 }, TG: { min: 8, max: 8 }, BJ: { min: 8, max: 8 },
+  MW: { min: 9, max: 9 }, AO: { min: 9, max: 9 }, CD: { min: 9, max: 9 },
+  CG: { min: 9, max: 9 }, CF: { min: 8, max: 8 }, NA: { min: 9, max: 9 },
+  BW: { min: 8, max: 8 }, MG: { min: 9, max: 9 }, MU: { min: 8, max: 8 },
+  SO: { min: 8, max: 9 }, SL: { min: 8, max: 8 }, GM: { min: 7, max: 7 },
+  GA: { min: 8, max: 8 }, GW: { min: 7, max: 9 }, BI: { min: 8, max: 8 },
+  // Americas
+  BR: { min: 10, max: 11 }, MX: { min: 10, max: 10 }, AR: { min: 10, max: 10 },
+  CO: { min: 10, max: 10 }, VE: { min: 10, max: 11 }, PE: { min: 9, max: 9 },
+  CL: { min: 9, max: 9 }, EC: { min: 9, max: 9 }, BO: { min: 8, max: 8 },
+  PY: { min: 9, max: 9 }, UY: { min: 9, max: 9 }, CR: { min: 8, max: 8 },
+  GT: { min: 8, max: 8 }, HN: { min: 8, max: 8 }, SV: { min: 8, max: 8 },
+  NI: { min: 8, max: 8 }, PA: { min: 7, max: 8 }, CU: { min: 8, max: 8 },
+  HT: { min: 8, max: 8 }, SR: { min: 7, max: 7 }, GY: { min: 7, max: 7 },
+  BZ: { min: 7, max: 7 },
+}
+
+function validateWhatsappNumber(iso: string, rawNumber: string): string | null {
+  if (!rawNumber.trim()) return null
+  const digits = rawNumber.replace(/\D/g, "")
+  if (!digits) return null
+  const subscriber = digits.startsWith("0") ? digits.slice(1) : digits
+  if (!subscriber) return null
+  const lengths = COUNTRY_PHONE_LENGTHS[iso]
+  if (!lengths) {
+    if (subscriber.length < 5 || subscriber.length > 13) return "Number length looks off"
+    return null
+  }
+  if (subscriber.length < lengths.min) {
+    const expected = lengths.min === lengths.max ? `${lengths.min}` : `${lengths.min}–${lengths.max}`
+    return `Too short — expected ${expected} digits`
+  }
+  if (subscriber.length > lengths.max) {
+    const expected = lengths.min === lengths.max ? `${lengths.max}` : `${lengths.min}–${lengths.max}`
+    return `Too long — expected ${expected} digits`
+  }
+  return null
 }
 
 function parseWhatsappUrl(
@@ -112,10 +371,12 @@ function parseWhatsappUrl(
 }
 
 function buildWhatsappUrl(code: string, number: string): string | null {
-  const numberDigits = number.replace(/\D/g, "")
-  if (!numberDigits) return null
+  const digits = number.replace(/\D/g, "")
+  // Strip trunk prefix (leading 0) — E.164 format never includes it
+  const subscriber = digits.startsWith("0") ? digits.slice(1) : digits
+  if (!subscriber) return null
   const codeDigits = code.replace(/\D/g, "")
-  return `https://wa.me/${codeDigits}${numberDigits}`
+  return `https://wa.me/${codeDigits}${subscriber}`
 }
 
 function toFormState(profile: Profile | null, contact: Contact | null): FormState {
@@ -123,6 +384,9 @@ function toFormState(profile: Profile | null, contact: Contact | null): FormStat
     contact?.whatsapp_url ?? null,
     profile?.country ?? null,
   )
+  const byName = WHATSAPP_COUNTRIES.find((c) => c.name === profile?.country)
+  const byDial = WHATSAPP_COUNTRIES.find((c) => countryCode && `+${c.dial}` === countryCode)
+  const countryIso = byName?.iso ?? byDial?.iso ?? ""
   return {
     first_name: profile?.first_name ?? "",
     last_name: profile?.last_name ?? "",
@@ -141,6 +405,7 @@ function toFormState(profile: Profile | null, contact: Contact | null): FormStat
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
     whatsapp_country_code: countryCode,
+    whatsapp_country_iso: countryIso,
     whatsapp_number: number,
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
@@ -477,6 +742,118 @@ function TagPickerModal({
   )
 }
 
+function CountryDialCodeCombobox({
+  dialCode,
+  countryIso,
+  onChange,
+}: {
+  dialCode: string
+  countryIso: string
+  onChange: (dialCode: string, iso: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = countryIso
+    ? WHATSAPP_COUNTRIES.find((c) => c.iso === countryIso)
+    : WHATSAPP_COUNTRIES.find((c) => `+${c.dial}` === dialCode)
+
+  const filtered = query.trim()
+    ? WHATSAPP_COUNTRIES.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query.toLowerCase()) ||
+          c.dial.includes(query.replace("+", "")),
+      )
+    : WHATSAPP_COUNTRIES
+
+  useEffect(() => {
+    if (!open) return
+    function onOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setQuery("")
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") { setOpen(false); setQuery("") }
+    }
+    document.addEventListener("mousedown", onOutside)
+    document.addEventListener("keydown", onEsc)
+    return () => {
+      document.removeEventListener("mousedown", onOutside)
+      document.removeEventListener("keydown", onEsc)
+    }
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((o) => !o)
+          if (!open) setTimeout(() => inputRef.current?.focus(), 0)
+        }}
+        className="flex h-[38px] items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+      >
+        {selected ? (
+          <>
+            <span className="text-base leading-none">{flagEmoji(selected.iso)}</span>
+            <span className="text-zinc-600">+{selected.dial}</span>
+          </>
+        ) : (
+          <span className="text-zinc-400">Country…</span>
+        )}
+        <svg className="ml-0.5 h-3.5 w-3.5 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
+          <div className="border-b border-zinc-100 p-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search country or code…"
+              className="w-full rounded-md border border-zinc-200 px-2.5 py-1.5 text-sm outline-none placeholder:text-zinc-400 focus:border-ipn focus:ring-1 focus:ring-ipn/20"
+            />
+          </div>
+          <ul className="max-h-52 overflow-y-auto py-1">
+            {filtered.length > 0 ? (
+              filtered.map((c) => (
+                <li key={`${c.iso}-${c.dial}`}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      onChange(`+${c.dial}`, c.iso)
+                      setOpen(false)
+                      setQuery("")
+                    }}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-zinc-50 ${
+                      selected?.iso === c.iso ? "bg-ipn/5 text-ipn" : "text-zinc-800"
+                    }`}
+                  >
+                    <span className="w-6 text-base leading-none">{flagEmoji(c.iso)}</span>
+                    <span className="flex-1 truncate">{c.name}</span>
+                    <span className="text-xs text-zinc-400">+{c.dial}</span>
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="px-3 py-2 text-sm text-zinc-400">No results</li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Textarea({
   id, name, value, onChange, placeholder, rows = 4,
 }: {
@@ -530,6 +907,7 @@ export default function ProfileForm({
   const [data, setData] = useState<FormState>(() => toFormState(profile, contact))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [cropSrc, setCropSrc] = useState<string | null>(null)
@@ -544,10 +922,50 @@ export default function ProfileForm({
     PROFESSIONAL_BACKGROUNDS.has(profile?.persona ?? "") && !!profile?.school,
   )
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const topRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isDirty) return
+
+    function warn(e: BeforeUnloadEvent) {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", warn)
+
+    // Intercept SPA navigation in the capture phase, before Next.js Link handlers fire.
+    // pushState overrides don't work because App Router renders the new page before
+    // calling pushState, so blocking pushState only breaks the URL, not the navigation.
+    function handleClick(e: MouseEvent) {
+      const anchor = (e.target as HTMLElement).closest("a[href]")
+      if (!anchor) return
+      const href = (anchor as HTMLAnchorElement).getAttribute("href")
+      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return
+      try {
+        const url = new URL(href, window.location.origin)
+        if (url.origin !== window.location.origin) return
+        if (url.pathname === window.location.pathname) return
+      } catch {
+        // relative URL — treat as internal
+      }
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      if (window.confirm("You have unsaved changes. Leave this page?")) {
+        router.push(href)
+      }
+    }
+    document.addEventListener("click", handleClick, true)
+
+    return () => {
+      window.removeEventListener("beforeunload", warn)
+      document.removeEventListener("click", handleClick, true)
+    }
+  }, [isDirty, router])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setData((prev) => ({ ...prev, [key]: value }))
     setSaved(false)
+    setIsDirty(true)
   }
 
   function handleVerifiedLocation(location: VerifiedLocation | null) {
@@ -560,6 +978,7 @@ export default function ProfileForm({
       city_lng: location?.lng ?? null,
     }))
     setSaved(false)
+    setIsDirty(true)
     setError(null)
   }
 
@@ -639,8 +1058,13 @@ export default function ProfileForm({
     })
 
     setSaving(false)
-    if (result?.error) setError(result.error)
-    else setSaved(true)
+    if (result?.error) {
+      setError(result.error)
+    } else {
+      setSaved(true)
+      setIsDirty(false)
+      topRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
   }
 
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -656,7 +1080,16 @@ export default function ProfileForm({
     : userId[0].toUpperCase()
 
   return (
-    <div className="flex flex-col gap-10">
+    <div ref={topRef} className="flex flex-col gap-10">
+
+      {saved && (
+        <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <svg className="h-4 w-4 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+          Profile saved successfully.
+        </div>
+      )}
 
       {/* ── Photo & Name ── */}
       <section>
@@ -771,14 +1204,14 @@ export default function ProfileForm({
           <div className="flex flex-col gap-1">
             <Label htmlFor="whatsapp_number">WhatsApp</Label>
             <div className="flex gap-2">
-              <input
-                id="whatsapp_country_code"
-                name="whatsapp_country_code"
-                type="text"
-                value={data.whatsapp_country_code}
-                onChange={(e) => update("whatsapp_country_code", e.target.value)}
-                placeholder="+1"
-                className="w-16 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+              <CountryDialCodeCombobox
+                dialCode={data.whatsapp_country_code}
+                countryIso={data.whatsapp_country_iso}
+                onChange={(code, iso) => {
+                  setData((prev) => ({ ...prev, whatsapp_country_code: code, whatsapp_country_iso: iso }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
               />
               <input
                 id="whatsapp_number"
@@ -790,6 +1223,13 @@ export default function ProfileForm({
                 className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
               />
             </div>
+            {(() => {
+              const err = validateWhatsappNumber(data.whatsapp_country_iso, data.whatsapp_number)
+              const hasDigits = data.whatsapp_number.replace(/\D/g, "").length > 0
+              if (!hasDigits) return null
+              if (err) return <p className="text-xs text-red-600">{err}</p>
+              return <p className="text-xs text-emerald-600">Looks good</p>
+            })()}
             <p className="text-xs text-zinc-400">
               Shown only to accepted connections, alongside your email.
             </p>
@@ -1050,7 +1490,6 @@ export default function ProfileForm({
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        {saved && <span className="text-sm text-zinc-500">Changes saved</span>}
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
 

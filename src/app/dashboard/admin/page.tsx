@@ -6,7 +6,7 @@ import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import AdminClient from "./AdminClient"
 import type { AnalyticsData } from "./AdminClient"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
-import { getTeamPermissions, listFeedbackSubmissions } from "@/lib/admin/actions"
+import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers } from "@/lib/admin/actions"
 import type { TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
 
 export default async function AdminPage() {
@@ -29,7 +29,7 @@ export default async function AdminPage() {
   // Leadership roster
   const { data: leadershipRows } = await admin
     .from("profiles")
-    .select("id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio")
+    .select("id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio, whatsapp_url")
     .not("role", "is", null)
     .order("first_name", { ascending: true })
 
@@ -92,6 +92,7 @@ export default async function AdminPage() {
 
   const teamPermissions: TeamPermissionsMap = isSuperadmin ? await getTeamPermissions() : {}
   const feedback: FeedbackSubmission[] = isSuperadmin ? await listFeedbackSubmissions() : []
+  const bannedMembers = isSuperadmin ? await listBannedMembers() : []
 
   const analytics: AnalyticsData = {
     total,
@@ -112,6 +113,7 @@ export default async function AdminPage() {
       analytics={analytics}
       teamPermissions={teamPermissions}
       feedback={feedback}
+      bannedMembers={bannedMembers}
     />
   )
 }
