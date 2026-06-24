@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   const [profileResult, pendingResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("first_name, last_name, avatar_url, role")
+      .select("first_name, last_name, avatar_url, role, is_banned")
       .eq("id", user.id)
       .single(),
     supabase
@@ -29,6 +29,8 @@ export default async function DashboardLayout({
   ])
 
   const profile = profileResult.data
+  if ((profile as { is_banned?: boolean } | null)?.is_banned === true) redirect("/banned")
+
   const pendingRequestCount = pendingResult.count ?? 0
   const isAdmin = profile?.role === "superadmin" || profile?.role === "admin"
 

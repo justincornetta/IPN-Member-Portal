@@ -262,9 +262,26 @@ export type AdminMemberProfile = {
   team: string | null
   persona: string | null
   bio: string | null
+  whatsapp_url?: string | null
+  is_banned?: boolean | null
 }
 
-// Excludes current leadership (role IS NOT NULL)
+export type AdminMemberDetail = AdminMemberProfile & {
+  whatsapp_url: string | null
+  linkedin_url: string | null
+  country: string | null
+  state: string | null
+  city: string | null
+  field: string | null
+  psychedelic_field_status: string | null
+  affiliation: string | null
+  school: string | null
+  interest_tags: string[] | null
+  role_and_goals: string | null
+}
+
+const MEMBER_PROFILE_SELECT = "id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio, whatsapp_url, is_banned"
+
 export async function searchMembersForAdmin(query: string): Promise<AdminMemberProfile[]> {
   const authError = await verifySuperadmin()
   if (authError) return []
@@ -275,11 +292,62 @@ export async function searchMembersForAdmin(query: string): Promise<AdminMemberP
   const admin = createAdminClient()
   const { data } = await admin
     .from("profiles")
-    .select("id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio")
+    .select(MEMBER_PROFILE_SELECT)
     .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
     .limit(10)
 
   return (data ?? []) as AdminMemberProfile[]
+}
+
+export async function getMemberDetail(userId: string): Promise<AdminMemberDetail | null> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return null
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("profiles")
+    .select("id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio, whatsapp_url, linkedin_url, country, state, city, field, psychedelic_field_status, affiliation, school, interest_tags, role_and_goals, is_banned")
+    .eq("id", userId)
+    .single()
+  return (data as AdminMemberDetail | null)
+}
+
+export async function listBannedMembers(): Promise<AdminMemberProfile[]> {
+  const authError = await verifySuperadmin()
+  if (authError) return []
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from("profiles")
+    .select(MEMBER_PROFILE_SELECT)
+    .eq("is_banned", true)
+    .order("first_name", { ascending: true })
+    .limit(200)
+  return (data ?? []) as AdminMemberProfile[]
+}
+
+export async function banMember(userId: string): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+  const admin = createAdminClient()
+  const { error: authBanError } = await admin.auth.admin.updateUserById(userId, {
+    ban_duration: "876000h",
+  })
+  if (authBanError) return { error: authBanError.message }
+  await admin.from("profiles").update({ is_banned: true }).eq("id", userId)
+  revalidatePath("/dashboard/admin")
+  return {}
+}
+
+export async function unbanMember(userId: string): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+  const admin = createAdminClient()
+  const { error: authUnbanError } = await admin.auth.admin.updateUserById(userId, {
+    ban_duration: "none",
+  })
+  if (authUnbanError) return { error: authUnbanError.message }
+  await admin.from("profiles").update({ is_banned: false }).eq("id", userId)
+  revalidatePath("/dashboard/admin")
+  return {}
 }
 
 export async function assignAdminAccess(
@@ -639,7 +707,7 @@ export async function updateFeedbackStatus(
   const admin = createAdminClient()
   const { error } = await admin
     .from("feedback_submissions")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq("id", id)
   if (error) return { error: error.message }
   return {}

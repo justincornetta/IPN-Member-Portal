@@ -109,11 +109,10 @@ function ResourceMedia({ resource }: { resource: ResourceRecord }) {
   const image = resourceImage(resource)
   const isBenefit = resource.resource_type === "affiliate_benefit"
   const isPartner = resource.resource_type === "partner"
-  const wrapperClass = isBenefit
-    ? "aspect-[4/3] overflow-hidden rounded-lg border border-zinc-200 bg-white"
-    : isPartner
-      ? "flex h-24 items-center justify-center rounded-lg border border-zinc-200 bg-white p-4"
-      : "aspect-[4/3] overflow-hidden rounded-lg bg-zinc-100"
+  const showContain = isBenefit || isPartner
+  const wrapperClass = showContain
+    ? "aspect-video overflow-hidden rounded-lg border border-zinc-200 bg-white"
+    : "aspect-video overflow-hidden rounded-lg bg-zinc-100"
 
   if (!image) {
     return (
@@ -131,11 +130,7 @@ function ResourceMedia({ resource }: { resource: ResourceRecord }) {
       <img
         src={image}
         alt={resource.image_alt ?? ""}
-        className={
-          isBenefit || isPartner
-            ? "h-full w-full object-contain"
-            : "h-full w-full object-cover"
-        }
+        className={`h-full w-full ${showContain ? "object-contain" : "object-cover"}`}
       />
     </div>
   )
