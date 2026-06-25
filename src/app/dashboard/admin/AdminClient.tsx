@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail } from "@/lib/admin/actions"
+import { useRouter } from "next/navigation"
+import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount } from "@/lib/admin/actions"
 import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import ContentIntakeForm from "./ContentIntakeForm"
@@ -13,6 +14,15 @@ type TeamName = typeof TEAMS[number]
 
 function getInitials(first: string | null, last: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?"
+}
+
+function formatAdminDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(value))
 }
 
 function MemberAvatar({ member, size = "md" }: { member: AdminMemberProfile; size?: "sm" | "md" | "lg" }) {
@@ -49,7 +59,12 @@ function AdminMemberModal({
   const [team, setTeam] = useState(member.team ?? "")
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [, startTransition] = useTransition()
+  const router = useRouter()
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -86,6 +101,36 @@ function AdminMemberModal({
       setSaved(true)
     })
   }
+
+  function handleDelete() {
+    if (!member.email || deleting) return
+
+    setDeleting(true)
+    setDeleteError(null)
+    setDeleteSuccess(null)
+    startTransition(async () => {
+      const result = await deleteMemberAccount(member.id, deleteConfirmation)
+      setDeleting(false)
+
+      if (result.error) {
+        setDeleteError(result.error)
+        return
+      }
+
+      setDeleteSuccess(
+        result.mailchimpStatus === "not_found"
+          ? "Member deleted. Mailchimp already had no matching contact."
+          : "Member deleted from Supabase and Mailchimp.",
+      )
+      router.refresh()
+      window.setTimeout(onClose, 900)
+    })
+  }
+
+  const deleteConfirmed =
+    Boolean(member.email) &&
+    deleteConfirmation.trim().toLowerCase() === member.email?.trim().toLowerCase()
+  const deleteConfirmationId = `delete-confirmation-${member.id}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4" onClick={onClose}>
@@ -188,6 +233,45 @@ function AdminMemberModal({
                   Remove access
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {isSuperadmin && member.email && (
+          <div className="border-t border-red-100 bg-red-50/40 px-6 py-5">
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Delete member</p>
+                <p className="mt-1 text-xs leading-5 text-red-700">
+                  Permanently removes this member from Supabase Auth, portal data, and Mailchimp.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor={deleteConfirmationId} className="text-xs font-medium text-red-700">
+                  Type {member.email} to confirm
+                </label>
+                <input
+                  id={deleteConfirmationId}
+                  type="email"
+                  value={deleteConfirmation}
+                  onChange={(e) => {
+                    setDeleteConfirmation(e.target.value)
+                    setDeleteError(null)
+                    setDeleteSuccess(null)
+                  }}
+                  className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                />
+              </div>
+              {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+              {deleteSuccess && <p className="text-xs text-green-700">{deleteSuccess}</p>}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={!deleteConfirmed || deleting}
+                className="cursor-pointer rounded-lg border border-red-200 bg-red-600 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {deleting ? "Deleting..." : "Delete member"}
+              </button>
             </div>
           </div>
         )}
@@ -845,9 +929,7 @@ function FeedbackTab({
                 <FeedbackTypeBadge type={s.type} />
                 <FeedbackStatusBadge status={s.status} />
                 <span className="ml-auto text-xs text-zinc-400">
-                  {new Date(s.created_at).toLocaleDateString("en-US", {
-                    month: "short", day: "numeric", year: "numeric",
-                  })}
+                  {formatAdminDate(s.created_at)}
                 </span>
               </div>
               <p className="text-sm text-zinc-800 whitespace-pre-wrap">{s.message}</p>
@@ -1040,7 +1122,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
                           </details>
                         )}
                         <p className="text-xs text-zinc-400">
-                          {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          {formatAdminDate(m.created_at)}
                         </p>
                       </div>
                     </button>

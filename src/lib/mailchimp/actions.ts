@@ -267,3 +267,35 @@ export async function lookupMailchimpSubscription(
     }
   }
 }
+
+export async function permanentlyDeleteMailchimpContact(
+  email: string,
+): Promise<{ deleted?: boolean; notFound?: boolean; error?: string }> {
+  const trimmed = email.trim()
+  if (!trimmed) return { notFound: true }
+
+  try {
+    const { baseUrl, auth } = mailchimpAuth()
+    const res = await fetch(
+      `${baseUrl}/lists/${LIST_ID}/members/${subscriberHash(trimmed)}/actions/delete-permanent`,
+      {
+        method: "POST",
+        headers: { Authorization: auth },
+        signal: AbortSignal.timeout(MAILCHIMP_TIMEOUT_MS),
+      },
+    )
+
+    if (res.status === 404) return { notFound: true }
+    if (res.ok) return { deleted: true }
+
+    const { description } = await readMailchimpError(res)
+    return { error: description }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "Unknown error"
+    return {
+      error: detail.includes("MAILCHIMP_API_KEY")
+        ? "Mailchimp is not configured correctly. Check MAILCHIMP_API_KEY in the deployment environment."
+        : "The portal could not complete the Mailchimp permanent delete request.",
+    }
+  }
+}

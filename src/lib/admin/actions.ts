@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { permanentlyDeleteMailchimpContact } from "@/lib/mailchimp/actions"
 import type { EventSpeakerResources } from "@/lib/events/types"
 
 export type AdminContentType =
@@ -72,6 +73,23 @@ async function verifyAdmin(): Promise<
   }
 
   return { userId: user.id, role: data.role }
+}
+
+async function verifySuperadminUser(): Promise<
+  { userId: string } | { error: string }
+> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (data?.role !== "superadmin") return { error: "Unauthorized" }
+  return { userId: user.id }
 }
 
 function clean(value: string | null | undefined) {
@@ -348,6 +366,52 @@ export async function unbanMember(userId: string): Promise<{ error?: string }> {
   await admin.from("profiles").update({ is_banned: false }).eq("id", userId)
   revalidatePath("/dashboard/admin")
   return {}
+}
+
+export async function deleteMemberAccount(
+  userId: string,
+  confirmationEmail: string,
+): Promise<{ error?: string; mailchimpStatus?: "deleted" | "not_found" | "skipped" }> {
+  const auth = await verifySuperadminUser()
+  if ("error" in auth) return auth
+  if (userId === auth.userId) return { error: "You cannot delete your own account." }
+
+  const admin = createAdminClient()
+  const { data: target, error: targetError } = await admin
+    .from("profiles")
+    .select("id, email, avatar_url")
+    .eq("id", userId)
+    .single()
+
+  if (targetError || !target) return { error: "Member account was not found." }
+
+  const email = target.email?.trim()
+  if (!email) return { error: "This member does not have an email address to confirm deletion." }
+  if (confirmationEmail.trim().toLowerCase() !== email.toLowerCase()) {
+    return { error: "Type the member's email address to confirm deletion." }
+  }
+
+  const mailchimpResult = await permanentlyDeleteMailchimpContact(email)
+  if (mailchimpResult.error) return { error: mailchimpResult.error }
+
+  if (target.avatar_url) {
+    await admin.storage.from("avatars").remove([userId])
+  }
+
+  const { error: deleteError } = await admin.auth.admin.deleteUser(userId, false)
+  if (deleteError) return { error: deleteError.message }
+
+  revalidatePath("/dashboard/admin")
+  revalidatePath("/dashboard")
+  revalidatePath("/dashboard/directory")
+
+  return {
+    mailchimpStatus: mailchimpResult.notFound
+      ? "not_found"
+      : mailchimpResult.deleted
+        ? "deleted"
+        : "skipped",
+  }
 }
 
 export async function assignAdminAccess(
