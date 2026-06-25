@@ -29,6 +29,7 @@ export type RegistrationData = {
   psychedelic_field_barriers: string[]
   role_and_goals: string
   inspiration: string
+  support_needs: string
   referral_source: string
 }
 
@@ -129,6 +130,7 @@ export async function signUp(
         psychedelic_field_barriers: data.psychedelic_field_barriers,
         role_and_goals: data.role_and_goals,
         inspiration: data.inspiration,
+        support_needs: data.support_needs,
         referral_source: data.referral_source,
       },
     },
