@@ -252,7 +252,7 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
         />
         <ChecklistItem
           number={2}
-          title="Join IPN WhatsApp Community"
+          title="Join WhatsApp Community"
           body="Stay updated and connect with members."
           href={whatsappUrl || "/dashboard/community"}
           icon={<WhatsAppIcon />}
