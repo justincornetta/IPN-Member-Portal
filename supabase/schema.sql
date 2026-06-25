@@ -24,6 +24,7 @@ create table if not exists public.profiles (
   psychedelic_field_barriers text[],
   role_and_goals            text,
   inspiration               text,
+  support_needs             text,
   referral_source           text,
   bio                       text,
   area_of_interest          text,
@@ -68,6 +69,7 @@ alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists role text;
 alter table public.profiles add column if not exists admin_role text;
 alter table public.profiles add column if not exists team text;
+alter table public.profiles add column if not exists support_needs text;
 
 -- Rename "Strategy" team to "Strategy and Operations" before applying the constraint
 update public.profiles set team = 'Strategy and Operations' where team = 'Strategy';
@@ -229,6 +231,7 @@ begin
     psychedelic_field_barriers,
     role_and_goals,
     inspiration,
+    support_needs,
     referral_source
   ) values (
     new.id,
@@ -255,6 +258,7 @@ begin
     end,
     new.raw_user_meta_data->>'role_and_goals',
     new.raw_user_meta_data->>'inspiration',
+    new.raw_user_meta_data->>'support_needs',
     new.raw_user_meta_data->>'referral_source'
   );
 

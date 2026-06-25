@@ -73,6 +73,7 @@ One row per user. Created automatically on signup via trigger.
 | `psychedelic_field_barriers` | `text[]` | Array — "why not" checkboxes |
 | `role_and_goals` | `text` | Long-form answer |
 | `inspiration` | `text` | Long-form answer |
+| `support_needs` | `text` | Registration-only answer about the resource or support that would help most right now |
 | `referral_source` | `text` | How they heard about IPN |
 | `bio` | `text` | Short public bio; set on profile edit page |
 | `area_of_interest` | `text` | **Deprecated** — replaced by `interest_tags`; kept for historical data |
@@ -94,6 +95,7 @@ One row per user. Created automatically on signup via trigger.
 > alter table public.profiles add column if not exists share_location boolean not null default true;
 > alter table public.profiles add column if not exists role text;
 > alter table public.profiles add column if not exists admin_role text;
+> alter table public.profiles add column if not exists support_needs text;
 > alter table public.profiles add column if not exists team text
 >   check (team in ('Strategy', 'Media', 'PsychedelX', 'Community'));
 >

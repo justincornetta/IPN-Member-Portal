@@ -49,6 +49,7 @@ type FormData = {
   barriers_other: string
   role_and_goals: string
   inspiration: string
+  support_needs: string
   referral_source: string
 }
 
@@ -62,7 +63,7 @@ const EMPTY: FormData = {
   persona: "", affiliation: "", school: "",
   field: "", field_status: "",
   barriers: [], barriers_other: "",
-  role_and_goals: "", inspiration: "", referral_source: "",
+  role_and_goals: "", inspiration: "", support_needs: "", referral_source: "",
 }
 
 // ── Shared primitives ────────────────────────────────────────────────────────
@@ -466,6 +467,12 @@ function StepAbout({
           onChange={(v) => update("inspiration", v)} rows={3} />
       </div>
 
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="support_needs">What resource or support would help you most right now?</Label>
+        <Textarea id="support_needs" name="support_needs" value={data.support_needs}
+          onChange={(v) => update("support_needs", v)} rows={3} />
+      </div>
+
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-zinc-700">How did you hear about us?</p>
         {REFERRAL_OPTIONS.map((opt) => (
@@ -579,6 +586,7 @@ function RegisterPageContent() {
       psychedelic_field_barriers: barriers,
       role_and_goals: data.role_and_goals,
       inspiration: data.inspiration,
+      support_needs: data.support_needs,
       referral_source: data.referral_source,
     }, redirectTo || undefined)
 
