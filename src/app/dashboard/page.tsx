@@ -175,21 +175,21 @@ function ChecklistItem({
       >
         {completed ? <CheckIcon /> : number}
       </span>
-      <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+      <span className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 sm:inline-flex">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold leading-tight text-zinc-900">{title}</span>
         </span>
-        <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-500">{body}</span>
+        <span className="mt-0.5 hidden line-clamp-2 text-xs leading-snug text-zinc-500 sm:block">{body}</span>
       </span>
       <ArrowIcon />
     </>
   )
 
   const className =
-    "flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 transition hover:border-ipn/30 hover:bg-zinc-50"
+    "flex min-h-9 items-center gap-3 rounded-lg border border-transparent bg-white px-0 py-1 transition hover:border-ipn/30 hover:bg-zinc-50 sm:min-h-0 sm:border-zinc-200 sm:px-3 sm:py-2"
 
   if (external) {
     return (
@@ -211,17 +211,88 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
     || (process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
       ? `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE!.trim().replace(/\D/g, "")}`
       : undefined)
+  const nextStep = [
+    {
+      title: "Complete your profile",
+      href: "/dashboard/profile",
+      completed: Boolean(progress?.profile_completed_at),
+    },
+    {
+      title: "Join IPN WhatsApp Community",
+      href: whatsappUrl || "/dashboard/community",
+      completed: Boolean(progress?.whatsapp_completed_at),
+      external: Boolean(whatsappUrl),
+    },
+    {
+      title: "Register for an event",
+      href: "/dashboard/events",
+      completed: Boolean(progress?.event_rsvp_completed_at),
+    },
+    {
+      title: "Connect with a member",
+      href: "/dashboard/directory",
+      completed: Boolean(progress?.connection_request_completed_at),
+    },
+  ].find((step) => !step.completed)
+  const completedCount = [
+    progress?.profile_completed_at,
+    progress?.whatsapp_completed_at,
+    progress?.event_rsvp_completed_at,
+    progress?.connection_request_completed_at,
+    progress?.invite_completed_at,
+  ].filter(Boolean).length
+  const totalCount = 5
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div>
-        <p className="text-sm font-medium text-ipn">Get involved</p>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-900">
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:rounded-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="hidden text-sm font-medium text-ipn sm:block">Get involved</p>
+          <h2 className="text-base font-semibold text-zinc-900 sm:mt-1 sm:text-lg">
           Make the most of your membership
-        </h2>
+          </h2>
+        </div>
+        <p className="text-xs font-medium text-zinc-500 sm:hidden">
+          {completedCount} of {totalCount} completed
+        </p>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 sm:hidden">
+        <div
+          className="h-full rounded-full bg-ipn"
+          style={{ width: `${(completedCount / totalCount) * 100}%` }}
+        />
+      </div>
+
+      {nextStep && (
+        <div className="mt-4 hidden rounded-lg border border-ipn/20 bg-ipn/5 p-3 sm:block">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ipn">
+            Start here
+          </p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-zinc-900">{nextStep.title}</p>
+            {nextStep.external ? (
+              <a
+                href={nextStep.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-xs font-medium text-white"
+              >
+                Open
+              </a>
+            ) : (
+              <Link
+                href={nextStep.href}
+                className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-xs font-medium text-white"
+              >
+                Continue
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-col gap-1.5 sm:mt-4 sm:gap-2">
         <ChecklistItem
           number={1}
           title="Complete your profile"
@@ -241,7 +312,7 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
         />
         <ChecklistItem
           number={3}
-          title="Attend an event"
+          title="Register for an event"
           body="Join the next IPN gathering or webinar."
           href="/dashboard/events"
           icon={<CalendarIcon />}
@@ -512,7 +583,10 @@ function DirectoryPreview({
             Find IPN members
           </h2>
         </div>
-        <Link href="/dashboard/directory?view=map" className="text-sm font-medium text-ipn hover:underline">
+        <Link
+          href="/dashboard/directory?view=map"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
+        >
           Search
         </Link>
       </div>
@@ -713,36 +787,37 @@ export default async function DashboardPage({
   const subtitle = [profile?.persona, profile?.affiliation ?? profile?.school]
     .filter(Boolean)
     .join(" · ")
-  const hour = new Date().getHours()
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
-
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-6">
       <WelcomeModal userId={user!.id} show={showOnboarding} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">
-            {greeting}, {firstName}
+            Welcome, {firstName}
           </h1>
           {subtitle ? (
-            <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
+            <p className="mt-1 line-clamp-1 text-sm text-zinc-500">{subtitle}</p>
           ) : (
             <p className="mt-1 text-sm text-zinc-500">
-              Welcome to your IPN member home.
+              Thanks for being part of IPN.
             </p>
           )}
         </div>
-        <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
+        <div className="hidden sm:block">
+          <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
         <UpcomingEventsCarousel
+          className="order-1"
           events={upcomingEvents}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
-        <MemberOnboarding progress={onboardingProgress} />
+        <div className="order-2">
+          <MemberOnboarding progress={onboardingProgress} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

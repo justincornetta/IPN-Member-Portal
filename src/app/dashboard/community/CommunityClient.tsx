@@ -44,8 +44,12 @@ function ConfirmRemoveModal({
   }, [onCancel])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-zinc-950/40 px-4" onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4" onClick={onCancel}>
+      <div
+        className="w-full max-w-sm rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-base font-semibold text-zinc-900">Remove connection?</h2>
         <p className="mt-2 text-sm text-zinc-500">
           You and <span className="font-medium text-zinc-700">{name}</span> will no longer be connected and won&apos;t be able to see each other&apos;s contact details.
@@ -96,9 +100,10 @@ function ProfileModal({
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl max-h-[90vh]"
+        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -130,7 +135,7 @@ function ProfileModal({
               <svg className="h-4 w-4 flex-shrink-0 text-ipn" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
               </svg>
-              <a href={`mailto:${profile.email}`} className="text-sm font-medium text-ipn hover:underline">
+              <a href={`mailto:${profile.email}`} className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0">
                 {profile.email}
               </a>
             </div>
@@ -165,7 +170,7 @@ function ProfileModal({
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-4">
+        <div className="flex flex-col gap-3 border-t border-zinc-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           {profile.linkedin_url ? (
             <a
               href={profile.linkedin_url}
@@ -182,7 +187,7 @@ function ProfileModal({
           <button
             type="button"
             onClick={onRemove}
-            className="rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn hover:bg-ipn/5 transition"
+            className="min-h-11 rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5"
           >
             {removeLabel}
           </button>
@@ -205,7 +210,7 @@ function OutgoingCard({
   const [, startTransition] = useTransition()
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
       <Avatar profile={addressee} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-zinc-900">
@@ -216,10 +221,10 @@ function OutgoingCard({
         )}
         <p className="mt-0.5 text-xs text-zinc-400">Request pending</p>
       </div>
-      <div className="flex flex-shrink-0 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0">
         <button
           onClick={() => onView(addressee)}
-          className="rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white hover:bg-ipn/90 transition"
+          className="min-h-11 rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ipn/90"
         >
           View profile
         </button>
@@ -228,7 +233,7 @@ function OutgoingCard({
             onCancelled(row.addressee_id)
             startTransition(() => { removeConnection(row.addressee_id) })
           }}
-          className="rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn hover:bg-ipn/5 transition"
+          className="min-h-11 rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn/5"
         >
           Cancel request
         </button>
@@ -251,7 +256,7 @@ function ConnectionCard({
   const other = row.requester_id === userId ? row.addressee : row.requester
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
       <Avatar profile={other} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-zinc-900">
@@ -261,21 +266,21 @@ function ConnectionCard({
           <p className="truncate text-xs text-zinc-400">{other.persona}</p>
         )}
         {other.email && (
-          <a href={`mailto:${other.email}`} className="mt-0.5 block truncate text-xs text-ipn hover:underline">
+          <a href={`mailto:${other.email}`} className="mt-0.5 inline-flex min-h-11 max-w-full items-center truncate text-xs text-ipn hover:underline sm:min-h-0">
             {other.email}
           </a>
         )}
       </div>
-      <div className="flex flex-shrink-0 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0">
         <button
           onClick={() => onView(other)}
-          className="rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white hover:bg-ipn/90 transition"
+          className="min-h-11 rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ipn/90"
         >
           View
         </button>
         <button
           onClick={() => onRequestRemove(other)}
-          className="rounded-md border border-ipn px-3 py-1.5 text-xs font-medium text-ipn bg-transparent hover:bg-ipn/5 transition"
+          className="min-h-11 rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn/5"
         >
           Remove connection
         </button>
@@ -300,7 +305,7 @@ function RequestCard({
   if (!requester) return null
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
       <Avatar profile={requester} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-zinc-900">
@@ -310,10 +315,10 @@ function RequestCard({
           <p className="truncate text-xs text-zinc-400">{requester.persona}</p>
         )}
       </div>
-      <div className="flex flex-shrink-0 gap-2">
+      <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-shrink-0">
         <button
           onClick={() => onView(requester)}
-          className="rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white hover:bg-ipn/90 transition"
+          className="min-h-11 rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ipn/90"
         >
           View profile
         </button>
@@ -322,7 +327,7 @@ function RequestCard({
             onAccepted(row.requester_id)
             startTransition(() => { acceptConnection(row.requester_id) })
           }}
-          className="rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white hover:bg-ipn/90 transition"
+          className="min-h-11 rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ipn/90"
         >
           Accept
         </button>
@@ -331,7 +336,7 @@ function RequestCard({
             onDeclined(row.id)
             startTransition(() => { declineConnection(row.requester_id) })
           }}
-          className="rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn hover:bg-ipn/5 transition"
+          className="min-h-11 rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn/5"
         >
           Decline
         </button>
@@ -367,8 +372,25 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
   const [viewProfile, setViewProfile] = useState<ConnectionProfile | null>(null)
   const [viewOutgoingProfile, setViewOutgoingProfile] = useState<ConnectionProfile | null>(null)
   const [pendingRemove, setPendingRemove] = useState<ConnectionProfile | null>(null)
+  const [isCompactMobile, setIsCompactMobile] = useState(false)
+  const [visibleConnectionCount, setVisibleConnectionCount] = useState(3)
+  const [visibleRequestCount, setVisibleRequestCount] = useState(3)
   const [, startTransition] = useTransition()
   const tab = communityTabFromParam(searchParams.get("tab"), incoming.length > 0)
+  const visibleAccepted = isCompactMobile ? accepted.slice(0, visibleConnectionCount) : accepted
+  const visibleIncoming = isCompactMobile ? incoming.slice(0, visibleRequestCount) : incoming
+  const visibleOutgoing = isCompactMobile ? outgoing.slice(0, Math.max(0, visibleRequestCount - visibleIncoming.length)) : outgoing
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 640px)")
+    function updateCompactMode() {
+      setIsCompactMobile(query.matches)
+    }
+
+    updateCompactMode()
+    query.addEventListener("change", updateCompactMode)
+    return () => query.removeEventListener("change", updateCompactMode)
+  }, [])
 
   function setCommunityTab(nextTab: CommunityTab) {
     const params = new URLSearchParams(searchParams.toString())
@@ -400,25 +422,25 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:gap-8 sm:p-8">
+    <div className="flex flex-col gap-4 p-4 sm:gap-8 sm:p-8">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Community</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 line-clamp-1 text-sm text-zinc-400">
           Connect with members to share contact details.
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <WhatsAppCommunityCard className="flex-1" />
-        <InviteFriendsCard className="flex-1" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <WhatsAppCommunityCard className="flex-1" compact />
+        <InviteFriendsCard className="flex-1" variant="compact" />
       </div>
 
-      <div className="flex gap-1 rounded-xl border border-zinc-200 bg-white p-1 w-fit shadow-sm">
+      <div className="grid w-full grid-cols-2 gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:w-fit">
         {(["connections", "requests"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setCommunityTab(t)}
-            className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`relative flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               tab === t ? "bg-ipn text-white shadow-sm" : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
@@ -440,7 +462,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
               <a href="/dashboard/directory" className="text-ipn hover:underline">Directory</a>.
             </p>
           ) : (
-            accepted.map((row) => (
+            visibleAccepted.map((row) => (
               <ConnectionCard
                 key={row.id}
                 row={row}
@@ -450,6 +472,15 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
               />
             ))
           )}
+          {isCompactMobile && visibleConnectionCount < accepted.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleConnectionCount((count) => count + 3)}
+              className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm"
+            >
+              Show more connections
+            </button>
+          )}
         </div>
       )}
 
@@ -458,7 +489,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
           {incoming.length > 0 && (
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Received</p>
-              {incoming.map((row) => (
+              {visibleIncoming.map((row) => (
                 <RequestCard
                   key={row.id}
                   row={row}
@@ -472,7 +503,7 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
           {outgoing.length > 0 && (
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Sent</p>
-              {outgoing.map((row) => (
+              {visibleOutgoing.map((row) => (
                 <OutgoingCard
                   key={row.id}
                   row={row}
@@ -484,6 +515,15 @@ export default function CommunityClient({ userId, accepted: initialAccepted, inc
           )}
           {incoming.length === 0 && outgoing.length === 0 && (
             <p className="text-sm text-zinc-400">No pending requests.</p>
+          )}
+          {isCompactMobile && visibleRequestCount < incoming.length + outgoing.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleRequestCount((count) => count + 3)}
+              className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm"
+            >
+              Show more requests
+            </button>
           )}
         </div>
       )}

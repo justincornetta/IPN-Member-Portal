@@ -10,6 +10,7 @@ import type { EventWithRegistration } from "@/lib/events/types"
 type Props = {
   events: EventWithRegistration[]
   totalCount: number
+  className?: string
 }
 
 function ArrowIcon({ direction }: { direction: "left" | "right" }) {
@@ -69,7 +70,7 @@ function EventCta({ event }: { event: EventWithRegistration }) {
         href={event.registration_url}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
       >
         Register
       </a>
@@ -79,7 +80,7 @@ function EventCta({ event }: { event: EventWithRegistration }) {
   return (
     <Link
       href={`/dashboard/events/${event.slug}`}
-      className="inline-flex items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
     >
       {event.is_registered ? "View event" : "Details"}
     </Link>
@@ -90,7 +91,7 @@ function CompactEventCard({ event }: { event: EventWithRegistration }) {
   const countLabel = registrationBand(event.registration_count)
 
   return (
-    <article className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:grid-cols-[210px_1fr]">
+    <article className="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:gap-4 sm:grid-cols-[210px_1fr]">
       <EventArtwork event={event} />
 
       <div className="flex min-w-0 flex-col">
@@ -119,12 +120,12 @@ function CompactEventCard({ event }: { event: EventWithRegistration }) {
         </Link>
 
         {event.summary && (
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 line-clamp-2 text-sm leading-5 text-zinc-500 sm:leading-6">
             {event.summary}
           </p>
         )}
 
-        <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+        <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:flex sm:flex-wrap sm:items-center sm:pt-4">
           <EventCta event={event} />
           <AddToCalendarButton event={event} compact />
         </div>
@@ -133,7 +134,7 @@ function CompactEventCard({ event }: { event: EventWithRegistration }) {
   )
 }
 
-export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
+export default function UpcomingEventsCarousel({ events, totalCount, className = "" }: Props) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const activeEvent = events[activeIndex]
@@ -156,7 +157,7 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
   }
 
   return (
-    <section className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <section className={`flex h-full flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:rounded-xl sm:p-4 ${className}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -165,13 +166,13 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
               {countLabel}
             </span>
           </div>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-900">
+          <h2 className="mt-1 hidden text-lg font-semibold text-zinc-900 sm:block">
             What&apos;s coming up at IPN
           </h2>
         </div>
         <Link
           href="/dashboard/events"
-          className="text-sm font-medium text-ipn hover:underline"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
         >
           View all events
         </Link>
@@ -180,7 +181,7 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
       {activeEvent ? (
         <>
           <div
-            className="mt-4"
+            className="mt-3 sm:mt-4"
             onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
@@ -189,13 +190,13 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
 
           {hasMultiple && (
             <div className="mt-auto pt-4">
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="hidden gap-2 sm:grid sm:grid-cols-2">
                 {events.slice(0, 4).map((event, index) => (
                   <button
                     key={event.id}
                     type="button"
                     onClick={() => goTo(index)}
-                    className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                    className={`flex min-h-11 min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
                       index === activeIndex
                         ? "border-ipn/30 bg-ipn-light"
                         : "border-zinc-200 bg-zinc-50 hover:border-ipn/20"
@@ -224,43 +225,47 @@ export default function UpcomingEventsCarousel({ events, totalCount }: Props) {
 
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-zinc-500">
+                  <span className="hidden text-xs font-medium text-zinc-500 sm:inline">
                     Event {activeIndex + 1} of {events.length}
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     {events.map((event, index) => (
                       <button
                         key={event.id}
                         type="button"
                         onClick={() => goTo(index)}
-                        className={`h-2.5 rounded-full transition ${
-                          index === activeIndex
-                            ? "w-7 bg-ipn"
-                            : "w-2.5 bg-zinc-200 hover:bg-zinc-300"
-                        }`}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition hover:bg-zinc-50 sm:h-6 sm:w-6"
                         aria-label={`Show event ${index + 1}`}
                         aria-current={index === activeIndex ? "true" : undefined}
-                      />
+                      >
+                        <span
+                          className={`h-2.5 rounded-full transition ${
+                            index === activeIndex
+                              ? "w-7 bg-ipn"
+                              : "w-2.5 bg-zinc-200"
+                          }`}
+                        />
+                      </button>
                     ))}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => goTo(activeIndex - 1)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
-                  aria-label="Previous event"
-                >
-                  <ArrowIcon direction="left" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => goTo(activeIndex + 1)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
-                  aria-label="Next event"
-                >
-                  <ArrowIcon direction="right" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => goTo(activeIndex - 1)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:w-8"
+                    aria-label="Previous event"
+                  >
+                    <ArrowIcon direction="left" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goTo(activeIndex + 1)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:w-8"
+                    aria-label="Next event"
+                  >
+                    <ArrowIcon direction="right" />
+                  </button>
                 </div>
               </div>
             </div>

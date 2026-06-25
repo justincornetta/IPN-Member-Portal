@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import EventCard from "@/components/events/EventCard"
@@ -91,8 +91,8 @@ function eventTabFromParam(value: string | null): EventTab {
 
 function RecordingCard({ recording }: { recording: EventRecord }) {
   return (
-    <Link href={`/dashboard/events/${recording.slug}`} className="block h-full">
-      <article className="flex h-full flex-col rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-ipn/30 hover:shadow-md">
+    <Link href={`/dashboard/events/${recording.slug}`} className="block h-full min-w-0">
+      <article className="flex h-full min-w-0 flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-ipn/30 hover:shadow-md sm:p-4">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-zinc-900">
           {recording.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -111,18 +111,18 @@ function RecordingCard({ recording }: { recording: EventRecord }) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-1 flex-col">
+        <div className="mt-3 flex min-w-0 flex-1 flex-col sm:mt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
+            <span className="max-w-full truncate rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
               {recording.event_type}
             </span>
             {recording.recording_provider && (
-              <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
+              <span className="max-w-full truncate rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
                 {recording.recording_provider}
               </span>
             )}
             {recording.recording_category && (
-              <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
+              <span className="max-w-full truncate rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
                 {recording.recording_category}
               </span>
             )}
@@ -144,7 +144,7 @@ function RecordingCard({ recording }: { recording: EventRecord }) {
             </p>
           )}
           {recording.summary && (
-            <p className="mt-2 line-clamp-3 text-sm leading-6 text-zinc-500">
+            <p className="mt-2 line-clamp-2 text-sm leading-5 text-zinc-500 sm:line-clamp-3 sm:leading-6">
               {recording.summary}
             </p>
           )}
@@ -168,6 +168,35 @@ function EmptyPanel({ title, body }: { title: string; body: string }) {
   )
 }
 
+function EventPreviewRow({ event }: { event: EventWithRegistration }) {
+  return (
+    <Link
+      href={`/dashboard/events/${event.slug}`}
+      className="grid min-h-24 grid-cols-[6rem_1fr] gap-3 rounded-lg border border-zinc-200 bg-white p-2 shadow-sm"
+    >
+      <div className="relative overflow-hidden rounded-md bg-zinc-900">
+        {event.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={event.thumbnail_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
+        )}
+      </div>
+      <div className="min-w-0 py-1">
+        <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-zinc-900">
+          {event.title}
+        </h3>
+        <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
+          <EventDateTime startsAt={event.starts_at} endsAt={event.ends_at} timezone={event.timezone} />
+        </p>
+        {event.location_label && (
+          <p className="mt-1 line-clamp-1 text-xs text-zinc-400">{event.location_label}</p>
+        )}
+      </div>
+    </Link>
+  )
+}
+
 export default function EventsHub({ upcomingEvents, recordings }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -179,6 +208,8 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
   const [psychedelXCategory, setPsychedelXCategory] = useState(
     ALL_RECORDING_CATEGORIES,
   )
+  const [isCompactMobile, setIsCompactMobile] = useState(false)
+  const [visibleRecordingCount, setVisibleRecordingCount] = useState(3)
 
   const ipnLabsRecordings = useMemo(
     () => recordingsByType(recordings, "IPN Lab"),
@@ -243,6 +274,20 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
     recordingQuery,
     recordingTab,
   ])
+  const visibleRecordings = isCompactMobile
+    ? activeRecordings.slice(0, visibleRecordingCount)
+    : activeRecordings
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 640px)")
+    function updateCompactMode() {
+      setIsCompactMobile(query.matches)
+    }
+
+    updateCompactMode()
+    query.addEventListener("change", updateCompactMode)
+    return () => query.removeEventListener("change", updateCompactMode)
+  }, [])
 
   function setEventTab(tab: EventTab) {
     const params = new URLSearchParams(searchParams.toString())
@@ -252,8 +297,8 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-lg border border-ipn/20 bg-ipn/5 p-5">
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <section className="hidden rounded-lg border border-ipn/20 bg-ipn/5 p-5 sm:block">
         <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <p className="text-sm font-medium text-ipn">What is included</p>
@@ -265,7 +310,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
               organized by IPN Labs and PsychedelX for browsing after the fact.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => setEventTab("upcoming")}
@@ -294,16 +339,16 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
         </div>
       </section>
 
-      <div className="flex gap-2 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+      <div className="grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
         {[
           ["upcoming", "Upcoming"],
-          ["recordings", "Past Recordings"],
+          ["recordings", "Recordings"],
         ].map(([id, label]) => (
           <button
             key={id}
             type="button"
             onClick={() => setEventTab(id as EventTab)}
-            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
+            className={`min-h-11 rounded-md px-3 py-2 text-sm font-medium transition ${
               activeTab === id
                 ? "bg-ipn text-white shadow-sm"
                 : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
@@ -315,8 +360,8 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
       </div>
 
       {activeTab === "upcoming" && (
-        <section className="flex flex-col gap-4">
-          <div>
+        <section className="flex flex-col gap-3 sm:gap-4">
+          <div className="hidden sm:block">
             <p className="text-sm font-medium text-ipn">Upcoming</p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">
               Upcoming IPN events
@@ -328,10 +373,27 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
           </div>
 
           {upcomingEvents.length ? (
-            <div className="flex flex-col gap-4">
-              {upcomingEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+            <div className="flex flex-col gap-3 sm:gap-4">
+              <div className="sm:hidden">
+                <p className="mb-2 text-sm font-semibold text-zinc-900">Next Event</p>
+                <EventCard event={upcomingEvents[0]} variant="compact" />
+              </div>
+              {upcomingEvents.length > 1 && (
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-zinc-900">Upcoming Events</p>
+                    <Link href="/dashboard/events" className="inline-flex min-h-11 items-center text-sm font-medium text-ipn">View all</Link>
+                  </div>
+                  {upcomingEvents.slice(1, 3).map((event) => (
+                    <EventPreviewRow key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+              <div className="hidden flex-col gap-4 sm:flex">
+                {upcomingEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
             </div>
           ) : (
             <EmptyPanel
@@ -344,8 +406,8 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
 
       {activeTab === "recordings" && (
         <section className="flex flex-col gap-4">
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-            <div>
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div className="hidden sm:block">
               <p className="text-sm font-medium text-ipn">Past recordings</p>
               <h2 className="mt-1 text-xl font-semibold text-zinc-900">
                 Event recordings
@@ -365,10 +427,10 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
                   value={recordingQuery}
                   onChange={(event) => setRecordingQuery(event.target.value)}
                   placeholder="Search recording titles"
-                  className="w-full rounded-lg border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn/40 focus:ring-2 focus:ring-ipn/10"
+                  className="w-full rounded-lg border border-zinc-200 bg-white py-2 pl-9 pr-3 text-base text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn/40 focus:ring-2 focus:ring-ipn/10 sm:text-sm"
                 />
               </label>
-              <div className="flex gap-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
                 {[
                   ["IPN Lab", `IPN Labs (${ipnLabsRecordings.length})`],
                   ["PsychedelX", `PsychedelX (${psychedelXRecordings.length})`],
@@ -377,7 +439,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
                     key={id}
                     type="button"
                     onClick={() => setRecordingTab(id as RecordingTab)}
-                    className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
+                    className={`min-h-11 rounded-md px-2 py-2 text-sm font-medium transition ${
                       recordingTab === id
                         ? "bg-ipn text-white shadow-sm"
                         : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
@@ -395,7 +457,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
               <select
                 value={psychedelXYear}
                 onChange={(event) => setPsychedelXYear(event.target.value)}
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 outline-none transition focus:border-ipn/40 focus:ring-2 focus:ring-ipn/10"
+                className="min-h-11 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 outline-none transition focus:border-ipn/40 focus:ring-2 focus:ring-ipn/10"
                 aria-label="Filter PsychedelX recordings by year"
               >
                 <option value={ALL_RECORDING_YEARS}>All years</option>
@@ -408,7 +470,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
               <button
                 type="button"
                 onClick={() => setPsychedelXCategory(ALL_RECORDING_CATEGORIES)}
-                className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                   psychedelXCategory === ALL_RECORDING_CATEGORIES
                     ? "border-ipn bg-ipn text-white"
                     : "border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
@@ -421,7 +483,7 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
                   key={category}
                   type="button"
                   onClick={() => setPsychedelXCategory(category)}
-                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                  className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                     psychedelXCategory === category
                       ? "border-ipn bg-ipn text-white"
                       : "border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
@@ -434,10 +496,21 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
           )}
 
           {activeRecordings.length ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {activeRecordings.map((recording) => (
-                <RecordingCard key={recording.id} recording={recording} />
-              ))}
+            <div className="flex flex-col gap-4">
+              <div className="grid min-w-0 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleRecordings.map((recording) => (
+                  <RecordingCard key={recording.id} recording={recording} />
+                ))}
+              </div>
+              {isCompactMobile && visibleRecordingCount < activeRecordings.length && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleRecordingCount((count) => count + 3)}
+                  className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-ipn/30 hover:text-ipn"
+                >
+                  Show more recordings
+                </button>
+              )}
             </div>
           ) : (
             <EmptyPanel

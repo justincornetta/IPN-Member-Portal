@@ -31,9 +31,9 @@ function ForgotPasswordCard() {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-16">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-16">
       <NeuralBackground avoidRef={cardRef} />
-      <div ref={cardRef} className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
+      <div ref={cardRef} className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-5 py-8 shadow-xl sm:px-8 sm:py-10">
         <div className="mb-8 text-center">
           <div className="mb-5 flex flex-col items-center gap-2">
             <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
@@ -57,7 +57,10 @@ function ForgotPasswordCard() {
             <p className="text-sm text-zinc-600">
               Check your inbox. A reset link is on its way. It may take a minute to arrive.
             </p>
-            <Link href="/login" className="text-sm font-medium text-ipn hover:underline">
+            <Link
+              href="/login"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
+            >
               Back to sign in
             </Link>
           </div>
@@ -84,14 +87,17 @@ function ForgotPasswordCard() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-1 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
+                className="mt-1 min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
               >
                 {loading ? "Sending…" : "Send reset link"}
               </button>
             </form>
 
             <p className="mt-6 text-center text-sm text-zinc-500">
-              <Link href="/login" className="font-medium text-ipn hover:underline">
+              <Link
+                href="/login"
+                className="inline-flex min-h-11 items-center font-medium text-ipn hover:underline sm:min-h-0"
+              >
                 Back to sign in
               </Link>
             </p>

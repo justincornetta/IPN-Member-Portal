@@ -18,7 +18,7 @@ const FEATURES = [
   },
   {
     label: "Events",
-    description: "Discover and register for workshops, conferences, and community webinars.",
+    description: "Discover and register for IPN events, workshops, and webinars.",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
@@ -40,20 +40,20 @@ export default function Home() {
   const cardRef = useRef<HTMLElement>(null)
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-16 font-sans">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-4 font-sans sm:px-6 sm:py-16">
       <NeuralBackground avoidRef={cardRef} />
 
-      <main ref={cardRef} className="relative z-10 flex w-full max-w-2xl flex-col items-center gap-10 text-center rounded-2xl border border-zinc-200 bg-white px-8 py-12 shadow-xl">
+      <main ref={cardRef} className="relative z-10 flex w-full max-w-2xl flex-col items-center gap-5 rounded-2xl border border-zinc-200 bg-white px-5 py-6 text-center shadow-xl sm:gap-10 sm:px-8 sm:py-12">
 
         {/* Identity */}
-        <div className="flex flex-col items-center gap-4">
-          <Image src={icon} alt="IPN" height={48} width={48} className="h-12 w-auto" />
-          <p className="text-base font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
-          <div className="flex flex-col gap-2">
-            <h1 className="text-5xl font-semibold tracking-tight text-zinc-900">
+        <div className="flex flex-col items-center gap-3 sm:gap-4">
+          <Image src={icon} alt="IPN" height={48} width={48} className="h-11 w-auto sm:h-12" />
+          <p className="text-sm font-semibold text-ipn sm:text-base">Intercollegiate Psychedelics Network</p>
+          <div className="flex flex-col gap-1.5 sm:gap-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
               Member Portal
             </h1>
-            <p className="mx-auto max-w-md text-lg leading-relaxed text-zinc-500">
+            <p className="mx-auto max-w-md text-sm leading-6 text-zinc-500 sm:text-lg sm:leading-relaxed">
               A unified home for IPN&apos;s growing community of students,
               researchers, and professionals.
             </p>
@@ -61,33 +61,35 @@ export default function Home() {
         </div>
 
         {/* Feature cards */}
-        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
           {FEATURES.map((f) => (
             <div
               key={f.label}
-              className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white/70 p-4 text-left backdrop-blur-sm"
+              className="grid grid-cols-[2.5rem_1fr] gap-2 rounded-xl border border-zinc-200 bg-white/70 p-3 text-left backdrop-blur-sm sm:flex sm:flex-col sm:gap-2 sm:p-4"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ipn-light text-ipn">
                 {f.icon}
               </div>
-              <p className="text-sm font-semibold text-zinc-800">{f.label}</p>
-              <p className="text-xs leading-relaxed text-zinc-500">{f.description}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-zinc-800">{f.label}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-zinc-500 sm:line-clamp-none sm:leading-relaxed">{f.description}</p>
+              </div>
             </div>
           ))}
         </div>
 
         {/* CTAs */}
         <div className="flex flex-col items-center gap-3">
-          <div className="flex gap-3">
+          <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto">
             <Link
               href="/register"
-              className="rounded-lg bg-ipn px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-ipn-dark"
+              className="flex min-h-11 items-center justify-center rounded-lg bg-ipn px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-ipn-dark"
             >
               Create account
             </Link>
             <Link
               href="/login"
-              className="rounded-lg border border-zinc-300 bg-white/80 px-6 py-2.5 text-sm font-medium text-zinc-700 shadow-sm backdrop-blur-sm transition hover:bg-zinc-50"
+              className="flex min-h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white/80 px-6 py-2.5 text-sm font-medium text-zinc-700 shadow-sm backdrop-blur-sm transition hover:bg-zinc-50"
             >
               Sign in
             </Link>

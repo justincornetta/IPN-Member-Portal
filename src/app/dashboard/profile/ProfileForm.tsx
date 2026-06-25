@@ -467,7 +467,7 @@ function AccountField({ label, value, onEmailChange }: { label: string; value: s
         <button
           type="button"
           onClick={() => { setOpen((o) => !o); setMsg(null); setVal(""); setConfirm("") }}
-          className="cursor-pointer text-xs font-medium text-ipn transition hover:underline"
+          className="inline-flex min-h-11 cursor-pointer items-center rounded-lg px-2 text-xs font-medium text-ipn transition hover:underline sm:min-h-0"
         >
           {open ? "Cancel" : "Change"}
         </button>
@@ -500,7 +500,7 @@ function AccountField({ label, value, onEmailChange }: { label: string; value: s
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="cursor-pointer self-end rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:opacity-50"
+            className="min-h-11 cursor-pointer self-end rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:opacity-50"
           >
             {saving ? "Saving…" : `Update ${label.toLowerCase()}`}
           </button>
@@ -795,7 +795,7 @@ function CountryDialCodeCombobox({
           setOpen((o) => !o)
           if (!open) setTimeout(() => inputRef.current?.focus(), 0)
         }}
-        className="flex h-[38px] items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+        className="flex min-h-11 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
       >
         {selected ? (
           <>
@@ -1120,7 +1120,7 @@ export default function ProfileForm({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={avatarUploading}
-                className="text-sm font-medium text-ipn hover:underline disabled:opacity-50"
+                className="inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-ipn hover:underline disabled:opacity-50 sm:min-h-0"
               >
                 {avatarUploading ? "Uploading…" : "Upload new photo"}
               </button>
@@ -1135,7 +1135,7 @@ export default function ProfileForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor="first_name">First name</Label>
               <TextInput id="first_name" name="first_name" value={data.first_name}
@@ -1180,7 +1180,7 @@ export default function ProfileForm({
             <button
               type="button"
               onClick={() => setTagPickerOpen(true)}
-              className="self-start rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50"
+              className="min-h-11 self-start rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50"
             >
               {data.interest_tags.length > 0 ? "Edit interests" : "Add interests"}
             </button>
@@ -1252,7 +1252,7 @@ export default function ProfileForm({
           </div>
 
           {isProfessional && (
-            <label className="flex cursor-pointer items-center gap-2">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={atUniversity}
@@ -1261,7 +1261,7 @@ export default function ProfileForm({
                   if (e.target.checked) update("affiliation", "")
                   else update("school", "")
                 }}
-                className="h-4 w-4 rounded border-zinc-300 accent-[#664fa1]"
+                className="h-5 w-5 rounded border-zinc-300 accent-[#664fa1]"
               />
               <span className="text-sm text-zinc-700">I work at or am affiliated with a university</span>
             </label>
@@ -1342,12 +1342,12 @@ export default function ProfileForm({
       <section>
         <SectionHeading>Visibility</SectionHeading>
         <div className="flex flex-col gap-3">
-          <label className="flex cursor-pointer items-start gap-3">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={data.is_discoverable}
               onChange={(e) => update("is_discoverable", e.target.checked)}
-              className="mt-0.5 accent-ipn"
+              className="mt-0.5 h-5 w-5 accent-ipn"
             />
             <div>
               <p className="text-sm font-medium text-zinc-700">Make my profile discoverable</p>
@@ -1358,12 +1358,12 @@ export default function ProfileForm({
           </label>
 
           {data.is_discoverable && (
-            <label className="ml-6 flex cursor-pointer items-start gap-3">
+            <label className="ml-6 flex min-h-11 cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
                 checked={data.share_location}
                 onChange={(e) => update("share_location", e.target.checked)}
-                className="mt-0.5 accent-ipn"
+                className="mt-0.5 h-5 w-5 accent-ipn"
               />
               <div>
                 <p className="text-sm font-medium text-zinc-700">Allow location-based discovery</p>
@@ -1407,11 +1407,11 @@ export default function ProfileForm({
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium text-zinc-700">Which field are you primarily in?</p>
             {FIELD_OPTIONS.map((opt) => (
-              <label key={opt} className="flex cursor-pointer items-center gap-2">
+              <label key={opt} className="flex min-h-11 cursor-pointer items-center gap-2">
                 <input type="radio" name="field" value={opt}
                   checked={data.field === opt}
                   onChange={() => update("field", opt)}
-                  className="accent-ipn" />
+                  className="h-5 w-5 accent-ipn" />
                 <span className="text-sm text-zinc-700">{opt}</span>
               </label>
             ))}
@@ -1422,11 +1422,11 @@ export default function ProfileForm({
               Are you currently working in, or interested in working in, the psychedelics field?
             </p>
             {FIELD_STATUS_OPTIONS.map((opt) => (
-              <label key={opt} className="flex cursor-pointer items-center gap-2">
+              <label key={opt} className="flex min-h-11 cursor-pointer items-center gap-2">
                 <input type="radio" name="psychedelic_field_status" value={opt}
                   checked={data.psychedelic_field_status === opt}
                   onChange={() => update("psychedelic_field_status", opt)}
-                  className="accent-ipn" />
+                  className="h-5 w-5 accent-ipn" />
                 <span className="text-sm text-zinc-700">{opt}</span>
               </label>
             ))}
@@ -1437,7 +1437,7 @@ export default function ProfileForm({
       {/* ── Email preferences ── */}
       <section>
         <SectionHeading>Email preferences</SectionHeading>
-        <label className="flex cursor-pointer items-start gap-3">
+        <label className="flex min-h-11 cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             checked={subscribed}
@@ -1457,7 +1457,7 @@ export default function ProfileForm({
                 setTimeout(() => setSubscriptionMsg(null), 3000)
               }
             }}
-            className="mt-0.5 accent-ipn"
+            className="mt-0.5 h-5 w-5 accent-ipn"
           />
           <div>
             <p className="text-sm font-medium text-zinc-700">IPN member updates</p>
@@ -1481,12 +1481,15 @@ export default function ProfileForm({
       </section>
 
       {/* ── Save ── */}
-      <div className="flex items-center gap-4 border-t border-zinc-100 pt-6">
+      <div
+        className="fixed inset-x-4 z-40 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-lg shadow-zinc-900/10 backdrop-blur sm:static sm:inset-auto sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:shadow-none sm:backdrop-blur-0"
+        style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
+      >
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-ipn px-6 py-2.5 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
+          className="min-h-11 rounded-lg bg-ipn px-6 py-2.5 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50 sm:min-h-0"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>

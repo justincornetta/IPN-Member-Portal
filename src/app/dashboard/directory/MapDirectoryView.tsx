@@ -143,6 +143,10 @@ function fitToCities(map: MapboxMap, cities: DirectoryMapCity[], duration = 450)
   })
 }
 
+function mapCityKey(cities: DirectoryMapCity[]) {
+  return cities.map((city) => `${city.id}:${city.memberCount}`).join("|")
+}
+
 function ConnectionPill({
   entry,
   isSelf,
@@ -262,6 +266,7 @@ function CityDrawer({
   currentUserId,
   onSelectCity,
   onOpenMember,
+  variant = "overlay",
 }: {
   cities: DirectoryMapCity[]
   selectedGroup: SelectedMapGroup | null
@@ -269,9 +274,21 @@ function CityDrawer({
   currentUserId: string
   onSelectCity: (city: DirectoryMapCity) => void
   onOpenMember: (member: DirectoryMember) => void
+  variant?: "mobile" | "overlay"
 }) {
+  if (variant === "mobile" && !selectedGroup) {
+    return null
+  }
+
+  const drawerClassName = variant === "mobile"
+    ? "flex max-h-[260px] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm sm:hidden"
+    : "absolute inset-x-3 bottom-3 z-10 hidden max-h-[48%] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/95 shadow-2xl backdrop-blur sm:flex lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[390px]"
+
   return (
-    <aside className="absolute inset-x-3 bottom-3 z-10 flex max-h-[48%] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/95 shadow-2xl backdrop-blur lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[390px]">
+    <aside
+      className={drawerClassName}
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div className="border-b border-zinc-100 px-4 py-3">
         <p className="text-sm font-semibold text-zinc-900">
           {selectedGroup ? selectedGroup.label : "Select a city"}
@@ -301,7 +318,7 @@ function CityDrawer({
                 key={city.id}
                 type="button"
                 onClick={() => onSelectCity(city)}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100"
+                className="flex min-h-11 items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100"
               >
                 <span className="min-w-0 truncate text-sm font-medium text-zinc-800">
                   {cityLabel(city)}
@@ -339,7 +356,7 @@ function MapFallback({
                 key={city.id}
                 type="button"
                 onClick={() => onSelectCity(city)}
-                className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left text-sm transition hover:border-ipn hover:text-ipn"
+                className="flex min-h-11 items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left text-sm transition hover:border-ipn hover:text-ipn"
               >
                 <span className="truncate">{cityLabel(city)}</span>
                 <span className="ml-2 font-semibold">{city.memberCount}</span>
@@ -385,6 +402,7 @@ export default function MapDirectoryView({
     return nearbyCitiesToGroup(selectedCities)
   }, [cities, selectedGroup])
   const selectedCityIdsKey = resolvedSelectedGroup?.cityIds.join("|") ?? null
+  const citiesKey = useMemo(() => mapCityKey(cities), [cities])
 
   function selectCity(city: DirectoryMapCity) {
     setSelectedGroup(cityToGroup(city))
@@ -416,13 +434,57 @@ export default function MapDirectoryView({
   useEffect(() => {
     citiesRef.current = cities
 
-    const source = mapRef.current?.getSource(CITY_SOURCE_ID) as GeoJSONSource | undefined
-    source?.setData(buildCityGeoJson(cities))
+    const map = mapRef.current
+    if (!map) return
 
-    if (mapRef.current && cities.length > 0) {
-      fitToCities(mapRef.current, cities)
+    function syncMapData() {
+      const activeMap = mapRef.current
+      if (!activeMap) return
+
+      activeMap.resize()
+
+      const source = activeMap.getSource(CITY_SOURCE_ID) as GeoJSONSource | undefined
+      if (!source) return
+
+      source.setData(buildCityGeoJson(citiesRef.current))
+
+      if (citiesRef.current.length > 0) {
+        fitToCities(activeMap, citiesRef.current, 300)
+      }
+
+      activeMap.triggerRepaint()
     }
-  }, [cities])
+
+    if (map.loaded() && map.getSource(CITY_SOURCE_ID)) {
+      syncMapData()
+    } else {
+      map.once("load", syncMapData)
+    }
+
+    const timer = window.setTimeout(syncMapData, 180)
+    const frame = window.requestAnimationFrame(syncMapData)
+
+    return () => {
+      window.clearTimeout(timer)
+      window.cancelAnimationFrame(frame)
+    }
+  }, [citiesKey, cities])
+
+  useEffect(() => {
+    const container = mapContainerRef.current
+    if (!container) return
+
+    const observer = new ResizeObserver(() => {
+      const map = mapRef.current
+      if (!map) return
+
+      map.resize()
+      map.triggerRepaint()
+    })
+
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const map = mapRef.current
@@ -461,11 +523,12 @@ export default function MapDirectoryView({
         minZoom: 1,
         maxZoom: 10,
         cooperativeGestures: true,
-        attributionControl: true,
+        attributionControl: false,
       })
 
       mapRef.current = map
-      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-left")
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-left")
+      map.addControl(new mapboxgl.AttributionControl({ compact: true }), "top-right")
 
       map.on("error", (event) => {
         if (!cancelled) {
@@ -567,7 +630,22 @@ export default function MapDirectoryView({
           },
         })
 
+        map.resize()
         fitToCities(map, citiesRef.current, 0)
+        map.triggerRepaint()
+
+        window.requestAnimationFrame(() => {
+          if (cancelled) return
+          map.resize()
+          fitToCities(map, citiesRef.current, 0)
+          map.triggerRepaint()
+        })
+
+        window.setTimeout(() => {
+          if (cancelled) return
+          map.resize()
+          map.triggerRepaint()
+        }, 250)
 
         map.on("click", (event: MapLayerMouseEvent) => {
           const features = map.queryRenderedFeatures(event.point, {
@@ -634,24 +712,42 @@ export default function MapDirectoryView({
     : (mapError ?? "")
 
   return (
-    <div className="relative h-[680px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm" data-testid="directory-map-shell">
-      <div className="absolute left-4 top-4 z-10 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-lg backdrop-blur">
+    <div className="space-y-3">
+      <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-zinc-900 shadow-sm sm:hidden">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Live membership map</p>
         <p className="mt-1 text-sm font-semibold">
           {totalMemberCount} member{totalMemberCount === 1 ? "" : "s"} · {cities.length} cit{cities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
         </p>
       </div>
 
-      {mapboxToken && !mapError ? (
-        <div
-          ref={mapContainerRef}
-          className="absolute inset-0"
-          data-testid="directory-map"
-          style={{ position: "absolute", inset: 0 }}
+      <div className="directory-map-shell relative h-[360px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm sm:h-[680px]" data-testid="directory-map-shell">
+        <div className="absolute left-4 top-4 z-10 hidden max-w-[calc(100%-2rem)] rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-lg backdrop-blur sm:block">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Live membership map</p>
+          <p className="mt-1 text-sm font-semibold">
+            {totalMemberCount} member{totalMemberCount === 1 ? "" : "s"} · {cities.length} cit{cities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
+          </p>
+        </div>
+
+        {mapboxToken && !mapError ? (
+          <div
+            ref={mapContainerRef}
+            className="absolute inset-0"
+            data-testid="directory-map"
+            style={{ position: "absolute", inset: 0 }}
+          />
+        ) : (
+          <MapFallback cities={cities} reason={fallbackReason} onSelectCity={selectCity} />
+        )}
+
+        <CityDrawer
+          cities={cities}
+          selectedGroup={resolvedSelectedGroup}
+          connectionMap={connectionMap}
+          currentUserId={currentUserId}
+          onSelectCity={selectCity}
+          onOpenMember={onOpenMember}
         />
-      ) : (
-        <MapFallback cities={cities} reason={fallbackReason} onSelectCity={selectCity} />
-      )}
+      </div>
 
       <CityDrawer
         cities={cities}
@@ -660,6 +756,7 @@ export default function MapDirectoryView({
         currentUserId={currentUserId}
         onSelectCity={selectCity}
         onOpenMember={onOpenMember}
+        variant="mobile"
       />
     </div>
   )

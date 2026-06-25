@@ -11,6 +11,7 @@ import type {
   DirectoryParams,
 } from "@/lib/directory/types"
 import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
+import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 
 const MapDirectoryView = dynamic(() => import("./MapDirectoryView"), {
   ssr: false,
@@ -45,7 +46,7 @@ function AvatarCircle({
   initials: string
 }) {
   return (
-    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-full">
+    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full sm:h-16 sm:w-16">
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -82,12 +83,13 @@ function MemberCard({
   const institution = member.school ?? member.affiliation
   const tags = member.interest_tags ?? []
   const isConnected = connectionEntry?.status === "accepted"
+  const visibleTags = tags.slice(0, 3)
 
   return (
     <button
       type="button"
       onClick={() => onOpen(member)}
-      className="group flex w-full flex-col items-center rounded-xl border border-zinc-200 bg-white px-4 pb-5 pt-6 shadow-sm transition duration-150 ease-out hover:[transform:translateY(-6px)] hover:border-ipn hover:shadow-lg text-left cursor-pointer"
+      className="group flex w-full cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm transition duration-150 ease-out hover:border-ipn hover:shadow-lg sm:flex-col sm:items-center sm:gap-4 sm:rounded-xl sm:px-4 sm:pb-5 sm:pt-6 sm:hover:[transform:translateY(-6px)]"
     >
       <div className="relative">
         <AvatarCircle avatarUrl={member.avatar_url} initials={initials} />
@@ -99,25 +101,46 @@ function MemberCard({
           </span>
         )}
       </div>
-      <p className="mt-3 text-center text-sm font-semibold text-zinc-900 group-hover:text-ipn">
-        {member.first_name} {member.last_name}
-      </p>
-      <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
-        {isSelf && (
-          <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
-            You
+      <span className="min-w-0 flex-1 sm:w-full">
+        <span className="flex min-w-0 items-center gap-2 sm:block">
+          <span className="truncate text-base font-semibold leading-tight text-zinc-900 group-hover:text-ipn sm:block sm:text-center sm:text-sm">
+            {member.first_name} {member.last_name}
+          </span>
+          {member.persona && (
+            <span className="flex-shrink-0 rounded-full bg-ipn-light px-2 py-0.5 text-[10px] font-semibold text-ipn sm:hidden">
+              {member.persona}
+            </span>
+          )}
+        </span>
+        <span className="mt-1 hidden flex-wrap gap-1.5 sm:flex sm:justify-center">
+          {isSelf && (
+            <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+              You
+            </span>
+          )}
+          <PersonaBadge persona={member.persona} />
+        </span>
+        {institution && (
+          <span className="mt-0.5 block truncate text-sm text-zinc-500 sm:mt-1.5 sm:text-center sm:text-xs sm:font-medium sm:text-zinc-600">
+            {institution}
           </span>
         )}
-        <PersonaBadge persona={member.persona} />
-      </div>
-      {institution && (
-        <p className="mt-1.5 text-center text-xs font-medium text-zinc-600">
-          {institution}
-        </p>
-      )}
-      <p className="mt-1.5 text-center text-xs text-zinc-400">
-        {tags.length > 0 ? tags.join(" · ") : " "}
-      </p>
+        <span className="mt-2 flex flex-wrap gap-1.5 sm:mt-1.5 sm:block sm:text-center">
+          {visibleTags.length > 0 ? visibleTags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-ipn/15 bg-ipn/5 px-2 py-0.5 text-[11px] font-medium text-ipn sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:font-normal sm:text-zinc-400"
+            >
+              {tag}
+            </span>
+          )) : (
+            <span className="text-xs text-zinc-400">No interests yet</span>
+          )}
+        </span>
+      </span>
+      <svg className="h-5 w-5 flex-shrink-0 text-zinc-400 sm:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
+      </svg>
     </button>
   )
 }
@@ -138,19 +161,23 @@ function ConfirmRemoveModal({
   }, [onCancel])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-zinc-950/40 px-4" onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4" onClick={onCancel}>
+      <div
+        className="w-full max-w-sm rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-base font-semibold text-zinc-900">Remove connection?</h2>
         <p className="mt-2 text-sm text-zinc-500">
           You and <span className="font-medium text-zinc-700">{name}</span> will no longer be connected.
         </p>
         <div className="mt-5 flex gap-3">
           <button type="button" onClick={onCancel}
-            className="flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition">
+            className="min-h-11 flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
             Cancel
           </button>
           <button type="button" onClick={onConfirm}
-            className="flex-1 rounded-lg border border-ipn bg-transparent py-2 text-sm font-medium text-ipn hover:bg-ipn/5 transition">
+            className="min-h-11 flex-1 rounded-lg border border-ipn bg-transparent py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5">
             Remove connection
           </button>
         </div>
@@ -195,11 +222,12 @@ function MemberModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl max-h-[90vh]"
+        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -305,7 +333,7 @@ function MemberModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-4">
+        <div className="flex flex-col gap-3 border-t border-zinc-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           {isSelf ? (
             member.linkedin_url ? (
               <a
@@ -326,7 +354,7 @@ function MemberModal({
             <button
               type="button"
               onClick={() => setConfirmRemove(true)}
-              className="rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn hover:bg-ipn/5 transition"
+              className="min-h-11 rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5"
             >
               Remove connection
             </button>
@@ -369,7 +397,7 @@ function MemberModal({
 
             if (status === "pending" && amRequester) {
               return (
-                <button type="button" disabled className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-400 cursor-default">
+                <button type="button" disabled className="min-h-11 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-400 cursor-default">
                   Request Sent
                 </button>
               )
@@ -386,7 +414,7 @@ function MemberModal({
                       if (!result.error) router.refresh()
                     })
                   }}
-                  className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
+                  className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
                 >
                   Accept Request
                 </button>
@@ -403,7 +431,7 @@ function MemberModal({
                     if (!result.error) router.refresh()
                   })
                 }}
-                className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
+                className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
               >
                 Connect
               </button>
@@ -520,7 +548,7 @@ function FilterDrawer({
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative z-50 flex h-full w-80 flex-col overflow-y-auto bg-white shadow-xl">
+      <div className="relative z-50 flex h-full w-[min(22rem,100vw)] flex-col overflow-y-auto bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <p className="text-sm font-semibold text-zinc-900">Filters</p>
           <button
@@ -598,13 +626,13 @@ function FilterDrawer({
           </div>
         </div>
 
-        <div className="border-t border-zinc-100 px-5 py-4">
+        <div className="border-t border-zinc-100 px-5 py-4" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}>
           <div className="flex gap-3">
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={onClear}
-                className="flex-1 cursor-pointer rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+                className="min-h-11 flex-1 cursor-pointer rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
               >
                 Clear
               </button>
@@ -612,7 +640,7 @@ function FilterDrawer({
             <button
               type="button"
               onClick={onApply}
-              className="flex-1 cursor-pointer rounded-lg bg-ipn py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+              className="min-h-11 flex-1 cursor-pointer rounded-lg bg-ipn py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
             >
               Apply
             </button>
@@ -657,17 +685,50 @@ export default function DirectoryClient({
   const [drawerField, setDrawerField] = useState(currentParams.field)
   const [drawerTags, setDrawerTags] = useState<string[]>(currentParams.tags)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [isCompactMobile, setIsCompactMobile] = useState(false)
+  const [visibleMemberCount, setVisibleMemberCount] = useState(4)
   const [connectionState, setConnectionState] = useState(() => ({
     source: initialConnectionMap,
     value: initialConnectionMap,
   }))
+  const filteredMembers = useMemo(
+    () => members.filter((member) => memberMatchesDirectorySearch(member, searchInput)),
+    [members, searchInput],
+  )
+  const filteredMapCities = useMemo(() => {
+    if (!searchInput.trim()) return mapCities
+
+    return mapCities
+      .map((city) => {
+        const cityMembers = city.members.filter((member) =>
+          memberMatchesDirectorySearch(member, searchInput),
+        )
+
+        return {
+          ...city,
+          members: cityMembers,
+          memberCount: cityMembers.length,
+        }
+      })
+      .filter((city) => city.memberCount > 0)
+  }, [mapCities, searchInput])
   const selectedMember = useMemo(
-    () => members.find((member) => member.id === selectedMemberId) ?? null,
-    [members, selectedMemberId],
+    () => filteredMembers.find((member) => member.id === selectedMemberId) ?? null,
+    [filteredMembers, selectedMemberId],
   )
   const countryCount = useMemo(
-    () => new Set(mapCities.map((city) => city.country).filter(Boolean)).size,
-    [mapCities],
+    () => new Set(filteredMapCities.map((city) => city.country).filter(Boolean)).size,
+    [filteredMapCities],
+  )
+  const visibleMembers = isCompactMobile
+    ? filteredMembers.slice(0, visibleMemberCount)
+    : filteredMembers
+  const mapRenderKey = useMemo(
+    () =>
+      filteredMapCities
+        .map((city) => `${city.id}:${city.memberCount}`)
+        .join("|") || "empty",
+    [filteredMapCities],
   )
   const connMap = connectionState.source === initialConnectionMap
     ? connectionState.value
@@ -706,24 +767,31 @@ export default function DirectoryClient({
     return qs ? `${pathname}?${qs}` : pathname
   }, [currentParams, pathname, searchInput, view])
 
-  const replaceDirectoryUrl = useCallback((url: string) => {
-    startTransition(() => router.replace(url, { scroll: false }))
-  }, [router])
-
   const clearSearch = useCallback(() => {
     setSearchInput("")
-    replaceDirectoryUrl(buildUrl({ q: "" }))
-  }, [buildUrl, replaceDirectoryUrl])
+    window.history.replaceState(null, "", buildUrl({ q: "" }))
+  }, [buildUrl])
 
-  // Debounce search input → URL
+  // Keep search instant by filtering local data; mirror q in the URL without a server navigation.
   useEffect(() => {
     if (searchInput.trim() === currentParams.q) return
 
     const timer = setTimeout(() => {
-      replaceDirectoryUrl(buildUrl({ q: searchInput.trim() }))
-    }, searchInput.trim() ? 400 : 0)
+      window.history.replaceState(null, "", buildUrl({ q: searchInput.trim() }))
+    }, 150)
     return () => clearTimeout(timer)
-  }, [buildUrl, currentParams.q, replaceDirectoryUrl, searchInput])
+  }, [buildUrl, currentParams.q, searchInput])
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 640px)")
+    function updateCompactMode() {
+      setIsCompactMobile(query.matches)
+    }
+
+    updateCompactMode()
+    query.addEventListener("change", updateCompactMode)
+    return () => query.removeEventListener("change", updateCompactMode)
+  }, [])
 
   function setTab(tab: string) {
     startTransition(() => router.replace(buildUrl({ tab })))
@@ -784,16 +852,20 @@ export default function DirectoryClient({
     currentParams.tags.length
   const drawerHasChanges =
     drawerPersonas.length > 0 || !!drawerSchool || !!drawerField || drawerTags.length > 0
+  const isMapView = view === "map"
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-ipn">Directory</p>
-        <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Member Directory</h1>
+    <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 ${isMapView ? "py-3 sm:py-10" : "py-4 sm:py-10"}`}>
+      <div className={isMapView ? "mb-3 sm:mb-6" : "mb-4 sm:mb-6"}>
+        <p className="hidden text-sm font-medium text-ipn sm:block">Directory</p>
+        <h1 className={`font-semibold text-zinc-900 ${isMapView ? "text-xl sm:mt-1 sm:text-2xl" : "text-2xl sm:mt-1"}`}>Member Directory</h1>
+        <p className="mt-1 line-clamp-2 text-sm leading-5 text-zinc-500 sm:hidden">
+          Search by interests, school, field, or area and connect with members to chat.
+        </p>
       </div>
 
       {/* Search + filter */}
-      <div className="mb-4 flex gap-3">
+      <div className={isMapView ? "mb-3 flex gap-2 sm:flex-row sm:gap-3" : "mb-4 flex flex-col gap-3 sm:flex-row"}>
         <div className="relative flex-1">
           <svg
             className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
@@ -810,10 +882,10 @@ export default function DirectoryClient({
           </svg>
           <input
             type="text"
-            placeholder="Search by name, school, or field…"
+            placeholder="Search members by name, school, or keywords"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-9 text-sm shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
+            className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-9 text-base shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn sm:text-sm"
           />
           {searchInput && (
             <button
@@ -832,7 +904,7 @@ export default function DirectoryClient({
         <button
           type="button"
           onClick={openDrawer}
-          className={`relative flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-sm transition ${
+          className={`relative hidden min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-sm transition sm:flex sm:justify-start ${
             hasActiveFilters
               ? "border-ipn bg-ipn-light text-ipn"
               : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
@@ -861,13 +933,13 @@ export default function DirectoryClient({
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex border-b border-zinc-200">
+      <div className={`hidden border-b border-zinc-200 sm:flex ${isMapView ? "mb-3" : "mb-6"}`}>
         {(["all", ...(showSchoolTab ? ["school"] : [])] as string[]).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setTab(tab)}
-            className={`cursor-pointer px-4 py-2.5 text-sm font-medium transition ${
+            className={`min-h-11 cursor-pointer px-4 py-2.5 text-sm font-medium transition ${
               currentParams.tab === tab
                 ? "-mb-px border-b-2 border-ipn text-ipn"
                 : "text-zinc-500 hover:text-zinc-800"
@@ -880,7 +952,7 @@ export default function DirectoryClient({
 
       {/* Active filter chips */}
       {hasActiveFilters && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className={`flex flex-wrap items-center gap-2 ${isMapView ? "mb-3" : "mb-4"}`}>
           {currentParams.personas.map((p) => (
             <span
               key={p}
@@ -890,7 +962,7 @@ export default function DirectoryClient({
               <button
                 type="button"
                 onClick={() => removePersonaChip(p)}
-                className="ml-0.5 text-ipn/60 hover:text-ipn"
+                className="ml-0.5 inline-flex min-h-6 min-w-6 items-center justify-center rounded-full text-ipn/60 hover:text-ipn"
               >
                 ×
               </button>
@@ -902,7 +974,7 @@ export default function DirectoryClient({
               <button
                 type="button"
                 onClick={() => startTransition(() => router.replace(buildUrl({ school: "" })))}
-                className="ml-0.5 text-ipn/60 hover:text-ipn"
+                className="ml-0.5 inline-flex min-h-6 min-w-6 items-center justify-center rounded-full text-ipn/60 hover:text-ipn"
               >
                 ×
               </button>
@@ -914,7 +986,7 @@ export default function DirectoryClient({
               <button
                 type="button"
                 onClick={() => startTransition(() => router.replace(buildUrl({ field: "" })))}
-                className="ml-0.5 text-ipn/60 hover:text-ipn"
+                className="ml-0.5 inline-flex min-h-6 min-w-6 items-center justify-center rounded-full text-ipn/60 hover:text-ipn"
               >
                 ×
               </button>
@@ -929,7 +1001,7 @@ export default function DirectoryClient({
               <button
                 type="button"
                 onClick={() => removeTagChip(t)}
-                className="ml-0.5 text-ipn/60 hover:text-ipn"
+                className="ml-0.5 inline-flex min-h-6 min-w-6 items-center justify-center rounded-full text-ipn/60 hover:text-ipn"
               >
                 ×
               </button>
@@ -938,7 +1010,7 @@ export default function DirectoryClient({
           <button
             type="button"
             onClick={clearFilters}
-            className="text-xs text-zinc-400 underline hover:text-zinc-600"
+            className="inline-flex min-h-11 items-center text-xs text-zinc-400 underline hover:text-zinc-600 sm:min-h-0"
           >
             Clear all
           </button>
@@ -946,19 +1018,33 @@ export default function DirectoryClient({
       )}
 
       {/* Count + view switch */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className={`text-sm text-zinc-500 transition-opacity ${isPending ? "opacity-50" : ""}`}>
-          {members.length} member{members.length !== 1 ? "s" : ""} · {mapCities.length} cit{mapCities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
-        </p>
-        <div className="inline-flex self-start rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:self-auto">
+      <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${isMapView ? "mb-3" : "mb-4 sm:gap-3"}`}>
+        <div className="flex items-center justify-between gap-3 sm:block">
+          <button
+            type="button"
+            onClick={openDrawer}
+            className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold sm:hidden ${
+              hasActiveFilters ? "text-ipn" : "text-zinc-600"
+            }`}
+          >
+            <svg className="h-4 w-4 text-ipn" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+            </svg>
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </button>
+          <p className={`${isMapView ? "text-xs" : "text-sm"} text-right text-zinc-500 transition-opacity sm:text-left ${isPending ? "opacity-50" : ""}`}>
+          {filteredMembers.length} member{filteredMembers.length !== 1 ? "s" : ""} · {filteredMapCities.length} cit{filteredMapCities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
+          </p>
+        </div>
+        <div className="grid w-full grid-cols-2 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:self-auto">
           {(["list", "map"] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setDirectoryView(option)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              className={`min-h-11 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 view === option
-                  ? "bg-zinc-900 text-white"
+                  ? "bg-ipn text-white"
                   : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
@@ -971,24 +1057,36 @@ export default function DirectoryClient({
       {view === "map" ? (
         <div className={`transition-opacity ${isPending ? "opacity-50" : ""}`}>
           <MapDirectoryView
-            cities={mapCities}
-            totalMemberCount={members.length}
+            key={mapRenderKey}
+            cities={filteredMapCities}
+            totalMemberCount={filteredMembers.length}
             connectionMap={connMap}
             currentUserId={currentUserId}
             onOpenMember={openMember}
           />
         </div>
-      ) : members.length > 0 ? (
-        <div className={`grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
-          {members.map((member) => (
-            <MemberCard
-              key={member.id}
-              member={member}
-              connectionEntry={connMap[member.id]}
-              isSelf={member.id === currentUserId}
-              onOpen={openMember}
-            />
-          ))}
+      ) : filteredMembers.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          <div className={`grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
+            {visibleMembers.map((member) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                connectionEntry={connMap[member.id]}
+                isSelf={member.id === currentUserId}
+                onOpen={openMember}
+              />
+            ))}
+          </div>
+          {isCompactMobile && visibleMemberCount < filteredMembers.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleMemberCount((count) => count + 4)}
+              className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-ipn/30 hover:text-ipn"
+            >
+              Show more members
+            </button>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-zinc-200 bg-white px-6 py-10 text-center shadow-sm">
