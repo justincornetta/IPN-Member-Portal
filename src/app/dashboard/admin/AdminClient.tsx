@@ -16,6 +16,15 @@ function getInitials(first: string | null, last: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?"
 }
 
+function formatAdminDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(value))
+}
+
 function MemberAvatar({ member, size = "md" }: { member: AdminMemberProfile; size?: "sm" | "md" | "lg" }) {
   const cls = size === "lg" ? "h-20 w-20 text-xl" : size === "md" ? "h-10 w-10 text-sm" : "h-8 w-8 text-xs"
   const initials = getInitials(member.first_name, member.last_name)
@@ -920,9 +929,7 @@ function FeedbackTab({
                 <FeedbackTypeBadge type={s.type} />
                 <FeedbackStatusBadge status={s.status} />
                 <span className="ml-auto text-xs text-zinc-400">
-                  {new Date(s.created_at).toLocaleDateString("en-US", {
-                    month: "short", day: "numeric", year: "numeric",
-                  })}
+                  {formatAdminDate(s.created_at)}
                 </span>
               </div>
               <p className="text-sm text-zinc-800 whitespace-pre-wrap">{s.message}</p>
@@ -1115,7 +1122,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
                           </details>
                         )}
                         <p className="text-xs text-zinc-400">
-                          {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          {formatAdminDate(m.created_at)}
                         </p>
                       </div>
                     </button>
