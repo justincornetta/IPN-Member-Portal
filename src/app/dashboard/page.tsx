@@ -211,29 +211,6 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
     || (process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
       ? `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE!.trim().replace(/\D/g, "")}`
       : undefined)
-  const nextStep = [
-    {
-      title: "Complete your profile",
-      href: "/dashboard/profile",
-      completed: Boolean(progress?.profile_completed_at),
-    },
-    {
-      title: "Join IPN WhatsApp Community",
-      href: whatsappUrl || "/dashboard/community",
-      completed: Boolean(progress?.whatsapp_completed_at),
-      external: Boolean(whatsappUrl),
-    },
-    {
-      title: "Register for an event",
-      href: "/dashboard/events",
-      completed: Boolean(progress?.event_rsvp_completed_at),
-    },
-    {
-      title: "Connect with a member",
-      href: "/dashboard/directory",
-      completed: Boolean(progress?.connection_request_completed_at),
-    },
-  ].find((step) => !step.completed)
   const completedCount = [
     progress?.profile_completed_at,
     progress?.whatsapp_completed_at,
@@ -263,34 +240,6 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
           style={{ width: `${(completedCount / totalCount) * 100}%` }}
         />
       </div>
-
-      {nextStep && (
-        <div className="mt-4 hidden rounded-lg border border-ipn/20 bg-ipn/5 p-3 sm:block">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ipn">
-            Start here
-          </p>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-zinc-900">{nextStep.title}</p>
-            {nextStep.external ? (
-              <a
-                href={nextStep.href}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-xs font-medium text-white"
-              >
-                Open
-              </a>
-            ) : (
-              <Link
-                href={nextStep.href}
-                className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-xs font-medium text-white"
-              >
-                Continue
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="mt-3 flex flex-col gap-1.5 sm:mt-4 sm:gap-2">
         <ChecklistItem
