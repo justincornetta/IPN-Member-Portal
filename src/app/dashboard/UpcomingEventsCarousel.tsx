@@ -157,7 +157,7 @@ export default function UpcomingEventsCarousel({ events, totalCount, className =
   }
 
   return (
-    <section className={`flex h-full flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:rounded-xl sm:p-4 ${className}`}>
+    <section className={`flex flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:rounded-xl sm:p-4 ${className}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">

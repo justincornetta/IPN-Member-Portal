@@ -125,11 +125,11 @@ function MemberCard({
             {institution}
           </span>
         )}
-        <span className="mt-2 flex flex-wrap gap-1.5 sm:mt-1.5 sm:block sm:text-center">
+        <span className="mt-2 flex flex-wrap gap-1.5 sm:mt-2 sm:justify-center">
           {visibleTags.length > 0 ? visibleTags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-ipn/15 bg-ipn/5 px-2 py-0.5 text-[11px] font-medium text-ipn sm:border-0 sm:bg-transparent sm:p-0 sm:text-xs sm:font-normal sm:text-zinc-400"
+              className="max-w-full rounded-full border border-ipn/15 bg-ipn/5 px-2 py-0.5 text-[11px] font-medium leading-tight text-ipn sm:text-xs"
             >
               {tag}
             </span>
