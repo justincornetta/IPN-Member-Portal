@@ -46,11 +46,11 @@ export default function WhatsAppCommunityCard({
           <span className="block text-sm font-semibold text-zinc-900">
             Join the IPN WhatsApp Community
           </span>
-          <span className={`mt-1 block text-sm leading-6 text-zinc-500 ${compact ? "line-clamp-2" : ""}`}>
-            {compact
-              ? "Connect with members and keep up with IPN updates."
-              : WHATSAPP_COMMUNITY_COPY}
-          </span>
+          {!compact && (
+            <span className="mt-1 block text-sm leading-6 text-zinc-500">
+              {WHATSAPP_COMMUNITY_COPY}
+            </span>
+          )}
         </span>
       </div>
 
@@ -61,7 +61,7 @@ export default function WhatsAppCommunityCard({
             target="_blank"
             rel="noreferrer"
             onClick={onJoin}
-            className={`inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 ${
+            className={`inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 ${
               compact ? "px-3 py-2" : "px-4 py-2"
             }`}
           >
@@ -71,7 +71,7 @@ export default function WhatsAppCommunityCard({
           <button
             type="button"
             disabled
-            className={`inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg bg-zinc-100 text-sm font-medium text-zinc-400 ${
+            className={`inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center rounded-lg bg-zinc-100 text-sm font-medium text-zinc-400 ${
               compact ? "px-3 py-2" : "px-4 py-2"
             }`}
           >

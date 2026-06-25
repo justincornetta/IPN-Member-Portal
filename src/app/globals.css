@@ -8,8 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   --color-ipn: #664fa1;
   --color-ipn-dark: #573f8a;
   --color-ipn-light: #f3eeff;
@@ -26,6 +26,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
 
 button {
@@ -34,4 +35,51 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+nextjs-portal {
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .directory-map-shell .mapboxgl-ctrl-bottom-left {
+    bottom: auto !important;
+    left: auto !important;
+    right: 10px;
+    top: 58px;
+  }
+
+  .directory-map-shell .mapboxgl-ctrl-group button {
+    height: 44px !important;
+    min-height: 44px;
+    min-width: 44px;
+    width: 44px !important;
+  }
+
+  .directory-map-shell .mapboxgl-ctrl-attrib-button {
+    height: 44px !important;
+    min-height: 44px;
+    min-width: 44px;
+    width: 44px !important;
+  }
+
+  .directory-map-shell .mapboxgl-ctrl-attrib a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .directory-map-shell .mapboxgl-ctrl-logo {
+    box-sizing: border-box;
+    height: 44px !important;
+    min-height: 44px;
+    min-width: 88px;
+    background-position: center !important;
+  }
 }

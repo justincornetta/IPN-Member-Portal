@@ -44,7 +44,7 @@ export default async function DashboardLayout({
         pendingRequestCount={pendingRequestCount}
         isAdmin={isAdmin}
       />
-      <div className="flex flex-1 flex-col overflow-y-auto bg-zinc-50">
+      <div className="flex flex-1 flex-col overflow-y-auto bg-zinc-50 pb-[calc(12rem+env(safe-area-inset-bottom))] md:pb-0">
         {children}
         <FeedbackFooter />
       </div>

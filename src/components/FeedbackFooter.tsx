@@ -63,6 +63,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
     >
       <div
         className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -71,7 +72,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 transition hover:text-zinc-600"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-400 transition hover:text-zinc-600"
             aria-label="Close"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -90,7 +91,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={onClose}
-              className="mt-2 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+              className="mt-2 min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
             >
               Close
             </button>
@@ -98,13 +99,13 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="flex flex-col gap-4 px-5 py-5">
             {/* Type selector */}
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
                   onClick={() => setType(opt.id)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-center transition ${
+                  className={`min-h-16 rounded-lg border px-2 py-2 text-center transition ${
                     type === opt.id
                       ? "border-ipn bg-ipn/5 text-ipn"
                       : "border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
@@ -136,13 +137,13 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
               <p className="text-xs text-red-500">{errorMsg}</p>
             )}
 
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-400">{pathname}</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="truncate text-xs text-zinc-400">{pathname}</p>
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={!message.trim() || status === "submitting"}
-                className="rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:opacity-50"
+                className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:opacity-50"
               >
                 {status === "submitting" ? "Sending…" : "Send"}
               </button>
@@ -156,10 +157,54 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
 
 export default function FeedbackFooter() {
   const [open, setOpen] = useState(false)
+  const pathname = usePathname()
+  const hideMobileBar = pathname?.startsWith("/dashboard/profile")
+
+  useEffect(() => {
+    function handleOpenFeedback() {
+      setOpen(true)
+    }
+
+    window.addEventListener("ipn:open-feedback", handleOpenFeedback)
+    return () => window.removeEventListener("ipn:open-feedback", handleOpenFeedback)
+  }, [])
 
   return (
     <>
-      <footer className="mt-auto px-4 py-5 sm:px-6">
+      {!hideMobileBar && (
+        <div
+          className="fixed inset-x-0 z-40 px-3 md:hidden"
+          style={{ bottom: "calc(4.75rem + env(safe-area-inset-bottom))" }}
+        >
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-ipn/20 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-lg shadow-zinc-900/10"
+            aria-label="Send feedback or report a bug"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ipn-light text-ipn">
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.7}
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.625 9.75h6.75m-6.75 3h4.5m8.625-.75c0 4.142-4.03 7.5-9 7.5a10.6 10.6 0 0 1-3.45-.566L3 20.25l1.316-3.95A6.9 6.9 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z"
+                />
+              </svg>
+            </span>
+            <span className="truncate">Found an issue?</span>
+            <span className="font-semibold text-ipn">Send feedback</span>
+          </button>
+        </div>
+      )}
+
+      <footer className="mt-auto hidden px-4 py-5 sm:px-6 md:block">
         <div className="mx-auto flex max-w-md justify-center">
           <button
             type="button"

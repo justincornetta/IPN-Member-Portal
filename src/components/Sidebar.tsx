@@ -121,7 +121,7 @@ function NavContent({
               key={item.href}
               href={item.href}
               onClick={onClose}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                 active
                   ? "bg-ipn-light font-medium text-ipn"
                   : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
@@ -143,7 +143,7 @@ function NavContent({
         <Link
           href="/dashboard/profile"
           onClick={onClose}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+          className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
             profileActive
               ? "bg-ipn-light font-medium text-ipn"
               : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
@@ -161,9 +161,9 @@ function NavContent({
           const adminActive = pathname === "/dashboard/admin" || pathname.startsWith("/dashboard/admin/")
           return (
             <Link
-              href="/dashboard/admin"
-              onClick={onClose}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+            href="/dashboard/admin"
+            onClick={onClose}
+              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                 adminActive
                   ? "bg-ipn-light font-medium text-ipn"
                   : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
@@ -178,6 +178,22 @@ function NavContent({
             </Link>
           )
         })()}
+
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new Event("ipn:open-feedback"))
+            onClose?.()
+          }}
+          className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+        >
+          <span className="text-zinc-400">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75h6.75m-6.75 3h4.5m8.625-.75c0 4.142-4.03 7.5-9 7.5a10.6 10.6 0 0 1-3.45-.566L3 20.25l1.316-3.95A6.9 6.9 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z" />
+            </svg>
+          </span>
+          Feedback
+        </button>
       </nav>
 
       <div className="border-t border-zinc-100 px-4 py-3">
@@ -185,7 +201,7 @@ function NavContent({
           <Link
             href="/dashboard/profile"
             onClick={onClose}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded transition hover:opacity-75"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded transition hover:opacity-75"
           >
             <AvatarCircle avatarUrl={avatarUrl} initials={initials} />
             <div className="min-w-0">
@@ -196,7 +212,7 @@ function NavContent({
             <button
               type="submit"
               title="Sign out"
-              className="ml-2 flex-shrink-0 rounded p-1 text-zinc-400 hover:text-zinc-600"
+              className="ml-2 inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-zinc-400 hover:text-zinc-600"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
@@ -228,7 +244,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation"
-          className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -237,7 +253,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
 
         <Image src={icon} alt="IPN" width={28} height={28} />
 
-        <Link href="/dashboard/profile">
+        <Link href="/dashboard/profile" className="inline-flex h-11 w-11 items-center justify-center rounded-lg">
           <AvatarCircle avatarUrl={avatarUrl} initials={initials} />
         </Link>
       </header>
@@ -268,7 +284,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Close navigation"
-                className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-600"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -279,6 +295,42 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
           </div>
         </div>
       )}
+
+      <nav
+        aria-label="Primary"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 pt-1 shadow-[0_-10px_30px_rgba(24,24,27,0.08)] backdrop-blur md:hidden"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+      >
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+          {NAV.map((item) => {
+            const active = item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname === item.href || pathname.startsWith(item.href + "/")
+            const isCommunity = item.href === "/dashboard/community"
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1.5 text-[10px] font-medium leading-none transition min-[380px]:text-[11px] ${
+                  active
+                    ? "bg-ipn-light text-ipn"
+                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+                }`}
+              >
+                <span className={active ? "text-ipn" : "text-zinc-400"}>{item.icon}</span>
+                <span className="max-w-full truncate">{item.label}</span>
+                {isCommunity && pendingRequestCount > 0 && (
+                  <span className="absolute right-3 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
+                    {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
     </>
   )
 }

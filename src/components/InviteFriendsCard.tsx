@@ -162,7 +162,7 @@ export default function InviteFriendsCard({
         <button
           type="button"
           onClick={copyInviteLink}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
         >
           <CopyIcon />
           {copied ? "Copied" : "Invite Your Friends to IPN"}
@@ -170,7 +170,7 @@ export default function InviteFriendsCard({
         <button
           type="button"
           onClick={shareInviteLink}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
           aria-label="Share IPN invite link"
         >
           <ShareIcon />
@@ -185,7 +185,7 @@ export default function InviteFriendsCard({
         <button
           type="button"
           onClick={copyInviteLink}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition hover:border-ipn/30 hover:bg-zinc-50"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition hover:border-ipn/30 hover:bg-zinc-50"
         >
           <span
             className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -202,7 +202,7 @@ export default function InviteFriendsCard({
             <span className="block text-sm font-semibold text-zinc-900">
               Invite Friends to IPN
             </span>
-            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+            <span className="mt-0.5 block text-xs leading-4 text-zinc-500">
               {copied ? "Invite link copied." : "Copy an invite link for peers."}
             </span>
           </span>
@@ -234,14 +234,12 @@ export default function InviteFriendsCard({
           <h2 className="text-sm font-semibold text-zinc-900">
             Invite Your Friends to IPN
           </h2>
-          <p
-            className={`mt-1 text-sm leading-6 text-zinc-500 ${
-              isCompact ? "line-clamp-2" : ""
-            }`}
-          >
-            Share the member portal with students, researchers, clinicians, and
-            peers who should be part of the IPN community.
-          </p>
+          {!isCompact && (
+            <p className="mt-1 text-sm leading-6 text-zinc-500">
+              Share the member portal with students, researchers, clinicians, and
+              peers who should be part of the IPN community.
+            </p>
+          )}
         </div>
       </div>
 
@@ -249,7 +247,7 @@ export default function InviteFriendsCard({
         <button
           type="button"
           onClick={copyInviteLink}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
         >
           <CopyIcon />
           {copied ? "Copied" : "Copy link"}
@@ -257,7 +255,7 @@ export default function InviteFriendsCard({
         <button
           type="button"
           onClick={shareInviteLink}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
         >
           <ShareIcon />
           Share
@@ -266,7 +264,7 @@ export default function InviteFriendsCard({
           <a
             href={emailHref}
             onClick={openEmailInvite}
-            className="inline-flex items-center justify-center rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
           >
             Email
           </a>

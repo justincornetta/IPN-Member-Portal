@@ -88,7 +88,7 @@ function TextInput({
       id={id} name={name} type={type} value={value} required={required}
       autoComplete={autoComplete} placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+      className="rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 sm:text-sm"
     />
   )
 }
@@ -104,7 +104,7 @@ function Select({
     <select
       id={id} name={name} value={value} required={required}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+      className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 sm:text-sm"
     >
       {placeholder && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -148,7 +148,7 @@ function Combobox({
         onChange={(e) => { setQuery(e.target.value); onChange(""); setOpen(true) }}
         onFocus={() => { if (query.length >= 2) setOpen(true) }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 sm:text-sm"
       />
       {open && filtered.length > 0 && (
         <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
@@ -177,7 +177,7 @@ function Textarea({
     <textarea
       id={id} name={name} value={value} rows={rows} placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 resize-none"
+      className="rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 resize-none sm:text-sm"
     />
   )
 }
@@ -197,15 +197,15 @@ function StepAccount({
   errors: Record<string, string>
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        <div className="flex flex-col gap-0.5 sm:gap-1">
           <Label htmlFor="first_name">First name</Label>
           <TextInput id="first_name" name="first_name" value={data.first_name}
             onChange={(v) => update("first_name", v)} required autoComplete="given-name" />
           <FieldError msg={errors.first_name} />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5 sm:gap-1">
           <Label htmlFor="last_name">Last name</Label>
           <TextInput id="last_name" name="last_name" value={data.last_name}
             onChange={(v) => update("last_name", v)} required autoComplete="family-name" />
@@ -213,14 +213,14 @@ function StepAccount({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5 sm:gap-1">
         <Label htmlFor="email">Email</Label>
         <TextInput id="email" name="email" type="email" value={data.email}
           onChange={(v) => update("email", v)} required autoComplete="email" />
         <FieldError msg={errors.email} />
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5 sm:gap-1">
         <Label htmlFor="password">Password</Label>
         <TextInput id="password" name="password" type="password" value={data.password}
           onChange={(v) => update("password", v)} required autoComplete="new-password"
@@ -228,7 +228,7 @@ function StepAccount({
         <FieldError msg={errors.password} />
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5 sm:gap-1">
         <Label htmlFor="confirm_password">Confirm password</Label>
         <TextInput id="confirm_password" name="confirm_password" type="password"
           value={data.confirm_password} onChange={(v) => update("confirm_password", v)}
@@ -597,26 +597,26 @@ function RegisterPageContent() {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-12">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-4 sm:px-6 sm:py-12">
       <NeuralBackground avoidRef={contentRef} />
-      <div ref={contentRef} className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white px-8 py-10 shadow-xl">
+      <div ref={contentRef} className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white px-4 py-5 shadow-xl sm:px-8 sm:py-10">
         {/* Header */}
-        <div className="mb-6 text-center">
-          <div className="mb-5 flex flex-col items-center gap-2">
-            <Image src={icon} alt="IPN" height={40} width={40} className="h-10 w-auto" />
-            <p className="text-sm font-semibold text-ipn">Intercollegiate Psychedelics Network</p>
+        <div className="mb-4 text-center sm:mb-6">
+          <div className="mb-3 flex flex-col items-center gap-1.5 sm:mb-5 sm:gap-2">
+            <Image src={icon} alt="IPN" height={40} width={40} className="h-9 w-auto sm:h-10" />
+            <p className="text-xs font-semibold text-ipn sm:text-sm">Intercollegiate Psychedelics Network</p>
           </div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Create your account</h1>
+          <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">Create your account</h1>
         </div>
 
         {/* Progress */}
-        <div className="mb-8 flex items-center gap-2">
+        <div className="mb-4 grid grid-cols-4 gap-2 sm:mb-8">
           {STEPS.map((label, i) => {
             const n = i + 1
             const done = n < step
             const active = n === step
             return (
-              <div key={label} className="flex flex-1 flex-col items-center gap-1">
+              <div key={label} className="flex min-w-0 flex-col items-center gap-1">
                 <div
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${
                     done
@@ -634,7 +634,7 @@ function RegisterPageContent() {
                     </svg>
                   ) : n}
                 </div>
-                <span className={`text-xs ${active ? "text-ipn font-medium" : "text-zinc-400"}`}>
+                <span className={`hidden max-w-full truncate text-[10px] min-[380px]:text-xs sm:block ${active ? "text-ipn font-medium" : "text-zinc-400"}`}>
                   {label}
                 </span>
               </div>
@@ -662,14 +662,14 @@ function RegisterPageContent() {
         )}
 
         {/* Navigation */}
-        <div className="mt-6 flex items-center justify-between">
+        <div className="sticky bottom-0 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-zinc-100 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:mt-6 sm:px-8 sm:py-4">
           {step > 1 ? (
             <button
               type="button"
               onClick={back}
-              className="text-sm text-zinc-500 hover:text-zinc-800"
+              className="min-h-11 rounded-lg px-3 text-sm font-medium text-zinc-500 hover:text-zinc-800"
             >
-              ← Back
+              Back
             </button>
           ) : (
             <span />
@@ -679,27 +679,27 @@ function RegisterPageContent() {
             <button
               type="button"
               onClick={next}
-              className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+              className="min-h-11 rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
             >
-              Next →
+              Next
             </button>
           ) : (
             <button
               type="button"
               onClick={submit}
               disabled={loading}
-              className="rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
+              className="min-h-11 rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50"
             >
               {loading ? "Creating account…" : "Create account"}
             </button>
           )}
         </div>
 
-        <p className="mt-6 border-t border-zinc-100 pt-6 text-center text-sm text-zinc-500">
+        <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-sm text-zinc-500 sm:mt-6 sm:pt-6">
           Already have an account?{" "}
           <Link
             href={redirectTo ? `/login?next=${encodeURIComponent(redirectTo)}` : "/login"}
-            className="font-medium text-ipn hover:underline"
+            className="inline-flex min-h-11 items-center font-medium text-ipn hover:underline sm:min-h-0"
           >
             Sign in
           </Link>

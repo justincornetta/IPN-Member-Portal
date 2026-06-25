@@ -35,16 +35,19 @@ export default function AddToCalendarButton({ event, compact = false }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`rounded-md border border-zinc-200 bg-white font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900 ${
-          compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm"
+        className={`inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-200 bg-white font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900 sm:min-h-0 ${
+          compact ? "px-3 py-2 text-xs sm:px-2.5 sm:py-1.5" : "px-3 py-2 text-sm"
         }`}
       >
         Add to Calendar
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 px-3 sm:items-center sm:px-4">
+          <div
+            className="w-full max-w-sm rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-lg"
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.25rem)" }}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">
@@ -62,7 +65,7 @@ export default function AddToCalendarButton({ event, compact = false }: Props) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                className="min-h-11 min-w-11 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 sm:min-h-0 sm:min-w-0"
                 aria-label="Close calendar modal"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
@@ -75,21 +78,21 @@ export default function AddToCalendarButton({ event, compact = false }: Props) {
               <button
                 type="button"
                 onClick={() => openInNewTab(buildGoogleCalendarUrl(event))}
-                className="rounded-lg border border-zinc-200 px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-ipn/5"
+                className="min-h-11 rounded-lg border border-zinc-200 px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-ipn/5"
               >
                 Google Calendar
               </button>
               <button
                 type="button"
                 onClick={openAppleCalendar}
-                className="rounded-lg border border-zinc-200 px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-ipn/5"
+                className="min-h-11 rounded-lg border border-zinc-200 px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-ipn/5"
               >
                 Apple Calendar
               </button>
               <button
                 type="button"
                 onClick={() => openInNewTab(buildOutlookCalendarUrl(event))}
-                className="rounded-lg border border-zinc-200 px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-ipn/5"
+                className="min-h-11 rounded-lg border border-zinc-200 px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:bg-ipn/5"
               >
                 Outlook Calendar
               </button>

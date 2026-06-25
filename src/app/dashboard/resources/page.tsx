@@ -23,13 +23,13 @@ export default async function ResourcesPage() {
   const resources = (data ?? []) as ResourceRecord[]
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">
       <div>
-        <p className="text-sm font-medium text-ipn">Resources</p>
-        <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-          Member resources
+        <p className="hidden text-sm font-medium text-ipn sm:block">Resources</p>
+        <h1 className="text-2xl font-semibold text-zinc-900 sm:mt-1">
+          Resources
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+        <p className="mt-1 line-clamp-1 max-w-2xl text-sm leading-5 text-zinc-500 sm:mt-2 sm:line-clamp-none sm:leading-6">
           A member-only home for approved benefits, IPN writing, and partner
           organizations.
         </p>
