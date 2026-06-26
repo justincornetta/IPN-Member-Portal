@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "IPN Member Portal",
   description:
     "Community discovery, events, and resources for the Intercollegiate Psychedelics Network.",
+  icons: {
+    icon: "/purple_icon.png",
+  },
 };
 
 export default function RootLayout({

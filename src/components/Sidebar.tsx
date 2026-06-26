@@ -251,7 +251,9 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
           </svg>
         </button>
 
-        <Image src={icon} alt="IPN" width={28} height={28} />
+        <Link href="/dashboard" className="inline-flex items-center justify-center rounded-lg">
+          <Image src={icon} alt="IPN" width={28} height={28} />
+        </Link>
 
         <Link href="/dashboard/profile" className="inline-flex h-11 w-11 items-center justify-center rounded-lg">
           <AvatarCircle avatarUrl={avatarUrl} initials={initials} />
