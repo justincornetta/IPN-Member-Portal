@@ -91,6 +91,18 @@ From the Notion Requirements Prioritization page. Build in roughly this order:
 
 ## Slack notifications
 
+### Runtime notifications
+
+The member portal can post runtime app notifications through Netlify environment
+variables. Member registrations use `SLACK_MEMBER_REGISTRATIONS_WEBHOOK_URL`, an
+incoming webhook configured to post into `#member-portal-registrations`.
+Registration notifications are non-blocking: if the webhook is unset, invalid,
+or temporarily unavailable, registration still succeeds.
+
+Feedback submissions use `SLACK_FEEDBACK_WEBHOOK_URL`.
+
+### GitHub workflow notifications
+
 Two GitHub Actions workflows post to the private `#github-updates` Slack channel (`C0AQX8U0V0W`):
 
 | Workflow | Trigger | What it does |
