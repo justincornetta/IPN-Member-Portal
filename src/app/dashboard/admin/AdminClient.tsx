@@ -59,12 +59,7 @@ function AdminMemberModal({
   const [team, setTeam] = useState(member.team ?? "")
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [deleteConfirmation, setDeleteConfirmation] = useState("")
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [, startTransition] = useTransition()
-  const router = useRouter()
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -101,36 +96,6 @@ function AdminMemberModal({
       setSaved(true)
     })
   }
-
-  function handleDelete() {
-    if (!member.email || deleting) return
-
-    setDeleting(true)
-    setDeleteError(null)
-    setDeleteSuccess(null)
-    startTransition(async () => {
-      const result = await deleteMemberAccount(member.id, deleteConfirmation)
-      setDeleting(false)
-
-      if (result.error) {
-        setDeleteError(result.error)
-        return
-      }
-
-      setDeleteSuccess(
-        result.mailchimpStatus === "not_found"
-          ? "Member deleted. Mailchimp already had no matching contact."
-          : "Member deleted from Supabase and Mailchimp.",
-      )
-      router.refresh()
-      window.setTimeout(onClose, 900)
-    })
-  }
-
-  const deleteConfirmed =
-    Boolean(member.email) &&
-    deleteConfirmation.trim().toLowerCase() === member.email?.trim().toLowerCase()
-  const deleteConfirmationId = `delete-confirmation-${member.id}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4" onClick={onClose}>
@@ -237,44 +202,6 @@ function AdminMemberModal({
           </div>
         )}
 
-        {isSuperadmin && member.email && (
-          <div className="border-t border-red-100 bg-red-50/40 px-6 py-5">
-            <div className="flex flex-col gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Delete member</p>
-                <p className="mt-1 text-xs leading-5 text-red-700">
-                  Permanently removes this member from Supabase Auth, portal data, and Mailchimp.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor={deleteConfirmationId} className="text-xs font-medium text-red-700">
-                  Type {member.email} to confirm
-                </label>
-                <input
-                  id={deleteConfirmationId}
-                  type="email"
-                  value={deleteConfirmation}
-                  onChange={(e) => {
-                    setDeleteConfirmation(e.target.value)
-                    setDeleteError(null)
-                    setDeleteSuccess(null)
-                  }}
-                  className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                />
-              </div>
-              {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
-              {deleteSuccess && <p className="text-xs text-green-700">{deleteSuccess}</p>}
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={!deleteConfirmed || deleting}
-                className="cursor-pointer rounded-lg border border-red-200 bg-red-600 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {deleting ? "Deleting..." : "Delete member"}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -556,10 +483,12 @@ function mailchimpBadge(status: MailchimpStatus | null) {
 function ModerationMemberModal({
   member: initialMember,
   onBanToggle,
+  onDelete,
   onClose,
 }: {
   member: AdminMemberProfile
   onBanToggle: (member: AdminMemberProfile, banned: boolean) => void
+  onDelete: (memberId: string) => void
   onClose: () => void
 }) {
   const [detail, setDetail] = useState<AdminMemberDetail | null>(null)
@@ -567,7 +496,12 @@ function ModerationMemberModal({
   const [banning, setBanning] = useState(false)
   const [banError, setBanError] = useState<string | null>(null)
   const [isBanned, setIsBanned] = useState(initialMember.is_banned ?? false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [, startTransition] = useTransition()
+  const router = useRouter()
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -602,6 +536,26 @@ function ModerationMemberModal({
         onBanToggle(initialMember, newBanned)
       }
     })
+  }
+
+  const deleteConfirmed = deleteConfirmation === (detail?.email ?? "")
+
+  async function handleDelete() {
+    if (!deleteConfirmed || deleting || !detail?.email) return
+    setDeleting(true)
+    setDeleteError(null)
+    const res = await deleteMemberAccount(initialMember.id, detail.email)
+    setDeleting(false)
+    if (res.error) {
+      setDeleteError(res.error)
+    } else {
+      setDeleteSuccess("Member deleted successfully.")
+      setTimeout(() => {
+        onDelete(initialMember.id)
+        onClose()
+        router.refresh()
+      }, 1200)
+    }
   }
 
   const displayMember = detail ?? initialMember
@@ -738,6 +692,37 @@ function ModerationMemberModal({
             {banning ? "…" : isBanned ? "Unban member" : "Ban member"}
           </button>
         </div>
+
+        {detail?.email && (
+          <div className="border-t border-red-100 bg-red-50/40 px-6 py-5">
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Delete member</p>
+              <p className="text-xs leading-5 text-red-700">
+                Permanently removes this member from Supabase Auth, portal data, and Mailchimp.
+              </p>
+              <label className="text-xs text-zinc-600">
+                Type <span className="font-medium">{detail.email}</span> to confirm
+              </label>
+              <input
+                type="email"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder={detail.email}
+                className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200"
+              />
+              {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+              {deleteSuccess && <p className="text-xs text-emerald-600">{deleteSuccess}</p>}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={!deleteConfirmed || deleting}
+                className="w-full cursor-pointer rounded-lg border border-red-300 bg-red-600 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete member"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -773,6 +758,12 @@ function ModerationTab({
       setBannedMembers((prev) => prev.filter((m) => m.id !== member.id))
     }
     setResults((prev) => prev.map((m) => m.id === member.id ? { ...m, is_banned: banned } : m))
+    setSelectedMember(null)
+  }
+
+  function handleDelete(memberId: string) {
+    setBannedMembers((prev) => prev.filter((m) => m.id !== memberId))
+    setResults((prev) => prev.filter((m) => m.id !== memberId))
     setSelectedMember(null)
   }
 
@@ -853,10 +844,17 @@ function ModerationTab({
         )}
       </div>
 
+      {/* Assign roles */}
+      <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Assign roles</p>
+        <MemberSearch isSuperadmin={true} />
+      </div>
+
       {selectedMember && (
         <ModerationMemberModal
           member={selectedMember}
           onBanToggle={handleBanToggle}
+          onDelete={handleDelete}
           onClose={() => setSelectedMember(null)}
         />
       )}
@@ -1248,14 +1246,6 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
               </div>
             )}
           </div>
-
-          {/* Search (superadmin only) */}
-          {isSuperadmin && (
-            <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Assign roles</p>
-              <MemberSearch isSuperadmin={isSuperadmin} />
-            </div>
-          )}
 
           {/* Team permissions (superadmin only) */}
           {isSuperadmin && (

@@ -45,9 +45,12 @@ export default function CityVerificationField({
   const [message, setMessage] = useState<string | null>(null)
   const verifiedLocationRef = useRef(onVerifiedLocationChange)
   const statusRef = useRef(onStatusChange)
-  const mountedRef = useRef(false)
+  // Track previous values so the reset effect only fires on genuine user changes,
+  // not on initial mount (including React Strict Mode's double-invoke).
+  const prevValuesRef = useRef({ city, country, state })
   const skipNextResetRef = useRef(false)
-  const selectedLabelRef = useRef<string | null>(null)
+  // Pre-populate with the loaded city so the search effect skips on first render.
+  const selectedLabelRef = useRef<string | null>(city || null)
 
   useEffect(() => {
     verifiedLocationRef.current = onVerifiedLocationChange
@@ -55,10 +58,12 @@ export default function CityVerificationField({
   }, [onStatusChange, onVerifiedLocationChange])
 
   useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true
-      return
-    }
+    const prev = prevValuesRef.current
+    prevValuesRef.current = { city, country, state }
+
+    // Values haven't changed — this is either initial mount or Strict Mode's second invoke.
+    if (prev.city === city && prev.country === country && prev.state === state) return
+
     if (skipNextResetRef.current) {
       skipNextResetRef.current = false
       return
@@ -76,6 +81,7 @@ export default function CityVerificationField({
 
   useEffect(() => {
     const trimmedCity = city.trim()
+    // selectedLabelRef is pre-populated on mount, so this skips the initial search.
     if (!country || trimmedCity.length < 2 || selectedLabelRef.current) {
       setLoading(false)
       return
