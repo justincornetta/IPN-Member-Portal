@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
+import { sendMemberRegistrationSlackNotification } from "@/lib/slack/member-registration"
 import {
   isProfileOnboardingComplete,
   markOnboardingStepsComplete,
@@ -156,6 +157,10 @@ export async function signUp(
       .from("profiles")
       .update(profileMailchimpFields(mailchimpResult))
       .eq("id", authData.user.id)
+  }
+
+  if (authData.user) {
+    await sendMemberRegistrationSlackNotification(data)
   }
 
   redirect(postRegistrationPath)
