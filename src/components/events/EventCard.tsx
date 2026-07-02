@@ -115,9 +115,9 @@ function ConfirmationModal({
 
         <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
           <p className="text-sm text-zinc-700">
-            Return to the IPN member portal on the day of the event to join. In
-            the meantime, join the event-specific WhatsApp chat to connect with
-            other registered members before and after the event.
+            We&apos;ll email you a confirmation now, plus reminders 24 hours and
+            1 hour before the event. The join link will also be available from
+            this event page before the session starts.
           </p>
         </div>
 

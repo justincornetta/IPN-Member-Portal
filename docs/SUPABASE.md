@@ -247,7 +247,7 @@ Portal-owned event records for the member-facing Events section.
 | `summary` / `description` | `text` | Tile copy + detail-page copy |
 | `speakers` | `text` | Display text for speakers |
 | `location_label` / `location_details` | `text` | e.g. Zoom, Denver, or room details |
-| `join_url` | `text` | Zoom/event link; Join opens 15 min before start |
+| `join_url` | `text` | Direct Zoom/event link; available to RSVP'd members from 24 hours before start |
 | `thumbnail_url` | `text` | Custom event graphic/PNG URL |
 | `chat_platform` / `chat_external_url` / `chat_status` | `text` | Optional event chat link; v1 uses `chat_platform = 'whatsapp'`, `chat_external_url` as the WhatsApp invite URL, and `chat_status = 'active'` when shown to registered members |
 | `is_recording` | `boolean` | Marks past recording rows |
@@ -266,6 +266,24 @@ Portal-owned event records for the member-facing Events section.
 | `reminder_state` | `text` | Placeholder for future email reminders |
 
 Primary key is `(event_id, user_id)`. A trigger increments/decrements `events.registration_count`.
+
+### `public.event_email_deliveries`
+
+Internal ledger for transactional event emails sent through Resend.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` | Primary key |
+| `event_id` | `uuid` | References `events.id` |
+| `user_id` | `uuid` | References `auth.users.id` |
+| `registration_created_at` | `timestamptz` | Ties a delivery to the RSVP instance |
+| `kind` | `text` | `rsvp_confirmation`, `reminder_24h`, or `reminder_1h` |
+| `to_email` | `text` | Normalized recipient email |
+| `status` | `text` | `pending`, `sent`, `failed`, or `skipped` |
+| `resend_email_id` | `text` | Resend message ID after a successful send |
+| `attempt_count` / `last_error` / `sent_at` | various | Delivery observability and retry bookkeeping |
+
+Unique constraint is `(event_id, user_id, registration_created_at, kind)` to prevent duplicate sends. RLS is enabled with no member-facing policies; service-role server code writes and reads this table.
 
 ### `public.resources`
 
