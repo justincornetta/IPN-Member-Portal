@@ -258,10 +258,6 @@ function emailContent(
       href: event.join_url,
     },
   ]
-  const detailsWithCalendar: EmailDetail[] = [
-    ...details,
-    { label: "Add to Calendar", value: "Add to Calendar", href: calendarUrl },
-  ]
 
   if (kind === "rsvp_confirmation") {
     return {
@@ -273,13 +269,14 @@ function emailContent(
         "Thanks for registering through the IPN member portal.",
         "We will send reminders 24 hours and 1 hour before the event. You can join either via the IPN Member Portal directly or via the Zoom link below.",
       ],
-      details: detailsWithCalendar,
+      details,
       closingBeforeLinks: [
         "Make sure to check out the event page in the member portal for event resources, speaker details, and join the WhatsApp Event Group to join in discussions with other members before and after the event to make the most of your experience.",
       ],
       links: [
         ...(whatsappUrl ? [{ label: "WhatsApp Join Link", href: whatsappUrl }] : []),
         { label: "Open event page", href: portalUrl },
+        { label: "Add to Calendar", href: calendarUrl },
       ],
       closingAfterLinks: [
         "Reach out to us on WhatsApp or via email at info@intercollegiatepsychedelics.net with any questions or feedback.",
@@ -307,7 +304,7 @@ function emailContent(
     greeting,
     headline: null,
     body,
-    details: startsSoon ? details : detailsWithCalendar,
+    details,
     closingBeforeLinks: startsSoon
       ? undefined
       : [
@@ -321,6 +318,7 @@ function emailContent(
       : [
           ...(whatsappUrl ? [{ label: "WhatsApp Join Link", href: whatsappUrl }] : []),
           { label: "Open event page", href: portalUrl },
+          { label: "Add to Calendar", href: calendarUrl },
         ],
     closingAfterLinks: startsSoon
       ? undefined
