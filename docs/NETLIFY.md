@@ -34,8 +34,25 @@ Add these in Netlify project settings:
 | `NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL` | WhatsApp Community invite link | Optional / same value when available | Public link used by dashboard, welcome modal, and Community page CTAs |
 | `SLACK_FEEDBACK_WEBHOOK_URL` | Feedback webhook URL | Optional / same value when testing feedback notifications | Server-only incoming webhook for portal feedback submissions |
 | `SLACK_MEMBER_REGISTRATIONS_WEBHOOK_URL` | Registration webhook URL for `#member-portal-registrations` | Optional / same value when testing registration notifications | Server-only incoming webhook for new member registration notifications |
+| `RESEND_API_KEY` | Resend API key | Same value only when testing reminder sends | Server-only key for event RSVP confirmation and reminder emails |
+| `EVENT_EMAIL_FROM` | `IPN Events <events@members.intercollegiatepsychedelics.net>` | Same or sandbox sender | Sender used for event transactional emails; use the already verified `members.intercollegiatepsychedelics.net` Resend domain |
+| `EVENT_EMAIL_REPLY_TO` | `info@intercollegiatepsychedelics.net` | Same or test inbox | Reply-to address for event transactional emails |
 
-Do not add service-role keys, Mailchimp keys, or other webhook secrets until a feature needs them.
+Do not add service-role keys, Mailchimp keys, Resend keys, or other webhook secrets until a feature needs them.
+
+Resend is currently configured on the existing plan with one verified domain:
+`members.intercollegiatepsychedelics.net`. Event emails should send from
+`IPN Events <events@members.intercollegiatepsychedelics.net>` and use
+`info@intercollegiatepsychedelics.net` as the reply-to address. Do not upgrade
+Resend or attempt to verify the root domain unless the email strategy changes.
+
+## Scheduled event reminders
+
+Event RSVP reminders run through the Netlify Scheduled Function at
+`netlify/functions/send-event-reminders.mts`. It runs every 10 minutes on
+published deploys and sends due 24-hour and 1-hour reminders through Resend.
+Deploy Previews do not run the cron schedule automatically; use the Netlify
+Functions UI "Run now" action for preview/manual smoke tests.
 
 ## Supabase auth URLs
 

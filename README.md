@@ -13,7 +13,8 @@ Auth completed
 - **Supabase** — Postgres + Auth + Row-Level Security
 - **Mapbox GL JS** — interactive directory map
 - **Netlify** — hosting, production deploys, and PR deploy previews
-- **Mailchimp API** — member email integration (planned)
+- **Mailchimp API** — member audience/newsletter sync
+- **Resend** — transactional event RSVP confirmations and reminders
 
 ## Local development
 

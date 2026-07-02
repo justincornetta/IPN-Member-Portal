@@ -37,7 +37,7 @@ Replaces today's scattered experience across Mailchimp, WhatsApp, Zoom, and the 
 | Styling | **Tailwind CSS v4** | |
 | Hosting | **Netlify** | Public-repo collaboration with PR deploy previews for Justin and Luke |
 | Auth + DB | **Supabase** | Postgres 17, Row-Level Security, free tier |
-| Email | **Mailchimp API** | Single audience post-SoT-consolidation |
+| Email | **Mailchimp API + Resend** | Mailchimp for audience/newsletter sync; Resend for transactional event RSVP confirmations and reminders |
 | Mobile | **PWA wrap** | Manifest + service worker; no app stores in v1 |
 | Community chat | **WhatsApp Community links** | Main community CTA plus admin-managed event-specific invite links; no in-portal chat embed in v1 |
 | AI tooling for development | Claude Code primary, v0/Lovable for occasional UI scaffolding | |
