@@ -263,6 +263,9 @@ function ResourceRow({
         href={url}
         target="_blank"
         rel="noreferrer"
+        data-analytics-event="curated_click"
+        data-analytics-id={`event-material-${kind}-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80)}`}
+        data-analytics-label={kind === "paper" ? "Event paper" : "Event resource"}
         className={rowClass}
       >
         {content}
@@ -312,6 +315,9 @@ function SpeakerLinksPanel({ links }: { links: EventSpeakerLink[] }) {
                 href={link.url}
                 target={isEmail ? undefined : "_blank"}
                 rel={isEmail ? undefined : "noreferrer"}
+                data-analytics-event="curated_click"
+                data-analytics-id={`speaker-link-${link.type}-${link.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80)}`}
+                data-analytics-label="Speaker link"
                 className="group flex items-center gap-3 rounded-lg border border-zinc-200 px-3 py-3 transition hover:border-ipn/30 hover:bg-ipn/5"
               >
                 {row}
@@ -472,6 +478,9 @@ function RecordingDetail({ event }: { event: EventRecord }) {
             href={event.recording_url}
             target="_blank"
             rel="noreferrer"
+            data-analytics-event="curated_click"
+            data-analytics-id={`watch-recording-${event.slug}`}
+            data-analytics-label="Watch recording"
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
           >
             Watch recording
@@ -591,6 +600,9 @@ export default async function EventDetailPage({ params }: Props) {
               href={eventChatUrl}
               target="_blank"
               rel="noreferrer"
+              data-analytics-event="whatsapp_cta_clicked"
+              data-analytics-id={`event-detail-chat-${eventWithRegistration.slug}`}
+              data-analytics-label="Join event chat"
               className="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
             >
               Join chat

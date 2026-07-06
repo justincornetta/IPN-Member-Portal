@@ -4,7 +4,9 @@ import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount } from "@/lib/admin/actions"
 import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
-import type { MailchimpStatus } from "@/lib/mailchimp/status"
+import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
+import type { MemberInsightsData, PortalUtilizationData } from "./AnalyticsDashboardShell"
+import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import ContentIntakeForm from "./ContentIntakeForm"
 
 const TEAMS = ["Strategy and Operations", "Media", "PsychedelX", "Community", "IPN Labs"] as const
@@ -207,41 +209,6 @@ function AdminMemberModal({
   )
 }
 
-// ── Analytics components ─────────────────────────────────────────────────────
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <p className="text-3xl font-semibold text-zinc-900">{value}</p>
-      <p className="text-sm text-zinc-500">{label}</p>
-    </div>
-  )
-}
-
-function BreakdownList({ title, items, total }: { title: string; items: [string, number][]; total: number }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-zinc-800">{title}</h3>
-      <div className="flex flex-col gap-2">
-        {items.map(([label, count]) => {
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0
-          return (
-            <div key={label} className="flex flex-col gap-1">
-              <div className="flex justify-between text-xs text-zinc-600">
-                <span className="truncate pr-2">{label}</span>
-                <span className="flex-shrink-0 tabular-nums">{count} ({pct}%)</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
-                <div className="h-full rounded-full bg-ipn" style={{ width: `${pct}%` }} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 // ── Member search (used inline in Leadership tab) ────────────────────────────
 
 function MemberSearch({ isSuperadmin }: { isSuperadmin: boolean }) {
@@ -319,32 +286,12 @@ function MemberSearch({ isSuperadmin }: { isSuperadmin: boolean }) {
 
 // ── Props from server ────────────────────────────────────────────────────────
 
-export type AnalyticsData = {
-  total: number
-  discoverable: number
-  withTags: number
-  personaItems: [string, number][]
-  fieldItems: [string, number][]
-  topTags: [string, number][]
-  topSchools: [string, number][]
-  topCountries: [string, number][]
-  recent: {
-    id: string
-    first_name: string | null
-    last_name: string | null
-    email: string | null
-    persona: string | null
-    created_at: string
-    mailchimp_status: MailchimpStatus | null
-    mailchimp_last_error_raw: unknown
-    mailchimp_last_error_description: string | null
-  }[] | null
-}
-
 type Props = {
   isSuperadmin: boolean
   leadership: AdminMemberProfile[]
-  analytics: AnalyticsData | null
+  memberInsights: MemberInsightsData | null
+  portalUtilization: PortalUtilizationData
+  analyticsSnapshot: LegacyAnalyticsSnapshot
   teamPermissions: TeamPermissionsMap
   feedback: FeedbackSubmission[]
   bannedMembers: AdminMemberProfile[]
@@ -433,51 +380,6 @@ function sortDirectorsFirst(members: AdminMemberProfile[]) {
     if (!aDir && bDir) return 1
     return (a.first_name ?? "").localeCompare(b.first_name ?? "")
   })
-}
-
-function mailchimpBadge(status: MailchimpStatus | null) {
-  switch (status) {
-    case "subscribed":
-      return {
-        label: "Subscribed",
-        className: "border-green-200 bg-green-50 text-green-700",
-      }
-    case "unsubscribed":
-      return {
-        label: "Unsubscribed",
-        className: "border-zinc-200 bg-zinc-50 text-zinc-500",
-      }
-    case "pending":
-      return {
-        label: "Pending",
-        className: "border-blue-200 bg-blue-50 text-blue-700",
-      }
-    case "cleaned":
-      return {
-        label: "Cleaned",
-        className: "border-orange-200 bg-orange-50 text-orange-700",
-      }
-    case "transactional":
-      return {
-        label: "Transactional",
-        className: "border-violet-200 bg-violet-50 text-violet-700",
-      }
-    case "sync_failed":
-      return {
-        label: "Sync failed",
-        className: "border-red-200 bg-red-50 text-red-700",
-      }
-    case "not_found":
-      return {
-        label: "Not found",
-        className: "border-zinc-200 bg-zinc-50 text-zinc-500",
-      }
-    default:
-      return {
-        label: "Unknown",
-        className: "border-amber-200 bg-amber-50 text-amber-700",
-      }
-  }
 }
 
 function ModerationMemberModal({
@@ -967,12 +869,10 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, analytics, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
-  const defaultTab: Tab = analytics ? "analytics" : "content"
-  const [tab, setTab] = useState<Tab>(defaultTab)
+  const [tab, setTab] = useState<Tab>("analytics")
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
-  const [signupsPage, setSignupsPage] = useState(0)
   const [feedback, setFeedback] = useState(initialFeedback)
   const [, startTransition] = useTransition()
 
@@ -989,7 +889,7 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
   const newFeedbackCount = feedback.filter((f) => f.status === "new").length
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
-    ...(analytics ? [{ id: "analytics" as Tab, label: "Analytics" }] : []),
+    { id: "analytics", label: "Analytics" },
     { id: "content", label: "Content" },
     { id: "leadership", label: "Leadership" },
     ...(isSuperadmin ? [{ id: "feedback" as Tab, label: "Feedback", badge: newFeedbackCount || undefined }] : []),
@@ -1019,140 +919,37 @@ export default function AdminClient({ isSuperadmin, leadership, analytics, teamP
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b border-zinc-200">
-        {tabs.map(({ id, label, badge }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`relative flex cursor-pointer items-center gap-1.5 px-5 py-2.5 text-sm font-medium transition ${
-              tab === id
-                ? "-mb-px border-b-2 border-ipn text-ipn"
-                : "text-zinc-500 hover:text-zinc-800"
-            }`}
-          >
-            {label}
-            {badge ? (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
-                {badge > 9 ? "9+" : badge}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <div className="overflow-x-auto border-b border-zinc-200">
+        <div className="flex min-w-max">
+          {tabs.map(({ id, label, badge }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`relative flex cursor-pointer items-center gap-1.5 whitespace-nowrap px-5 py-2.5 text-sm font-medium transition ${
+                tab === id
+                  ? "-mb-px border-b-2 border-ipn text-ipn"
+                  : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              {label}
+              {badge ? (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── Analytics tab ── */}
-      {tab === "analytics" && analytics && (
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Total members" value={analytics.total} />
-            <StatCard label="Discoverable" value={analytics.discoverable} />
-            <StatCard label="Hidden" value={analytics.total - analytics.discoverable} />
-            <StatCard label="With interest tags" value={analytics.withTags} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <BreakdownList title="Stage breakdown" items={analytics.personaItems} total={analytics.total} />
-            <BreakdownList title="Field breakdown" items={analytics.fieldItems} total={analytics.total} />
-            <BreakdownList title="Top interest tags" items={analytics.topTags} total={analytics.withTags} />
-            <BreakdownList title="Top schools" items={analytics.topSchools} total={analytics.topSchools.reduce((s, [, n]) => s + n, 0)} />
-            <BreakdownList title="Top countries" items={analytics.topCountries} total={analytics.total} />
-          </div>
-
-          {analytics.recent && (() => {
-            const PAGE_SIZE = 5
-            const totalPages = Math.ceil(analytics.recent.length / PAGE_SIZE)
-            const pageItems = analytics.recent.slice(signupsPage * PAGE_SIZE, (signupsPage + 1) * PAGE_SIZE)
-            return (
-              <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
-                  <h2 className="text-sm font-semibold text-zinc-800">Recent signups</h2>
-                  <span className="text-xs text-zinc-400">{analytics.recent.length} most recent</span>
-                </div>
-                <div className="divide-y divide-zinc-100">
-                  {pageItems.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setSelectedMember({
-                        id: m.id,
-                        first_name: m.first_name,
-                        last_name: m.last_name,
-                        email: m.email,
-                        avatar_url: null,
-                        role: null,
-                        admin_role: null,
-                        team: null,
-                        persona: m.persona,
-                        bio: null,
-                      })}
-                      className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left transition hover:bg-zinc-50"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-zinc-800">{m.first_name} {m.last_name}</p>
-                        <p className="text-xs text-zinc-400">{m.email}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 text-right">
-                        {m.persona && <p className="text-xs text-zinc-500">{m.persona}</p>}
-                        {(() => {
-                          const badge = mailchimpBadge(m.mailchimp_status)
-                          return (
-                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
-                              {badge.label}
-                            </span>
-                          )
-                        })()}
-                        {m.mailchimp_status === "sync_failed" && (
-                          <details className="max-w-xs text-left text-[11px] text-zinc-500" onClick={(e) => e.stopPropagation()}>
-                            <summary className="cursor-pointer text-right text-zinc-400 hover:text-zinc-600">
-                              Mailchimp details
-                            </summary>
-                            <div className="mt-1 rounded-lg border border-red-100 bg-red-50 p-2 text-red-700">
-                              <p>{m.mailchimp_last_error_description ?? "No canonical error description was stored."}</p>
-                              {m.mailchimp_last_error_raw ? (
-                                <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded bg-white/70 p-2 font-mono text-[10px] text-red-900">
-                                  {JSON.stringify(m.mailchimp_last_error_raw, null, 2)}
-                                </pre>
-                              ) : (
-                                <p className="mt-1 text-red-500">No raw Mailchimp error was stored.</p>
-                              )}
-                            </div>
-                          </details>
-                        )}
-                        <p className="text-xs text-zinc-400">
-                          {formatAdminDate(m.created_at)}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setSignupsPage((p) => Math.max(0, p - 1))}
-                      disabled={signupsPage === 0}
-                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-xs text-zinc-400">
-                      Page {signupsPage + 1} of {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSignupsPage((p) => Math.min(totalPages - 1, p + 1))}
-                      disabled={signupsPage === totalPages - 1}
-                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-        </div>
+      {tab === "analytics" && (
+        <AnalyticsDashboardShell
+          memberInsights={memberInsights}
+          portalUtilization={portalUtilization}
+          analyticsSnapshot={analyticsSnapshot}
+          onSelectMember={setSelectedMember}
+        />
       )}
 
       {tab === "content" && <ContentIntakeForm />}

@@ -6,6 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import icon from "../../../assets/purple_icon.png"
 import { signUp } from "@/lib/auth/actions"
+import { getPortalAnalyticsContext, trackPortalEvent } from "@/lib/portal-analytics/client"
 import NeuralBackground from "@/components/NeuralBackground"
 import CityVerificationField from "@/components/location/CityVerificationField"
 import type {
@@ -567,6 +568,14 @@ function RegisterPageContent() {
     const barriers = data.barriers.map((b) =>
       b === "Other" && data.barriers_other ? data.barriers_other : b,
     )
+    const analytics = getPortalAnalyticsContext()
+    trackPortalEvent("registration_submit", {
+      metadata: {
+        step,
+        persona: data.persona,
+        referral_source: data.referral_source,
+      },
+    })
 
     const result = await signUp({
       email: data.email,
@@ -588,7 +597,7 @@ function RegisterPageContent() {
       inspiration: data.inspiration,
       support_needs: data.support_needs,
       referral_source: data.referral_source,
-    }, redirectTo || undefined)
+    }, redirectTo || undefined, analytics)
 
     if (result?.error) {
       setGlobalError(result.error)

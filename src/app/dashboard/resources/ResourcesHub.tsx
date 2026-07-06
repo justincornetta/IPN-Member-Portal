@@ -217,6 +217,9 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
               href={resource.url}
               target="_blank"
               rel="noreferrer"
+              data-analytics-event="curated_click"
+              data-analytics-id={`resource-external-${resource.slug}`}
+              data-analytics-label="Resource external link"
               className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900 sm:min-h-0"
             >
               Learn More
@@ -230,7 +233,13 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
 
   if (isBlog) {
     return (
-      <Link href={`/dashboard/resources/${resource.slug}`} className="block h-full">
+      <Link
+        href={`/dashboard/resources/${resource.slug}`}
+        data-analytics-event="curated_click"
+        data-analytics-id={`resource-detail-card-${resource.slug}`}
+        data-analytics-label="Resource detail card"
+        className="block h-full"
+      >
         {body}
       </Link>
     )
@@ -238,7 +247,13 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
 
   if (isBenefit) {
     return (
-      <Link href={`/dashboard/resources/${resource.slug}`} className="block h-full">
+      <Link
+        href={`/dashboard/resources/${resource.slug}`}
+        data-analytics-event="curated_click"
+        data-analytics-id={`resource-detail-card-${resource.slug}`}
+        data-analytics-label="Resource detail card"
+        className="block h-full"
+      >
         {body}
       </Link>
     )
@@ -280,6 +295,9 @@ function BlogIdeaCard({ compact = false }: { compact?: boolean }) {
         href={BLOG_IDEA_FORM_URL}
         target="_blank"
         rel="noreferrer"
+        data-analytics-event="curated_click"
+        data-analytics-id="resource-blog-pitch-form"
+        data-analytics-label="Submit blog pitch"
         className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-ipn"
       >
         Open intake form

@@ -149,6 +149,9 @@ export default async function ResourceDetailPage({ params }: Props) {
             href={resource.url}
             target="_blank"
             rel="noreferrer"
+            data-analytics-event="curated_click"
+            data-analytics-id={`resource-detail-outbound-${resource.slug}`}
+            data-analytics-label={isBlog ? "Read resource" : "Learn more resource"}
             className="mt-7 inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
           >
             {isBlog ? "Read More" : "Learn More"}

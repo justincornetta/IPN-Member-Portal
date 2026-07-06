@@ -44,6 +44,9 @@ function EventArtwork({ event }: { event: EventWithRegistration }) {
   return (
     <Link
       href={`/dashboard/events/${event.slug}`}
+      data-analytics-event="curated_click"
+      data-analytics-id={`dashboard-event-artwork-${event.slug}`}
+      data-analytics-label="Dashboard event artwork"
       className="relative block aspect-[4/3] min-h-32 overflow-hidden rounded-lg bg-zinc-950 sm:aspect-auto sm:h-full"
     >
       {event.thumbnail_url ? (
@@ -70,6 +73,9 @@ function EventCta({ event }: { event: EventWithRegistration }) {
         href={event.registration_url}
         target="_blank"
         rel="noreferrer"
+        data-analytics-event="curated_click"
+        data-analytics-id={`dashboard-eventbrite-registration-${event.slug}`}
+        data-analytics-label="Dashboard Eventbrite registration"
         className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
       >
         Register
@@ -80,6 +86,9 @@ function EventCta({ event }: { event: EventWithRegistration }) {
   return (
     <Link
       href={`/dashboard/events/${event.slug}`}
+      data-analytics-event="curated_click"
+      data-analytics-id={`dashboard-event-cta-${event.slug}`}
+      data-analytics-label="Dashboard event CTA"
       className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
     >
       {event.is_registered ? "View event" : "Details"}
@@ -113,7 +122,13 @@ function CompactEventCard({ event }: { event: EventWithRegistration }) {
           )}
         </div>
 
-        <Link href={`/dashboard/events/${event.slug}`} className="group mt-2">
+        <Link
+          href={`/dashboard/events/${event.slug}`}
+          data-analytics-event="curated_click"
+          data-analytics-id={`dashboard-event-title-${event.slug}`}
+          data-analytics-label="Dashboard event title"
+          className="group mt-2"
+        >
           <h3 className="line-clamp-2 text-base font-semibold leading-snug text-zinc-900 group-hover:text-ipn">
             {event.title}
           </h3>
@@ -172,6 +187,9 @@ export default function UpcomingEventsCarousel({ events, totalCount, className =
         </div>
         <Link
           href="/dashboard/events"
+          data-analytics-event="curated_click"
+          data-analytics-id="dashboard-view-all-events"
+          data-analytics-label="View all events"
           className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
         >
           View all events

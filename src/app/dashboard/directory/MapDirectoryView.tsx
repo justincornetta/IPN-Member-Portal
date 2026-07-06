@@ -204,6 +204,9 @@ function MemberPreviewRow({
     <button
       type="button"
       onClick={() => onOpen(member)}
+      data-analytics-event="curated_click"
+      data-analytics-id={`directory-map-profile-${member.id}`}
+      data-analytics-label="Directory map profile row"
       className="group w-full rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100"
     >
       <div className="flex items-start gap-3">

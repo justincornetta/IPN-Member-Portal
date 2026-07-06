@@ -61,6 +61,8 @@ export default function WhatsAppCommunityCard({
             target="_blank"
             rel="noreferrer"
             onClick={onJoin}
+            data-analytics-event="whatsapp_cta_clicked"
+            data-analytics-id="community-card"
             className={`inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 ${
               compact ? "px-3 py-2" : "px-4 py-2"
             }`}

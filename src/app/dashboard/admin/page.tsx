@@ -3,11 +3,373 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
+import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
 import AdminClient from "./AdminClient"
-import type { AnalyticsData } from "./AdminClient"
+import type { MemberInsightsData, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
 import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers } from "@/lib/admin/actions"
 import type { TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
+
+type PortalProfileRow = {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  persona: string | null
+  field: string | null
+  interest_tags: string[] | null
+  school: string | null
+  country: string | null
+  is_discoverable: boolean | null
+  whatsapp_url: string | null
+  created_at: string | null
+}
+
+type PortalAnalyticsEventRow = {
+  event_name: string
+  user_id: string | null
+  session_id: string | null
+  page_path: string | null
+  target_id: string | null
+  target_label: string | null
+  error_code: string | null
+  duration_seconds: number | null
+  click_count: number | null
+  occurred_at: string
+}
+
+type EventRegistrationRow = {
+  event_id: string
+  user_id: string
+  created_at: string
+}
+
+type EventLookupRow = {
+  id: string
+  title: string | null
+  slug: string | null
+  starts_at: string | null
+}
+
+type OnboardingProgressRow = {
+  user_id: string
+  whatsapp_completed_at: string | null
+}
+
+function dayKey(value: string | null | undefined) {
+  const date = value ? new Date(value) : null
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : null
+}
+
+function monthKey(value: string | null | undefined) {
+  const date = value ? new Date(value) : null
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 7) : null
+}
+
+function percent(numerator: number, denominator: number) {
+  return denominator ? Math.round((numerator / denominator) * 1000) / 10 : 0
+}
+
+function retentionCutoffIso(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+function memberName(profile: PortalProfileRow | undefined) {
+  if (!profile) return "Unknown member"
+  const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim()
+  return name || profile.email || "Unknown member"
+}
+
+function buildRegistrationTrend(profiles: PortalProfileRow[]): MemberInsightsData["registrationTrend"] {
+  const counts = profiles.reduce<Record<string, number>>((acc, profile) => {
+    const key = monthKey(profile.created_at)
+    if (key) acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
+
+  let cumulative = 0
+  return Object.entries(counts)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, registrations]) => {
+      cumulative += registrations
+      return { month, registrations, cumulative }
+    })
+}
+
+function buildPortalUtilizationData({
+  analyticsEvents,
+  analyticsError,
+  profiles,
+  onboardingRows,
+  eventRegistrations,
+  eventRows,
+}: {
+  analyticsEvents: PortalAnalyticsEventRow[]
+  analyticsError: string | null
+  profiles: PortalProfileRow[]
+  onboardingRows: OnboardingProgressRow[]
+  eventRegistrations: EventRegistrationRow[]
+  eventRows: EventLookupRow[]
+}): PortalUtilizationData {
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
+  const eventsById = new Map(eventRows.map((event) => [event.id, event]))
+  const funnelByDay = new Map<string, PortalUtilizationData["funnel"][number]>()
+  const errorsByKey = new Map<string, PortalUtilizationData["errors"][number]>()
+  const pageStats = new Map<string, {
+    sessions: Set<string>
+    users: Set<string>
+    duration: number
+    durationSamples: number
+    clicks: number
+  }>()
+  const pageDurationByVisit = new Map<string, {
+    page: string
+    sessionKey: string
+    userId: string | null
+    durationSeconds: number
+    clickCount: number
+  }>()
+  const clickStats = new Map<string, {
+    clickName: string
+    page: string
+    clicks: number
+    users: Set<string>
+    sessions: Set<string>
+  }>()
+  const sessionSummaryByVisit = new Map<string, {
+    sessionKey: string
+    page: string
+    durationSeconds: number
+    clickCount: number
+  }>()
+  const sessions = new Map<string, {
+    sessionId: string
+    userId: string | null
+    startedAt: string
+    lastSeenAt: string
+    pages: Set<string>
+    clicks: number
+    durationSeconds: number
+    lastPage: string
+  }>()
+
+  const getFunnelDay = (date: string) => {
+    const existing = funnelByDay.get(date)
+    if (existing) return existing
+    const created = {
+      date,
+      registrationTraffic: 0,
+      registrationCompleted: 0,
+      registrationConversion: 0,
+      signInTraffic: 0,
+      signInCompleted: 0,
+      signInConversion: 0,
+    }
+    funnelByDay.set(date, created)
+    return created
+  }
+
+  for (const event of analyticsEvents) {
+    const date = dayKey(event.occurred_at)
+    if (!date) continue
+    const page = event.page_path || "Unknown"
+    const sessionKey = event.session_id || `${event.user_id ?? "anonymous"}:${date}:${page}`
+    const visitKey = `${sessionKey}:${page}`
+    const funnelDay = getFunnelDay(date)
+
+    if (event.event_name === "page_view" && page.startsWith("/register")) funnelDay.registrationTraffic += 1
+    if (event.event_name === "registration_success") funnelDay.registrationCompleted += 1
+    if (event.event_name === "page_view" && page.startsWith("/login")) funnelDay.signInTraffic += 1
+    if (event.event_name === "sign_in_success") funnelDay.signInCompleted += 1
+
+    if (event.event_name === "registration_error" || event.event_name === "sign_in_error") {
+      const errorCode = event.error_code || event.event_name
+      const key = `${page}:${errorCode}`
+      const existing = errorsByKey.get(key) ?? { page, errorCode, count: 0 }
+      existing.count += 1
+      errorsByKey.set(key, existing)
+    }
+
+    if (event.event_name === "page_duration" || event.event_name === "session_summary" || event.event_name === "page_view") {
+      const existingPage = pageStats.get(page) ?? {
+        sessions: new Set<string>(),
+        users: new Set<string>(),
+        duration: 0,
+        durationSamples: 0,
+        clicks: 0,
+      }
+      existingPage.sessions.add(sessionKey)
+      if (event.user_id) existingPage.users.add(event.user_id)
+      pageStats.set(page, existingPage)
+    }
+
+    if (event.event_name === "page_duration") {
+      const existingVisit = pageDurationByVisit.get(visitKey)
+      pageDurationByVisit.set(visitKey, {
+        page,
+        sessionKey,
+        userId: event.user_id,
+        durationSeconds: Math.max(existingVisit?.durationSeconds ?? 0, event.duration_seconds ?? 0),
+        clickCount: Math.max(existingVisit?.clickCount ?? 0, event.click_count ?? 0),
+      })
+    }
+
+    if (event.event_name === "curated_click" || event.event_name === "whatsapp_cta_clicked") {
+      const clickName = event.target_label || event.target_id || event.event_name
+      const key = `${page}:${clickName}`
+      const existingClick = clickStats.get(key) ?? {
+        clickName,
+        page,
+        clicks: 0,
+        users: new Set<string>(),
+        sessions: new Set<string>(),
+      }
+      existingClick.clicks += 1
+      existingClick.sessions.add(sessionKey)
+      if (event.user_id) existingClick.users.add(event.user_id)
+      clickStats.set(key, existingClick)
+    }
+
+    if (event.event_name === "session_summary") {
+      const existingSummary = sessionSummaryByVisit.get(visitKey)
+      sessionSummaryByVisit.set(visitKey, {
+        sessionKey,
+        page,
+        durationSeconds: Math.max(existingSummary?.durationSeconds ?? 0, event.duration_seconds ?? 0),
+        clickCount: Math.max(existingSummary?.clickCount ?? 0, event.click_count ?? 0),
+      })
+    }
+
+    const existingSession = sessions.get(sessionKey) ?? {
+      sessionId: sessionKey,
+      userId: event.user_id,
+      startedAt: event.occurred_at,
+      lastSeenAt: event.occurred_at,
+      pages: new Set<string>(),
+      clicks: 0,
+      durationSeconds: 0,
+      lastPage: page,
+    }
+    if (event.user_id) existingSession.userId = event.user_id
+    if (event.occurred_at < existingSession.startedAt) existingSession.startedAt = event.occurred_at
+    if (event.occurred_at >= existingSession.lastSeenAt) {
+      existingSession.lastSeenAt = event.occurred_at
+      existingSession.lastPage = page
+    }
+    existingSession.pages.add(page)
+    sessions.set(sessionKey, existingSession)
+  }
+
+  for (const visit of pageDurationByVisit.values()) {
+    const existingPage = pageStats.get(visit.page) ?? {
+      sessions: new Set<string>(),
+      users: new Set<string>(),
+      duration: 0,
+      durationSamples: 0,
+      clicks: 0,
+    }
+    existingPage.sessions.add(visit.sessionKey)
+    if (visit.userId) existingPage.users.add(visit.userId)
+    if (visit.durationSeconds) {
+      existingPage.duration += visit.durationSeconds
+      existingPage.durationSamples += 1
+    }
+    existingPage.clicks += visit.clickCount
+    pageStats.set(visit.page, existingPage)
+  }
+
+  for (const summary of sessionSummaryByVisit.values()) {
+    const existingSession = sessions.get(summary.sessionKey)
+    if (!existingSession) continue
+    existingSession.durationSeconds += summary.durationSeconds
+    existingSession.clicks += summary.clickCount
+  }
+
+  const funnel = Array.from(funnelByDay.values())
+    .map((row) => ({
+      ...row,
+      registrationConversion: percent(row.registrationCompleted, row.registrationTraffic),
+      signInConversion: percent(row.signInCompleted, row.signInTraffic),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const topPages = Array.from(pageStats.entries())
+    .map(([page, stats]) => ({
+      page,
+      sessions: stats.sessions.size,
+      users: stats.users.size,
+      avgDurationSeconds: stats.durationSamples ? Math.round(stats.duration / stats.durationSamples) : 0,
+      clicks: stats.clicks,
+      clicksPerSession: stats.sessions.size ? Math.round((stats.clicks / stats.sessions.size) * 10) / 10 : 0,
+    }))
+    .sort((a, b) => b.sessions - a.sessions || b.clicks - a.clicks)
+
+  const topClicks = Array.from(clickStats.values())
+    .map((stats) => ({
+      clickName: stats.clickName,
+      page: stats.page,
+      clicks: stats.clicks,
+      users: stats.users.size,
+      sessions: stats.sessions.size,
+    }))
+    .sort((a, b) => b.clicks - a.clicks || b.users - a.users || a.clickName.localeCompare(b.clickName))
+
+  const rsvpsByDay = eventRegistrations.reduce<Record<string, number>>((acc, row) => {
+    const date = dayKey(row.created_at)
+    if (date) acc[date] = (acc[date] ?? 0) + 1
+    return acc
+  }, {})
+
+  return {
+    generatedAt: new Date().toISOString(),
+    rawRetentionDays: 90,
+    trackingAvailable: !analyticsError,
+    trackingError: analyticsError,
+    funnel,
+    errors: Array.from(errorsByKey.values()).sort((a, b) => b.count - a.count),
+    topPages,
+    topClicks,
+    recentSessions: Array.from(sessions.values())
+      .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))
+      .slice(0, 50)
+      .map((session) => {
+        const profile = session.userId ? profilesById.get(session.userId) : undefined
+        return {
+          sessionId: session.sessionId,
+          memberName: memberName(profile),
+          memberEmail: profile?.email ?? "",
+          startedAt: session.startedAt,
+          lastSeenAt: session.lastSeenAt,
+          pages: session.pages.size,
+          clicks: session.clicks,
+          durationSeconds: session.durationSeconds,
+          lastPage: session.lastPage,
+        }
+      }),
+    rsvpTrend: Object.entries(rsvpsByDay)
+      .map(([date, rsvps]) => ({ date, rsvps }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    recentRsvps: eventRegistrations
+      .slice()
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 50)
+      .map((registration) => {
+        const profile = profilesById.get(registration.user_id)
+        const event = eventsById.get(registration.event_id)
+        return {
+          memberName: memberName(profile),
+          memberEmail: profile?.email ?? "",
+          eventTitle: event?.title ?? event?.slug ?? registration.event_id,
+          createdAt: registration.created_at,
+        }
+      }),
+    whatsapp: {
+      linkedProfiles: profiles.filter((profile) => Boolean(profile.whatsapp_url?.trim())).length,
+      onboardingComplete: onboardingRows.filter((row) => Boolean(row.whatsapp_completed_at)).length,
+      totalMembers: profiles.length,
+    },
+  }
+}
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -35,12 +397,12 @@ export default async function AdminPage() {
 
   const leadership = (leadershipRows ?? []) as AdminMemberProfile[]
 
-  // Analytics (all admin tiers — recent signups only for superadmin)
+  // Member insights (all admin tiers — recent signups only for superadmin)
   const { data: profileRows } = await admin
     .from("profiles")
-    .select("persona, field, interest_tags, school, country, is_discoverable, created_at")
+    .select("id, first_name, last_name, email, persona, field, interest_tags, school, country, is_discoverable, whatsapp_url, created_at")
 
-  const allProfiles = profileRows ?? []
+  const allProfiles = (profileRows ?? []) as PortalProfileRow[]
   const total = allProfiles.length
   const discoverable = allProfiles.filter((p) => p.is_discoverable).length
 
@@ -93,11 +455,49 @@ export default async function AdminPage() {
   const teamPermissions: TeamPermissionsMap = isSuperadmin ? await getTeamPermissions() : {}
   const feedback: FeedbackSubmission[] = isSuperadmin ? await listFeedbackSubmissions() : []
   const bannedMembers = isSuperadmin ? await listBannedMembers() : []
+  const analyticsSnapshot = await getLegacyAnalyticsSnapshot()
+  const ninetyDaysAgo = retentionCutoffIso(90)
+  const [
+    analyticsEventsResult,
+    onboardingResult,
+    eventRegistrationsResult,
+    eventRowsResult,
+  ] = await Promise.all([
+    admin
+      .from("portal_analytics_events")
+      .select("event_name, user_id, session_id, page_path, target_id, target_label, error_code, duration_seconds, click_count, occurred_at")
+      .gte("occurred_at", ninetyDaysAgo)
+      .order("occurred_at", { ascending: true })
+      .limit(10000),
+    admin
+      .from("member_onboarding_progress")
+      .select("user_id, whatsapp_completed_at"),
+    admin
+      .from("event_registrations")
+      .select("event_id, user_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(2000),
+    admin
+      .from("events")
+      .select("id, title, slug, starts_at"),
+  ])
 
-  const analytics: AnalyticsData = {
+  const portalUtilization = buildPortalUtilizationData({
+    analyticsEvents: (analyticsEventsResult.data ?? []) as PortalAnalyticsEventRow[],
+    analyticsError: analyticsEventsResult.error?.message ?? null,
+    profiles: allProfiles,
+    onboardingRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],
+    eventRegistrations: (eventRegistrationsResult.data ?? []) as EventRegistrationRow[],
+    eventRows: (eventRowsResult.data ?? []) as EventLookupRow[],
+  })
+
+  const memberInsights: MemberInsightsData = {
     total,
     discoverable,
     withTags: allProfiles.filter((p) => (p.interest_tags?.length ?? 0) > 0).length,
+    whatsappLinked: portalUtilization.whatsapp.linkedProfiles,
+    whatsappOnboardingComplete: portalUtilization.whatsapp.onboardingComplete,
+    registrationTrend: buildRegistrationTrend(allProfiles),
     personaItems: Object.entries(personaCount).sort((a, b) => b[1] - a[1]),
     fieldItems: Object.entries(fieldCount).sort((a, b) => b[1] - a[1]),
     topTags: Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 10),
@@ -110,7 +510,9 @@ export default async function AdminPage() {
     <AdminClient
       isSuperadmin={isSuperadmin}
       leadership={leadership}
-      analytics={analytics}
+      memberInsights={memberInsights}
+      portalUtilization={portalUtilization}
+      analyticsSnapshot={analyticsSnapshot}
       teamPermissions={teamPermissions}
       feedback={feedback}
       bannedMembers={bannedMembers}

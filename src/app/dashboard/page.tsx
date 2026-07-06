@@ -29,6 +29,9 @@ type ChecklistItemProps = {
   icon: ReactNode
   completed?: boolean
   external?: boolean
+  analyticsId?: string
+  analyticsLabel?: string
+  analyticsEvent?: "curated_click" | "whatsapp_cta_clicked"
 }
 
 type PortalFeature = {
@@ -164,6 +167,9 @@ function ChecklistItem({
   icon,
   completed = false,
   external = false,
+  analyticsId,
+  analyticsLabel,
+  analyticsEvent = "curated_click",
 }: ChecklistItemProps) {
   const content = (
     <>
@@ -193,14 +199,28 @@ function ChecklistItem({
 
   if (external) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        data-analytics-event={analyticsId ? analyticsEvent : undefined}
+        data-analytics-id={analyticsId}
+        data-analytics-label={analyticsLabel}
+        className={className}
+      >
         {content}
       </a>
     )
   }
 
   return (
-    <Link href={href} className={className}>
+    <Link
+      href={href}
+      data-analytics-event={analyticsId ? analyticsEvent : undefined}
+      data-analytics-id={analyticsId}
+      data-analytics-label={analyticsLabel}
+      className={className}
+    >
       {content}
     </Link>
   )
@@ -249,6 +269,8 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
           href="/dashboard/profile"
           icon={<ProfileIcon />}
           completed={Boolean(progress?.profile_completed_at)}
+          analyticsId="dashboard-onboarding-complete-profile"
+          analyticsLabel="Complete your profile"
         />
         <ChecklistItem
           number={2}
@@ -258,6 +280,9 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
           icon={<WhatsAppIcon />}
           completed={Boolean(progress?.whatsapp_completed_at)}
           external={Boolean(whatsappUrl)}
+          analyticsId={whatsappUrl ? "dashboard-onboarding-whatsapp" : undefined}
+          analyticsLabel="Join WhatsApp Community"
+          analyticsEvent="whatsapp_cta_clicked"
         />
         <ChecklistItem
           number={3}
@@ -266,6 +291,8 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
           href="/dashboard/events"
           icon={<CalendarIcon />}
           completed={Boolean(progress?.event_rsvp_completed_at)}
+          analyticsId="dashboard-onboarding-register-event"
+          analyticsLabel="Register for an event"
         />
         <ChecklistItem
           number={4}
@@ -274,6 +301,8 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
           href="/dashboard/directory"
           icon={<DirectoryIcon />}
           completed={Boolean(progress?.connection_request_completed_at)}
+          analyticsId="dashboard-onboarding-connect-member"
+          analyticsLabel="Connect with a member"
         />
         <InviteFriendsCard
           variant="checklist"
@@ -618,6 +647,9 @@ function ExplorePortal() {
           <Link
             key={feature.title}
             href={feature.href}
+            data-analytics-event="curated_click"
+            data-analytics-id={`dashboard-explore-${feature.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`}
+            data-analytics-label={feature.title}
             className="flex items-start gap-3 rounded-lg border border-zinc-200 px-3 py-3 transition hover:border-ipn/30 hover:bg-zinc-50"
           >
             <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">

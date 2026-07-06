@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import PortalAnalyticsTracker from "@/components/PortalAnalyticsTracker";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
@@ -32,7 +33,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full flex flex-col">{children}</body>
+      <body className="h-full flex flex-col">
+        <PortalAnalyticsTracker />
+        {children}
+      </body>
     </html>
   );
 }

@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { sendMemberRegistrationSlackNotification } from "@/lib/slack/member-registration"
+import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
+import type { PortalAnalyticsEventName } from "@/lib/portal-analytics/events"
 import {
   isProfileOnboardingComplete,
   markOnboardingStepsComplete,
@@ -102,9 +104,37 @@ function cleanCoordinate(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
+type AnalyticsContext = {
+  sessionId?: string
+  anonymousId?: string
+  pagePath?: string
+  pageTitle?: string
+  referrer?: string
+}
+
+async function recordAuthAnalyticsEvent(
+  eventName: PortalAnalyticsEventName,
+  analytics: AnalyticsContext | undefined,
+  userId?: string | null,
+  errorCode?: string,
+) {
+  if (!analytics?.sessionId) return
+  await recordPortalAnalyticsEvent({
+    eventName,
+    sessionId: analytics.sessionId,
+    anonymousId: analytics.anonymousId,
+    pagePath: analytics.pagePath,
+    pageTitle: analytics.pageTitle,
+    referrer: analytics.referrer,
+    userId,
+    errorCode,
+  })
+}
+
 export async function signUp(
   data: RegistrationData,
   next?: string,
+  analytics?: AnalyticsContext,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
@@ -137,7 +167,10 @@ export async function signUp(
     },
   })
 
-  if (error) return { error: error.message }
+  if (error) {
+    await recordAuthAnalyticsEvent("registration_error", analytics, null, error.message)
+    return { error: error.message }
+  }
 
   // The trigger doesn't capture email — set it explicitly on the new profile row
   if (authData.user) {
@@ -161,6 +194,7 @@ export async function signUp(
 
   if (authData.user) {
     await sendMemberRegistrationSlackNotification(data)
+    await recordAuthAnalyticsEvent("registration_success", analytics, authData.user.id)
   }
 
   redirect(postRegistrationPath)
@@ -170,20 +204,26 @@ export async function signIn(
   email: string,
   password: string,
   next?: string,
+  analytics?: AnalyticsContext,
 ): Promise<{ error: string } | void> {
   const supabase = await createClient()
-  const { error } = await supabase.auth
+  const { data: authData, error } = await supabase.auth
     .signInWithPassword({ email, password })
     .catch((signInError) => ({
+      data: { user: null, session: null },
       error: signInError instanceof Error
         ? signInError
         : new Error("Could not reach the authentication server."),
     }))
-  if (error) return { error: error.message }
+  if (error) {
+    await recordAuthAnalyticsEvent("sign_in_error", analytics, null, error.message)
+    return { error: error.message }
+  }
   let destination = next && next.startsWith("/") ? next : "/dashboard"
   if (destination.startsWith("/events/")) {
     destination = `/dashboard${destination}`
   }
+  await recordAuthAnalyticsEvent("sign_in_success", analytics, authData.user?.id)
   redirect(destination)
 }
 
