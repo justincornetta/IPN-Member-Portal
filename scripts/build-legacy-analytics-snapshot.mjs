@@ -96,8 +96,6 @@ function buildMembers(base, sot) {
       { id: "form", label: "Form", value: number(totals.in_form) },
       { id: "mailchimp", label: "Mailchimp", value: number(totals.in_mailchimp) },
       { id: "oldapp", label: "Legacy App", value: number(totals.in_oldapp) },
-      { id: "eventbrite", label: "Eventbrite", value: number(totals.in_eventbrite) },
-      { id: "zoom", label: "Zoom", value: number(totals.in_zoom) },
     ],
     growth: growth.length ? growth : base.members.growth,
     countries: topItems(rows, "country"),

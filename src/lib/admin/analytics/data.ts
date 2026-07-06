@@ -147,6 +147,14 @@ function normalizeEventbrite(snapshotData: LegacyAnalyticsSnapshot) {
   }
 }
 
+function normalizeMembership(snapshotData: LegacyAnalyticsSnapshot) {
+  snapshotData.members.sourceTotals = snapshotData.members.sourceTotals.filter((source) => source.id !== "eventbrite" && source.id !== "zoom")
+  snapshotData.members.sourceCombinations = snapshotData.members.sourceCombinations.filter((source) => {
+    const label = source.label.toLowerCase()
+    return !label.includes("eventbrite") && !label.includes("zoom")
+  })
+}
+
 function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
   snapshotData.dataSources = snapshotData.dataSources.map((source) => {
     if (source.id === "zoom") {
@@ -168,6 +176,7 @@ function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
 
 export async function getLegacyAnalyticsSnapshot(): Promise<LegacyAnalyticsSnapshot> {
   const snapshotData = cloneSnapshot()
+  normalizeMembership(snapshotData)
   normalizeZoom(snapshotData)
   normalizeEventbrite(snapshotData)
   normalizeSourceStatus(snapshotData)

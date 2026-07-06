@@ -35,6 +35,7 @@ type PortalAnalyticsEventRow = {
   error_code: string | null
   duration_seconds: number | null
   click_count: number | null
+  metadata: Record<string, unknown> | null
   occurred_at: string
 }
 
@@ -80,6 +81,12 @@ function memberName(profile: PortalProfileRow | undefined) {
   return name || profile.email || "Unknown member"
 }
 
+function analyticsDevice(metadata: Record<string, unknown> | null) {
+  const deviceType = typeof metadata?.deviceType === "string" ? metadata.deviceType.toLowerCase() : ""
+  if (deviceType === "desktop" || deviceType === "mobile" || deviceType === "tablet") return deviceType
+  return "unknown"
+}
+
 function buildRegistrationTrend(profiles: PortalProfileRow[]): MemberInsightsData["registrationTrend"] {
   const counts = profiles.reduce<Record<string, number>>((acc, profile) => {
     const key = monthKey(profile.created_at)
@@ -115,15 +122,18 @@ function buildPortalUtilizationData({
   const eventsById = new Map(eventRows.map((event) => [event.id, event]))
   const funnelByDay = new Map<string, PortalUtilizationData["funnel"][number]>()
   const errorsByKey = new Map<string, PortalUtilizationData["errors"][number]>()
+  const deviceStats = new Map<string, { sessions: Set<string>; users: Set<string> }>()
   const pageStats = new Map<string, {
     sessions: Set<string>
     users: Set<string>
     duration: number
     durationSamples: number
     clicks: number
+    device: string
   }>()
   const pageDurationByVisit = new Map<string, {
     page: string
+    device: string
     sessionKey: string
     userId: string | null
     durationSeconds: number
@@ -132,6 +142,7 @@ function buildPortalUtilizationData({
   const clickStats = new Map<string, {
     clickName: string
     page: string
+    device: string
     clicks: number
     users: Set<string>
     sessions: Set<string>
@@ -153,11 +164,13 @@ function buildPortalUtilizationData({
     lastPage: string
   }>()
 
-  const getFunnelDay = (date: string) => {
-    const existing = funnelByDay.get(date)
+  const getFunnelDay = (date: string, device: string) => {
+    const key = `${date}:${device}`
+    const existing = funnelByDay.get(key)
     if (existing) return existing
     const created = {
       date,
+      device,
       registrationTraffic: 0,
       registrationCompleted: 0,
       registrationConversion: 0,
@@ -165,7 +178,7 @@ function buildPortalUtilizationData({
       signInCompleted: 0,
       signInConversion: 0,
     }
-    funnelByDay.set(date, created)
+    funnelByDay.set(key, created)
     return created
   }
 
@@ -175,12 +188,31 @@ function buildPortalUtilizationData({
     const page = event.page_path || "Unknown"
     const sessionKey = event.session_id || `${event.user_id ?? "anonymous"}:${date}:${page}`
     const visitKey = `${sessionKey}:${page}`
-    const funnelDay = getFunnelDay(date)
+    const device = analyticsDevice(event.metadata)
+    const allDevicesFunnelDay = getFunnelDay(date, "all")
+    const deviceFunnelDay = getFunnelDay(date, device)
 
-    if (event.event_name === "page_view" && page.startsWith("/register")) funnelDay.registrationTraffic += 1
-    if (event.event_name === "registration_success") funnelDay.registrationCompleted += 1
-    if (event.event_name === "page_view" && page.startsWith("/login")) funnelDay.signInTraffic += 1
-    if (event.event_name === "sign_in_success") funnelDay.signInCompleted += 1
+    const currentDevice = deviceStats.get(device) ?? { sessions: new Set<string>(), users: new Set<string>() }
+    currentDevice.sessions.add(sessionKey)
+    if (event.user_id) currentDevice.users.add(event.user_id)
+    deviceStats.set(device, currentDevice)
+
+    if (event.event_name === "page_view" && page.startsWith("/register")) {
+      allDevicesFunnelDay.registrationTraffic += 1
+      deviceFunnelDay.registrationTraffic += 1
+    }
+    if (event.event_name === "registration_success") {
+      allDevicesFunnelDay.registrationCompleted += 1
+      deviceFunnelDay.registrationCompleted += 1
+    }
+    if (event.event_name === "page_view" && page.startsWith("/login")) {
+      allDevicesFunnelDay.signInTraffic += 1
+      deviceFunnelDay.signInTraffic += 1
+    }
+    if (event.event_name === "sign_in_success") {
+      allDevicesFunnelDay.signInCompleted += 1
+      deviceFunnelDay.signInCompleted += 1
+    }
 
     if (event.event_name === "registration_error" || event.event_name === "sign_in_error") {
       const errorCode = event.error_code || event.event_name
@@ -191,22 +223,25 @@ function buildPortalUtilizationData({
     }
 
     if (event.event_name === "page_duration" || event.event_name === "session_summary" || event.event_name === "page_view") {
-      const existingPage = pageStats.get(page) ?? {
+      const pageKey = `${page}:${device}`
+      const existingPage = pageStats.get(pageKey) ?? {
         sessions: new Set<string>(),
         users: new Set<string>(),
         duration: 0,
         durationSamples: 0,
         clicks: 0,
+        device,
       }
       existingPage.sessions.add(sessionKey)
       if (event.user_id) existingPage.users.add(event.user_id)
-      pageStats.set(page, existingPage)
+      pageStats.set(pageKey, existingPage)
     }
 
     if (event.event_name === "page_duration") {
       const existingVisit = pageDurationByVisit.get(visitKey)
       pageDurationByVisit.set(visitKey, {
         page,
+        device,
         sessionKey,
         userId: event.user_id,
         durationSeconds: Math.max(existingVisit?.durationSeconds ?? 0, event.duration_seconds ?? 0),
@@ -216,10 +251,11 @@ function buildPortalUtilizationData({
 
     if (event.event_name === "curated_click" || event.event_name === "whatsapp_cta_clicked") {
       const clickName = event.target_label || event.target_id || event.event_name
-      const key = `${page}:${clickName}`
+      const key = `${page}:${clickName}:${device}`
       const existingClick = clickStats.get(key) ?? {
         clickName,
         page,
+        device,
         clicks: 0,
         users: new Set<string>(),
         sessions: new Set<string>(),
@@ -261,12 +297,14 @@ function buildPortalUtilizationData({
   }
 
   for (const visit of pageDurationByVisit.values()) {
-    const existingPage = pageStats.get(visit.page) ?? {
+    const pageKey = `${visit.page}:${visit.device}`
+    const existingPage = pageStats.get(pageKey) ?? {
       sessions: new Set<string>(),
       users: new Set<string>(),
       duration: 0,
       durationSamples: 0,
       clicks: 0,
+      device: visit.device,
     }
     existingPage.sessions.add(visit.sessionKey)
     if (visit.userId) existingPage.users.add(visit.userId)
@@ -275,7 +313,7 @@ function buildPortalUtilizationData({
       existingPage.durationSamples += 1
     }
     existingPage.clicks += visit.clickCount
-    pageStats.set(visit.page, existingPage)
+    pageStats.set(pageKey, existingPage)
   }
 
   for (const summary of sessionSummaryByVisit.values()) {
@@ -294,8 +332,9 @@ function buildPortalUtilizationData({
     .sort((a, b) => a.date.localeCompare(b.date))
 
   const topPages = Array.from(pageStats.entries())
-    .map(([page, stats]) => ({
-      page,
+    .map(([key, stats]) => ({
+      page: key.slice(0, -(stats.device.length + 1)),
+      device: stats.device,
       sessions: stats.sessions.size,
       users: stats.users.size,
       avgDurationSeconds: stats.durationSamples ? Math.round(stats.duration / stats.durationSamples) : 0,
@@ -308,6 +347,7 @@ function buildPortalUtilizationData({
     .map((stats) => ({
       clickName: stats.clickName,
       page: stats.page,
+      device: stats.device,
       clicks: stats.clicks,
       users: stats.users.size,
       sessions: stats.sessions.size,
@@ -349,6 +389,13 @@ function buildPortalUtilizationData({
     rsvpTrend: Object.entries(rsvpsByDay)
       .map(([date, rsvps]) => ({ date, rsvps }))
       .sort((a, b) => a.date.localeCompare(b.date)),
+    trafficDevices: Array.from(deviceStats.entries())
+      .map(([label, stats]) => ({
+        label,
+        sessions: stats.sessions.size,
+        users: stats.users.size,
+      }))
+      .sort((a, b) => b.sessions - a.sessions || a.label.localeCompare(b.label)),
     recentRsvps: eventRegistrations
       .slice()
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -465,7 +512,7 @@ export default async function AdminPage() {
   ] = await Promise.all([
     admin
       .from("portal_analytics_events")
-      .select("event_name, user_id, session_id, page_path, target_id, target_label, error_code, duration_seconds, click_count, occurred_at")
+      .select("event_name, user_id, session_id, page_path, target_id, target_label, error_code, duration_seconds, click_count, metadata, occurred_at")
       .gte("occurred_at", ninetyDaysAgo)
       .order("occurred_at", { ascending: true })
       .limit(10000),
@@ -503,6 +550,7 @@ export default async function AdminPage() {
     topTags: Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 10),
     topSchools: Object.entries(schoolCount).sort((a, b) => b[1] - a[1]).slice(0, 10),
     topCountries: Object.entries(countryCount).sort((a, b) => b[1] - a[1]).slice(0, 10),
+    profiles: allProfiles,
     recent,
   }
 

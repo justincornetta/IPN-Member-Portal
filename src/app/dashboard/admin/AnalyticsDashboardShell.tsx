@@ -6,10 +6,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -36,6 +39,7 @@ type WebsiteGeoView = "countries" | "cities"
 type Granularity = "daily" | "weekly" | "monthly"
 type EventbriteMetric = "tickets" | "revenue"
 type SocialMetric = "followers" | "engagementRate" | "posts"
+type DeviceFilter = "all" | "desktop" | "mobile" | "tablet" | "unknown"
 
 export type MemberInsightsData = {
   total: number
@@ -53,6 +57,19 @@ export type MemberInsightsData = {
   topTags: [string, number][]
   topSchools: [string, number][]
   topCountries: [string, number][]
+  profiles: {
+    id: string
+    first_name: string | null
+    last_name: string | null
+    email: string | null
+    persona: string | null
+    field: string | null
+    interest_tags: string[] | null
+    school: string | null
+    country: string | null
+    is_discoverable: boolean | null
+    created_at: string | null
+  }[]
   recent: {
     id: string
     first_name: string | null
@@ -73,6 +90,7 @@ export type PortalUtilizationData = {
   trackingError: string | null
   funnel: {
     date: string
+    device: string
     registrationTraffic: number
     registrationCompleted: number
     registrationConversion: number
@@ -87,6 +105,7 @@ export type PortalUtilizationData = {
   }[]
   topPages: {
     page: string
+    device: string
     sessions: number
     users: number
     avgDurationSeconds: number
@@ -96,6 +115,7 @@ export type PortalUtilizationData = {
   topClicks: {
     clickName: string
     page: string
+    device: string
     clicks: number
     users: number
     sessions: number
@@ -114,6 +134,11 @@ export type PortalUtilizationData = {
   rsvpTrend: {
     date: string
     rsvps: number
+  }[]
+  trafficDevices: {
+    label: string
+    sessions: number
+    users: number
   }[]
   recentRsvps: {
     memberName: string
@@ -245,6 +270,38 @@ function aggregateByGranularity<T extends Record<string, number>>(
     .sort((a, b) => a.label.localeCompare(b.label))
 }
 
+function dateStep(granularity: Granularity) {
+  return granularity === "daily" ? 1 : granularity === "weekly" ? 7 : 32
+}
+
+function fillMetricBuckets<T extends Record<string, number>>(
+  rows: (T & { label: string })[],
+  granularity: Granularity,
+  dateValues: (string | null | undefined)[],
+  zeroValues: T,
+) {
+  const dates = dateValues
+    .map((value) => parseDateValue(value))
+    .filter((date): date is Date => Boolean(date))
+    .sort((a, b) => a.getTime() - b.getTime())
+  if (!dates.length) return rows
+
+  const byLabel = new Map(rows.map((row) => [row.label, row]))
+  const filled: (T & { label: string })[] = []
+  const cursor = new Date(Date.UTC(dates[0].getUTCFullYear(), dates[0].getUTCMonth(), dates[0].getUTCDate()))
+  const end = dates.at(-1)!
+  while (cursor <= end) {
+    const label = aggregateByGranularity([{ date: cursor.toISOString(), values: zeroValues }], granularity)[0]?.label
+    if (label && !filled.some((row) => row.label === label)) {
+      filled.push(byLabel.get(label) ?? ({ label, ...zeroValues } as T & { label: string }))
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + dateStep(granularity))
+    if (granularity === "monthly") cursor.setUTCDate(1)
+  }
+
+  return filled.sort((a, b) => a.label.localeCompare(b.label))
+}
+
 function formatDuration(minutes: number | null | undefined) {
   if (minutes == null || Number.isNaN(minutes)) return "-"
   if (minutes < 60) return `${formatNumber(minutes, 0)}m`
@@ -341,6 +398,25 @@ function SelectInput({
     <select value={value} onChange={(event) => onChange(event.target.value)} className={`cursor-pointer ${inputClassName}`}>
       {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select>
+  )
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3">
+      <button type="button" onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page === 0} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40">Previous</button>
+      <span className="text-xs text-zinc-400">Page {page + 1} of {totalPages}</span>
+      <button type="button" onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))} disabled={page === totalPages - 1} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40">Next</button>
+    </div>
   )
 }
 
@@ -509,25 +585,59 @@ function PortalMembersPanel({
   onSelectMember: (member: AdminMemberProfile) => void
 }) {
   const [signupsPage, setSignupsPage] = useState(0)
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+  const [granularity, setGranularity] = useState<Granularity>("monthly")
 
   if (!memberInsights) {
     return <EmptyState title="Portal member data unavailable" description="The live Supabase member query did not return data for this admin request." />
   }
 
+  const filteredProfiles = memberInsights.profiles.filter((profile) => isWithinDateRange(profile.created_at, fromDate, toDate))
+  const filteredTotal = filteredProfiles.length
+  const filteredDiscoverable = filteredProfiles.filter((profile) => profile.is_discoverable).length
+  const filteredWithTags = filteredProfiles.filter((profile) => (profile.interest_tags?.length ?? 0) > 0).length
+  const filteredHidden = filteredTotal - filteredDiscoverable
+  const registrationTrend = aggregateByGranularity(filteredProfiles.map((profile) => ({
+    date: profile.created_at,
+    values: { registrations: 1 },
+  })), granularity).reduce<{ label: string; registrations: number; cumulative: number }[]>((acc, row) => {
+    const previous = acc.at(-1)?.cumulative ?? 0
+    acc.push({ label: row.label, registrations: row.registrations, cumulative: previous + row.registrations })
+    return acc
+  }, [])
+  const recentRows = memberInsights.recent?.filter((member) => isWithinDateRange(member.created_at, fromDate, toDate)) ?? null
+
   return (
     <div className="flex flex-col gap-6">
+      <FilterBar>
+        <FilterField label="From date">
+          <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <FilterField label="To date">
+          <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <FilterField label="Granularity">
+          <SelectInput value={granularity} onChange={(value) => setGranularity(value as Granularity)} options={[
+            { value: "daily", label: "Daily" },
+            { value: "weekly", label: "Weekly" },
+            { value: "monthly", label: "Monthly" },
+          ]} />
+        </FilterField>
+      </FilterBar>
+
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard label="Total members" value={formatNumber(memberInsights.total)} />
-        <StatCard label="Discoverable" value={formatNumber(memberInsights.discoverable)} />
-        <StatCard label="Hidden" value={formatNumber(memberInsights.total - memberInsights.discoverable)} />
-        <StatCard label="With interest tags" value={formatNumber(memberInsights.withTags)} />
+        <StatCard label="Total members" value={formatNumber(filteredTotal)} helper={filteredTotal === memberInsights.total ? "All Portal members" : `${formatNumber(memberInsights.total)} all-time`} />
+        <StatCard label="Discoverable" value={formatNumber(filteredDiscoverable)} helper={`${formatPercent(filteredTotal ? filteredDiscoverable / filteredTotal * 100 : 0)} of total`} />
+        <StatCard label="Hidden" value={formatNumber(filteredHidden)} helper={`${formatPercent(filteredTotal ? filteredHidden / filteredTotal * 100 : 0)} of total`} />
+        <StatCard label="With interest tags" value={formatNumber(filteredWithTags)} helper={`${formatPercent(filteredTotal ? filteredWithTags / filteredTotal * 100 : 0)} of total`} />
       </div>
 
-      <Panel title="New registrations over time" subtitle="Portal profile records by signup month">
+      <Panel title="New registrations over time" subtitle={`Portal profile records by ${granularity.replace("ly", "")}`}>
         <ResponsiveChart height={320}>
-          <ComposedChart data={memberInsights.registrationTrend}>
+          <ComposedChart data={registrationTrend}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip formatter={tooltipFormatter} />
             <Legend />
@@ -545,13 +655,13 @@ function PortalMembersPanel({
         <Panel title="Top countries" className="lg:col-span-2"><BarList items={memberInsights.topCountries.map(([label, value]) => ({ label, value }))} /></Panel>
       </div>
 
-      {memberInsights.recent && (() => {
+      {recentRows && (() => {
         const pageSize = 5
-        const totalPages = Math.ceil(memberInsights.recent.length / pageSize)
-        const pageItems = memberInsights.recent.slice(signupsPage * pageSize, (signupsPage + 1) * pageSize)
+        const totalPages = Math.ceil(recentRows.length / pageSize)
+        const pageItems = recentRows.slice(signupsPage * pageSize, (signupsPage + 1) * pageSize)
 
         return (
-          <Panel title="Recent signups" subtitle={`${memberInsights.recent.length} most recent Portal registrations`}>
+          <Panel title="Recent signups" subtitle={`${recentRows.length} most recent Portal registrations`}>
             <div className="divide-y divide-zinc-100">
               {pageItems.map((member) => {
                 const badge = mailchimpBadge(member.mailchimp_status)
@@ -586,13 +696,7 @@ function PortalMembersPanel({
                 )
               })}
             </div>
-            {totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3">
-                <button type="button" onClick={() => setSignupsPage((page) => Math.max(0, page - 1))} disabled={signupsPage === 0} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40">Previous</button>
-                <span className="text-xs text-zinc-400">Page {signupsPage + 1} of {totalPages}</span>
-                <button type="button" onClick={() => setSignupsPage((page) => Math.min(totalPages - 1, page + 1))} disabled={signupsPage === totalPages - 1} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40">Next</button>
-              </div>
-            )}
+            <PaginationControls page={signupsPage} totalPages={totalPages} onPageChange={setSignupsPage} />
           </Panel>
         )
       })()}
@@ -670,7 +774,7 @@ function LegacyMembershipPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Cumulative member growth" subtitle={`Snapshot built ${formatDate(members.totals.builtAt)}`} className="lg:col-span-2">
+        <Panel title="Cumulative member growth" subtitle={`Snapshot built ${formatDate(members.totals.builtAt)}. May 2026 includes a legacy app/Mailchimp import-date batch from first_seen_at, not confirmed real signup timing.`} className="lg:col-span-2">
           <ResponsiveChart height={320}>
             <ComposedChart data={members.growth}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -736,7 +840,7 @@ function LegacyMembershipPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot
           rows={filteredRows.map((row) => ({
             name: `${row.firstName} ${row.lastName}`.trim() || "-",
             email: row.email || "-",
-            date: formatShortDate(row.date),
+            date: formatDate(row.date),
             country: row.country || "-",
             field: truncate(row.field || "-", 48),
             heard: truncate(row.heard || "-", 48),
@@ -784,17 +888,83 @@ function MembersAnalyticsPanel({
 
 function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
   const dates = data.funnel.map((row) => row.date).sort()
-  const [fromDate, setFromDate] = useState(dates.at(-30) ?? dates[0] ?? "")
-  const [toDate, setToDate] = useState(dates.at(-1) ?? "")
-  const filteredFunnel = data.funnel.filter((row) => isWithinDateRange(row.date, fromDate, toDate))
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+  const [granularity, setGranularity] = useState<Granularity>("daily")
+  const [device, setDevice] = useState<DeviceFilter>("all")
+  const filteredFunnelRows = data.funnel.filter((row) => (
+    row.device === device &&
+    isWithinDateRange(row.date, fromDate, toDate)
+  ))
+  const funnelBuckets = fillMetricBuckets(aggregateByGranularity(filteredFunnelRows.map((row) => ({
+    date: row.date,
+    values: {
+      registrationTraffic: row.registrationTraffic,
+      registrationCompleted: row.registrationCompleted,
+      signInTraffic: row.signInTraffic,
+      signInCompleted: row.signInCompleted,
+    },
+  })), granularity), granularity, dates, {
+    registrationTraffic: 0,
+    registrationCompleted: 0,
+    signInTraffic: 0,
+    signInCompleted: 0,
+  })
+  const funnel = funnelBuckets.map((row) => ({
+    ...row,
+    date: row.label,
+    registrationConversion: row.registrationTraffic ? row.registrationCompleted / row.registrationTraffic * 100 : 0,
+    signInConversion: row.signInTraffic ? row.signInCompleted / row.signInTraffic * 100 : 0,
+  }))
   const filteredErrors = data.errors
-  const filteredTopPages = data.topPages
-  const filteredTopClicks = data.topClicks
-  const totalRegistrationTraffic = filteredFunnel.reduce((sum, row) => sum + row.registrationTraffic, 0)
-  const totalRegistrationCompleted = filteredFunnel.reduce((sum, row) => sum + row.registrationCompleted, 0)
-  const totalSignInTraffic = filteredFunnel.reduce((sum, row) => sum + row.signInTraffic, 0)
-  const totalSignInCompleted = filteredFunnel.reduce((sum, row) => sum + row.signInCompleted, 0)
-  const totalRsvps = data.rsvpTrend.reduce((sum, row) => sum + row.rsvps, 0)
+  const filteredPageRows = data.topPages.filter((row) => device === "all" || row.device === device)
+  const filteredClickRows = data.topClicks.filter((row) => device === "all" || row.device === device)
+  const pageMap = new Map<string, { page: string; sessions: number; users: number; durationTotal: number; durationSamples: number; clicks: number }>()
+  for (const row of filteredPageRows) {
+    const current = pageMap.get(row.page) ?? { page: row.page, sessions: 0, users: 0, durationTotal: 0, durationSamples: 0, clicks: 0 }
+    current.sessions += row.sessions
+    current.users += row.users
+    current.durationTotal += row.avgDurationSeconds * row.sessions
+    current.durationSamples += row.sessions
+    current.clicks += row.clicks
+    pageMap.set(row.page, current)
+  }
+  const filteredTopPages = Array.from(pageMap.values()).map((row) => ({
+    page: row.page,
+    sessions: row.sessions,
+    users: row.users,
+    avgDurationSeconds: row.durationSamples ? Math.round(row.durationTotal / row.durationSamples) : 0,
+    clicks: row.clicks,
+    clicksPerSession: row.sessions ? row.clicks / row.sessions : 0,
+  })).sort((a, b) => b.sessions - a.sessions || b.clicks - a.clicks)
+  const clickMap = new Map<string, { clickName: string; page: string; clicks: number; users: number; sessions: number }>()
+  for (const row of filteredClickRows) {
+    const key = `${row.page}:${row.clickName}`
+    const current = clickMap.get(key) ?? { clickName: row.clickName, page: row.page, clicks: 0, users: 0, sessions: 0 }
+    current.clicks += row.clicks
+    current.users += row.users
+    current.sessions += row.sessions
+    clickMap.set(key, current)
+  }
+  const filteredTopClicks = Array.from(clickMap.values()).sort((a, b) => b.clicks - a.clicks || b.users - a.users || a.clickName.localeCompare(b.clickName))
+  const rsvpBuckets = fillMetricBuckets(aggregateByGranularity(data.rsvpTrend
+    .filter((row) => isWithinDateRange(row.date, fromDate, toDate))
+    .map((row) => ({ date: row.date, values: { rsvps: row.rsvps } })), granularity), granularity, data.rsvpTrend.map((row) => row.date), { rsvps: 0 })
+  const rsvpTrend = rsvpBuckets.map((row) => ({ ...row, date: row.label }))
+  const totalRegistrationTraffic = funnel.reduce((sum, row) => sum + row.registrationTraffic, 0)
+  const totalRegistrationCompleted = funnel.reduce((sum, row) => sum + row.registrationCompleted, 0)
+  const totalSignInTraffic = funnel.reduce((sum, row) => sum + row.signInTraffic, 0)
+  const totalSignInCompleted = funnel.reduce((sum, row) => sum + row.signInCompleted, 0)
+  const totalRsvps = rsvpTrend.reduce((sum, row) => sum + row.rsvps, 0)
+  const deviceOptions = [
+    { value: "all", label: "All devices" },
+    ...data.trafficDevices.map((item) => ({ value: item.label, label: item.label === "unknown" ? "Unknown" : item.label[0].toUpperCase() + item.label.slice(1) })),
+  ]
+  const devicePieRows = data.trafficDevices.map((item) => ({
+    name: item.label === "unknown" ? "Unknown" : item.label[0].toUpperCase() + item.label.slice(1),
+    value: item.sessions,
+  }))
+  const pieColors = ["#2563eb", "#16a34a", "#d97706", "#7c3aed"]
 
   return (
     <div className="flex flex-col gap-6">
@@ -804,6 +974,16 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
         </FilterField>
         <FilterField label="To date">
           <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <FilterField label="Granularity">
+          <SelectInput value={granularity} onChange={(value) => setGranularity(value as Granularity)} options={[
+            { value: "daily", label: "Daily" },
+            { value: "weekly", label: "Weekly" },
+            { value: "monthly", label: "Monthly" },
+          ]} />
+        </FilterField>
+        <FilterField label="Device">
+          <SelectInput value={device} onChange={(value) => setDevice(value as DeviceFilter)} options={deviceOptions} />
         </FilterField>
       </FilterBar>
 
@@ -825,9 +1005,9 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Registration funnel over time" subtitle="Traffic, completed registrations, and conversion percentage">
           <ResponsiveChart height={300}>
-            <ComposedChart data={filteredFunnel}>
+            <ComposedChart data={funnel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={tooltipFormatter} />
               <Legend />
@@ -839,9 +1019,9 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
         </Panel>
         <Panel title="Sign-in funnel over time" subtitle="Traffic, completed sign-ins, and conversion percentage">
           <ResponsiveChart height={300}>
-            <ComposedChart data={filteredFunnel}>
+            <ComposedChart data={funnel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={tooltipFormatter} />
               <Legend />
@@ -853,14 +1033,29 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
         </Panel>
         <Panel title="Event RSVPs over time" subtitle="Portal event registrations">
           <ResponsiveChart height={280}>
-            <BarChart data={data.rsvpTrend}>
+            <BarChart data={rsvpTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={tooltipFormatter} />
               <Bar dataKey="rsvps" name="RSVPs" fill="#2563eb" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveChart>
+        </Panel>
+        <Panel title="Portal traffic by device" subtitle="Sessions from retained first-party Portal analytics events">
+          {devicePieRows.length ? (
+            <ResponsiveChart height={280}>
+              <PieChart>
+                <Pie data={devicePieRows} dataKey="value" nameKey="name" innerRadius={58} outerRadius={90} paddingAngle={2}>
+                  {devicePieRows.map((row, index) => <Cell key={row.name} fill={pieColors[index % pieColors.length]} />)}
+                </Pie>
+                <Tooltip formatter={tooltipFormatter} />
+                <Legend />
+              </PieChart>
+            </ResponsiveChart>
+          ) : (
+            <EmptyState title="No device data yet" description="Device split will populate after new Portal analytics events include device metadata." />
+          )}
         </Panel>
         <Panel title="Error types by page">
           {filteredErrors.length ? (
@@ -1007,21 +1202,26 @@ function CommunityPanel() {
 
 function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot["marketing"]["campaigns"] }) {
   const [openId, setOpenId] = useState<string | null>(campaigns[0]?.id ?? null)
+  const [page, setPage] = useState(0)
+  const pageSize = 10
+  const totalPages = Math.ceil(campaigns.length / pageSize)
+  const pageCampaigns = campaigns.slice(page * pageSize, (page + 1) * pageSize)
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-[980px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-zinc-200">
-            {["Campaign", "Date", "List", "Sent", "Open %", "Click %", "Unsubs"].map((label, index) => (
-              <th key={label} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${index >= 3 ? "text-right" : "text-left"}`}>{label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100">
-          {campaigns.map((campaign) => {
+    <>
+      <div className="overflow-x-auto">
+        <table className="min-w-[1120px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-zinc-200">
+              {["Campaign", "Date", "List", "Sent", "Opens", "Open %", "Clicks", "Click %", "Unsubs"].map((label, index) => (
+                <th key={label} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${index >= 3 ? "text-right" : "text-left"}`}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+          {pageCampaigns.map((campaign) => {
             const open = openId === campaign.id
-            const totalDetailClicks = campaign.clickDetail.reduce((sum, item) => sum + item.clicks, 0)
+            const totalUniqueDetailClicks = campaign.clickDetail.reduce((sum, item) => sum + (item.uniqueClicks ?? item.clicks), 0)
             return (
               <Fragment key={campaign.id}>
                 <tr className="hover:bg-zinc-50">
@@ -1037,13 +1237,15 @@ function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot
                   <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{formatShortDate(campaign.date)}</td>
                   <td className="max-w-[15rem] px-3 py-3 align-top text-zinc-600">{campaign.listName}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(campaign.sent)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(campaign.opens)}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatPercent(campaign.openRate)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(campaign.clicks)}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatPercent(campaign.clickRate)}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(campaign.unsubscribes)}</td>
                 </tr>
                 {open && (
                   <tr className="bg-zinc-50/70">
-                    <td colSpan={7} className="px-3 py-4">
+                    <td colSpan={9} className="px-3 py-4">
                       {campaign.clickDetail.length > 0 ? (
                         <div className="rounded-lg border border-zinc-200 bg-white">
                           <div className="grid grid-cols-[minmax(18rem,1fr)_8rem_8rem_8rem] gap-3 border-b border-zinc-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
@@ -1058,7 +1260,7 @@ function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot
                                 <a href={click.url} target="_blank" rel="noreferrer" className="break-all text-ipn hover:underline">{click.url}</a>
                                 <span className="text-right tabular-nums">{formatNumber(click.clicks)}</span>
                                 <span className="text-right tabular-nums">{click.uniqueClicks == null ? "-" : formatNumber(click.uniqueClicks)}</span>
-                                <span className="text-right tabular-nums">{formatPercent(click.percentOfClicks ?? (totalDetailClicks ? click.clicks / totalDetailClicks * 100 : null))}</span>
+                                <span className="text-right tabular-nums">{formatPercent(totalUniqueDetailClicks ? (click.uniqueClicks ?? click.clicks) / totalUniqueDetailClicks * 100 : click.percentOfClicks)}</span>
                               </div>
                             ))}
                           </div>
@@ -1072,17 +1274,18 @@ function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot
               </Fragment>
             )
           })}
-        </tbody>
-      </table>
-    </div>
+          </tbody>
+        </table>
+      </div>
+      <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+    </>
   )
 }
 
 function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const marketing = snapshot.marketing
-  const campaignDates = marketing.campaigns.map((campaign) => toInputDate(campaign.date)).filter(Boolean)
-  const [fromDate, setFromDate] = useState(campaignDates.at(-24) ?? "")
-  const [toDate, setToDate] = useState(campaignDates[0] ?? "")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
   const [granularity, setGranularity] = useState<Granularity>("monthly")
   const [listName, setListName] = useState("all")
   const mailchimpSource = snapshot.dataSources.find((source) => source.id === "mailchimp")
@@ -1198,7 +1401,7 @@ function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </div>
 
       <Panel title="Campaign detail" subtitle="Click a campaign to expand URL-level click details">
-        <CampaignDetailTable campaigns={filteredCampaigns.slice(0, 80)} />
+        <CampaignDetailTable campaigns={filteredCampaigns} />
       </Panel>
     </div>
   )
@@ -1213,6 +1416,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const [toDate, setToDate] = useState(historyDates.at(-1) ?? "")
   const [platform, setPlatform] = useState("all")
   const [metric, setMetric] = useState<SocialMetric>("followers")
+  const [granularity, setGranularity] = useState<Granularity>("monthly")
   const platformOptions = social.platforms
     .filter((item) => item.followers != null)
     .map((item) => ({ value: item.id, label: item.label }))
@@ -1223,20 +1427,21 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       (platform === "all" || row.channel === platform)
     ))
     .forEach((row) => latestByMonthChannel.set(`${row.month}:${row.channel}`, row))
-  const rowsByMonth = Array.from(latestByMonthChannel.values()).reduce<Record<string, LegacyAnalyticsSnapshot["social"]["history"]>>((acc, row) => {
-    acc[row.month] = [...(acc[row.month] ?? []), row]
-    return acc
-  }, {})
-  const trend = Object.entries(rowsByMonth)
-    .map(([month, rows]) => {
-      const followers = rows.reduce((sum, row) => sum + row.followers, 0)
-      const posts = rows.reduce((sum, row) => sum + row.posts, 0)
-      const engagementRows = rows.filter((row) => row.engagementRate > 0)
-      const engagementRate = engagementRows.length
-        ? engagementRows.reduce((sum, row) => sum + row.engagementRate, 0) / engagementRows.length
-        : 0
-      return { month, followers, posts, engagementRate: roundMetric(engagementRate) }
-    })
+  const trend = aggregateByGranularity(Array.from(latestByMonthChannel.values()).map((row) => ({
+    date: `${row.month}-01`,
+    values: {
+      followers: row.followers,
+      posts: row.posts,
+      engagementRateTotal: row.engagementRate,
+      engagementRows: row.engagementRate > 0 ? 1 : 0,
+    },
+  })), granularity)
+    .map((row) => ({
+      month: row.label,
+      followers: row.followers,
+      posts: row.posts,
+      engagementRate: row.engagementRows ? roundMetric(row.engagementRateTotal / row.engagementRows) : 0,
+    }))
     .sort((a, b) => a.month.localeCompare(b.month))
   const metricLabel = metric === "followers" ? "Followers" : metric === "posts" ? "Posts" : "Engagement rate"
 
@@ -1251,6 +1456,13 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
         </FilterField>
         <FilterField label="Platform">
           <SelectInput value={platform} onChange={setPlatform} options={[{ value: "all", label: "All tracked platforms" }, ...platformOptions]} />
+        </FilterField>
+        <FilterField label="Granularity">
+          <SelectInput value={granularity} onChange={(value) => setGranularity(value as Granularity)} options={[
+            { value: "daily", label: "Daily" },
+            { value: "weekly", label: "Weekly" },
+            { value: "monthly", label: "Monthly" },
+          ]} />
         </FilterField>
         <FilterField label="Trend metric">
           <SelectInput value={metric} onChange={(value) => setMetric(value as SocialMetric)} options={[
@@ -1270,7 +1482,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
             key={platform.id}
             label={platform.label}
             value={platform.followers == null ? "Manual" : formatNumber(platform.followers)}
-            helper={platform.engagementRate == null ? platform.status : `${formatPercent(platform.engagementRate)} engagement`}
+            helper={platform.engagementRate == null ? platform.status : `${formatPercent(platform.engagementRate)} engagement from legacy export`}
           />
         ))}
       </div>
@@ -1304,9 +1516,9 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
             }))}
           />
         </Panel>
-        <Panel title="Instagram post engagement">
+        <Panel title="Instagram post engagement" subtitle="Posts are ordered oldest to newest so recent dates appear on the right">
           <ResponsiveChart height={280}>
-            <BarChart data={social.instagramPosts.map((post) => ({ ...post, label: formatShortDate(post.date) }))}>
+            <BarChart data={social.instagramPosts.slice().sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime()).map((post) => ({ ...post, label: formatShortDate(post.date) }))}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -1409,6 +1621,12 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
         source={websiteSource}
         detail="The local Portal snapshot still uses the last successful GA4 pull from the legacy dashboard. More recent website traffic will appear after the failed daily refresh is recovered and this server snapshot is regenerated."
       />
+      {!website.trend.length && !website.devices.length && !website.channels.length && (
+        <EmptyState
+          title="Website analytics are empty in the current snapshot"
+          description="The committed GA4 snapshot contains zero sessions and no trend/device/channel/page rows. This is a source refresh issue, not a Portal chart issue; the Website tab will populate after the GA4 refresh succeeds and the server snapshot is rebuilt."
+        />
+      )}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
         <StatCard label="Sessions" value={formatNumber(totalSessions)} helper={`${formatPercent(overview.sessions_mom_pct as number)} latest MoM`} />
         <StatCard label="Unique visitors" value={formatNumber(totalUsers)} helper={`${formatPercent(overview.visitors_mom_pct as number)} latest MoM`} />
@@ -1532,14 +1750,12 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
 
 function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const [active, setActive] = useState<EventsView>("zoom")
-  const allEventDates = [
-    ...snapshot.events.zoom.events.map((event) => toInputDate(event.date)),
-    ...snapshot.events.eventbrite.events.map((event) => toInputDate(event.date)),
-  ].filter(Boolean).sort()
-  const [fromDate, setFromDate] = useState(allEventDates[0] ?? "")
-  const [toDate, setToDate] = useState(allEventDates.at(-1) ?? "")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
   const [program, setProgram] = useState("all")
   const [type, setType] = useState("all")
+  const [granularity, setGranularity] = useState<Granularity>("monthly")
+  const [attendeesPage, setAttendeesPage] = useState(0)
   const [eventbriteMetric, setEventbriteMetric] = useState<EventbriteMetric>("tickets")
   const zoom = snapshot.events.zoom
   const eventbrite = snapshot.events.eventbrite
@@ -1557,7 +1773,7 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       participants: event.attendees,
       retentionTotal: event.retentionPct,
     },
-  })), "monthly").map((row) => ({
+  })), granularity).map((row) => ({
     ...row,
     month: row.label,
     avgParticipants: row.events ? row.participants / row.events : 0,
@@ -1577,6 +1793,13 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
     }
   }
   const topAttendees = Array.from(filteredAttendees.values()).sort((a, b) => b.events - a.events || b.totalDurationMin - a.totalDurationMin)
+  const attendeePageSize = 10
+  const attendeeTotalPages = Math.ceil(topAttendees.length / attendeePageSize)
+  const attendeePageRows = topAttendees.slice(attendeesPage * attendeePageSize, (attendeesPage + 1) * attendeePageSize)
+  const attendeeFrequency = [1, 2, 3, 4, 5].map((bucket) => ({
+    label: bucket === 5 ? "5+ events" : `${bucket} event${bucket === 1 ? "" : "s"}`,
+    value: topAttendees.filter((attendee) => bucket === 5 ? attendee.events >= 5 : attendee.events === bucket).length,
+  }))
   const eventbriteEvents = eventbrite.events.filter((event) => isWithinDateRange(event.date, fromDate, toDate))
   const eventbriteChartRows = eventbriteEvents.map((event, index) => ({
     ...event,
@@ -1616,6 +1839,13 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
             { value: "internal", label: "Internal" },
           ]} />
         </FilterField>
+        <FilterField label="Granularity">
+          <SelectInput value={granularity} onChange={(value) => setGranularity(value as Granularity)} options={[
+            { value: "daily", label: "Daily" },
+            { value: "weekly", label: "Weekly" },
+            { value: "monthly", label: "Monthly" },
+          ]} />
+        </FilterField>
       </FilterBar>
       <SourceFreshnessNote
         source={active === "zoom" ? zoomSource : eventbriteSource}
@@ -1630,7 +1860,7 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <StatCard label="Included events" value={formatNumber(zoomEvents.length)} helper="Curated public/event-facing list" />
             <StatCard label="Avg attendees" value={formatNumber(zoomTotalParticipants / Math.max(zoomEvents.length, 1), 1)} />
-            <StatCard label="Avg retention" value={formatPercent(zoomEvents.reduce((sum, event) => sum + event.retentionPct, 0) / Math.max(zoomEvents.length, 1))} />
+            <StatCard label="Avg retention" value={formatPercent(zoomEvents.reduce((sum, event) => sum + event.retentionPct, 0) / Math.max(zoomEvents.length, 1))} helper="Avg attended minutes / event duration" />
             <StatCard label="Repeat rate" value={formatPercent(topAttendees.filter((attendee) => attendee.events > 1).length / Math.max(topAttendees.length, 1) * 100)} helper={`${formatNumber(topAttendees.length)} unique attendees`} />
           </div>
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -1659,6 +1889,22 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
               </ResponsiveChart>
             </Panel>
           </div>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Panel title="Attendee frequency" subtitle="Unique attendees by number of included Zoom events attended">
+              <ResponsiveChart height={280}>
+                <PieChart>
+                  <Pie data={attendeeFrequency} dataKey="value" nameKey="label" innerRadius={58} outerRadius={90} paddingAngle={2}>
+                    {attendeeFrequency.map((row, index) => <Cell key={row.label} fill={["#2563eb", "#16a34a", "#d97706", "#7c3aed", "#dc2626"][index]} />)}
+                  </Pie>
+                  <Tooltip formatter={tooltipFormatter} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveChart>
+            </Panel>
+            <Panel title="Attendee frequency counts">
+              <BarList items={attendeeFrequency} />
+            </Panel>
+          </div>
           <Panel title="Top attendees">
             <SimpleTable
               columns={[
@@ -1668,7 +1914,7 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
                 { key: "time", label: "Total time", align: "right" },
                 { key: "last", label: "Last event" },
               ]}
-              rows={topAttendees.map((attendee) => ({
+              rows={attendeePageRows.map((attendee) => ({
                 name: attendee.name,
                 email: attendee.email || "-",
                 events: formatNumber(attendee.events),
@@ -1676,25 +1922,50 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
                 last: formatShortDate(attendee.lastEventDate),
               }))}
             />
+            <PaginationControls page={attendeesPage} totalPages={attendeeTotalPages} onPageChange={setAttendeesPage} />
           </Panel>
-          <Panel title="Zoom event detail" subtitle="Click rows with participant detail to expand attendee lists">
+          <Panel title="Zoom event detail" subtitle="Click rows to expand available legacy participant detail. Registrant dates and registrations-over-time require refreshed Zoom registrant exports.">
             <SimpleTable
               columns={[
                 { key: "event", label: "Event" },
                 { key: "date", label: "Date" },
                 { key: "program", label: "Program" },
+                { key: "registrants", label: "Registrants", align: "right" },
                 { key: "attendees", label: "Attendees", align: "right" },
+                { key: "attendance", label: "Attendance %", align: "right" },
                 { key: "duration", label: "Avg duration", align: "right" },
-                { key: "retention", label: "Retention", align: "right" },
+                { key: "repeat", label: "Repeat %", align: "right" },
+                { key: "firstTime", label: "First-time %", align: "right" },
               ]}
               rows={zoomEvents.map((event) => ({
                 event: (
                   <details>
                     <summary className="cursor-pointer text-zinc-800">{truncate(event.topic, 72)}</summary>
-                    <div className="mt-2 space-y-1 text-xs text-zinc-500">
+                    <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+                      <div className="grid min-w-[760px] grid-cols-[1fr_1.3fr_7rem_7rem_7rem] gap-3 border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                        <span>Name</span>
+                        <span>Email</span>
+                        <span className="text-right">Registered</span>
+                        <span className="text-right">Attended</span>
+                        <span className="text-right">Events</span>
+                      </div>
                       {event.participants.length > 0 ? event.participants.map((participant, index) => (
-                        <p key={`${event.id}-${participant.email}-${index}`}>{participant.name} {participant.email ? `- ${participant.email}` : ""} - {formatDuration(participant.durationMin)}</p>
-                      )) : event.participantEmails.map((email) => <p key={`${event.id}-${email}`}>{email}</p>)}
+                        <div key={`${event.id}-${participant.email}-${index}`} className="grid min-w-[760px] grid-cols-[1fr_1.3fr_7rem_7rem_7rem] gap-3 px-3 py-2 text-xs text-zinc-600">
+                          <span>{participant.name || "-"}</span>
+                          <span className="break-all">{participant.email || "-"}</span>
+                          <span className="text-right">-</span>
+                          <span className="text-right">{formatDuration(participant.durationMin)}</span>
+                          <span className="text-right">{formatNumber(participant.eventsAttended)}</span>
+                        </div>
+                      )) : event.participantEmails.map((email) => (
+                        <div key={`${event.id}-${email}`} className="grid min-w-[760px] grid-cols-[1fr_1.3fr_7rem_7rem_7rem] gap-3 px-3 py-2 text-xs text-zinc-600">
+                          <span>-</span>
+                          <span className="break-all">{email}</span>
+                          <span className="text-right">-</span>
+                          <span className="text-right">-</span>
+                          <span className="text-right">-</span>
+                        </div>
+                      ))}
                     </div>
                   </details>
                 ),
@@ -1705,9 +1976,12 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
                     {event.inclusionNote && <span className="text-[11px] text-zinc-400">{event.inclusionNote}</span>}
                   </span>
                 ),
+                registrants: event.registrants == null ? "-" : formatNumber(event.registrants),
                 attendees: formatNumber(event.attendees),
+                attendance: event.registrants ? formatPercent(event.attendees / event.registrants * 100) : "-",
                 duration: formatDuration(event.avgDuration),
-                retention: formatPercent(event.retentionPct),
+                repeat: formatPercent(event.repeatPct),
+                firstTime: formatPercent(Math.max(0, 100 - event.repeatPct)),
               }))}
             />
           </Panel>
