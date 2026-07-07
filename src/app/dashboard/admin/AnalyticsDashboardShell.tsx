@@ -1580,18 +1580,25 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
 }
 
 function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+  const website = snapshot.website
+  const trendDateBounds = [
+    ...website.trend.map((row) => websiteDateToInput(row.month)),
+    ...(website.dailyTrend ?? []).map((row) => toInputDate(row.date)),
+  ].filter(Boolean).sort()
   const [geoView, setGeoView] = useState<WebsiteGeoView>("countries")
-  const [fromDate, setFromDate] = useState(websiteDateToInput(snapshot.website.trend[0]?.month))
-  const [toDate, setToDate] = useState(websiteDateToInput(snapshot.website.trend.at(-1)?.month))
+  const [fromDate, setFromDate] = useState(trendDateBounds[0] ?? "")
+  const [toDate, setToDate] = useState(trendDateBounds.at(-1) ?? "")
   const [granularity, setGranularity] = useState<Granularity>("monthly")
   const [device, setDevice] = useState("all")
   const [channel, setChannel] = useState("all")
-  const website = snapshot.website
   const websiteSource = snapshot.dataSources.find((source) => source.id === "website")
   const overview = website.overview as Record<string, number | { new?: { sessions?: number }; returning?: { sessions?: number } } | undefined>
-  const trendRows = website.trend.filter((row) => isWithinDateRange(`${row.month}-01`, fromDate, toDate))
-  const trend = aggregateByGranularity(trendRows.map((row) => ({
-    date: `${row.month}-01`,
+  const trendSourceRows = granularity === "monthly" || !(website.dailyTrend ?? []).length
+    ? website.trend.map((row) => ({ date: `${row.month}-01`, ...row }))
+    : (website.dailyTrend ?? [])
+  const trendRows = trendSourceRows.filter((row) => isWithinDateRange(row.date, fromDate, toDate))
+  const trend = fillMetricBuckets(aggregateByGranularity(trendRows.map((row) => ({
+    date: row.date,
     values: {
       sessions: row.sessions,
       users: row.users,
@@ -1606,7 +1613,17 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
     month: row.label,
     bounceRate: row.rows ? row.bounceTotal / row.rows : 0,
     avgDuration: row.rows ? row.durationTotal / row.rows : 0,
-  }))
+  })), granularity, trendRows.map((row) => row.date), {
+    sessions: 0,
+    users: 0,
+    pageviews: 0,
+    newUsers: 0,
+    bounceTotal: 0,
+    durationTotal: 0,
+    rows: 0,
+    bounceRate: 0,
+    avgDuration: 0,
+  }).map((row) => ({ ...row, month: row.label }))
   const selectedChannels = channel === "all" ? website.channels : website.channels.filter((item) => item.label === channel)
   const selectedDevices = device === "all" ? website.devices : website.devices.filter((item) => item.label === device)
   const totalSessions = trend.reduce((sum, row) => sum + row.sessions, 0) || (overview.sessions_30d as number)

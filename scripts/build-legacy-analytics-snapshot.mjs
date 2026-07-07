@@ -47,6 +47,14 @@ function monthFromCompact(value) {
   return text
 }
 
+function dateFromCompact(value) {
+  if (!value) return null
+  const text = String(value)
+  if (/^\d{8}$/.test(text)) return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10)
+  return text
+}
+
 function topItems(rows, key, limit = 20) {
   const counts = new Map()
   for (const row of rows) {
@@ -232,6 +240,7 @@ function buildSocial(base, social, instagramMedia) {
 
 function buildWebsite(website) {
   const trendRows = Array.isArray(website.monthly_trend?.monthly) ? website.monthly_trend.monthly : []
+  const dailyTrendRows = Array.isArray(website.monthly_trend?.daily) ? website.monthly_trend.daily : []
   const funnelRows = Object.entries(website.funnels || {})
     .filter(([path, value]) => path !== "outbound_clicks" && value && typeof value === "object" && !Array.isArray(value))
     .map(([path, value]) => ({ path, ...value }))
@@ -239,6 +248,15 @@ function buildWebsite(website) {
     overview: website.overview || {},
     trend: trendRows.map((row) => ({
       month: monthFromCompact(row.month),
+      sessions: number(row.sessions),
+      users: number(row.users),
+      pageviews: number(row.pageviews),
+      bounceRate: percent(row.bounce_rate),
+      avgDuration: number(row.avg_duration),
+      newUsers: number(row.new_users),
+    })),
+    dailyTrend: dailyTrendRows.map((row) => ({
+      date: dateFromCompact(row.date),
       sessions: number(row.sessions),
       users: number(row.users),
       pageviews: number(row.pageviews),

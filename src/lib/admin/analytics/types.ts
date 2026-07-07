@@ -158,6 +158,15 @@ export type LegacyAnalyticsSnapshot = {
       avgDuration: number
       newUsers: number
     }[]
+    dailyTrend: {
+      date: string | null
+      sessions: number
+      users: number
+      pageviews: number
+      bounceRate: number
+      avgDuration: number
+      newUsers: number
+    }[]
     devices: { label: string; sessions: number; users: number }[]
     channels: { label: string; sessions: number; users: number }[]
     sources: { source: string; medium: string; sessions: number; users: number }[]

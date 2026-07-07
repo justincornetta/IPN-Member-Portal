@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T02:55:16.372Z",
+  "generatedAt": "2026-07-07T03:07:20.905Z",
   "dashboardRepo": "/Users/jcornetta/Code/ipn-dashboard",
   "dataSources": [
     {
@@ -16523,6 +16523,818 @@
         "bounceRate": 65,
         "avgDuration": 75.25,
         "newUsers": 66
+      }
+    ],
+    "dailyTrend": [
+      {
+        "date": "2026-04-07",
+        "sessions": 26,
+        "users": 22,
+        "pageviews": 45,
+        "bounceRate": 57.99999999999999,
+        "avgDuration": 161.47,
+        "newUsers": 19
+      },
+      {
+        "date": "2026-04-08",
+        "sessions": 39,
+        "users": 35,
+        "pageviews": 47,
+        "bounceRate": 54,
+        "avgDuration": 83.5,
+        "newUsers": 39
+      },
+      {
+        "date": "2026-04-09",
+        "sessions": 24,
+        "users": 23,
+        "pageviews": 37,
+        "bounceRate": 67,
+        "avgDuration": 19.35,
+        "newUsers": 22
+      },
+      {
+        "date": "2026-04-10",
+        "sessions": 16,
+        "users": 14,
+        "pageviews": 26,
+        "bounceRate": 50,
+        "avgDuration": 38.62,
+        "newUsers": 12
+      },
+      {
+        "date": "2026-04-11",
+        "sessions": 19,
+        "users": 16,
+        "pageviews": 39,
+        "bounceRate": 37,
+        "avgDuration": 255.76,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-04-12",
+        "sessions": 11,
+        "users": 9,
+        "pageviews": 9,
+        "bounceRate": 91,
+        "avgDuration": 3.55,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-04-13",
+        "sessions": 34,
+        "users": 30,
+        "pageviews": 71,
+        "bounceRate": 74,
+        "avgDuration": 353.95,
+        "newUsers": 29
+      },
+      {
+        "date": "2026-04-14",
+        "sessions": 15,
+        "users": 11,
+        "pageviews": 14,
+        "bounceRate": 80,
+        "avgDuration": 18.52,
+        "newUsers": 11
+      },
+      {
+        "date": "2026-04-15",
+        "sessions": 21,
+        "users": 18,
+        "pageviews": 28,
+        "bounceRate": 62,
+        "avgDuration": 111.31,
+        "newUsers": 16
+      },
+      {
+        "date": "2026-04-16",
+        "sessions": 29,
+        "users": 25,
+        "pageviews": 39,
+        "bounceRate": 55.00000000000001,
+        "avgDuration": 37.7,
+        "newUsers": 24
+      },
+      {
+        "date": "2026-04-17",
+        "sessions": 27,
+        "users": 21,
+        "pageviews": 52,
+        "bounceRate": 67,
+        "avgDuration": 120.74,
+        "newUsers": 19
+      },
+      {
+        "date": "2026-04-18",
+        "sessions": 18,
+        "users": 17,
+        "pageviews": 22,
+        "bounceRate": 44,
+        "avgDuration": 59.66,
+        "newUsers": 15
+      },
+      {
+        "date": "2026-04-19",
+        "sessions": 19,
+        "users": 16,
+        "pageviews": 27,
+        "bounceRate": 79,
+        "avgDuration": 51.8,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-04-20",
+        "sessions": 22,
+        "users": 14,
+        "pageviews": 23,
+        "bounceRate": 77,
+        "avgDuration": 28.64,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-04-21",
+        "sessions": 30,
+        "users": 29,
+        "pageviews": 75,
+        "bounceRate": 43,
+        "avgDuration": 161.67,
+        "newUsers": 27
+      },
+      {
+        "date": "2026-04-22",
+        "sessions": 31,
+        "users": 26,
+        "pageviews": 47,
+        "bounceRate": 68,
+        "avgDuration": 157.47,
+        "newUsers": 21
+      },
+      {
+        "date": "2026-04-23",
+        "sessions": 24,
+        "users": 21,
+        "pageviews": 55,
+        "bounceRate": 67,
+        "avgDuration": 176.21,
+        "newUsers": 18
+      },
+      {
+        "date": "2026-04-24",
+        "sessions": 14,
+        "users": 11,
+        "pageviews": 15,
+        "bounceRate": 64,
+        "avgDuration": 20.04,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-04-25",
+        "sessions": 25,
+        "users": 17,
+        "pageviews": 53,
+        "bounceRate": 64,
+        "avgDuration": 60.41,
+        "newUsers": 16
+      },
+      {
+        "date": "2026-04-26",
+        "sessions": 12,
+        "users": 11,
+        "pageviews": 16,
+        "bounceRate": 50,
+        "avgDuration": 144.03,
+        "newUsers": 10
+      },
+      {
+        "date": "2026-04-27",
+        "sessions": 21,
+        "users": 16,
+        "pageviews": 30,
+        "bounceRate": 38,
+        "avgDuration": 129.9,
+        "newUsers": 12
+      },
+      {
+        "date": "2026-04-28",
+        "sessions": 17,
+        "users": 14,
+        "pageviews": 16,
+        "bounceRate": 94,
+        "avgDuration": 23.47,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-04-29",
+        "sessions": 15,
+        "users": 14,
+        "pageviews": 20,
+        "bounceRate": 67,
+        "avgDuration": 23.53,
+        "newUsers": 15
+      },
+      {
+        "date": "2026-04-30",
+        "sessions": 18,
+        "users": 17,
+        "pageviews": 26,
+        "bounceRate": 67,
+        "avgDuration": 225.45,
+        "newUsers": 16
+      },
+      {
+        "date": "2026-05-01",
+        "sessions": 9,
+        "users": 6,
+        "pageviews": 12,
+        "bounceRate": 89,
+        "avgDuration": 9.04,
+        "newUsers": 6
+      },
+      {
+        "date": "2026-05-02",
+        "sessions": 14,
+        "users": 14,
+        "pageviews": 18,
+        "bounceRate": 64,
+        "avgDuration": 12.12,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-05-03",
+        "sessions": 18,
+        "users": 14,
+        "pageviews": 22,
+        "bounceRate": 61,
+        "avgDuration": 102.03,
+        "newUsers": 11
+      },
+      {
+        "date": "2026-05-04",
+        "sessions": 34,
+        "users": 29,
+        "pageviews": 58,
+        "bounceRate": 62,
+        "avgDuration": 85.2,
+        "newUsers": 28
+      },
+      {
+        "date": "2026-05-05",
+        "sessions": 15,
+        "users": 11,
+        "pageviews": 18,
+        "bounceRate": 67,
+        "avgDuration": 108.64,
+        "newUsers": 11
+      },
+      {
+        "date": "2026-05-06",
+        "sessions": 22,
+        "users": 19,
+        "pageviews": 31,
+        "bounceRate": 68,
+        "avgDuration": 61.73,
+        "newUsers": 17
+      },
+      {
+        "date": "2026-05-07",
+        "sessions": 30,
+        "users": 24,
+        "pageviews": 46,
+        "bounceRate": 70,
+        "avgDuration": 105.01,
+        "newUsers": 24
+      },
+      {
+        "date": "2026-05-08",
+        "sessions": 22,
+        "users": 18,
+        "pageviews": 36,
+        "bounceRate": 55.00000000000001,
+        "avgDuration": 58.39,
+        "newUsers": 16
+      },
+      {
+        "date": "2026-05-09",
+        "sessions": 21,
+        "users": 18,
+        "pageviews": 22,
+        "bounceRate": 71,
+        "avgDuration": 92.91,
+        "newUsers": 17
+      },
+      {
+        "date": "2026-05-10",
+        "sessions": 16,
+        "users": 12,
+        "pageviews": 17,
+        "bounceRate": 75,
+        "avgDuration": 36.71,
+        "newUsers": 10
+      },
+      {
+        "date": "2026-05-11",
+        "sessions": 22,
+        "users": 19,
+        "pageviews": 34,
+        "bounceRate": 68,
+        "avgDuration": 79.05,
+        "newUsers": 18
+      },
+      {
+        "date": "2026-05-12",
+        "sessions": 29,
+        "users": 25,
+        "pageviews": 40,
+        "bounceRate": 45,
+        "avgDuration": 29.01,
+        "newUsers": 26
+      },
+      {
+        "date": "2026-05-13",
+        "sessions": 11,
+        "users": 7,
+        "pageviews": 18,
+        "bounceRate": 73,
+        "avgDuration": 55.5,
+        "newUsers": 7
+      },
+      {
+        "date": "2026-05-14",
+        "sessions": 27,
+        "users": 22,
+        "pageviews": 50,
+        "bounceRate": 48,
+        "avgDuration": 152.5,
+        "newUsers": 20
+      },
+      {
+        "date": "2026-05-15",
+        "sessions": 26,
+        "users": 20,
+        "pageviews": 38,
+        "bounceRate": 69,
+        "avgDuration": 100.3,
+        "newUsers": 16
+      },
+      {
+        "date": "2026-05-16",
+        "sessions": 9,
+        "users": 7,
+        "pageviews": 12,
+        "bounceRate": 67,
+        "avgDuration": 184.14,
+        "newUsers": 5
+      },
+      {
+        "date": "2026-05-17",
+        "sessions": 11,
+        "users": 9,
+        "pageviews": 12,
+        "bounceRate": 73,
+        "avgDuration": 41.97,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-05-18",
+        "sessions": 14,
+        "users": 14,
+        "pageviews": 16,
+        "bounceRate": 71,
+        "avgDuration": 8.93,
+        "newUsers": 12
+      },
+      {
+        "date": "2026-05-19",
+        "sessions": 12,
+        "users": 12,
+        "pageviews": 18,
+        "bounceRate": 75,
+        "avgDuration": 190.29,
+        "newUsers": 10
+      },
+      {
+        "date": "2026-05-20",
+        "sessions": 8,
+        "users": 8,
+        "pageviews": 10,
+        "bounceRate": 75,
+        "avgDuration": 17.21,
+        "newUsers": 8
+      },
+      {
+        "date": "2026-05-21",
+        "sessions": 20,
+        "users": 14,
+        "pageviews": 31,
+        "bounceRate": 65,
+        "avgDuration": 245.7,
+        "newUsers": 12
+      },
+      {
+        "date": "2026-05-22",
+        "sessions": 16,
+        "users": 14,
+        "pageviews": 25,
+        "bounceRate": 69,
+        "avgDuration": 173.71,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-05-23",
+        "sessions": 10,
+        "users": 10,
+        "pageviews": 11,
+        "bounceRate": 80,
+        "avgDuration": 3.09,
+        "newUsers": 10
+      },
+      {
+        "date": "2026-05-24",
+        "sessions": 13,
+        "users": 13,
+        "pageviews": 23,
+        "bounceRate": 54,
+        "avgDuration": 201.47,
+        "newUsers": 12
+      },
+      {
+        "date": "2026-05-25",
+        "sessions": 20,
+        "users": 18,
+        "pageviews": 36,
+        "bounceRate": 65,
+        "avgDuration": 89.18,
+        "newUsers": 16
+      },
+      {
+        "date": "2026-05-26",
+        "sessions": 36,
+        "users": 32,
+        "pageviews": 46,
+        "bounceRate": 75,
+        "avgDuration": 17,
+        "newUsers": 30
+      },
+      {
+        "date": "2026-05-27",
+        "sessions": 18,
+        "users": 16,
+        "pageviews": 22,
+        "bounceRate": 72,
+        "avgDuration": 143.67,
+        "newUsers": 14
+      },
+      {
+        "date": "2026-05-28",
+        "sessions": 35,
+        "users": 31,
+        "pageviews": 42,
+        "bounceRate": 74,
+        "avgDuration": 13.48,
+        "newUsers": 28
+      },
+      {
+        "date": "2026-05-29",
+        "sessions": 15,
+        "users": 13,
+        "pageviews": 26,
+        "bounceRate": 40,
+        "avgDuration": 55.96,
+        "newUsers": 14
+      },
+      {
+        "date": "2026-05-30",
+        "sessions": 22,
+        "users": 20,
+        "pageviews": 37,
+        "bounceRate": 50,
+        "avgDuration": 63.53,
+        "newUsers": 19
+      },
+      {
+        "date": "2026-05-31",
+        "sessions": 12,
+        "users": 11,
+        "pageviews": 15,
+        "bounceRate": 75,
+        "avgDuration": 167.16,
+        "newUsers": 11
+      },
+      {
+        "date": "2026-06-01",
+        "sessions": 58,
+        "users": 53,
+        "pageviews": 86,
+        "bounceRate": 71,
+        "avgDuration": 76.01,
+        "newUsers": 51
+      },
+      {
+        "date": "2026-06-02",
+        "sessions": 36,
+        "users": 32,
+        "pageviews": 72,
+        "bounceRate": 50,
+        "avgDuration": 75.35,
+        "newUsers": 28
+      },
+      {
+        "date": "2026-06-03",
+        "sessions": 30,
+        "users": 23,
+        "pageviews": 36,
+        "bounceRate": 56.99999999999999,
+        "avgDuration": 169.71,
+        "newUsers": 20
+      },
+      {
+        "date": "2026-06-04",
+        "sessions": 13,
+        "users": 12,
+        "pageviews": 17,
+        "bounceRate": 54,
+        "avgDuration": 253.88,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-06-05",
+        "sessions": 16,
+        "users": 16,
+        "pageviews": 23,
+        "bounceRate": 62,
+        "avgDuration": 127.39,
+        "newUsers": 14
+      },
+      {
+        "date": "2026-06-06",
+        "sessions": 7,
+        "users": 7,
+        "pageviews": 7,
+        "bounceRate": 86,
+        "avgDuration": 3.1,
+        "newUsers": 7
+      },
+      {
+        "date": "2026-06-07",
+        "sessions": 20,
+        "users": 14,
+        "pageviews": 22,
+        "bounceRate": 75,
+        "avgDuration": 171.11,
+        "newUsers": 10
+      },
+      {
+        "date": "2026-06-08",
+        "sessions": 15,
+        "users": 13,
+        "pageviews": 14,
+        "bounceRate": 80,
+        "avgDuration": 8.86,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-06-09",
+        "sessions": 18,
+        "users": 12,
+        "pageviews": 32,
+        "bounceRate": 39,
+        "avgDuration": 84.47,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-06-10",
+        "sessions": 28,
+        "users": 22,
+        "pageviews": 35,
+        "bounceRate": 64,
+        "avgDuration": 132.43,
+        "newUsers": 21
+      },
+      {
+        "date": "2026-06-11",
+        "sessions": 18,
+        "users": 14,
+        "pageviews": 28,
+        "bounceRate": 61,
+        "avgDuration": 190.85,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-06-12",
+        "sessions": 24,
+        "users": 22,
+        "pageviews": 40,
+        "bounceRate": 50,
+        "avgDuration": 298.75,
+        "newUsers": 19
+      },
+      {
+        "date": "2026-06-13",
+        "sessions": 21,
+        "users": 20,
+        "pageviews": 30,
+        "bounceRate": 86,
+        "avgDuration": 10.47,
+        "newUsers": 19
+      },
+      {
+        "date": "2026-06-14",
+        "sessions": 22,
+        "users": 21,
+        "pageviews": 27,
+        "bounceRate": 68,
+        "avgDuration": 59.07,
+        "newUsers": 20
+      },
+      {
+        "date": "2026-06-15",
+        "sessions": 23,
+        "users": 17,
+        "pageviews": 22,
+        "bounceRate": 65,
+        "avgDuration": 67.85,
+        "newUsers": 13
+      },
+      {
+        "date": "2026-06-16",
+        "sessions": 57,
+        "users": 49,
+        "pageviews": 77,
+        "bounceRate": 53,
+        "avgDuration": 96.44,
+        "newUsers": 44
+      },
+      {
+        "date": "2026-06-17",
+        "sessions": 41,
+        "users": 31,
+        "pageviews": 61,
+        "bounceRate": 49,
+        "avgDuration": 256.32,
+        "newUsers": 25
+      },
+      {
+        "date": "2026-06-18",
+        "sessions": 38,
+        "users": 24,
+        "pageviews": 48,
+        "bounceRate": 63,
+        "avgDuration": 55.08,
+        "newUsers": 23
+      },
+      {
+        "date": "2026-06-19",
+        "sessions": 32,
+        "users": 27,
+        "pageviews": 75,
+        "bounceRate": 62,
+        "avgDuration": 234.01,
+        "newUsers": 24
+      },
+      {
+        "date": "2026-06-20",
+        "sessions": 12,
+        "users": 12,
+        "pageviews": 16,
+        "bounceRate": 67,
+        "avgDuration": 53.68,
+        "newUsers": 10
+      },
+      {
+        "date": "2026-06-21",
+        "sessions": 10,
+        "users": 9,
+        "pageviews": 10,
+        "bounceRate": 80,
+        "avgDuration": 13.01,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-06-22",
+        "sessions": 31,
+        "users": 21,
+        "pageviews": 88,
+        "bounceRate": 52,
+        "avgDuration": 626.13,
+        "newUsers": 17
+      },
+      {
+        "date": "2026-06-23",
+        "sessions": 30,
+        "users": 25,
+        "pageviews": 44,
+        "bounceRate": 50,
+        "avgDuration": 156.03,
+        "newUsers": 20
+      },
+      {
+        "date": "2026-06-24",
+        "sessions": 28,
+        "users": 22,
+        "pageviews": 55,
+        "bounceRate": 56.99999999999999,
+        "avgDuration": 347.96,
+        "newUsers": 19
+      },
+      {
+        "date": "2026-06-25",
+        "sessions": 72,
+        "users": 55,
+        "pageviews": 108,
+        "bounceRate": 43,
+        "avgDuration": 242.28,
+        "newUsers": 43
+      },
+      {
+        "date": "2026-06-26",
+        "sessions": 56,
+        "users": 41,
+        "pageviews": 98,
+        "bounceRate": 32,
+        "avgDuration": 308.86,
+        "newUsers": 33
+      },
+      {
+        "date": "2026-06-27",
+        "sessions": 36,
+        "users": 24,
+        "pageviews": 51,
+        "bounceRate": 44,
+        "avgDuration": 267.38,
+        "newUsers": 17
+      },
+      {
+        "date": "2026-06-28",
+        "sessions": 27,
+        "users": 14,
+        "pageviews": 53,
+        "bounceRate": 59,
+        "avgDuration": 309.19,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-06-29",
+        "sessions": 42,
+        "users": 29,
+        "pageviews": 55,
+        "bounceRate": 62,
+        "avgDuration": 134.05,
+        "newUsers": 24
+      },
+      {
+        "date": "2026-06-30",
+        "sessions": 18,
+        "users": 10,
+        "pageviews": 33,
+        "bounceRate": 72,
+        "avgDuration": 127.84,
+        "newUsers": 8
+      },
+      {
+        "date": "2026-07-01",
+        "sessions": 18,
+        "users": 14,
+        "pageviews": 25,
+        "bounceRate": 61,
+        "avgDuration": 167.85,
+        "newUsers": 9
+      },
+      {
+        "date": "2026-07-02",
+        "sessions": 31,
+        "users": 23,
+        "pageviews": 45,
+        "bounceRate": 68,
+        "avgDuration": 44.99,
+        "newUsers": 20
+      },
+      {
+        "date": "2026-07-03",
+        "sessions": 22,
+        "users": 16,
+        "pageviews": 25,
+        "bounceRate": 82,
+        "avgDuration": 42.81,
+        "newUsers": 15
+      },
+      {
+        "date": "2026-07-04",
+        "sessions": 13,
+        "users": 12,
+        "pageviews": 15,
+        "bounceRate": 54,
+        "avgDuration": 84.23,
+        "newUsers": 11
+      },
+      {
+        "date": "2026-07-05",
+        "sessions": 19,
+        "users": 15,
+        "pageviews": 25,
+        "bounceRate": 53,
+        "avgDuration": 68.31,
+        "newUsers": 11
       }
     ],
     "devices": [
