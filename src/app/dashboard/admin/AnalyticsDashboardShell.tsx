@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useMemo, useState } from "react"
+import { Fragment, useMemo, useState, useTransition } from "react"
 import type { CSSProperties, ReactElement, ReactNode } from "react"
 import {
   Bar,
@@ -18,7 +18,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import type { AdminMemberProfile } from "@/lib/admin/actions"
+import { saveAnalyticsEventLabelOverride } from "@/lib/admin/actions"
+import type { AdminMemberProfile, AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import type { AnalyticsPoint, LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 
@@ -40,6 +41,8 @@ type Granularity = "daily" | "weekly" | "monthly"
 type EventbriteMetric = "tickets" | "revenue"
 type SocialMetric = "followers" | "engagementRate" | "posts"
 type DeviceFilter = "all" | "desktop" | "mobile" | "tablet" | "unknown"
+type AnalyticsEventProgram = "IPN Labs" | "PsychedelX" | "Other"
+type AnalyticsEventType = "public" | "internal"
 
 export type MemberInsightsData = {
   total: number
@@ -157,6 +160,8 @@ type Props = {
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
+  eventLabelOverrides: AnalyticsEventLabelOverride[]
+  isSuperadmin: boolean
   onSelectMember: (member: AdminMemberProfile) => void
 }
 
@@ -214,6 +219,21 @@ function formatShortDate(value: string | null | undefined) {
     month: "short",
     day: "numeric",
     timeZone: "UTC",
+  }).format(date)
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "-"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
   }).format(date)
 }
 
@@ -1791,7 +1811,321 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+type ZoomAnalyticsEvent = LegacyAnalyticsSnapshot["events"]["zoom"]["events"][number] & {
+  includeInAnalytics?: boolean
+}
+
+function applyEventLabelOverrides(
+  events: LegacyAnalyticsSnapshot["events"]["zoom"]["events"],
+  overrides: AnalyticsEventLabelOverride[],
+): ZoomAnalyticsEvent[] {
+  const byId = new Map(overrides.map((override) => [override.event_id, override]))
+  return events.map((event) => {
+    const override = byId.get(event.id)
+    return override
+      ? {
+          ...event,
+          program: override.program_label,
+          type: override.event_type,
+          includeInAnalytics: override.include_in_analytics,
+        }
+      : {
+          ...event,
+          includeInAnalytics: event.inclusionStatus !== "excluded",
+        }
+  })
+}
+
+function ZoomEventLabelControls({
+  events,
+  overrides,
+  onSaved,
+}: {
+  events: ZoomAnalyticsEvent[]
+  overrides: AnalyticsEventLabelOverride[]
+  onSaved: (override: AnalyticsEventLabelOverride) => void
+}) {
+  const overrideById = new Map(overrides.map((override) => [override.event_id, override]))
+  const sortedEvents = [...events].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+
+  return (
+    <Panel title="Event labeling controls" subtitle="Superadmin-only overrides used before Analytics filters, counts, and tables are calculated.">
+      <div className="overflow-x-auto">
+        <table className="min-w-[980px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-zinc-200">
+              {["Event", "Date", "Program", "Type", "Include", "Status"].map((label) => (
+                <th key={label} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {sortedEvents.map((event) => (
+              <ZoomEventLabelControlRow
+                key={event.id}
+                event={event}
+                override={overrideById.get(event.id)}
+                onSaved={onSaved}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
+function ZoomEventLabelControlRow({
+  event,
+  override,
+  onSaved,
+}: {
+  event: ZoomAnalyticsEvent
+  override: AnalyticsEventLabelOverride | undefined
+  onSaved: (override: AnalyticsEventLabelOverride) => void
+}) {
+  const [programLabel, setProgramLabel] = useState<AnalyticsEventProgram>((override?.program_label ?? event.program) as AnalyticsEventProgram)
+  const [eventType, setEventType] = useState<AnalyticsEventType>((override?.event_type ?? event.type) as AnalyticsEventType)
+  const [includeInAnalytics, setIncludeInAnalytics] = useState(override?.include_in_analytics ?? event.includeInAnalytics ?? true)
+  const [status, setStatus] = useState<string | null>(override ? "Saved override" : null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleSave() {
+    setStatus(null)
+    startTransition(async () => {
+      const result = await saveAnalyticsEventLabelOverride({
+        eventId: event.id,
+        eventTopic: event.topic,
+        eventDate: event.date,
+        programLabel,
+        eventType,
+        includeInAnalytics,
+      })
+      if (result.error) {
+        setStatus(result.error)
+      } else if (result.override) {
+        onSaved(result.override)
+        setStatus("Saved")
+      }
+    })
+  }
+
+  return (
+    <tr className="hover:bg-zinc-50">
+      <td className="max-w-[28rem] px-3 py-3 align-top text-zinc-700">{truncate(event.topic, 90)}</td>
+      <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-500">{formatShortDate(event.date)}</td>
+      <td className="px-3 py-3 align-top">
+        <SelectInput
+          value={programLabel}
+          onChange={(value) => setProgramLabel(value as AnalyticsEventProgram)}
+          options={[
+            { value: "IPN Labs", label: "IPN Labs" },
+            { value: "PsychedelX", label: "PsychedelX" },
+            { value: "Other", label: "Other" },
+          ]}
+        />
+      </td>
+      <td className="px-3 py-3 align-top">
+        <SelectInput
+          value={eventType}
+          onChange={(value) => setEventType(value as AnalyticsEventType)}
+          options={[
+            { value: "public", label: "Public" },
+            { value: "internal", label: "Internal" },
+          ]}
+        />
+      </td>
+      <td className="px-3 py-3 align-top">
+        <label className="flex items-center gap-2 text-sm text-zinc-600">
+          <input
+            type="checkbox"
+            checked={includeInAnalytics}
+            onChange={(event) => setIncludeInAnalytics(event.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 text-ipn focus:ring-ipn/20"
+          />
+          Count
+        </label>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <div className="flex min-w-32 flex-col gap-1">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isPending}
+            className="w-fit rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-ipn hover:text-ipn disabled:opacity-50"
+          >
+            {isPending ? "Saving..." : "Save"}
+          </button>
+          {status && <span className="text-xs text-zinc-400">{status}</span>}
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function ZoomEventDetailTable({ events }: { events: ZoomAnalyticsEvent[] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(events[0]?.id ?? null)
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-[1180px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-zinc-200">
+            {[
+              "Event",
+              "Date",
+              "Program",
+              "Registrants",
+              "Attendees",
+              "Attendance %",
+              "Avg duration",
+              "Repeat %",
+              "First-time %",
+            ].map((label, index) => (
+              <th key={label} className={`whitespace-nowrap px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${index >= 3 ? "text-right" : "text-left"}`}>
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100">
+          {events.map((event) => {
+            const expanded = expandedId === event.id
+            return (
+              <Fragment key={event.id}>
+                <tr className="hover:bg-zinc-50">
+                  <td className="max-w-[28rem] px-3 py-3 align-top text-zinc-800">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(expanded ? null : event.id)}
+                      className="flex cursor-pointer items-start gap-2 text-left"
+                    >
+                      <span className="mt-0.5 text-xs">{expanded ? "▼" : "▶"}</span>
+                      <span>{truncate(event.topic, 86)}</span>
+                    </button>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{formatShortDate(event.date)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{event.program}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.registrants == null ? "-" : formatNumber(event.registrants)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatNumber(event.attendees)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.registrants ? formatPercent(event.attendees / event.registrants * 100) : "-"}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatDuration(event.avgDuration)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatPercent(event.repeatPct)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatPercent(Math.max(0, 100 - event.repeatPct))}</td>
+                </tr>
+                {expanded && (
+                  <tr>
+                    <td colSpan={9} className="bg-zinc-50 px-3 py-4">
+                      <ZoomEventExpandedDetail event={event} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
+  const participantsByEmail = new Map(event.participants.map((participant) => [participant.email.toLowerCase(), participant]))
+  const registrationRows = event.registrations.length
+    ? event.registrations.map((registration) => {
+        const participant = participantsByEmail.get(registration.email.toLowerCase())
+        return {
+          name: registration.name || participant?.name || "Unknown",
+          email: registration.email || participant?.email || "",
+          registeredAt: registration.registeredAt,
+          attended: Boolean(participant),
+          durationMin: participant?.durationMin ?? null,
+          eventsAttended: participant?.eventsAttended ?? 0,
+        }
+      })
+    : event.participants.map((participant) => ({
+        name: participant.name,
+        email: participant.email,
+        registeredAt: null,
+        attended: true,
+        durationMin: participant.durationMin,
+        eventsAttended: participant.eventsAttended,
+      }))
+
+  const emailRows = !registrationRows.length
+    ? event.participantEmails.map((email) => ({
+        name: "",
+        email,
+        registeredAt: null,
+        attended: true,
+        durationMin: null,
+        eventsAttended: 0,
+      }))
+    : []
+  const rows = registrationRows.length ? registrationRows : emailRows
+  const registrationTrend = aggregateByGranularity(event.registrations.map((registration) => ({
+    date: registration.registeredAt,
+    values: { registrations: 1 },
+  })), "daily")
+
+  return (
+    <div className="flex flex-col gap-4">
+      {registrationTrend.length > 0 && (
+        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          <p className="text-sm font-semibold text-zinc-800">Registrations over time</p>
+          <ResponsiveChart height={220}>
+            <BarChart data={registrationTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip formatter={tooltipFormatter} />
+              <Bar dataKey="registrations" fill="#2563eb" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveChart>
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+        <table className="min-w-[920px] border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-zinc-100">
+              {["Name", "Email", "Registered", "Attended", "Duration", "Events attended"].map((label, index) => (
+                <th key={label} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${index >= 3 ? "text-right" : "text-left"}`}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {rows.length > 0 ? rows.map((row, index) => (
+              <tr key={`${event.id}-${row.email}-${index}`}>
+                <td className="px-3 py-2 text-zinc-700">{row.name || "-"}</td>
+                <td className="break-all px-3 py-2 text-zinc-600">{row.email || "-"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-zinc-600">{formatDateTime(row.registeredAt)}</td>
+                <td className="px-3 py-2 text-right text-zinc-600">{row.attended ? "Yes" : "No"}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{row.durationMin == null ? "-" : formatDuration(row.durationMin)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{formatNumber(row.eventsAttended)}</td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={6} className="px-3 py-6 text-center text-sm text-zinc-400">
+                  No registrant or participant detail is available for this event in the current Zoom export.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function EventsPanel({
+  snapshot,
+  eventLabelOverrides,
+  isSuperadmin,
+}: {
+  snapshot: LegacyAnalyticsSnapshot
+  eventLabelOverrides: AnalyticsEventLabelOverride[]
+  isSuperadmin: boolean
+}) {
   const [active, setActive] = useState<EventsView>("zoom")
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
@@ -1800,15 +2134,20 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const [granularity, setGranularity] = useState<Granularity>("monthly")
   const [attendeesPage, setAttendeesPage] = useState(0)
   const [eventbriteMetric, setEventbriteMetric] = useState<EventbriteMetric>("tickets")
+  const [overrides, setOverrides] = useState(eventLabelOverrides)
   const zoom = snapshot.events.zoom
   const eventbrite = snapshot.events.eventbrite
   const zoomSource = snapshot.dataSources.find((source) => source.id === "zoom")
   const eventbriteSource = snapshot.dataSources.find((source) => source.id === "eventbrite")
-  const zoomEvents = zoom.events.filter((event) => (
-    isWithinDateRange(event.date, fromDate, toDate) &&
-    (program === "all" || event.program === program) &&
-    (type === "all" || event.type === type)
-  ))
+  const labeledZoomEvents = applyEventLabelOverrides(zoom.events, overrides)
+  const zoomEvents = labeledZoomEvents
+    .filter((event) => (
+      event.includeInAnalytics !== false &&
+      isWithinDateRange(event.date, fromDate, toDate) &&
+      (program === "all" || event.program === program) &&
+      (type === "all" || event.type === type)
+    ))
+    .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
   const zoomMonths = aggregateByGranularity(zoomEvents.map((event) => ({
     date: event.date,
     values: {
@@ -1850,6 +2189,12 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   }))
   const eventbriteTotalTickets = eventbriteEvents.reduce((sum, event) => sum + event.tickets, 0)
   const eventbriteRevenue = eventbriteEvents.reduce((sum, event) => sum + event.grossRevenue, 0)
+  function handleOverrideSaved(override: AnalyticsEventLabelOverride) {
+    setOverrides((current) => {
+      const remaining = current.filter((item) => item.event_id !== override.event_id)
+      return [override, ...remaining]
+    })
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -1967,66 +2312,15 @@ function EventsPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
             />
             <PaginationControls page={attendeesPage} totalPages={attendeeTotalPages} onPageChange={setAttendeesPage} />
           </Panel>
-          <Panel title="Zoom event detail" subtitle="Click rows to expand available legacy participant detail. Registrant dates and registrations-over-time require refreshed Zoom registrant exports.">
-            <SimpleTable
-              columns={[
-                { key: "event", label: "Event" },
-                { key: "date", label: "Date" },
-                { key: "program", label: "Program" },
-                { key: "registrants", label: "Registrants", align: "right" },
-                { key: "attendees", label: "Attendees", align: "right" },
-                { key: "attendance", label: "Attendance %", align: "right" },
-                { key: "duration", label: "Avg duration", align: "right" },
-                { key: "repeat", label: "Repeat %", align: "right" },
-                { key: "firstTime", label: "First-time %", align: "right" },
-              ]}
-              rows={zoomEvents.map((event) => ({
-                event: (
-                  <details>
-                    <summary className="cursor-pointer text-zinc-800">{truncate(event.topic, 72)}</summary>
-                    <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-                      <div className="grid min-w-[760px] grid-cols-[1fr_1.3fr_7rem_7rem_7rem] gap-3 border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-                        <span>Name</span>
-                        <span>Email</span>
-                        <span className="text-right">Registered</span>
-                        <span className="text-right">Attended</span>
-                        <span className="text-right">Events</span>
-                      </div>
-                      {event.participants.length > 0 ? event.participants.map((participant, index) => (
-                        <div key={`${event.id}-${participant.email}-${index}`} className="grid min-w-[760px] grid-cols-[1fr_1.3fr_7rem_7rem_7rem] gap-3 px-3 py-2 text-xs text-zinc-600">
-                          <span>{participant.name || "-"}</span>
-                          <span className="break-all">{participant.email || "-"}</span>
-                          <span className="text-right">-</span>
-                          <span className="text-right">{formatDuration(participant.durationMin)}</span>
-                          <span className="text-right">{formatNumber(participant.eventsAttended)}</span>
-                        </div>
-                      )) : event.participantEmails.map((email) => (
-                        <div key={`${event.id}-${email}`} className="grid min-w-[760px] grid-cols-[1fr_1.3fr_7rem_7rem_7rem] gap-3 px-3 py-2 text-xs text-zinc-600">
-                          <span>-</span>
-                          <span className="break-all">{email}</span>
-                          <span className="text-right">-</span>
-                          <span className="text-right">-</span>
-                          <span className="text-right">-</span>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                ),
-                date: formatShortDate(event.date),
-                program: (
-                  <span className="inline-flex flex-col gap-1">
-                    <span>{event.program}</span>
-                    {event.inclusionNote && <span className="text-[11px] text-zinc-400">{event.inclusionNote}</span>}
-                  </span>
-                ),
-                registrants: event.registrants == null ? "-" : formatNumber(event.registrants),
-                attendees: formatNumber(event.attendees),
-                attendance: event.registrants ? formatPercent(event.attendees / event.registrants * 100) : "-",
-                duration: formatDuration(event.avgDuration),
-                repeat: formatPercent(event.repeatPct),
-                firstTime: formatPercent(Math.max(0, 100 - event.repeatPct)),
-              }))}
+          {isSuperadmin && (
+            <ZoomEventLabelControls
+              events={labeledZoomEvents}
+              overrides={overrides}
+              onSaved={handleOverrideSaved}
             />
+          )}
+          <Panel title="Zoom event detail" subtitle="Click an event to expand registrant trend, registrant timestamps, and available attendance detail.">
+            <ZoomEventDetailTable events={zoomEvents} />
           </Panel>
         </div>
       ) : (
@@ -2179,7 +2473,7 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, onSelectMember }: Props) {
+export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, isSuperadmin, onSelectMember }: Props) {
   const [activeSection, setActiveSection] = useState<AnalyticsSectionId>("members")
   const section = ANALYTICS_SECTIONS.find((item) => item.id === activeSection) ?? ANALYTICS_SECTIONS[0]
   const statusText = useMemo(() => `Snapshot generated ${formatDate(analyticsSnapshot.generatedAt)}`, [analyticsSnapshot.generatedAt])
@@ -2221,7 +2515,7 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
         {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} />}
         {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} />}
         {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} />}
-        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} />}
+        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} eventLabelOverrides={eventLabelOverrides} isSuperadmin={isSuperadmin} />}
         {activeSection === "data-sources" && <DataSourcesPanel snapshot={analyticsSnapshot} />}
       </section>
     </div>

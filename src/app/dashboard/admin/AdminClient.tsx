@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount } from "@/lib/admin/actions"
-import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
+import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission, AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
 import type { MemberInsightsData, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
@@ -292,6 +292,7 @@ type Props = {
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
+  eventLabelOverrides: AnalyticsEventLabelOverride[]
   teamPermissions: TeamPermissionsMap
   feedback: FeedbackSubmission[]
   bannedMembers: AdminMemberProfile[]
@@ -869,7 +870,7 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
   const [tab, setTab] = useState<Tab>("analytics")
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
@@ -948,6 +949,8 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
           memberInsights={memberInsights}
           portalUtilization={portalUtilization}
           analyticsSnapshot={analyticsSnapshot}
+          eventLabelOverrides={eventLabelOverrides}
+          isSuperadmin={isSuperadmin}
           onSelectMember={setSelectedMember}
         />
       )}

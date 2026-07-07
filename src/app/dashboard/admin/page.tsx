@@ -7,7 +7,7 @@ import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
 import AdminClient from "./AdminClient"
 import type { MemberInsightsData, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
-import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers } from "@/lib/admin/actions"
+import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers, listAnalyticsEventLabelOverrides } from "@/lib/admin/actions"
 import type { TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
 
 type PortalProfileRow = {
@@ -503,6 +503,7 @@ export default async function AdminPage() {
   const feedback: FeedbackSubmission[] = isSuperadmin ? await listFeedbackSubmissions() : []
   const bannedMembers = isSuperadmin ? await listBannedMembers() : []
   const analyticsSnapshot = await getLegacyAnalyticsSnapshot()
+  const eventLabelOverrides = await listAnalyticsEventLabelOverrides()
   const ninetyDaysAgo = retentionCutoffIso(90)
   const [
     analyticsEventsResult,
@@ -561,6 +562,7 @@ export default async function AdminPage() {
       memberInsights={memberInsights}
       portalUtilization={portalUtilization}
       analyticsSnapshot={analyticsSnapshot}
+      eventLabelOverrides={eventLabelOverrides}
       teamPermissions={teamPermissions}
       feedback={feedback}
       bannedMembers={bannedMembers}

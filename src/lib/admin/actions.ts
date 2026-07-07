@@ -786,6 +786,70 @@ export async function deleteFeedbackSubmission(id: string): Promise<{ error?: st
   return {}
 }
 
+export type AnalyticsEventLabelOverride = {
+  event_id: string
+  event_topic: string | null
+  event_date: string | null
+  program_label: "IPN Labs" | "PsychedelX" | "Other"
+  event_type: "public" | "internal"
+  include_in_analytics: boolean
+  note: string | null
+  updated_at: string | null
+}
+
+export async function listAnalyticsEventLabelOverrides(): Promise<AnalyticsEventLabelOverride[]> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from("analytics_event_label_overrides")
+    .select("event_id, event_topic, event_date, program_label, event_type, include_in_analytics, note, updated_at")
+    .order("event_date", { ascending: false, nullsFirst: false })
+
+  if (error) return []
+  return (data ?? []) as AnalyticsEventLabelOverride[]
+}
+
+export async function saveAnalyticsEventLabelOverride(payload: {
+  eventId: string
+  eventTopic: string
+  eventDate: string | null
+  programLabel: "IPN Labs" | "PsychedelX" | "Other"
+  eventType: "public" | "internal"
+  includeInAnalytics: boolean
+  note?: string | null
+}): Promise<{ override?: AnalyticsEventLabelOverride; error?: string }> {
+  const auth = await verifySuperadminUser()
+  if ("error" in auth) return auth
+
+  const eventId = clean(payload.eventId)
+  if (!eventId) return { error: "Missing event ID" }
+
+  const admin = createAdminClient()
+  const row = {
+    event_id: eventId,
+    event_topic: clean(payload.eventTopic),
+    event_date: toIso(payload.eventDate),
+    program_label: payload.programLabel,
+    event_type: payload.eventType,
+    include_in_analytics: payload.includeInAnalytics,
+    note: clean(payload.note),
+    updated_by: auth.userId,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data, error } = await admin
+    .from("analytics_event_label_overrides")
+    .upsert(row, { onConflict: "event_id" })
+    .select("event_id, event_topic, event_date, program_label, event_type, include_in_analytics, note, updated_at")
+    .single()
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/admin")
+  return { override: data as AnalyticsEventLabelOverride }
+}
+
 export async function uploadContentImage(
   formData: FormData,
 ): Promise<{ url?: string; error?: string }> {

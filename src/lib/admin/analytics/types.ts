@@ -208,6 +208,7 @@ export type LegacyAnalyticsSnapshot = {
         repeatPct: number
         participantEmails: string[]
         participants: { name: string; email: string; durationMin: number; eventsAttended: number }[]
+        registrations: { name: string; email: string; registeredAt: string | null }[]
       }[]
     }
     eventbrite: {

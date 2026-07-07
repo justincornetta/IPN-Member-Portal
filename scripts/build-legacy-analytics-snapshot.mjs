@@ -367,6 +367,11 @@ function buildZoom(zoomStats, zoomEventsPayload) {
         durationMin: round(number(participant.duration_sec) / 60),
         eventsAttended: 0,
       })),
+      registrations: (Array.isArray(event.registrants_detail) ? event.registrants_detail : []).map((registrant) => ({
+        name: registrant.name || registrant.email || "Unknown",
+        email: registrant.email || "",
+        registeredAt: registrant.registered_at || registrant.created_at || null,
+      })),
     })),
   }
 }

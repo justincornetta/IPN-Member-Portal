@@ -15,6 +15,7 @@ const CURATED_ZOOM_EVENT_IDS = new Set([
   "w5q9zBrtTxKq2s+Va2PLDQ==",
   "rmbM8Hc4Snq7H6sSV3fQfA==",
   "Rou4Q15dQcuKsSFxuC3TEg==",
+  "xImfgyAlRresYfbr1qlOiQ==",
 ])
 
 const ZOOM_WORKSHOP_4: LegacyAnalyticsSnapshot["events"]["zoom"]["events"][number] = {
@@ -36,6 +37,7 @@ const ZOOM_WORKSHOP_4: LegacyAnalyticsSnapshot["events"]["zoom"]["events"][numbe
     { name: "Omer Syed", email: "", durationMin: 25, eventsAttended: 0 },
     { name: "Mirko Vercelli", email: "", durationMin: 26.6, eventsAttended: 0 },
   ],
+  registrations: [],
 }
 
 function cloneSnapshot(): LegacyAnalyticsSnapshot {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T03:07:20.905Z",
+  "generatedAt": "2026-07-07T03:24:05.140Z",
   "dashboardRepo": "/Users/jcornetta/Code/ipn-dashboard",
   "dataSources": [
     {
@@ -19765,7 +19765,8 @@
               "durationMin": 21.9,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "Z9eiVRQfTEO96PJxbAPiEQ==",
@@ -19800,7 +19801,8 @@
               "durationMin": 56,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "dHTIVmqoRTiLtisR9GZqGw==",
@@ -19991,7 +19993,8 @@
               "durationMin": 3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "WUp7qUQIS/OCEY4Tfy5mWg==",
@@ -20032,7 +20035,8 @@
               "durationMin": 49.1,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "JI27OjDlQVuFscwlm1zPGg==",
@@ -20073,7 +20077,8 @@
               "durationMin": 36.2,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "XI9vLPeLSKOMx4VF7xZCiA==",
@@ -20264,7 +20269,8 @@
               "durationMin": 50.3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "yG+3J/mvRRSijbuKo00DWQ==",
@@ -20305,7 +20311,8 @@
               "durationMin": 47.3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "OmvZaXYXRHWqIecWHtPPPA==",
@@ -20340,7 +20347,8 @@
               "durationMin": 108.2,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "Zfx+F6Y6Q/W85SrvjWDASA==",
@@ -20393,7 +20401,8 @@
               "durationMin": 56.4,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "GBJ6VtSMQVyLQQ4zSjKnRw==",
@@ -20440,7 +20449,8 @@
               "durationMin": 60.7,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "UnyLodFUTTOfhTK9p3Qt0g==",
@@ -20475,7 +20485,8 @@
               "durationMin": 68.1,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "2DeIx5nsQC+Aulwajc7uLA==",
@@ -20516,7 +20527,8 @@
               "durationMin": 58.1,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "FxMg19PrR0mytq/dEM+P2g==",
@@ -20551,7 +20563,8 @@
               "durationMin": 41.2,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "d1keSZCwRaChT65gID8Slw==",
@@ -20580,7 +20593,8 @@
               "durationMin": 68.3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "D+TddOtUScuXI5ywbEPisQ==",
@@ -20820,7 +20834,8 @@
               "durationMin": 10.9,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "3ZmzjA5mSdy90VymO8dtBg==",
@@ -20861,7 +20876,8 @@
               "durationMin": 44.5,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "zfLGbEYDT/6osk5J9RG5Mw==",
@@ -20902,7 +20918,8 @@
               "durationMin": 40,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "qclfI0D1Qpyb7Q9TUB28uQ==",
@@ -20956,7 +20973,8 @@
               "durationMin": 63.1,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "XBNGpT1jSkOzH5e1w5czqw==",
@@ -20989,7 +21007,8 @@
               "durationMin": 76.5,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "FjFfAFbgRzSnpi4kB2vfyg==",
@@ -21090,7 +21109,8 @@
               "durationMin": 4.8,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "oj7jfiSkSxmb1P5a6Wgacg==",
@@ -21149,7 +21169,8 @@
               "durationMin": 49.3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "x3zdfVuKT06pemQv1UwPug==",
@@ -21286,7 +21307,8 @@
               "durationMin": 4.8,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "fA/aSYzOTpm4IVm0YR01iA==",
@@ -21333,7 +21355,8 @@
               "durationMin": 50.3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "Lq4FQ0dgS0ix5ARG+p/FwA==",
@@ -21410,7 +21433,8 @@
               "durationMin": 22.8,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "xe5mBMMNRAyGg4ca7V64OQ==",
@@ -21446,7 +21470,8 @@
               "durationMin": 69.3,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "2GRJYuBvShenai9jlupTLQ==",
@@ -21651,7 +21676,8 @@
               "durationMin": 38.8,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "ki3Sf9JKSdKPy6yGkMz7nQ==",
@@ -21686,7 +21712,8 @@
               "durationMin": 34.2,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "w5q9zBrtTxKq2s+Va2PLDQ==",
@@ -21763,7 +21790,8 @@
               "durationMin": 53,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "rmbM8Hc4Snq7H6sSV3fQfA==",
@@ -21996,7 +22024,8 @@
               "durationMin": 37.4,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "B8Gf/zZeTKW1RxU+G1jrLA==",
@@ -22031,7 +22060,8 @@
               "durationMin": 42.9,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "//QAKV1PQLa/0uHArZRptw==",
@@ -22045,7 +22075,8 @@
           "retentionPct": 0,
           "repeatPct": 0,
           "participantEmails": [],
-          "participants": []
+          "participants": [],
+          "registrations": []
         },
         {
           "id": "Rou4Q15dQcuKsSFxuC3TEg==",
@@ -22080,7 +22111,8 @@
               "durationMin": 26.6,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "PoVK8y4xQ4+q83K/Quau7Q==",
@@ -22122,7 +22154,8 @@
               "durationMin": 62.4,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "n9Hw5XbOS4qxXJSzhNHMig==",
@@ -22181,7 +22214,8 @@
               "durationMin": 88.9,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "6tmLgvtMRaiLBj49eGGw1A==",
@@ -22216,7 +22250,8 @@
               "durationMin": 143.5,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "JRSrKKyKQU2aAWnov6f48A==",
@@ -22264,7 +22299,8 @@
               "durationMin": 67.1,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "sAy32Hd9TrKoglsOJvbkKg==",
@@ -22300,7 +22336,8 @@
               "durationMin": 7.4,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "If7jBJ14R8aGbAPuAKxhNw==",
@@ -22341,7 +22378,8 @@
               "durationMin": 37,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "fk5LvOVrRnSmOb1uBx3uMg==",
@@ -22371,7 +22409,8 @@
               "durationMin": 6.8,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "rjSraOMzSHqJfuqc6b+WUw==",
@@ -22406,7 +22445,8 @@
               "durationMin": 42.2,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "BC3Zz4mRSyK3+L9d+ONVvg==",
@@ -22453,7 +22493,8 @@
               "durationMin": 24.4,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "zzffgQPeTKOAv9Mffu4ZSw==",
@@ -22494,7 +22535,8 @@
               "durationMin": 46.4,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         },
         {
           "id": "xImfgyAlRresYfbr1qlOiQ==",
@@ -22508,7 +22550,509 @@
           "retentionPct": 0,
           "repeatPct": 0,
           "participantEmails": [],
-          "participants": []
+          "participants": [],
+          "registrations": [
+            {
+              "name": "Sashaina Fanibunda",
+              "email": "sashainafanibunda@gmail.com",
+              "registeredAt": "2026-06-28T18:55:36Z"
+            },
+            {
+              "name": "Ashley Prevost",
+              "email": "ashleyprevost@my.unthsc.edu",
+              "registeredAt": "2026-06-28T17:16:14Z"
+            },
+            {
+              "name": "Gregory Tombline",
+              "email": "gregtombline@gmail.com",
+              "registeredAt": "2026-06-28T15:41:05Z"
+            },
+            {
+              "name": "Andre Gomes",
+              "email": "andre@release.org.uk",
+              "registeredAt": "2026-06-28T08:37:19Z"
+            },
+            {
+              "name": "Alexandra Carelli",
+              "email": "alexandrawilderness@gmail.com",
+              "registeredAt": "2026-06-27T18:57:04Z"
+            },
+            {
+              "name": "Maya Trivedi",
+              "email": "mayatri00@gmail.com",
+              "registeredAt": "2026-06-27T17:29:54Z"
+            },
+            {
+              "name": "Hannah Funtila",
+              "email": "hanfuntila@gmail.com",
+              "registeredAt": "2026-06-27T17:02:50Z"
+            },
+            {
+              "name": "Isabel Bermudez",
+              "email": "isabel.bmdez@gmail.com",
+              "registeredAt": "2026-06-27T17:01:00Z"
+            },
+            {
+              "name": "Rafaelle Lancelotta",
+              "email": "lancelotta.1@osu.edu",
+              "registeredAt": "2026-06-27T16:55:08Z"
+            },
+            {
+              "name": "Sven Orozco",
+              "email": "rollingstoneforever@hotmail.com",
+              "registeredAt": "2026-06-27T16:32:24Z"
+            },
+            {
+              "name": "Mirko Vercelli",
+              "email": "vmirko2000@gmail.com",
+              "registeredAt": "2026-06-27T16:30:33Z"
+            },
+            {
+              "name": "Christian Humberto Huaman Vega",
+              "email": "christianh09092000@gmail.com",
+              "registeredAt": "2026-06-27T16:12:25Z"
+            },
+            {
+              "name": "Ananya Laxshmivarahan",
+              "email": "ananya.laxs@gmail.com",
+              "registeredAt": "2026-06-27T14:34:46Z"
+            },
+            {
+              "name": "Rebekah Senānāyaka",
+              "email": "plantsbek@gmail.com",
+              "registeredAt": "2026-06-27T14:23:44Z"
+            },
+            {
+              "name": "Jake Hooper",
+              "email": "jakehoop@uoregon.edu",
+              "registeredAt": "2026-06-27T14:05:19Z"
+            },
+            {
+              "name": "Kathryn Boyle",
+              "email": "boylek6@tcd.ie",
+              "registeredAt": "2026-06-27T13:43:54Z"
+            },
+            {
+              "name": "Jacob Watson",
+              "email": "jacob.watson80241@gmail.com",
+              "registeredAt": "2026-06-27T11:53:50Z"
+            },
+            {
+              "name": "Daniela Bastos",
+              "email": "daniela8bastos@hotmail.com",
+              "registeredAt": "2026-06-27T10:16:02Z"
+            },
+            {
+              "name": "Bethany Perez",
+              "email": "perez.bethany@gmail.com",
+              "registeredAt": "2026-06-26T23:47:50Z"
+            },
+            {
+              "name": "Caitlin Bernhard",
+              "email": "caitlin.bernhard@gmail.com",
+              "registeredAt": "2026-06-26T20:19:23Z"
+            },
+            {
+              "name": "Elena Zevallos",
+              "email": "elenazev1@gmail.com",
+              "registeredAt": "2026-06-26T20:16:42Z"
+            },
+            {
+              "name": "Bruce Poulter",
+              "email": "bruce@memoru.com",
+              "registeredAt": "2026-06-26T19:40:58Z"
+            },
+            {
+              "name": "Adriana Skinner",
+              "email": "amskinn2@asu.edu",
+              "registeredAt": "2026-06-26T18:18:51Z"
+            },
+            {
+              "name": "Zane Qarni",
+              "email": "zane.qarni@gmail.com",
+              "registeredAt": "2026-06-26T18:17:23Z"
+            },
+            {
+              "name": "James Hosobe",
+              "email": "5ht2andjames@gmail.com",
+              "registeredAt": "2026-06-26T17:51:31Z"
+            },
+            {
+              "name": "louis medina",
+              "email": "louisdanielmedina@gmail.com",
+              "registeredAt": "2026-06-26T17:48:53Z"
+            },
+            {
+              "name": "Zoe Gupta",
+              "email": "zoe.gupta@va.gov",
+              "registeredAt": "2026-06-26T17:00:10Z"
+            },
+            {
+              "name": "Andrew Penn",
+              "email": "andrew.penn@ucsf.edu",
+              "registeredAt": "2026-06-26T16:46:13Z"
+            },
+            {
+              "name": "Michou Olivera",
+              "email": "michouolivera@gmail.com",
+              "registeredAt": "2026-06-26T16:11:02Z"
+            },
+            {
+              "name": "cyprien basso",
+              "email": "cyp.basso@gmail.com",
+              "registeredAt": "2026-06-26T15:54:58Z"
+            },
+            {
+              "name": "Michelle Bilotti",
+              "email": "michellebilotti98@gmail.com",
+              "registeredAt": "2026-06-26T15:41:17Z"
+            },
+            {
+              "name": "Lisa Capitani RN",
+              "email": "info@lisacapitani.com",
+              "registeredAt": "2026-06-26T15:31:35Z"
+            },
+            {
+              "name": "Austen Henry",
+              "email": "austen.henry@gmail.com",
+              "registeredAt": "2026-06-26T15:25:33Z"
+            },
+            {
+              "name": "Jackson Parrish",
+              "email": "jgparrish2002@gmail.com",
+              "registeredAt": "2026-06-26T15:13:39Z"
+            },
+            {
+              "name": "Christopher Petro",
+              "email": "chrisp@upenn.edu",
+              "registeredAt": "2026-06-26T15:13:37Z"
+            },
+            {
+              "name": "Lora Benson",
+              "email": "lora@swiminthesacred.com",
+              "registeredAt": "2026-06-26T15:12:46Z"
+            },
+            {
+              "name": "Megan Ivey",
+              "email": "megan.ivey@pennmedicine.upenn.edu",
+              "registeredAt": "2026-06-26T15:11:16Z"
+            },
+            {
+              "name": "K D",
+              "email": "boabaobab@gmail.com",
+              "registeredAt": "2026-06-26T15:08:12Z"
+            },
+            {
+              "name": "Raluca Rusu",
+              "email": "ralucarusu.coaching@gmail.com",
+              "registeredAt": "2026-06-26T15:07:52Z"
+            },
+            {
+              "name": "Marco Ghilotti",
+              "email": "mghilot1@jh.edu",
+              "registeredAt": "2026-06-26T15:05:33Z"
+            },
+            {
+              "name": "Ellen Flatt",
+              "email": "epulverflatt@gmail.com",
+              "registeredAt": "2026-06-26T15:05:07Z"
+            },
+            {
+              "name": "Rajiv Rangan",
+              "email": "rajivrangan@my.unthsc.edu",
+              "registeredAt": "2026-06-26T15:04:54Z"
+            },
+            {
+              "name": "Anna Sofia Monticelli",
+              "email": "a.s.monticelli@gmail.com",
+              "registeredAt": "2026-06-26T15:03:33Z"
+            },
+            {
+              "name": "Luisa Zavala Rodriguez",
+              "email": "lzavalarodriguez@tulane.edu",
+              "registeredAt": "2026-06-26T15:03:33Z"
+            },
+            {
+              "name": "William Aylward",
+              "email": "william.m.aylward@gmail.com",
+              "registeredAt": "2026-06-26T15:00:44Z"
+            },
+            {
+              "name": "Faith Halverson-Ramos",
+              "email": "faith.halverson.ramos@gmail.com",
+              "registeredAt": "2026-06-26T15:00:34Z"
+            },
+            {
+              "name": "James Kochman",
+              "email": "jimmyisballin@gmail.com",
+              "registeredAt": "2026-06-26T14:59:14Z"
+            },
+            {
+              "name": "Zoe Gupta",
+              "email": "gupta.zoe@gmail.com",
+              "registeredAt": "2026-06-26T14:57:10Z"
+            },
+            {
+              "name": "Julia Maynard",
+              "email": "juliamaynard2005@gmail.com",
+              "registeredAt": "2026-06-26T14:55:53Z"
+            },
+            {
+              "name": "Pete Forrest",
+              "email": "intercollegiatepsychedelics@hypersensible.com",
+              "registeredAt": "2026-06-26T14:55:20Z"
+            },
+            {
+              "name": "Klara Cvetkova",
+              "email": "klaracvetkova@yahoo.com",
+              "registeredAt": "2026-06-26T14:44:26Z"
+            },
+            {
+              "name": "Olesia Bilash",
+              "email": "omb25@cornell.edu",
+              "registeredAt": "2026-06-26T14:43:10Z"
+            },
+            {
+              "name": "Jereme Maffei",
+              "email": "jereme.maffei@coloradocoaltion.org",
+              "registeredAt": "2026-06-26T14:42:00Z"
+            },
+            {
+              "name": "Joseph Coyle",
+              "email": "jvenerecoyle@gmail.com",
+              "registeredAt": "2026-06-26T14:39:27Z"
+            },
+            {
+              "name": "Carlos Ventura",
+              "email": "cventura43@gmail.com",
+              "registeredAt": "2026-06-26T14:27:33Z"
+            },
+            {
+              "name": "Janus de Jong",
+              "email": "janusdejong1@icloud.com",
+              "registeredAt": "2026-06-26T14:14:25Z"
+            },
+            {
+              "name": "Linus Schittig",
+              "email": "linus.schittig@stud.uni-regensburg.de",
+              "registeredAt": "2026-06-26T10:45:28Z"
+            },
+            {
+              "name": "Vladimir Hrabal",
+              "email": "hrabal.vladimir@gmail.com",
+              "registeredAt": "2026-06-26T07:51:17Z"
+            },
+            {
+              "name": "Alex Kwan",
+              "email": "alex.kwan@cornell.edu",
+              "registeredAt": "2026-06-25T21:28:37Z"
+            },
+            {
+              "name": "Alyssa Gursky",
+              "email": "alyssa@psychedelicarttherapy.com",
+              "registeredAt": "2026-06-25T18:50:46Z"
+            },
+            {
+              "name": "Peter Sjöstedt-Hughes",
+              "email": "bookshook123@gmail.com",
+              "registeredAt": "2026-06-25T18:35:50Z"
+            },
+            {
+              "name": "Paul Regier",
+              "email": "pregier@pennmedicine.upenn.edu",
+              "registeredAt": "2026-06-25T17:45:37Z"
+            },
+            {
+              "name": "Kate grosso",
+              "email": "kategrosso@gmail.com",
+              "registeredAt": "2026-06-25T16:51:13Z"
+            },
+            {
+              "name": "Dejanae Weickum",
+              "email": "dweick23@gmail.com",
+              "registeredAt": "2026-06-25T13:31:30Z"
+            },
+            {
+              "name": "Erin Neyhart",
+              "email": "erinneyhart@gmail.com",
+              "registeredAt": "2026-06-24T18:08:21Z"
+            },
+            {
+              "name": "Giovanna Dias",
+              "email": "giovannastyles26@gmail.com",
+              "registeredAt": "2026-06-24T16:54:04Z"
+            },
+            {
+              "name": "Yashine Hazmatally Goolam Hossen",
+              "email": "yhgoolam@uwaterloo.ca",
+              "registeredAt": "2026-06-24T15:09:13Z"
+            },
+            {
+              "name": "Madison S",
+              "email": "madicasella@gmail.com",
+              "registeredAt": "2026-06-24T04:36:48Z"
+            },
+            {
+              "name": "Manvir Singh",
+              "email": "manvir.manvir@gmail.com",
+              "registeredAt": "2026-06-23T22:34:45Z"
+            },
+            {
+              "name": "Iva Totomanova",
+              "email": "iva.totomanova@maastrichtuniversity.nl",
+              "registeredAt": "2026-06-23T13:27:17Z"
+            },
+            {
+              "name": "Kara Ashley-Gilmore",
+              "email": "kgilmore@mountaincreativearts.com",
+              "registeredAt": "2026-06-23T13:09:37Z"
+            },
+            {
+              "name": "Miriam Kagan",
+              "email": "mindful.manifestations.mk@gmail.com",
+              "registeredAt": "2026-06-23T12:54:40Z"
+            },
+            {
+              "name": "Natasha Greenstein",
+              "email": "natasha.greenstein@gmail.com",
+              "registeredAt": "2026-06-23T12:02:02Z"
+            },
+            {
+              "name": "Eliedson Gonçalves",
+              "email": "elixiantao@gmail.com",
+              "registeredAt": "2026-06-22T21:48:44Z"
+            },
+            {
+              "name": "Isabel Stokesbary",
+              "email": "isabelstokesbary@yahoo.com",
+              "registeredAt": "2026-06-22T17:32:04Z"
+            },
+            {
+              "name": "Olivia Young",
+              "email": "oliviayoung@my.unthsc.edu",
+              "registeredAt": "2026-06-22T14:48:58Z"
+            },
+            {
+              "name": "Logan Riffey",
+              "email": "l.riffey@alumni.maastrichtuniversity.nl",
+              "registeredAt": "2026-06-21T15:41:24Z"
+            },
+            {
+              "name": "Joey Lichter",
+              "email": "jlichter@fiu.edu",
+              "registeredAt": "2026-06-20T23:52:59Z"
+            },
+            {
+              "name": "Omer Syed",
+              "email": "omer.syed@mail.utoronto.ca",
+              "registeredAt": "2026-06-20T20:59:01Z"
+            },
+            {
+              "name": "John Weaver",
+              "email": "wedude25@gmail.com",
+              "registeredAt": "2026-06-20T16:46:33Z"
+            },
+            {
+              "name": "Angela McGrady",
+              "email": "angela.mcgrady@gmail.com",
+              "registeredAt": "2026-06-20T14:01:58Z"
+            },
+            {
+              "name": "Sin Edd",
+              "email": "risen.flair.0b@icloud.com",
+              "registeredAt": "2026-06-20T08:46:54Z"
+            },
+            {
+              "name": "Taylor Flatt",
+              "email": "flatt.17@osu.edu",
+              "registeredAt": "2026-06-19T23:17:33Z"
+            },
+            {
+              "name": "Morgan Sweeney",
+              "email": "morgan.sweeney44@gmail.com",
+              "registeredAt": "2026-06-19T22:13:14Z"
+            },
+            {
+              "name": "Joseph Hughes",
+              "email": "jmhughes5@wisc.edu",
+              "registeredAt": "2026-06-19T19:35:26Z"
+            },
+            {
+              "name": "Michael Cruz",
+              "email": "mikejcruz18@gmail.com",
+              "registeredAt": "2026-06-19T19:13:47Z"
+            },
+            {
+              "name": "Andrew Ferns",
+              "email": "andrewferns@my.unthsc.edu",
+              "registeredAt": "2026-06-19T19:11:15Z"
+            },
+            {
+              "name": "Muriel Cuzi",
+              "email": "murielcuzi@proton.me",
+              "registeredAt": "2026-06-19T18:58:49Z"
+            },
+            {
+              "name": "Emily Otto, Rebelle INC",
+              "email": "emily@emily-otto.com",
+              "registeredAt": "2026-06-19T18:53:15Z"
+            },
+            {
+              "name": "SOFIA LOPEZ",
+              "email": "sofy.lopez33@gmail.com",
+              "registeredAt": "2026-06-19T18:50:19Z"
+            },
+            {
+              "name": "Merryn Spence",
+              "email": "merryn@firesideproject.org",
+              "registeredAt": "2026-06-19T18:40:35Z"
+            },
+            {
+              "name": "Andreia Vaz",
+              "email": "afs.vaz@gmail.com",
+              "registeredAt": "2026-06-19T17:09:38Z"
+            },
+            {
+              "name": "D L",
+              "email": "zzxkxomsnxkoomsm@duck.com",
+              "registeredAt": "2026-06-19T03:50:20Z"
+            },
+            {
+              "name": "Zoe Talman",
+              "email": "ztalman@yahoo.com",
+              "registeredAt": "2026-06-18T17:13:04Z"
+            },
+            {
+              "name": "Mariya Katrina Punay AMFT APCC PhD Candidate",
+              "email": "mariyakatrinapunay@gmail.com",
+              "registeredAt": "2026-06-18T16:06:57Z"
+            },
+            {
+              "name": "Justin Cornetta",
+              "email": "justin.cornetta@gmail.com",
+              "registeredAt": "2026-06-18T07:30:19Z"
+            },
+            {
+              "name": "Jennifer Pham",
+              "email": "jennhpham@gmail.com",
+              "registeredAt": "2026-06-17T19:35:37Z"
+            },
+            {
+              "name": "Kailey Campbell",
+              "email": "kailey.mtbc@gmail.com",
+              "registeredAt": "2026-06-17T18:03:26Z"
+            },
+            {
+              "name": "Lina Jan",
+              "email": "nematoma_as@yahoo.co.uk",
+              "registeredAt": "2026-06-16T00:51:20Z"
+            },
+            {
+              "name": "Bianca Watt",
+              "email": "biancarosettaw@gmail.com",
+              "registeredAt": "2026-06-15T15:38:18Z"
+            }
+          ]
         },
         {
           "id": "xuL3XkYlT5Gdo7bsOvVsdw==",
@@ -22543,7 +23087,8 @@
               "durationMin": 17.6,
               "eventsAttended": 0
             }
-          ]
+          ],
+          "registrations": []
         }
       ]
     },
