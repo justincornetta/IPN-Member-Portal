@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
+import { sendEventRegistrationConfirmation } from "./email-service"
 
 type EventRegistrationResult = {
   error?: string
@@ -53,6 +54,7 @@ export async function registerForEvent(
   if (error) return { error: error.message }
 
   await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
+  await sendEventRegistrationConfirmation(eventId, user.id)
   if (analytics?.sessionId) {
     await recordPortalAnalyticsEvent({
       eventName: "event_rsvp_created",
