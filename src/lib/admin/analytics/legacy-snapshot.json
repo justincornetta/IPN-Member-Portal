@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T02:47:57.527Z",
+  "generatedAt": "2026-07-07T02:40:25.194Z",
   "dashboardRepo": "/Users/jcornetta/Code/ipn-dashboard",
   "dataSources": [
     {
@@ -194,16 +194,6 @@
         "id": "oldapp",
         "label": "Legacy App",
         "value": 1100
-      },
-      {
-        "id": "eventbrite",
-        "label": "Eventbrite",
-        "value": 0
-      },
-      {
-        "id": "zoom",
-        "label": "Zoom",
-        "value": 0
       }
     ],
     "sourceCombinations": [
@@ -15742,6 +15732,7 @@
     ],
     "history": [
       {
+        "date": "2026-05-03T10:58:42.371508+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4428,
@@ -15749,6 +15740,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-03T10:58:42.371508+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15756,6 +15748,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-04T11:53:57.905822+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4431,
@@ -15763,6 +15756,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-04T11:53:57.905822+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15770,6 +15764,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-05T11:20:06.386795+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4432,
@@ -15777,6 +15772,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-05T11:20:06.386795+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15784,6 +15780,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-06T11:52:02.598126+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4433,
@@ -15791,6 +15788,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-06T11:52:02.598126+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15798,6 +15796,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-07T11:53:14.115544+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4431,
@@ -15805,6 +15804,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-07T11:53:14.115544+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15812,6 +15812,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-08T11:22:24.650023+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4439,
@@ -15819,6 +15820,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-08T11:22:24.650023+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15826,6 +15828,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-09T11:02:24.359063+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4444,
@@ -15833,6 +15836,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-09T11:02:24.359063+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15840,6 +15844,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-09T19:34:41.044419+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4445,
@@ -15847,6 +15852,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-09T19:34:41.044419+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15854,6 +15860,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-09T20:58:08.169201+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4445,
@@ -15861,6 +15868,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-09T20:58:08.169201+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15868,6 +15876,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-09T21:10:34.113820+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4445,
@@ -15875,6 +15884,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-09T21:10:34.113820+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15882,6 +15892,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-09T22:12:00.296274+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4446,
@@ -15889,6 +15900,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-09T22:12:00.296274+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15896,6 +15908,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-09T22:19:25.423189+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4446,
@@ -15903,6 +15916,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-09T22:19:25.423189+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15910,6 +15924,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-10T11:04:35.623218+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4445,
@@ -15917,6 +15932,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-10T11:04:35.623218+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15924,6 +15940,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-11T12:43:12.807163+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4452,
@@ -15931,6 +15948,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-11T12:43:12.807163+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15938,6 +15956,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-12T12:02:48.809190+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4456,
@@ -15945,6 +15964,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-12T12:02:48.809190+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15952,6 +15972,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-13T12:09:56.912082+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4459,
@@ -15959,6 +15980,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-13T12:09:56.912082+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3189,
@@ -15966,6 +15988,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-14T11:58:05.180416+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4465,
@@ -15973,6 +15996,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-14T11:58:05.180416+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15980,6 +16004,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-16T11:08:02.647065+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4465,
@@ -15987,6 +16012,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-16T11:08:02.647065+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3188,
@@ -15994,6 +16020,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-17T11:13:50.076459+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4467,
@@ -16001,6 +16028,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-17T11:13:50.076459+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16008,6 +16036,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-18T13:53:55.717892+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4466,
@@ -16015,6 +16044,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-18T13:53:55.717892+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3186,
@@ -16022,6 +16052,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-19T12:45:04.480523+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4466,
@@ -16029,6 +16060,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-19T12:45:04.480523+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16036,6 +16068,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-20T12:30:46.050428+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4467,
@@ -16043,6 +16076,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-20T12:30:46.050428+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16050,6 +16084,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-21T12:50:38.311731+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4464,
@@ -16057,6 +16092,7 @@
         "posts": 1
       },
       {
+        "date": "2026-05-21T12:50:38.311731+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16064,6 +16100,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-22T12:26:26.926206+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4463,
@@ -16071,6 +16108,7 @@
         "posts": 2
       },
       {
+        "date": "2026-05-22T12:26:26.926206+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16078,6 +16116,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-23T11:18:14.052336+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4464,
@@ -16085,6 +16124,7 @@
         "posts": 2
       },
       {
+        "date": "2026-05-23T11:18:14.052336+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16092,6 +16132,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-24T11:23:27.881195+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4466,
@@ -16099,6 +16140,7 @@
         "posts": 2
       },
       {
+        "date": "2026-05-24T11:23:27.881195+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16106,6 +16148,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-25T13:35:41.271883+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4466,
@@ -16113,6 +16156,7 @@
         "posts": 3
       },
       {
+        "date": "2026-05-25T13:35:41.271883+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16120,6 +16164,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-26T12:45:32.195501+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4465,
@@ -16127,6 +16172,7 @@
         "posts": 3
       },
       {
+        "date": "2026-05-26T12:45:32.195501+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16134,6 +16180,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-27T12:57:20.993391+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4469,
@@ -16141,6 +16188,7 @@
         "posts": 4
       },
       {
+        "date": "2026-05-27T12:57:20.993391+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16148,6 +16196,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-28T13:57:51.137739+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4472,
@@ -16155,6 +16204,7 @@
         "posts": 4
       },
       {
+        "date": "2026-05-28T13:57:51.137739+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16162,6 +16212,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-29T12:51:43.430034+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4471,
@@ -16169,6 +16220,7 @@
         "posts": 4
       },
       {
+        "date": "2026-05-29T12:51:43.430034+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16176,6 +16228,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-30T11:25:37.460777+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4469,
@@ -16183,6 +16236,7 @@
         "posts": 4
       },
       {
+        "date": "2026-05-30T11:25:37.460777+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16190,6 +16244,7 @@
         "posts": 0
       },
       {
+        "date": "2026-05-31T11:44:37.363605+00:00",
         "month": "2026-05",
         "channel": "instagram",
         "followers": 4472,
@@ -16197,6 +16252,7 @@
         "posts": 5
       },
       {
+        "date": "2026-05-31T11:44:37.363605+00:00",
         "month": "2026-05",
         "channel": "facebook",
         "followers": 3187,
@@ -16204,6 +16260,7 @@
         "posts": 0
       },
       {
+        "date": "2026-07-06T00:33:10.609710+00:00",
         "month": "2026-07",
         "channel": "instagram",
         "followers": 4600,
@@ -16211,6 +16268,7 @@
         "posts": 2
       },
       {
+        "date": "2026-07-06T00:33:10.609710+00:00",
         "month": "2026-07",
         "channel": "facebook",
         "followers": 3164,
@@ -16218,6 +16276,7 @@
         "posts": 0
       },
       {
+        "date": "2026-07-06T01:05:54.682459+00:00",
         "month": "2026-07",
         "channel": "instagram",
         "followers": 4600,
@@ -16225,6 +16284,7 @@
         "posts": 2
       },
       {
+        "date": "2026-07-06T01:05:54.682459+00:00",
         "month": "2026-07",
         "channel": "facebook",
         "followers": 3164,
@@ -16232,6 +16292,7 @@
         "posts": 0
       },
       {
+        "date": "2026-07-06T02:45:44.331684+00:00",
         "month": "2026-07",
         "channel": "instagram",
         "followers": 4601,
@@ -16239,6 +16300,7 @@
         "posts": 2
       },
       {
+        "date": "2026-07-06T02:45:44.331684+00:00",
         "month": "2026-07",
         "channel": "facebook",
         "followers": 3164,

@@ -210,6 +210,7 @@ function buildSocial(base, social, instagramMedia) {
       ...base.social.platforms.filter((platform) => !["instagram", "facebook"].includes(platform.id)),
     ],
     history: (Array.isArray(social.history) ? social.history : []).map((row) => ({
+      date: row.updated_at || row.date || null,
       month: row.month || "Unknown",
       channel: row.channel || "",
       followers: number(row.followers),

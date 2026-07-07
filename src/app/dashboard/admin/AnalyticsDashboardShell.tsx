@@ -254,11 +254,7 @@ function aggregateByGranularity<T extends Record<string, number>>(
   for (const row of rows) {
     const date = parseDateValue(row.date)
     if (!date) continue
-    const label = granularity === "daily"
-      ? date.toISOString().slice(0, 10)
-      : granularity === "weekly"
-        ? `${date.getUTCFullYear()} W${String(Math.ceil((((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000) + 1) / 7)).padStart(2, "0")}`
-        : date.toISOString().slice(0, 7)
+    const label = granularityLabel(date, granularity)
     const current = buckets.get(label) ?? { label, values: {} }
     for (const [key, value] of Object.entries(row.values)) {
       current.values[key] = (current.values[key] ?? 0) + value
@@ -268,6 +264,14 @@ function aggregateByGranularity<T extends Record<string, number>>(
   return Array.from(buckets.values())
     .map((bucket) => ({ label: bucket.label, ...bucket.values }) as T & { label: string })
     .sort((a, b) => a.label.localeCompare(b.label))
+}
+
+function granularityLabel(date: Date, granularity: Granularity) {
+  return granularity === "daily"
+    ? date.toISOString().slice(0, 10)
+    : granularity === "weekly"
+      ? `${date.getUTCFullYear()} W${String(Math.ceil((((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000) + 1) / 7)).padStart(2, "0")}`
+      : date.toISOString().slice(0, 7)
 }
 
 function dateStep(granularity: Granularity) {
@@ -1411,7 +1415,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const social = snapshot.social
   const socialSource = snapshot.dataSources.find((source) => source.id === "instagram")
     ?? snapshot.dataSources.find((source) => source.id === "facebook")
-  const historyDates = social.history.map((row) => websiteDateToInput(row.month)).filter(Boolean).sort()
+  const historyDates = social.history.map((row) => toInputDate(row.date) || websiteDateToInput(row.month)).filter(Boolean).sort()
   const [fromDate, setFromDate] = useState(historyDates[0] ?? "")
   const [toDate, setToDate] = useState(historyDates.at(-1) ?? "")
   const [platform, setPlatform] = useState("all")
@@ -1420,27 +1424,45 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const platformOptions = social.platforms
     .filter((item) => item.followers != null)
     .map((item) => ({ value: item.id, label: item.label }))
-  const latestByMonthChannel = new Map<string, LegacyAnalyticsSnapshot["social"]["history"][number]>()
+  const latestByPeriodChannel = new Map<string, LegacyAnalyticsSnapshot["social"]["history"][number] & { period: string; timestamp: number }>()
   social.history
-    .filter((row) => (
-      isWithinDateRange(`${row.month}-01`, fromDate, toDate) &&
-      (platform === "all" || row.channel === platform)
-    ))
-    .forEach((row) => latestByMonthChannel.set(`${row.month}:${row.channel}`, row))
-  const trend = aggregateByGranularity(Array.from(latestByMonthChannel.values()).map((row) => ({
-    date: `${row.month}-01`,
-    values: {
+    .filter((row) => {
+      const dateValue = row.date || `${row.month}-01`
+      return isWithinDateRange(dateValue, fromDate, toDate) && (platform === "all" || row.channel === platform)
+    })
+    .forEach((row) => {
+      const date = parseDateValue(row.date || `${row.month}-01`)
+      if (!date) return
+      const period = granularityLabel(date, granularity)
+      const key = `${period}:${row.channel}`
+      const timestamp = date.getTime()
+      const existing = latestByPeriodChannel.get(key)
+      if (!existing || timestamp >= existing.timestamp) {
+        latestByPeriodChannel.set(key, { ...row, period, timestamp })
+      }
+    })
+  const trendByPeriod = Array.from(latestByPeriodChannel.values()).reduce<Record<string, {
+    followers: number
+    posts: number
+    engagementTotal: number
+    engagementRows: number
+  }>>((acc, row) => {
+    const current = acc[row.period] ?? { followers: 0, posts: 0, engagementTotal: 0, engagementRows: 0 }
+    current.followers += row.followers
+    current.posts += row.posts
+    if (row.engagementRate > 0) {
+      current.engagementTotal += row.engagementRate
+      current.engagementRows += 1
+    }
+    acc[row.period] = current
+    return acc
+  }, {})
+  const trend = Object.entries(trendByPeriod)
+    .map(([period, row]) => ({
+      month: period,
       followers: row.followers,
       posts: row.posts,
-      engagementRateTotal: row.engagementRate,
-      engagementRows: row.engagementRate > 0 ? 1 : 0,
-    },
-  })), granularity)
-    .map((row) => ({
-      month: row.label,
-      followers: row.followers,
-      posts: row.posts,
-      engagementRate: row.engagementRows ? roundMetric(row.engagementRateTotal / row.engagementRows) : 0,
+      engagementRate: row.engagementRows ? roundMetric(row.engagementTotal / row.engagementRows) : 0,
     }))
     .sort((a, b) => a.month.localeCompare(b.month))
   const metricLabel = metric === "followers" ? "Followers" : metric === "posts" ? "Posts" : "Engagement rate"
@@ -1474,7 +1496,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={socialSource}
-        detail="Social history in this snapshot stops at the last successful legacy refresh and is stored only at month-level granularity. Daily follower history will require the fixed refresh job to run and preserve dated rows."
+        detail="Social history uses the latest available platform pull in each selected day, week, or month. Any missing periods reflect gaps in the legacy social refresh history."
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {social.platforms.map((platform) => (
@@ -1488,7 +1510,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Follower trend" subtitle="Tracked Instagram and Facebook history, collapsed to one point per month" className="lg:col-span-2">
+        <Panel title="Follower trend" subtitle={`Tracked Instagram and Facebook history, bucketed ${granularity.replace("ly", "")}`} className="lg:col-span-2">
           <ResponsiveChart height={320}>
             <LineChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />

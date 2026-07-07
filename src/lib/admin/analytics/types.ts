@@ -129,6 +129,7 @@ export type LegacyAnalyticsSnapshot = {
       updatedAt: string | null
     }[]
     history: {
+      date: string | null
       month: string
       channel: string
       followers: number
