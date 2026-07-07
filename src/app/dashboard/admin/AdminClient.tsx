@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount } from "@/lib/admin/actions"
 import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission, AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
-import type { MemberInsightsData, PortalUtilizationData } from "./AnalyticsDashboardShell"
+import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import ContentIntakeForm from "./ContentIntakeForm"
 
@@ -293,6 +293,7 @@ type Props = {
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
   eventLabelOverrides: AnalyticsEventLabelOverride[]
+  portalEvents: PortalAnalyticsEvent[]
   teamPermissions: TeamPermissionsMap
   feedback: FeedbackSubmission[]
   bannedMembers: AdminMemberProfile[]
@@ -870,7 +871,7 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, portalEvents, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
   const [tab, setTab] = useState<Tab>("analytics")
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
@@ -950,6 +951,7 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
           portalUtilization={portalUtilization}
           analyticsSnapshot={analyticsSnapshot}
           eventLabelOverrides={eventLabelOverrides}
+          portalEvents={portalEvents}
           isSuperadmin={isSuperadmin}
           onSelectMember={setSelectedMember}
         />

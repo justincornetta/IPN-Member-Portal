@@ -5,7 +5,7 @@ import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
 import AdminClient from "./AdminClient"
-import type { MemberInsightsData, PortalUtilizationData } from "./AnalyticsDashboardShell"
+import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
 import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers, listAnalyticsEventLabelOverrides } from "@/lib/admin/actions"
 import type { TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
@@ -50,6 +50,10 @@ type EventLookupRow = {
   title: string | null
   slug: string | null
   starts_at: string | null
+  event_type: string | null
+  status: string | null
+  external_event_id: string | null
+  registration_count: number | null
 }
 
 type OnboardingProgressRow = {
@@ -418,6 +422,49 @@ function buildPortalUtilizationData({
   }
 }
 
+function buildPortalAnalyticsEvents({
+  eventRows,
+  eventRegistrations,
+  profiles,
+}: {
+  eventRows: EventLookupRow[]
+  eventRegistrations: EventRegistrationRow[]
+  profiles: PortalProfileRow[]
+}): PortalAnalyticsEvent[] {
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
+  const registrationsByEvent = new Map<string, PortalAnalyticsEvent["registrations"]>()
+
+  for (const registration of eventRegistrations) {
+    const profile = profilesById.get(registration.user_id)
+    const current = registrationsByEvent.get(registration.event_id) ?? []
+    current.push({
+      memberName: memberName(profile),
+      memberEmail: profile?.email ?? "",
+      registeredAt: registration.created_at,
+    })
+    registrationsByEvent.set(registration.event_id, current)
+  }
+
+  return eventRows
+    .filter((event) => event.starts_at && new Date(event.starts_at) >= new Date())
+    .sort((a, b) => new Date(a.starts_at ?? 0).getTime() - new Date(b.starts_at ?? 0).getTime())
+    .map((event) => {
+      const registrations = (registrationsByEvent.get(event.id) ?? [])
+        .sort((a, b) => a.registeredAt.localeCompare(b.registeredAt))
+      return {
+        id: event.id,
+        title: event.title ?? event.slug ?? "Untitled event",
+        slug: event.slug,
+        startsAt: event.starts_at,
+        eventType: event.event_type,
+        status: event.status,
+        externalEventId: event.external_event_id,
+        registrationCount: event.registration_count ?? registrations.length,
+        registrations,
+      }
+    })
+}
+
 export default async function AdminPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -524,19 +571,29 @@ export default async function AdminPage() {
       .from("event_registrations")
       .select("event_id, user_id, created_at")
       .order("created_at", { ascending: false })
-      .limit(2000),
+      .limit(5000),
     admin
       .from("events")
-      .select("id, title, slug, starts_at"),
+      .select("id, title, slug, starts_at, event_type, status, external_event_id, registration_count")
+      .eq("is_recording", false)
+      .neq("status", "cancelled")
+      .order("starts_at", { ascending: true }),
   ])
+  const eventRegistrations = (eventRegistrationsResult.data ?? []) as EventRegistrationRow[]
+  const eventRows = (eventRowsResult.data ?? []) as EventLookupRow[]
 
   const portalUtilization = buildPortalUtilizationData({
     analyticsEvents: (analyticsEventsResult.data ?? []) as PortalAnalyticsEventRow[],
     analyticsError: analyticsEventsResult.error?.message ?? null,
     profiles: allProfiles,
     onboardingRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],
-    eventRegistrations: (eventRegistrationsResult.data ?? []) as EventRegistrationRow[],
-    eventRows: (eventRowsResult.data ?? []) as EventLookupRow[],
+    eventRegistrations,
+    eventRows,
+  })
+  const portalEvents = buildPortalAnalyticsEvents({
+    eventRows,
+    eventRegistrations,
+    profiles: allProfiles,
   })
 
   const memberInsights: MemberInsightsData = {
@@ -563,6 +620,7 @@ export default async function AdminPage() {
       portalUtilization={portalUtilization}
       analyticsSnapshot={analyticsSnapshot}
       eventLabelOverrides={eventLabelOverrides}
+      portalEvents={portalEvents}
       teamPermissions={teamPermissions}
       feedback={feedback}
       bannedMembers={bannedMembers}

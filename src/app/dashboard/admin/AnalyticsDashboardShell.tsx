@@ -35,7 +35,7 @@ const ANALYTICS_SECTIONS = [
 
 type AnalyticsSectionId = (typeof ANALYTICS_SECTIONS)[number]["id"]
 type MemberAnalyticsView = "portal" | "legacy" | "utilization"
-type EventsView = "zoom" | "eventbrite"
+type EventsView = "zoom" | "eventbrite" | "labeling"
 type WebsiteGeoView = "countries" | "cities"
 type Granularity = "daily" | "weekly" | "monthly"
 type EventbriteMetric = "tickets" | "revenue"
@@ -156,11 +156,28 @@ export type PortalUtilizationData = {
   }
 }
 
+export type PortalAnalyticsEvent = {
+  id: string
+  title: string
+  slug: string | null
+  startsAt: string | null
+  eventType: string | null
+  status: string | null
+  externalEventId: string | null
+  registrationCount: number
+  registrations: {
+    memberName: string
+    memberEmail: string
+    registeredAt: string
+  }[]
+}
+
 type Props = {
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
   eventLabelOverrides: AnalyticsEventLabelOverride[]
+  portalEvents: PortalAnalyticsEvent[]
   isSuperadmin: boolean
   onSelectMember: (member: AdminMemberProfile) => void
 }
@@ -1813,6 +1830,42 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
 
 type ZoomAnalyticsEvent = LegacyAnalyticsSnapshot["events"]["zoom"]["events"][number] & {
   includeInAnalytics?: boolean
+  source?: "zoom" | "portal"
+  portalEventId?: string
+  status?: string | null
+}
+
+function portalEventProgram(eventType: string | null): AnalyticsEventProgram {
+  const text = (eventType ?? "").toLowerCase()
+  if (text.includes("psychedelx")) return "PsychedelX"
+  if (text.includes("lab")) return "IPN Labs"
+  return "Other"
+}
+
+function portalEventToAnalyticsEvent(event: PortalAnalyticsEvent): ZoomAnalyticsEvent {
+  return {
+    id: event.id,
+    topic: event.title,
+    date: event.startsAt,
+    program: portalEventProgram(event.eventType),
+    type: "public",
+    attendees: 0,
+    registrants: event.registrationCount,
+    avgDuration: 0,
+    retentionPct: 0,
+    repeatPct: 0,
+    participantEmails: [],
+    participants: [],
+    registrations: event.registrations.map((registration) => ({
+      name: registration.memberName,
+      email: registration.memberEmail,
+      registeredAt: registration.registeredAt,
+    })),
+    includeInAnalytics: true,
+    source: "portal",
+    portalEventId: event.id,
+    status: event.status,
+  }
 }
 
 function applyEventLabelOverrides(
@@ -1854,7 +1907,7 @@ function ZoomEventLabelControls({
         <table className="min-w-[980px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-zinc-200">
-              {["Event", "Date", "Program", "Type", "Include", "Status"].map((label) => (
+              {["Event", "Date", "Source", "Program", "Type", "Include", "Status"].map((label) => (
                 <th key={label} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</th>
               ))}
             </tr>
@@ -1914,6 +1967,7 @@ function ZoomEventLabelControlRow({
     <tr className="hover:bg-zinc-50">
       <td className="max-w-[28rem] px-3 py-3 align-top text-zinc-700">{truncate(event.topic, 90)}</td>
       <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-500">{formatShortDate(event.date)}</td>
+      <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-500">{event.source === "portal" ? "Portal RSVP" : "Zoom"}</td>
       <td className="px-3 py-3 align-top">
         <SelectInput
           value={programLabel}
@@ -2007,11 +2061,11 @@ function ZoomEventDetailTable({ events }: { events: ZoomAnalyticsEvent[] }) {
                   <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{formatShortDate(event.date)}</td>
                   <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{event.program}</td>
                   <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.registrants == null ? "-" : formatNumber(event.registrants)}</td>
-                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatNumber(event.attendees)}</td>
-                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.registrants ? formatPercent(event.attendees / event.registrants * 100) : "-"}</td>
-                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatDuration(event.avgDuration)}</td>
-                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatPercent(event.repeatPct)}</td>
-                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{formatPercent(Math.max(0, 100 - event.repeatPct))}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.source === "portal" ? "Pending" : formatNumber(event.attendees)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.source === "portal" ? "-" : event.registrants ? formatPercent(event.attendees / event.registrants * 100) : "-"}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.source === "portal" ? "-" : formatDuration(event.avgDuration)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.source === "portal" ? "-" : formatPercent(event.repeatPct)}</td>
+                  <td className="px-3 py-3 text-right align-top tabular-nums text-zinc-600">{event.source === "portal" ? "-" : formatPercent(Math.max(0, 100 - event.repeatPct))}</td>
                 </tr>
                 {expanded && (
                   <tr>
@@ -2038,7 +2092,7 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
           name: registration.name || participant?.name || "Unknown",
           email: registration.email || participant?.email || "",
           registeredAt: registration.registeredAt,
-          attended: Boolean(participant),
+          attended: event.source === "portal" ? null : Boolean(participant),
           durationMin: participant?.durationMin ?? null,
           eventsAttended: participant?.eventsAttended ?? 0,
         }
@@ -2047,7 +2101,7 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
         name: participant.name,
         email: participant.email,
         registeredAt: null,
-        attended: true,
+        attended: true as boolean | null,
         durationMin: participant.durationMin,
         eventsAttended: participant.eventsAttended,
       }))
@@ -2057,7 +2111,7 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
         name: "",
         email,
         registeredAt: null,
-        attended: true,
+        attended: true as boolean | null,
         durationMin: null,
         eventsAttended: 0,
       }))
@@ -2099,7 +2153,7 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
                 <td className="px-3 py-2 text-zinc-700">{row.name || "-"}</td>
                 <td className="break-all px-3 py-2 text-zinc-600">{row.email || "-"}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-zinc-600">{formatDateTime(row.registeredAt)}</td>
-                <td className="px-3 py-2 text-right text-zinc-600">{row.attended ? "Yes" : "No"}</td>
+                <td className="px-3 py-2 text-right text-zinc-600">{row.attended == null ? "Pending" : row.attended ? "Yes" : "No"}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{row.durationMin == null ? "-" : formatDuration(row.durationMin)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{formatNumber(row.eventsAttended)}</td>
               </tr>
@@ -2120,10 +2174,12 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
 function EventsPanel({
   snapshot,
   eventLabelOverrides,
+  portalEvents,
   isSuperadmin,
 }: {
   snapshot: LegacyAnalyticsSnapshot
   eventLabelOverrides: AnalyticsEventLabelOverride[]
+  portalEvents: PortalAnalyticsEvent[]
   isSuperadmin: boolean
 }) {
   const [active, setActive] = useState<EventsView>("zoom")
@@ -2140,6 +2196,9 @@ function EventsPanel({
   const zoomSource = snapshot.dataSources.find((source) => source.id === "zoom")
   const eventbriteSource = snapshot.dataSources.find((source) => source.id === "eventbrite")
   const labeledZoomEvents = applyEventLabelOverrides(zoom.events, overrides)
+  const portalAnalyticsEvents = applyEventLabelOverrides(portalEvents.map(portalEventToAnalyticsEvent), overrides)
+  const zoomIds = new Set(labeledZoomEvents.map((event) => event.id))
+  const upcomingPortalEvents = portalAnalyticsEvents.filter((event) => !event.portalEventId || !zoomIds.has(event.portalEventId))
   const zoomEvents = labeledZoomEvents
     .filter((event) => (
       event.includeInAnalytics !== false &&
@@ -2147,6 +2206,16 @@ function EventsPanel({
       (program === "all" || event.program === program) &&
       (type === "all" || event.type === type)
     ))
+    .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+  const zoomDetailEvents = [...upcomingPortalEvents, ...zoomEvents]
+    .filter((event) => (
+      event.includeInAnalytics !== false &&
+      isWithinDateRange(event.date, fromDate, toDate) &&
+      (program === "all" || event.program === program) &&
+      (type === "all" || event.type === type)
+    ))
+    .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+  const labelingEvents = [...upcomingPortalEvents, ...labeledZoomEvents]
     .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
   const zoomMonths = aggregateByGranularity(zoomEvents.map((event) => ({
     date: event.date,
@@ -2204,6 +2273,7 @@ function EventsPanel({
         items={[
           { id: "zoom", label: "Zoom" },
           { id: "eventbrite", label: "Eventbrite" },
+          ...(isSuperadmin ? [{ id: "labeling" as const, label: "Event Labeling" }] : []),
         ]}
       />
       <FilterBar>
@@ -2235,13 +2305,19 @@ function EventsPanel({
           ]} />
         </FilterField>
       </FilterBar>
-      <SourceFreshnessNote
-        source={active === "zoom" ? zoomSource : eventbriteSource}
-        detail={active === "zoom"
-          ? "Zoom analytics currently reflect the curated included-event snapshot through the last successful legacy refresh, plus the approved May 30 event. June events still need a recovered Zoom export/backfill before they can appear here."
-          : "Eventbrite analytics reflect the latest successful token-backed pull. Counts are filtered to the approved PsychedelX conferences and IPN student/professional mixers."
-        }
-      />
+      {active === "labeling" ? (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
+          <span className="font-semibold">Event labeling controls:</span> overrides are saved in Supabase and applied before event filters, counts, and detail tables are rendered. Upcoming Portal events use Member Portal RSVPs as registration counts.
+        </div>
+      ) : (
+        <SourceFreshnessNote
+          source={active === "zoom" ? zoomSource : eventbriteSource}
+          detail={active === "zoom"
+            ? "Zoom analytics combine curated Zoom attendance exports with upcoming Member Portal RSVP counts. June PsychedelX currently has registrants but no Zoom participant report rows; older IPN Labs events have attendance rows but no registrant export rows."
+            : "Eventbrite analytics reflect the latest successful token-backed pull. Counts are filtered to the approved PsychedelX conferences and IPN student/professional mixers."
+          }
+        />
+      )}
 
       {active === "zoom" ? (
         <div className="flex flex-col gap-6">
@@ -2312,15 +2388,19 @@ function EventsPanel({
             />
             <PaginationControls page={attendeesPage} totalPages={attendeeTotalPages} onPageChange={setAttendeesPage} />
           </Panel>
-          {isSuperadmin && (
-            <ZoomEventLabelControls
-              events={labeledZoomEvents}
-              overrides={overrides}
-              onSaved={handleOverrideSaved}
-            />
-          )}
           <Panel title="Zoom event detail" subtitle="Click an event to expand registrant trend, registrant timestamps, and available attendance detail.">
-            <ZoomEventDetailTable events={zoomEvents} />
+            <ZoomEventDetailTable events={zoomDetailEvents} />
+          </Panel>
+        </div>
+      ) : active === "labeling" && isSuperadmin ? (
+        <div className="flex flex-col gap-6">
+          <ZoomEventLabelControls
+            events={labelingEvents}
+            overrides={overrides}
+            onSaved={handleOverrideSaved}
+          />
+          <Panel title="Labeling preview" subtitle="Current event labels after overrides, including upcoming Portal events.">
+            <ZoomEventDetailTable events={zoomDetailEvents} />
           </Panel>
         </div>
       ) : (
@@ -2473,7 +2553,7 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, isSuperadmin, onSelectMember }: Props) {
+export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, portalEvents, isSuperadmin, onSelectMember }: Props) {
   const [activeSection, setActiveSection] = useState<AnalyticsSectionId>("members")
   const section = ANALYTICS_SECTIONS.find((item) => item.id === activeSection) ?? ANALYTICS_SECTIONS[0]
   const statusText = useMemo(() => `Snapshot generated ${formatDate(analyticsSnapshot.generatedAt)}`, [analyticsSnapshot.generatedAt])
@@ -2515,7 +2595,7 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
         {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} />}
         {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} />}
         {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} />}
-        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} eventLabelOverrides={eventLabelOverrides} isSuperadmin={isSuperadmin} />}
+        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
         {activeSection === "data-sources" && <DataSourcesPanel snapshot={analyticsSnapshot} />}
       </section>
     </div>
