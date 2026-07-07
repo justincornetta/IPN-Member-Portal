@@ -1615,6 +1615,10 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const avgBounce = trend.length ? trend.reduce((sum, row) => sum + row.bounceRate, 0) / trend.length : (overview.bounce_rate as number) * 100
   const avgDuration = trend.length ? trend.reduce((sum, row) => sum + row.avgDuration, 0) / trend.length : (overview.avg_session_duration as number)
   const geoRows = geoView === "countries" ? website.countries : website.cities
+  const hasWebsiteData = Boolean(website.trend.length || website.devices.length || website.channels.length)
+  const websiteFreshnessDetail = hasWebsiteData
+    ? "Server-only snapshot generated from the latest successful GA4 pull. Update the GA4 env var in Netlify before the scheduled refresh runs in production."
+    : "The committed GA4 snapshot contains zero sessions and no trend/device/channel/page rows. This is a source refresh issue, not a Portal chart issue; the Website tab will populate after the GA4 refresh succeeds and the server snapshot is rebuilt."
 
   return (
     <div className="flex flex-col gap-6">
@@ -1641,12 +1645,12 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={websiteSource}
-        detail="The local Portal snapshot still uses the last successful GA4 pull from the legacy dashboard. More recent website traffic will appear after the failed daily refresh is recovered and this server snapshot is regenerated."
+        detail={websiteFreshnessDetail}
       />
-      {!website.trend.length && !website.devices.length && !website.channels.length && (
+      {!hasWebsiteData && (
         <EmptyState
           title="Website analytics are empty in the current snapshot"
-          description="The committed GA4 snapshot contains zero sessions and no trend/device/channel/page rows. This is a source refresh issue, not a Portal chart issue; the Website tab will populate after the GA4 refresh succeeds and the server snapshot is rebuilt."
+          description={websiteFreshnessDetail}
         />
       )}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
