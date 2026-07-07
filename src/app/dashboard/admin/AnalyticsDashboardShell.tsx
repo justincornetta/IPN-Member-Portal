@@ -2120,7 +2120,11 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
   const registrationTrend = aggregateByGranularity(event.registrations.map((registration) => ({
     date: registration.registeredAt,
     values: { registrations: 1 },
-  })), "daily")
+  })), "daily").reduce<(ReturnType<typeof aggregateByGranularity<{ registrations: number }>>[number] & { cumulativeRegistrations: number })[]>((rows, row) => {
+    const previous = rows.at(-1)?.cumulativeRegistrations ?? 0
+    rows.push({ ...row, cumulativeRegistrations: previous + row.registrations })
+    return rows
+  }, [])
 
   return (
     <div className="flex flex-col gap-4">
@@ -2128,13 +2132,15 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
         <div className="rounded-lg border border-zinc-200 bg-white p-4">
           <p className="text-sm font-semibold text-zinc-800">Registrations over time</p>
           <ResponsiveChart height={220}>
-            <BarChart data={registrationTrend}>
+            <ComposedChart data={registrationTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip formatter={tooltipFormatter} />
-              <Bar dataKey="registrations" fill="#2563eb" radius={[6, 6, 0, 0]} />
-            </BarChart>
+              <Legend />
+              <Bar dataKey="registrations" name="Daily registrations" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              <Line type="monotone" dataKey="cumulativeRegistrations" name="Cumulative registrations" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
           </ResponsiveChart>
         </div>
       )}
