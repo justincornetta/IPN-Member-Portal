@@ -4,8 +4,14 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
+import { buildMemberDirectoryData } from "@/lib/admin/analytics/member-directory"
 import AdminClient from "./AdminClient"
 import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
+import type {
+  LegacyMemberSotImportRow,
+  LegacyMemberSotRow,
+  PortalDirectoryProfileRow,
+} from "@/lib/admin/analytics/member-directory"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
 import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers, listAnalyticsEventLabelOverrides } from "@/lib/admin/actions"
 import type { TeamPermissionsMap, FeedbackSubmission } from "@/lib/admin/actions"
@@ -16,12 +22,25 @@ type PortalProfileRow = {
   last_name: string | null
   email: string | null
   persona: string | null
+  affiliation: string | null
   field: string | null
   interest_tags: string[] | null
   school: string | null
   country: string | null
+  state: string | null
+  city: string | null
+  city_lat: number | null
+  city_lng: number | null
   is_discoverable: boolean | null
   whatsapp_url: string | null
+  linkedin_url: string | null
+  bio: string | null
+  psychedelic_field_status: string | null
+  psychedelic_field_barriers: string[] | null
+  role_and_goals: string | null
+  inspiration: string | null
+  referral_source: string | null
+  mailchimp_status: string | null
   created_at: string | null
 }
 
@@ -56,10 +75,15 @@ type EventLookupRow = {
   registration_count: number | null
 }
 
+const PORTAL_EVENT_REGISTRATION_SOURCE_START = new Date("2026-07-01T00:00:00.000Z")
+
 type OnboardingProgressRow = {
   user_id: string
   whatsapp_completed_at: string | null
 }
+
+const LEGACY_MEMBER_SOT_SELECT =
+  "id, import_id, legacy_person_id, normalized_email, original_email, first_name, last_name, full_name, affiliation, country, state, city, self_description, primary_field, psychedelic_field_status, psychedelic_field_barriers, current_role_and_goals, ipn_inspiration, referral_source, channels_present, channel_count, in_form, in_mailchimp, in_eventbrite, in_zoom, in_oldapp, in_drive_historical, first_seen_at, last_seen_at, mailchimp_id, mailchimp_audiences, mailchimp_status, eventbrite_event_count, eventbrite_last_event_date, zoom_registrations, zoom_attended, zoom_last_event_date, zoom_total_minutes, zoom_attendance_status, oldapp_user_id, date_of_birth, gender, race, oldapp_signup_location, engagement_status, notes, raw_legacy, imported_at"
 
 function dayKey(value: string | null | undefined) {
   const date = value ? new Date(value) : null
@@ -446,7 +470,11 @@ function buildPortalAnalyticsEvents({
   }
 
   return eventRows
-    .filter((event) => event.starts_at && new Date(event.starts_at) >= new Date())
+    .filter((event) => {
+      if (!event.starts_at) return false
+      const startsAt = new Date(event.starts_at)
+      return !Number.isNaN(startsAt.getTime()) && startsAt >= PORTAL_EVENT_REGISTRATION_SOURCE_START
+    })
     .sort((a, b) => new Date(a.starts_at ?? 0).getTime() - new Date(b.starts_at ?? 0).getTime())
     .map((event) => {
       const registrations = (registrationsByEvent.get(event.id) ?? [])
@@ -463,6 +491,24 @@ function buildPortalAnalyticsEvents({
         registrations,
       }
     })
+}
+
+async function fetchLegacyMemberSotRows(admin: ReturnType<typeof createAdminClient>) {
+  const pageSize = 1000
+  const rows: LegacyMemberSotRow[] = []
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await admin
+      .from("legacy_member_sot_rows")
+      .select(LEGACY_MEMBER_SOT_SELECT)
+      .order("last_seen_at", { ascending: false, nullsFirst: false })
+      .range(offset, offset + pageSize - 1)
+
+    if (error) return { rows, error }
+    const pageRows = (data ?? []) as LegacyMemberSotRow[]
+    rows.push(...pageRows)
+    if (pageRows.length < pageSize) return { rows, error: null }
+  }
 }
 
 export default async function AdminPage() {
@@ -494,7 +540,7 @@ export default async function AdminPage() {
   // Member insights (all admin tiers — recent signups only for superadmin)
   const { data: profileRows } = await admin
     .from("profiles")
-    .select("id, first_name, last_name, email, persona, field, interest_tags, school, country, is_discoverable, whatsapp_url, created_at")
+    .select("id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at")
 
   const allProfiles = (profileRows ?? []) as PortalProfileRow[]
   const total = allProfiles.length
@@ -551,6 +597,20 @@ export default async function AdminPage() {
   const bannedMembers = isSuperadmin ? await listBannedMembers() : []
   const analyticsSnapshot = await getLegacyAnalyticsSnapshot()
   const eventLabelOverrides = await listAnalyticsEventLabelOverrides()
+  const [legacyRowsResult, legacyImportResult] = await Promise.all([
+    fetchLegacyMemberSotRows(admin),
+    admin
+      .from("legacy_member_sot_imports")
+      .select("created_at, source_pulled_at, imported_row_count, metadata")
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ])
+  const latestLegacyImport = ((legacyImportResult.data ?? [])[0] ?? null) as LegacyMemberSotImportRow | null
+  const memberDirectory = buildMemberDirectoryData({
+    profiles: allProfiles as PortalDirectoryProfileRow[],
+    legacyRows: legacyRowsResult.rows,
+    latestImport: latestLegacyImport,
+  })
   const ninetyDaysAgo = retentionCutoffIso(90)
   const [
     analyticsEventsResult,
@@ -610,6 +670,7 @@ export default async function AdminPage() {
     topCountries: Object.entries(countryCount).sort((a, b) => b[1] - a[1]).slice(0, 10),
     profiles: allProfiles,
     recent,
+    memberDirectory,
   }
 
   return (

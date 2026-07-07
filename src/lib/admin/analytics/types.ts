@@ -203,11 +203,29 @@ export type LegacyAnalyticsSnapshot = {
         inclusionNote?: string
         attendees: number
         registrants: number | null
+        registrationSource?: string | null
         avgDuration: number
         retentionPct: number
         repeatPct: number
         participantEmails: string[]
-        participants: { name: string; email: string; durationMin: number; eventsAttended: number }[]
+        participants: {
+          name: string
+          email: string
+          durationMin: number
+          eventsAttended: number
+          daysAttended?: number | null
+          roles?: string[]
+          countries?: string[]
+        }[]
+        registrations: { name: string; email: string; registeredAt: string | null }[]
+      }[]
+      upcomingEvents: {
+        id: string
+        topic: string
+        date: string | null
+        program: string
+        type: string
+        registrants: number | null
         registrations: { name: string; email: string; registeredAt: string | null }[]
       }[]
     }

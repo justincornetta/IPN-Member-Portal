@@ -953,7 +953,6 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
           eventLabelOverrides={eventLabelOverrides}
           portalEvents={portalEvents}
           isSuperadmin={isSuperadmin}
-          onSelectMember={setSelectedMember}
         />
       )}
 

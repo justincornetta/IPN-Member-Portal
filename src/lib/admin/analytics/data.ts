@@ -163,7 +163,7 @@ function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
       return {
         ...source,
         status: "watch",
-        note: "Legacy refresh is stale after May 31, 2026; curated events include the approved May 30 backfill. Future source should be Portal RSVPs plus Zoom attendance.",
+        note: "Legacy refresh is stale after May 31, 2026; curated events include historical Zoom attendance and one-time Zoom registrant backfill before July 1, 2026. Current and future registrants should come from Portal RSVPs.",
       }
     }
     if (source.id === "eventbrite") {

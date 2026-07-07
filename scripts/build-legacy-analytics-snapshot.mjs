@@ -7,6 +7,7 @@ const outputPath = resolve(projectDir, "src/lib/admin/analytics/legacy-snapshot.
 const defaultLegacyDir = resolve(projectDir, "..", "ipn-dashboard")
 const legacyDir = resolve(process.argv[2] || process.env.LEGACY_DASHBOARD_DIR || defaultLegacyDir)
 const dataDir = resolve(legacyDir, "data")
+const zoomRegistrantBackfillCutoff = new Date("2026-07-01T00:00:00.000Z")
 
 function readJson(path, fallback = {}) {
   try {
@@ -35,8 +36,18 @@ function round(value, digits = 1) {
   return Math.round(number(value) * factor) / factor
 }
 
+function isExcludedLegacyUrl(value) {
+  return String(value || "").toLowerCase().includes("discord")
+}
+
 function lastPull(payload) {
   return payload?.pulled_at || payload?.last_pull || payload?.lastPull || payload?.timestamp || payload?.updated_at || null
+}
+
+function isBeforeCutoff(value, cutoff) {
+  if (!value) return false
+  const date = new Date(value)
+  return !Number.isNaN(date.getTime()) && date < cutoff
 }
 
 function monthFromCompact(value) {
@@ -137,12 +148,14 @@ function buildMarketing(base, account, listsPayload, campaignsPayload, growthPay
         clicks,
         clickRate: round(percent(campaign.click_rate)),
         unsubscribes: number(campaign.unsubscribed),
-        clickDetail: Array.isArray(campaign.click_detail) ? campaign.click_detail.map((click) => ({
-          url: click.url || "",
-          clicks: number(click.clicks),
-          uniqueClicks: click.unique == null ? null : number(click.unique),
-          percentOfClicks: click.pct == null ? null : number(click.pct),
-        })) : [],
+        clickDetail: Array.isArray(campaign.click_detail) ? campaign.click_detail
+          .filter((click) => !isExcludedLegacyUrl(click.url))
+          .map((click) => ({
+            url: click.url || "",
+            clicks: number(click.clicks),
+            uniqueClicks: click.unique == null ? null : number(click.unique),
+            percentOfClicks: click.pct == null ? null : number(click.pct),
+          })) : [],
       }
     })
 
@@ -305,10 +318,12 @@ function buildWebsite(website) {
       bounceRate: percent(row.bounce_rate),
       avgDuration: number(row.avg_duration),
     })),
-    outboundClicks: (Array.isArray(website.funnels?.outbound_clicks) ? website.funnels.outbound_clicks : Array.isArray(website.clicks) ? website.clicks : []).map((row) => ({
-      url: row.url || "",
-      clicks: number(row.clicks),
-    })),
+    outboundClicks: (Array.isArray(website.funnels?.outbound_clicks) ? website.funnels.outbound_clicks : Array.isArray(website.clicks) ? website.clicks : [])
+      .filter((row) => !isExcludedLegacyUrl(row.url))
+      .map((row) => ({
+        url: row.url || "",
+        clicks: number(row.clicks),
+      })),
     blog: (Array.isArray(website.blog) ? website.blog : []).map((row) => ({
       path: row.path || row.page_path || "",
       title: row.title || row.page_title || row.path || "",
@@ -321,8 +336,110 @@ function buildWebsite(website) {
   }
 }
 
-function buildZoom(zoomStats, zoomEventsPayload) {
+function buildZoom(zoomStats, zoomEventsPayload, zoomRegistrationBackfillPayload, zoomAttendeeBackfillPayload) {
   const events = Array.isArray(zoomEventsPayload.events) ? zoomEventsPayload.events : []
+  const backfillEvents = Array.isArray(zoomRegistrationBackfillPayload.events) ? zoomRegistrationBackfillPayload.events : []
+  const attendeeBackfillEvents = Array.isArray(zoomAttendeeBackfillPayload.events) ? zoomAttendeeBackfillPayload.events : []
+  const backfillByEventId = new Map(backfillEvents.filter((event) => event.eventId).map((event) => [String(event.eventId), event]))
+  const backfillByMeetingId = new Map(backfillEvents.filter((event) => event.meetingId).map((event) => [String(event.meetingId), event]))
+  const attendeeBackfillByEventId = new Map(attendeeBackfillEvents.filter((event) => event.eventId).map((event) => [String(event.eventId), event]))
+  const attendeeBackfillByMeetingId = new Map(attendeeBackfillEvents.filter((event) => event.meetingId).map((event) => [String(event.meetingId), event]))
+  const mappedEvents = events.map((event) => {
+    const includeZoomRegistrantBackfill = isBeforeCutoff(event.start_time, zoomRegistrantBackfillCutoff)
+    const registrationBackfill = backfillByEventId.get(String(event.event_id || "")) || backfillByMeetingId.get(String(event.meeting_id || ""))
+    const attendeeBackfill = attendeeBackfillByEventId.get(String(event.event_id || "")) || attendeeBackfillByMeetingId.get(String(event.meeting_id || ""))
+    const hasApiRegistrants = Array.isArray(event.registrants_detail) && event.registrants_detail.length > 0
+    const rawRegistrants = hasApiRegistrants
+      ? event.registrants_detail
+      : Array.isArray(registrationBackfill?.registrations)
+        ? registrationBackfill.registrations
+        : []
+    const manualRegistrantCount = registrationBackfill?.registrants == null ? null : number(registrationBackfill.registrants, null)
+    const rawParticipants = Array.isArray(attendeeBackfill?.participants) && attendeeBackfill.participants.length
+      ? attendeeBackfill.participants.map((participant) => ({
+          name: participant.name || participant.email || "Unknown",
+          email: participant.email || "",
+          durationMin: number(participant.durationMin),
+          durationSec: number(participant.durationSec),
+          daysAttended: number(participant.daysAttended, null),
+          roles: Array.isArray(participant.roles) ? participant.roles : [],
+          countries: Array.isArray(participant.countries) ? participant.countries : [],
+        }))
+      : (Array.isArray(event.participants_detail) ? event.participants_detail : []).map((participant) => ({
+          name: participant.name || participant.email || "Unknown",
+          email: participant.email || "",
+          durationMin: round(number(participant.duration_sec) / 60),
+          durationSec: number(participant.duration_sec),
+          daysAttended: null,
+          roles: [],
+          countries: [],
+        }))
+
+    return {
+      id: String(event.event_id || event.meeting_id || event.topic),
+      topic: event.topic || "",
+      date: event.start_time || null,
+      program: event.program || "Other",
+      type: event.type || "public",
+      attendees: attendeeBackfill?.uniqueAttendees != null
+        ? number(attendeeBackfill.uniqueAttendees)
+        : number(event.unique_participants ?? event.total_participants),
+      registrants: includeZoomRegistrantBackfill
+        ? event.registrants != null
+          ? number(event.registrants)
+          : (manualRegistrantCount ?? rawRegistrants.length) || null
+        : null,
+      registrationSource: includeZoomRegistrantBackfill && rawRegistrants.length
+        ? hasApiRegistrants
+          ? "zoom_api_registrants"
+          : registrationBackfill?.source || "zoom_registration_backfill"
+        : includeZoomRegistrantBackfill && manualRegistrantCount != null
+          ? registrationBackfill?.source || "manual_zoom_registration_count"
+          : null,
+      avgDuration: attendeeBackfill?.avgDurationMin != null
+        ? number(attendeeBackfill.avgDurationMin)
+        : number(event.retention?.avg_duration_min ?? event.duration_min),
+      retentionPct: attendeeBackfill?.retentionPct != null
+        ? number(attendeeBackfill.retentionPct)
+        : number(event.retention?.avg_retention_pct),
+      repeatPct: number(event.repeat_attendee_pct),
+      participantEmails: Array.isArray(attendeeBackfill?.participants)
+        ? attendeeBackfill.participants.map((participant) => participant.email).filter(Boolean)
+        : Array.isArray(event.participant_emails) ? event.participant_emails : [],
+      participants: rawParticipants.map((participant) => ({
+        name: participant.name || participant.email || "Unknown",
+        email: participant.email || "",
+        durationMin: participant.durationMin || round(number(participant.durationSec) / 60),
+        eventsAttended: 0,
+        daysAttended: participant.daysAttended,
+        roles: participant.roles,
+        countries: participant.countries,
+      })),
+      registrations: includeZoomRegistrantBackfill
+        ? rawRegistrants.map((registrant) => ({
+            name: registrant.name || registrant.email || "Unknown",
+            email: registrant.email || "",
+            registeredAt: registrant.registeredAt || registrant.registered_at || registrant.created_at || null,
+          }))
+        : [],
+    }
+  })
+
+  const priorEventsByEmail = new Map()
+  for (const event of [...mappedEvents].sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime())) {
+    const seenThisEvent = new Set()
+    for (const participant of event.participants) {
+      const email = String(participant.email || "").toLowerCase()
+      if (!email) continue
+      participant.eventsAttended = priorEventsByEmail.get(email) || 0
+      seenThisEvent.add(email)
+    }
+    event.repeatPct = event.participants.length
+      ? event.participants.filter((participant) => participant.eventsAttended > 0).length / event.participants.length * 100
+      : event.repeatPct
+    for (const email of seenThisEvent) priorEventsByEmail.set(email, (priorEventsByEmail.get(email) || 0) + 1)
+  }
+
   return {
     stats: {
       totalEvents: number(zoomStats.total_events, events.length),
@@ -349,24 +466,14 @@ function buildZoom(zoomStats, zoomEventsPayload) {
       totalDurationMin: number(attendee.total_duration_min),
       lastEventDate: attendee.last_event_date || null,
     })),
-    events: events.map((event) => ({
-      id: String(event.event_id || event.meeting_id || event.topic),
+    events: mappedEvents,
+    upcomingEvents: (Array.isArray(zoomStats.upcoming_events) ? zoomStats.upcoming_events : []).map((event) => ({
+      id: String(event.meeting_id || event.event_id || event.topic),
       topic: event.topic || "",
       date: event.start_time || null,
       program: event.program || "Other",
       type: event.type || "public",
-      attendees: number(event.unique_participants ?? event.total_participants),
       registrants: event.registrants == null ? null : number(event.registrants),
-      avgDuration: number(event.retention?.avg_duration_min ?? event.duration_min),
-      retentionPct: number(event.retention?.avg_retention_pct),
-      repeatPct: number(event.repeat_attendee_pct),
-      participantEmails: Array.isArray(event.participant_emails) ? event.participant_emails : [],
-      participants: (Array.isArray(event.participants_detail) ? event.participants_detail : []).map((participant) => ({
-        name: participant.name || participant.email || "Unknown",
-        email: participant.email || "",
-        durationMin: round(number(participant.duration_sec) / 60),
-        eventsAttended: 0,
-      })),
       registrations: (Array.isArray(event.registrants_detail) ? event.registrants_detail : []).map((registrant) => ({
         name: registrant.name || registrant.email || "Unknown",
         email: registrant.email || "",
@@ -426,6 +533,8 @@ const instagramMedia = readData("instagram_media.json")
 const websiteStats = readData("website_stats.json")
 const zoomStats = readData("zoom_stats.json")
 const zoomEvents = readData("zoom_events.json")
+const zoomRegistrationBackfill = readData("zoom_registration_backfill.json", { events: [] })
+const zoomAttendeeBackfill = readData("zoom_attendee_backfill.json", { events: [] })
 const eventbriteEvents = readData("eventbrite_events.json")
 const donationsLastPull = readData("donations_last_pull.json")
 
@@ -449,7 +558,7 @@ const snapshot = {
   social: buildSocial(base, socialStats, instagramMedia),
   website: buildWebsite(websiteStats),
   events: {
-    zoom: buildZoom(zoomStats, zoomEvents),
+    zoom: buildZoom(zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill),
     eventbrite: buildEventbrite(eventbriteEvents),
   },
 }

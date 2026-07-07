@@ -5,6 +5,15 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { permanentlyDeleteMailchimpContact } from "@/lib/mailchimp/actions"
 import type { EventSpeakerResources } from "@/lib/events/types"
+import {
+  mergeMemberDirectoryDetail,
+  normalizeMemberEmail,
+} from "@/lib/admin/analytics/member-directory"
+import type {
+  LegacyMemberSotRow,
+  PortalDirectoryProfileRow,
+} from "@/lib/admin/analytics/member-directory"
+import type { MemberDirectoryDetail } from "@/lib/admin/analytics/member-directory-types"
 
 export type AdminContentType =
   | "upcoming_event"
@@ -848,6 +857,41 @@ export async function saveAnalyticsEventLabelOverride(payload: {
   if (error) return { error: error.message }
   revalidatePath("/dashboard/admin")
   return { override: data as AnalyticsEventLabelOverride }
+}
+
+export async function getMemberDirectoryDetail(payload: {
+  normalizedEmail: string
+  portalId?: string | null
+}): Promise<MemberDirectoryDetail | null> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return null
+
+  const normalizedEmail = normalizeMemberEmail(payload.normalizedEmail)
+  if (!normalizedEmail && !payload.portalId) return null
+
+  const admin = createAdminClient()
+  const [profileResult, legacyResult] = await Promise.all([
+    payload.portalId
+      ? admin
+        .from("profiles")
+        .select("id, first_name, last_name, email, persona, affiliation, school, field, interest_tags, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at")
+        .eq("id", payload.portalId)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    normalizedEmail
+      ? admin
+        .from("legacy_member_sot_rows")
+        .select("id, import_id, legacy_person_id, normalized_email, original_email, first_name, last_name, full_name, affiliation, country, state, city, self_description, primary_field, psychedelic_field_status, psychedelic_field_barriers, current_role_and_goals, ipn_inspiration, referral_source, channels_present, channel_count, in_form, in_mailchimp, in_eventbrite, in_zoom, in_oldapp, in_drive_historical, first_seen_at, last_seen_at, mailchimp_id, mailchimp_audiences, mailchimp_status, eventbrite_event_count, eventbrite_last_event_date, zoom_registrations, zoom_attended, zoom_last_event_date, zoom_total_minutes, zoom_attendance_status, oldapp_user_id, date_of_birth, gender, race, oldapp_signup_location, engagement_status, notes, raw_legacy, imported_at")
+        .eq("normalized_email", normalizedEmail)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ])
+
+  if (profileResult.error || legacyResult.error) return null
+  return mergeMemberDirectoryDetail(
+    (profileResult.data ?? null) as PortalDirectoryProfileRow | null,
+    (legacyResult.data ?? null) as LegacyMemberSotRow | null,
+  )
 }
 
 export async function uploadContentImage(
