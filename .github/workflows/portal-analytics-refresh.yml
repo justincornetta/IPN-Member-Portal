@@ -178,6 +178,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SOURCE_STATUS: ${{ steps.sources.outputs.status }}
           SOURCE_SUMMARY: ${{ steps.sources.outputs.summary }}
+          SOURCE_DETAILS: ${{ steps.sources.outputs.sources }}
           DETAIL_SUMMARY: ${{ steps.source_details.outputs.summary }}
           REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
           REFRESH_STATUS: ${{ steps.refresh.outputs.status }}
@@ -215,8 +216,12 @@ jobs:
           ' 2>/dev/null || echo "${RESPONSE_BODY:-No response body.}")
 
           SOURCES_TEXT=$(echo "${RESPONSE_BODY:-}" | jq -r '
-            if .result.sources then
-              [.result.sources[] | "• \(.label): \(.status)" + (if .note then " — " + (.note | tostring | gsub("\\n"; " ") | .[0:120]) else "" end)] | join("\n")
+            (env.SOURCE_DETAILS | fromjson? // []) as $externalSources |
+            (.result.sources // []) as $functionSources |
+            ($externalSources | map(.id)) as $externalIds |
+            ($externalSources + ($functionSources | map(select(.id as $id | ($externalIds | index($id) | not))))) as $sources |
+            if ($sources | length) > 0 then
+              [$sources[] | "• \(.label): \(.status)" + (if .note then " — " + (.note | tostring | gsub("\\n"; " ") | .[0:120]) else "" end)] | join("\n")
             else
               env.SOURCE_SUMMARY // "No source status available."
             end
