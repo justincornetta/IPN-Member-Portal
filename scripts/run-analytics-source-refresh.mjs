@@ -29,6 +29,7 @@ const sourceGroups = [
     id: "mailchimp",
     label: "Mailchimp",
     command: ["python3", "scripts/mailchimp_pull.py"],
+    timeoutSeconds: 300,
     requiredEnv: ["MAILCHIMP_API_KEY"],
     lastPullFiles: ["mailchimp_last_pull.json", "mailchimp_campaigns.json", "mailchimp_lists.json", "mailchimp_account.json"],
   },
@@ -36,6 +37,7 @@ const sourceGroups = [
     id: "meta",
     label: "Instagram / Facebook",
     command: ["python3", "scripts/instagram_pull.py"],
+    timeoutSeconds: 90,
     requiredEnv: ["INSTAGRAM_ACCESS_TOKEN"],
     lastPullFiles: ["instagram_last_pull.json", "facebook_last_pull.json", "social_stats.json"],
     expandsTo: [
@@ -47,6 +49,7 @@ const sourceGroups = [
     id: "website",
     label: "GA4",
     command: ["python3", "scripts/google_analytics_pull.py"],
+    timeoutSeconds: 90,
     requiredEnv: ["GA4_PROPERTY_ID", "GOOGLE_SERVICE_ACCOUNT_KEY_PATH"],
     lastPullFiles: ["website_last_pull.json", "website_stats.json"],
   },
@@ -54,6 +57,7 @@ const sourceGroups = [
     id: "zoom",
     label: "Zoom",
     command: ["python3", "scripts/zoom_pull.py"],
+    timeoutSeconds: 180,
     requiredEnv: ["ZOOM_ACCOUNT_ID", "ZOOM_CLIENT_ID", "ZOOM_CLIENT_SECRET"],
     lastPullFiles: ["zoom_last_pull.json", "zoom_stats.json", "zoom_events.json"],
   },
@@ -61,6 +65,7 @@ const sourceGroups = [
     id: "eventbrite",
     label: "Eventbrite",
     command: ["python3", "scripts/eventbrite_pull.py"],
+    timeoutSeconds: 240,
     requiredEnv: ["EVENTBRITE_API_TOKEN"],
     lastPullFiles: ["eventbrite_last_pull.json", "eventbrite_events.json"],
   },
@@ -68,6 +73,7 @@ const sourceGroups = [
     id: "donations",
     label: "Donations",
     command: ["python3", "scripts/squarespace_pull.py"],
+    timeoutSeconds: 90,
     requiredEnv: ["SQUARESPACE_API_KEY"],
     lastPullFiles: ["donations_last_pull.json", "donations_stats.json"],
   },
@@ -94,15 +100,26 @@ function missingEnv(requiredEnv) {
   return requiredEnv.filter((name) => !process.env[name] || !String(process.env[name]).trim())
 }
 
-function runCommand(command) {
+function runCommand(command, timeoutSeconds = 120) {
   return new Promise((resolveCommand) => {
     const startedAt = Date.now()
+    let settled = false
     const child = spawn(command[0], command.slice(1), {
       cwd: projectDir,
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     })
     let output = ""
+    const timeout = setTimeout(() => {
+      if (settled) return
+      output += `\nTimed out after ${timeoutSeconds}s.`
+      child.kill("SIGTERM")
+      setTimeout(() => {
+        if (!settled) child.kill("SIGKILL")
+      }, 5000).unref()
+    }, timeoutSeconds * 1000)
+    timeout.unref()
+
     child.stdout.on("data", (chunk) => {
       process.stdout.write(chunk)
       output += chunk.toString()
@@ -112,8 +129,10 @@ function runCommand(command) {
       output += chunk.toString()
     })
     child.on("close", (code) => {
+      settled = true
+      clearTimeout(timeout)
       resolveCommand({
-        code,
+        code: output.includes(`Timed out after ${timeoutSeconds}s.`) ? 124 : code,
         durationSeconds: Math.round((Date.now() - startedAt) / 1000),
         output: output.trim().slice(-1200),
       })
@@ -150,14 +169,17 @@ async function runGroup(group) {
   }
 
   if (group.preflightCommand && process.env.META_APP_ID && process.env.META_APP_SECRET) {
-    const preflight = await runCommand(group.preflightCommand)
+    const preflight = await runCommand(group.preflightCommand, group.timeoutSeconds)
     if (preflight.code !== 0) {
       return expandedStatuses(group, "error", `Preflight failed: ${preflight.output || `exit ${preflight.code}`}`)
     }
   }
 
-  const result = await runCommand(group.command)
+  const result = await runCommand(group.command, group.timeoutSeconds)
   if (result.code !== 0) {
+    if (result.code === 124) {
+      return expandedStatuses(group, "error", `${group.label} timed out after ${group.timeoutSeconds}s`)
+    }
     return expandedStatuses(group, "error", result.output || `Exited with status ${result.code}`)
   }
 
