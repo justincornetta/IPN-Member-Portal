@@ -563,6 +563,7 @@ function buildLiveConnectionStatuses(
   analyticsRefresh: PortalAnalyticsRefreshRun | null,
 ): LiveConnectionStatus[] {
   const byId = new Map(snapshot.dataSources.map((source) => [source.id, source]))
+  const refreshById = new Map((analyticsRefresh?.sources ?? []).map((source) => [source.id, source]))
   const externalSources: { id: string; label: string }[] = [
     { id: "instagram", label: "Instagram" },
     { id: "facebook", label: "Facebook" },
@@ -573,16 +574,16 @@ function buildLiveConnectionStatuses(
     { id: "donations", label: "Donations" },
   ]
   const connections = externalSources.map(({ id, label }) => {
-    const source = byId.get(id)
+    const refreshSource = refreshById.get(id)
+    const snapshotSource = byId.get(id)
+    const refreshedAt = refreshSource?.lastRefreshedAt ?? snapshotSource?.lastPull ?? null
     return {
-      label,
-      refreshedAt: source?.lastPull ?? null,
-      healthy: sourceIsHealthy(source?.status, source?.lastPull),
+      label: refreshSource?.label ?? label,
+      refreshedAt,
+      healthy: refreshSource ? refreshSource.status === "success" : sourceIsHealthy(snapshotSource?.status, refreshedAt),
     }
   })
 
-  const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
-  const portalHealthy = analyticsRefresh?.status === "success"
   const portalSourceLabels: Record<string, string> = {
     member_profiles: "Supabase (Membership)",
     member_source_of_truth: "Supabase (Member SoT)",
@@ -592,11 +593,11 @@ function buildLiveConnectionStatuses(
 
   if (analyticsRefresh) {
     for (const [id, label] of Object.entries(portalSourceLabels)) {
-      const source = analyticsRefresh.sources.find((item) => item.id === id)
+      const source = refreshById.get(id)
       connections.push({
         label,
-        refreshedAt: portalRefreshedAt,
-        healthy: portalHealthy && source?.status === "success",
+        refreshedAt: source?.lastRefreshedAt ?? analyticsRefresh.finishedAt ?? analyticsRefresh.startedAt,
+        healthy: source?.status === "success",
       })
     }
   } else {

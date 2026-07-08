@@ -23,17 +23,23 @@ function isSecretAuthorized(request: Request) {
   return secrets.some((secret) => headerSecret === secret || bearer === secret)
 }
 
-async function getTrigger(request: Request) {
-  const headerTrigger = request.headers.get("x-portal-analytics-trigger")
-  if (headerTrigger) return headerTrigger
-
+async function getPayload(request: Request) {
   try {
-    const payload = (await request.clone().json()) as { trigger?: unknown }
-    if (typeof payload.trigger === "string" && payload.trigger.trim()) return payload.trigger.trim()
+    return await request.clone().json() as {
+      trigger?: unknown
+      externalSources?: unknown
+    }
   } catch {
     // The request body is optional for manual invocations.
   }
 
+  return {}
+}
+
+async function getTrigger(request: Request, payload: { trigger?: unknown }) {
+  const headerTrigger = request.headers.get("x-portal-analytics-trigger")
+  if (headerTrigger) return headerTrigger
+  if (typeof payload.trigger === "string" && payload.trigger.trim()) return payload.trigger.trim()
   return "manual"
 }
 
@@ -46,7 +52,11 @@ export default async function handler(request: Request) {
   }
 
   try {
-    const result = await runPortalAnalyticsMaintenance({ trigger: await getTrigger(request) })
+    const payload = await getPayload(request)
+    const result = await runPortalAnalyticsMaintenance({
+      trigger: await getTrigger(request, payload),
+      externalSources: Array.isArray(payload.externalSources) ? payload.externalSources : [],
+    })
 
     return new Response(JSON.stringify({ ok: true, result }), {
       headers: { "content-type": "application/json" },

@@ -6,15 +6,106 @@ on:
     - cron: "30 10 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          npm ci
+          python -m pip install --upgrade pip
+          python -m pip install -r scripts/analytics-requirements.txt
+
+      - name: Prepare Google service account
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -n "${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ]; then
+            KEY_PATH="$RUNNER_TEMP/google-service-account.json"
+            printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > "$KEY_PATH"
+            echo "GOOGLE_SERVICE_ACCOUNT_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          fi
+
+      - name: Pull external analytics sources
+        id: sources
+        env:
+          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
+          ZOOM_ACCOUNT_ID: ${{ secrets.ZOOM_ACCOUNT_ID }}
+          ZOOM_CLIENT_ID: ${{ secrets.ZOOM_CLIENT_ID }}
+          ZOOM_CLIENT_SECRET: ${{ secrets.ZOOM_CLIENT_SECRET }}
+          EVENTBRITE_API_TOKEN: ${{ secrets.EVENTBRITE_API_TOKEN }}
+          SQUARESPACE_API_KEY: ${{ secrets.SQUARESPACE_API_KEY }}
+        run: |
+          set -euo pipefail
+          npm run analytics:refresh-sources
+
+          SOURCE_STATUS=$(jq -r '.status' data/analytics-source-status.json)
+          SOURCE_SUMMARY=$(jq -r '[.sources[] | "\(.label): \(.status)"] | join("; ")' data/analytics-source-status.json)
+          HAS_SUCCESS=$(jq -r 'any(.sources[]; .status == "success")' data/analytics-source-status.json)
+          {
+            echo "status=$SOURCE_STATUS"
+            echo "has_success=$HAS_SUCCESS"
+            echo "summary=$SOURCE_SUMMARY"
+            echo "sources<<EOF_SOURCES"
+            jq -c '.sources' data/analytics-source-status.json
+            echo "EOF_SOURCES"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build portal analytics snapshot
+        if: steps.sources.outputs.has_success == 'true'
+        run: npm run analytics:build-snapshot -- .
+
+      - name: Commit refreshed analytics snapshot
+        id: commit_snapshot
+        if: steps.sources.outputs.has_success == 'true'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- src/lib/admin/analytics/legacy-snapshot.json; then
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            echo "No analytics snapshot changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/admin/analytics/legacy-snapshot.json
+          git commit -m "Refresh portal analytics snapshot"
+          git push
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
       - name: Trigger portal analytics maintenance
         id: refresh
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           REFRESH_SECRET: ${{ secrets.PORTAL_ANALYTICS_MAINTENANCE_SECRET || secrets.CONTENT_SYNC_SECRET }}
+          EXTERNAL_SOURCES: ${{ steps.sources.outputs.sources }}
         run: |
           set -euo pipefail
 
@@ -28,12 +119,17 @@ jobs:
             exit 1
           fi
 
+          REQUEST_BODY=$(jq -n \
+            --arg trigger "github_actions" \
+            --argjson externalSources "${EXTERNAL_SOURCES:-[]}" \
+            '{ trigger: $trigger, externalSources: $externalSources }')
+
           set +e
           RESPONSE=$(curl -sS -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/.netlify/functions/portal-analytics-maintenance" \
             -H "x-portal-analytics-maintenance-secret: ${REFRESH_SECRET}" \
             -H "x-portal-analytics-trigger: github_actions" \
             -H "Content-Type: application/json" \
-            -d '{"trigger":"github_actions"}')
+            -d "$REQUEST_BODY")
           CURL_EXIT=$?
           set -e
 
@@ -50,6 +146,7 @@ jobs:
             echo "body<<EOF_BODY"
             echo "$BODY"
             echo "EOF_BODY"
+            echo "status=$(echo "$BODY" | jq -r '.result.status // "failed"' 2>/dev/null || echo "failed")"
           } >> "$GITHUB_OUTPUT"
 
           echo "HTTP status: $HTTP_STATUS"
@@ -63,7 +160,10 @@ jobs:
         if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SOURCE_STATUS: ${{ steps.sources.outputs.status }}
+          SOURCE_SUMMARY: ${{ steps.sources.outputs.summary }}
           REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
+          REFRESH_STATUS: ${{ steps.refresh.outputs.status }}
           HTTP_STATUS: ${{ steps.refresh.outputs.http_status }}
           RESPONSE_BODY: ${{ steps.refresh.outputs.body }}
           WORKFLOW_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -76,12 +176,15 @@ jobs:
           fi
 
           FINISHED_AT=$(date -u +"%Y-%m-%d %H:%M UTC")
-          if [ "$REFRESH_OUTCOME" = "success" ]; then
-            TITLE="IPN Member Portal analytics refresh completed"
-            COLOR_TEXT="success"
-          else
+          if [ "$REFRESH_OUTCOME" != "success" ]; then
             TITLE="IPN Member Portal analytics refresh failed"
-            COLOR_TEXT="failed"
+            STATUS_TEXT="failed"
+          elif [ "${REFRESH_STATUS:-}" = "partial_failure" ] || [ "${SOURCE_STATUS:-}" = "partial_failure" ]; then
+            TITLE="IPN Member Portal analytics refresh completed with source failures"
+            STATUS_TEXT="partial_failure"
+          else
+            TITLE="IPN Member Portal analytics refresh completed"
+            STATUS_TEXT="success"
           fi
 
           SUMMARY=$(echo "${RESPONSE_BODY:-}" | jq -r '
@@ -94,12 +197,21 @@ jobs:
             end
           ' 2>/dev/null || echo "${RESPONSE_BODY:-No response body.}")
 
+          SOURCES_TEXT=$(echo "${RESPONSE_BODY:-}" | jq -r '
+            if .result.sources then
+              [.result.sources[] | "• \(.label): \(.status)" + (if .note then " — " + (.note | tostring | gsub("\\n"; " ") | .[0:120]) else "" end)] | join("\n")
+            else
+              env.SOURCE_SUMMARY // "No source status available."
+            end
+          ' 2>/dev/null || echo "${SOURCE_SUMMARY:-No source status available.}")
+
           PAYLOAD=$(jq -n \
             --arg title "$TITLE" \
-            --arg status "$COLOR_TEXT" \
+            --arg status "$STATUS_TEXT" \
             --arg finished_at "$FINISHED_AT" \
             --arg http_status "${HTTP_STATUS:-unknown}" \
             --arg summary "$SUMMARY" \
+            --arg sources "$SOURCES_TEXT" \
             --arg workflow_url "$WORKFLOW_URL" \
             '{
               blocks: [
@@ -113,6 +225,7 @@ jobs:
                     { type: "mrkdwn", text: ("*Summary:*\n" + $summary) }
                   ]
                 },
+                { type: "section", text: { type: "mrkdwn", text: ("*Sources:*\n" + $sources) } },
                 {
                   type: "actions",
                   elements: [
@@ -129,3 +242,18 @@ jobs:
           curl -sf -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-type: application/json' \
             -d "$PAYLOAD"
+
+      - name: Fail on source errors
+        if: always()
+        env:
+          SOURCE_STATUS: ${{ steps.sources.outputs.status }}
+          REFRESH_STATUS: ${{ steps.refresh.outputs.status }}
+          REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "${REFRESH_OUTCOME:-failure}" != "success" ]; then
+            exit 1
+          fi
+          if [ "${SOURCE_STATUS:-}" = "partial_failure" ] || [ "${REFRESH_STATUS:-}" = "partial_failure" ] || [ "${REFRESH_STATUS:-}" = "failed" ]; then
+            exit 1
+          fi

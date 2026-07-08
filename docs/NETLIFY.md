@@ -62,10 +62,13 @@ Portal Analytics refreshes from the Member Portal repository only. The old IPN
 Operations dashboard is not part of the production refresh path.
 
 GitHub Actions runs `.github/workflows/portal-analytics-refresh.yml` at
-**10:30 UTC daily** and on manual dispatch. The workflow calls the production
-Netlify function at `/.netlify/functions/portal-analytics-maintenance`, which
-rolls raw `portal_analytics_events` into `portal_analytics_daily_rollups`,
-deletes raw events older than 90 days, records the refresh in
+**10:30 UTC daily** and on manual dispatch. The workflow pulls external source
+data directly from the Member Portal repo, rebuilds the privacy-safe analytics
+snapshot, commits `src/lib/admin/analytics/legacy-snapshot.json` when the
+snapshot changes, and then calls the production Netlify function at
+`/.netlify/functions/portal-analytics-maintenance`. The function rolls raw
+`portal_analytics_events` into `portal_analytics_daily_rollups`, deletes raw
+events older than 90 days, records the refresh and per-source statuses in
 `portal_analytics_refresh_runs`, and sends a Slack confirmation to the webhook
 stored in the repo secret `SLACK_WEBHOOK_URL`.
 
@@ -74,16 +77,32 @@ by the content-sync workflow. If a dedicated
 `PORTAL_ANALYTICS_MAINTENANCE_SECRET` exists in both GitHub and Netlify, the
 function accepts that too.
 
+The external source pullers require these GitHub repository secrets:
+
+| Source | Required GitHub secrets |
+|---|---|
+| Mailchimp | `MAILCHIMP_API_KEY` |
+| Instagram / Facebook | `INSTAGRAM_ACCESS_TOKEN`, plus `INSTAGRAM_BUSINESS_ACCOUNT_ID` and `FACEBOOK_PAGE_ID` when auto-discovery is not sufficient |
+| GA4 | `GA4_PROPERTY_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| Zoom | `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET` |
+| Eventbrite | `EVENTBRITE_API_TOKEN` |
+| Donations / Squarespace | `SQUARESPACE_API_KEY` |
+
+When a source credential is missing or an API pull fails, the workflow keeps the
+last good dashboard data for that source, records that source as failed, and
+includes the failure in the Slack message.
+
 To turn the daily refresh on in production:
 
 1. Apply the Supabase migration that creates `portal_analytics_refresh_runs`.
 2. Confirm GitHub has `SITE_URL`, `CONTENT_SYNC_SECRET`, and
    `SLACK_WEBHOOK_URL` secrets.
-3. Confirm Netlify has `CONTENT_SYNC_SECRET`, or set the same
+3. Add the external source secrets listed above to GitHub.
+4. Confirm Netlify has `CONTENT_SYNC_SECRET`, or set the same
    `PORTAL_ANALYTICS_MAINTENANCE_SECRET` value in GitHub and Netlify.
-4. Merge the workflow into the default branch. GitHub scheduled workflows only
+5. Merge the workflow into the default branch. GitHub scheduled workflows only
    run from the default branch.
-5. Manually run **Portal analytics refresh** once from GitHub Actions and
+6. Manually run **Portal analytics refresh** once from GitHub Actions and
    confirm the Admin Analytics page shows the new last refreshed timestamp.
 
 ## Supabase auth URLs

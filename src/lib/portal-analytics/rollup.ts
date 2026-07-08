@@ -31,6 +31,7 @@ type RollupAccumulator = {
 
 type MaintenanceOptions = {
   trigger?: string
+  externalSources?: PortalAnalyticsRefreshSource[]
 }
 
 type RefreshRunRow = {
@@ -77,6 +78,29 @@ function normalizeSources(value: unknown): PortalAnalyticsRefreshSource[] {
       && typeof (source as PortalAnalyticsRefreshSource).label === "string",
     )
   })
+}
+
+function normalizeInputSources(value: unknown): PortalAnalyticsRefreshSource[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((source) => {
+      const record = toRecord(source)
+      const id = typeof record.id === "string" ? record.id.trim() : ""
+      const label = typeof record.label === "string" ? record.label.trim() : ""
+      const status = record.status === "success" || record.status === "warning" || record.status === "error"
+        ? record.status
+        : "error"
+      if (!id || !label) return null
+      return {
+        id,
+        label,
+        status,
+        lastRefreshedAt: typeof record.lastRefreshedAt === "string" ? record.lastRefreshedAt : null,
+        records: typeof record.records === "number" ? record.records : null,
+        note: typeof record.note === "string" ? record.note : null,
+      } satisfies PortalAnalyticsRefreshSource
+    })
+    .filter((source): source is PortalAnalyticsRefreshSource => Boolean(source))
 }
 
 function mapRefreshRun(row: RefreshRunRow): PortalAnalyticsRefreshRun {
@@ -317,19 +341,24 @@ async function rollupPortalAnalyticsEvents(admin: AdminClient) {
 export async function runPortalAnalyticsMaintenance(options: MaintenanceOptions = {}) {
   const admin = createAdminClient()
   const trigger = options.trigger || "manual"
+  const externalSources = normalizeInputSources(options.externalSources)
   const runId = await startRefreshRun(admin, trigger)
 
   try {
     const rollupResult = await rollupPortalAnalyticsEvents(admin)
-    const sources = await getPortalAnalyticsSourceStatuses(admin)
+    const portalSources = await getPortalAnalyticsSourceStatuses(admin)
+    const sources = [...externalSources, ...portalSources]
     const finishedAt = new Date().toISOString()
+    const hasSourceErrors = sources.some((source) => source.status === "error")
     const summary = {
       ...rollupResult,
+      externalSourceCount: externalSources.length,
+      portalSourceCount: portalSources.length,
       sourceCount: sources.length,
     }
 
     await updateRefreshRun(admin, runId, {
-      status: "success",
+      status: hasSourceErrors ? "partial_failure" : "success",
       finished_at: finishedAt,
       sources,
       summary,
@@ -339,6 +368,7 @@ export async function runPortalAnalyticsMaintenance(options: MaintenanceOptions 
       refreshRunId: runId,
       finishedAt,
       sources,
+      status: hasSourceErrors ? "partial_failure" : "success",
       ...rollupResult,
     }
   } catch (error) {
