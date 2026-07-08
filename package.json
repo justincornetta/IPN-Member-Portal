@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "analytics:refresh-sources": "node scripts/run-analytics-source-refresh.mjs",
+    "analytics:upload-source-details": "node scripts/upload-analytics-source-details.mjs",
     "analytics:build-snapshot": "node scripts/build-legacy-analytics-snapshot.mjs",
     "analytics:import-legacy-sot": "node scripts/import-legacy-member-sot.mjs",
     "analytics:zoom-attendee-backfill": "node scripts/import-zoom-attendee-backfill.mjs",

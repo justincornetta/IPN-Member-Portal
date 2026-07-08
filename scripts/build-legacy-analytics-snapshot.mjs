@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -19,6 +19,10 @@ function readJson(path, fallback = {}) {
 
 function readData(filename, fallback = {}) {
   return readJson(resolve(dataDir, filename), fallback)
+}
+
+function hasData(filename) {
+  return existsSync(resolve(dataDir, filename))
 }
 
 function number(value, fallback = 0) {
@@ -537,31 +541,74 @@ const zoomRegistrationBackfill = readData("zoom_registration_backfill.json", { e
 const zoomAttendeeBackfill = readData("zoom_attendee_backfill.json", { events: [] })
 const eventbriteEvents = readData("eventbrite_events.json")
 const donationsLastPull = readData("donations_last_pull.json")
+const hasSot = hasData("sot_dashboard.json")
+const hasMailchimp = hasData("mailchimp_account.json") || hasData("mailchimp_lists.json") || hasData("mailchimp_campaigns.json")
+const hasSocial = hasData("social_stats.json") || hasData("instagram_media.json")
+const hasWebsite = hasData("website_stats.json")
+const hasZoom = hasData("zoom_stats.json") || hasData("zoom_events.json")
+const hasEventbrite = hasData("eventbrite_events.json")
+const hasDonations = hasData("donations_last_pull.json") || hasData("donations_stats.json")
 
-const snapshot = {
+function existingSource(id) {
+  return (base.dataSources || []).find((source) => source.id === id) || null
+}
+
+function refreshedSource(id, fallbackSource, factory) {
+  return fallbackSource ? factory() : existingSource(id) || factory()
+}
+
+function sanitizeCommittedSnapshot(value) {
+  const zoom = value.events?.zoom || {}
+  return {
+    ...value,
+    members: {
+      ...value.members,
+      formRows: [],
+    },
+    events: {
+      ...value.events,
+      zoom: {
+        ...zoom,
+        topAttendees: [],
+        events: (Array.isArray(zoom.events) ? zoom.events : []).map((event) => ({
+          ...event,
+          participantEmails: [],
+          participants: [],
+          registrations: [],
+        })),
+        upcomingEvents: (Array.isArray(zoom.upcomingEvents) ? zoom.upcomingEvents : []).map((event) => ({
+          ...event,
+          registrations: [],
+        })),
+      },
+    },
+  }
+}
+
+const snapshot = sanitizeCommittedSnapshot({
   ...base,
   generatedAt: new Date().toISOString(),
   dashboardRepo: legacyDir,
   dataSources: [
-    dataSource("members", "Members / SoT", "snapshot", "Server snapshot", sot.totals?.pulled_at || null, `${number(sot.totals?.row_count)} deduped records`),
-    dataSource("mailchimp", "Mailchimp", "success", "API snapshot", lastPull(mailchimpCampaigns) || lastPull(mailchimpLists) || lastPull(mailchimpAccount), `${number(mailchimpAccount.total_subscribers)} subscribers`),
-    dataSource("instagram", "Instagram", "success", "API snapshot", lastPull(readData("instagram_last_pull.json")) || socialStats.instagram?.updated_at || null, `${number(socialStats.instagram?.followers)} followers`),
-    dataSource("facebook", "Facebook", "success", "Basic API snapshot", lastPull(readData("facebook_last_pull.json")) || socialStats.facebook?.updated_at || null, `${number(socialStats.facebook?.followers)} followers`),
-    dataSource("website", "Website / GA4", "success", "API snapshot", lastPull(websiteStats) || lastPull(readData("website_last_pull.json")), `${number(websiteStats.overview?.sessions_30d)} sessions in 30d`),
-    dataSource("zoom", "Zoom", "success", "API snapshot", lastPull(zoomStats) || lastPull(zoomEvents) || lastPull(readData("zoom_last_pull.json")), `${number(zoomStats.total_events, zoomEvents.events?.length)} events`),
-    dataSource("eventbrite", "Eventbrite", "success", "API snapshot", lastPull(eventbriteEvents) || lastPull(readData("eventbrite_last_pull.json")), `${number(eventbriteEvents.summary?.total_events, eventbriteEvents.events?.length)} events`),
-    dataSource("donations", "Donations", "success", "Pending/manual", lastPull(donationsLastPull), "$0 recorded"),
+    refreshedSource("members", hasSot, () => dataSource("members", "Members / SoT", "snapshot", "Server snapshot", sot.totals?.pulled_at || null, `${number(sot.totals?.row_count)} deduped records`)),
+    refreshedSource("mailchimp", hasMailchimp, () => dataSource("mailchimp", "Mailchimp", "success", "API snapshot", lastPull(mailchimpCampaigns) || lastPull(mailchimpLists) || lastPull(mailchimpAccount), `${number(mailchimpAccount.total_subscribers)} subscribers`)),
+    refreshedSource("instagram", hasSocial, () => dataSource("instagram", "Instagram", "success", "API snapshot", lastPull(readData("instagram_last_pull.json")) || socialStats.instagram?.updated_at || null, `${number(socialStats.instagram?.followers)} followers`)),
+    refreshedSource("facebook", hasSocial, () => dataSource("facebook", "Facebook", "success", "Basic API snapshot", lastPull(readData("facebook_last_pull.json")) || socialStats.facebook?.updated_at || null, `${number(socialStats.facebook?.followers)} followers`)),
+    refreshedSource("website", hasWebsite, () => dataSource("website", "Website / GA4", "success", "API snapshot", lastPull(websiteStats) || lastPull(readData("website_last_pull.json")), `${number(websiteStats.overview?.sessions_30d)} sessions in 30d`)),
+    refreshedSource("zoom", hasZoom, () => dataSource("zoom", "Zoom", "success", "API snapshot", lastPull(zoomStats) || lastPull(zoomEvents) || lastPull(readData("zoom_last_pull.json")), `${number(zoomStats.total_events, zoomEvents.events?.length)} events`)),
+    refreshedSource("eventbrite", hasEventbrite, () => dataSource("eventbrite", "Eventbrite", "success", "API snapshot", lastPull(eventbriteEvents) || lastPull(readData("eventbrite_last_pull.json")), `${number(eventbriteEvents.summary?.total_events, eventbriteEvents.events?.length)} events`)),
+    refreshedSource("donations", hasDonations, () => dataSource("donations", "Donations", "success", "Pending/manual", lastPull(donationsLastPull), "$0 recorded")),
     ...(base.dataSources || []).filter((source) => ["webapp", "whatsapp", "search-console"].includes(source.id)),
   ],
-  members: buildMembers(base, sot),
-  marketing: buildMarketing(base, mailchimpAccount, mailchimpLists, mailchimpCampaigns, mailchimpGrowth),
-  social: buildSocial(base, socialStats, instagramMedia),
-  website: buildWebsite(websiteStats),
+  members: hasSot ? buildMembers(base, sot) : base.members,
+  marketing: hasMailchimp ? buildMarketing(base, mailchimpAccount, mailchimpLists, mailchimpCampaigns, mailchimpGrowth) : base.marketing,
+  social: hasSocial ? buildSocial(base, socialStats, instagramMedia) : base.social,
+  website: hasWebsite ? buildWebsite(websiteStats) : base.website,
   events: {
-    zoom: buildZoom(zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill),
-    eventbrite: buildEventbrite(eventbriteEvents),
+    zoom: hasZoom ? buildZoom(zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill) : base.events?.zoom,
+    eventbrite: hasEventbrite ? buildEventbrite(eventbriteEvents) : base.events?.eventbrite,
   },
-}
+})
 
 writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`)
 console.log(`Built ${outputPath}`)
