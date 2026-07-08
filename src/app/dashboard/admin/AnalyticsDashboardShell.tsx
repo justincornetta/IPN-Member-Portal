@@ -555,7 +555,7 @@ function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyti
 function sourceIsHealthy(status: string | null | undefined, refreshedAt: string | null | undefined) {
   if (!refreshedAt) return false
   const normalized = status?.toLowerCase() ?? ""
-  return normalized === "success" || normalized === "live" || normalized === "active" || normalized === "snapshot"
+  return normalized === "success" || normalized === "warning" || normalized === "live" || normalized === "active" || normalized === "snapshot"
 }
 
 function buildLiveConnectionStatuses(
@@ -580,7 +580,7 @@ function buildLiveConnectionStatuses(
     return {
       label: refreshSource?.label ?? label,
       refreshedAt,
-      healthy: refreshSource ? refreshSource.status === "success" : sourceIsHealthy(snapshotSource?.status, refreshedAt),
+      healthy: refreshSource ? sourceIsHealthy(refreshSource.status, refreshedAt) : sourceIsHealthy(snapshotSource?.status, refreshedAt),
     }
   })
 
@@ -597,7 +597,7 @@ function buildLiveConnectionStatuses(
       connections.push({
         label,
         refreshedAt: source?.lastRefreshedAt ?? analyticsRefresh.finishedAt ?? analyticsRefresh.startedAt,
-        healthy: source?.status === "success",
+        healthy: sourceIsHealthy(source?.status, source?.lastRefreshedAt ?? analyticsRefresh.finishedAt ?? analyticsRefresh.startedAt),
       })
     }
   } else {
@@ -3663,7 +3663,7 @@ function DataSourcesPanel() {
         {
           term: "Green and red dots",
           definition: "Health indicator for whether the latest known refresh succeeded.",
-          methodology: "A source is green when it has a refresh timestamp and a success-like status. A source is red when it has no usable refresh timestamp or an error-like status.",
+          methodology: "A source is green when it has a refresh timestamp and a successful or warning status. A source is red when it has no usable refresh timestamp or an error status.",
         },
         {
           term: "Portal refresh job",
