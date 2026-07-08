@@ -56,6 +56,11 @@ type SocialMetric = "followers" | "engagementRate" | "posts"
 type DeviceFilter = "all" | "desktop" | "mobile" | "tablet" | "unknown"
 type AnalyticsEventProgram = "IPN Labs" | "PsychedelX" | "Other"
 type AnalyticsEventType = "public" | "internal"
+type LiveConnectionStatus = {
+  label: string
+  refreshedAt: string | null
+  healthy: boolean
+}
 
 export type MemberInsightsData = {
   total: number
@@ -268,6 +273,17 @@ function formatDateTime(value: string | null | undefined) {
   }).format(date)
 }
 
+function formatConnectionDateTime(value: string | null | undefined) {
+  if (!value) return "Not available"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const month = date.getUTCMonth() + 1
+  const day = date.getUTCDate()
+  const hour = String(date.getUTCHours()).padStart(2, "0")
+  const minute = String(date.getUTCMinutes()).padStart(2, "0")
+  return `${month}/${day} ${hour}:${minute} UTC`
+}
+
 function parseDateValue(value: string | null | undefined) {
   if (!value) return null
   const direct = new Date(value)
@@ -478,14 +494,18 @@ function PaginationControls({
 function SourceFreshnessNote({
   source,
   detail,
+  analyticsRefresh,
 }: {
   source: LegacyAnalyticsSnapshot["dataSources"][number] | undefined
   detail?: string
+  analyticsRefresh?: PortalAnalyticsRefreshRun | null
 }) {
   if (!source) return null
+  const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-      <span className="font-semibold">{source.label} freshness:</span> last pulled {formatDate(source.lastPull)}. {detail ?? source.note}
+      <span className="font-semibold">{source.label} source snapshot:</span> last pulled {formatDate(source.lastPull)}. {detail ?? source.note}
+      {portalRefreshedAt ? ` Portal refresh completed ${formatDateTime(portalRefreshedAt)}.` : ""}
     </div>
   )
 }
@@ -493,7 +513,7 @@ function SourceFreshnessNote({
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase()
   const className =
-    normalized === "live" || normalized === "active"
+    normalized === "live" || normalized === "active" || normalized === "success"
       ? "border-green-200 bg-green-50 text-green-700"
       : normalized === "pending"
         ? "border-amber-200 bg-amber-50 text-amber-700"
@@ -529,6 +549,93 @@ function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyti
     <span className={`w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${className}`}>
       {label}
     </span>
+  )
+}
+
+function sourceIsHealthy(status: string | null | undefined, refreshedAt: string | null | undefined) {
+  if (!refreshedAt) return false
+  const normalized = status?.toLowerCase() ?? ""
+  return normalized === "success" || normalized === "live" || normalized === "active" || normalized === "snapshot"
+}
+
+function buildLiveConnectionStatuses(
+  snapshot: LegacyAnalyticsSnapshot,
+  analyticsRefresh: PortalAnalyticsRefreshRun | null,
+): LiveConnectionStatus[] {
+  const byId = new Map(snapshot.dataSources.map((source) => [source.id, source]))
+  const externalSources: { id: string; label: string }[] = [
+    { id: "instagram", label: "Instagram" },
+    { id: "facebook", label: "Facebook" },
+    { id: "website", label: "GA4" },
+    { id: "zoom", label: "Zoom" },
+    { id: "eventbrite", label: "Eventbrite" },
+    { id: "mailchimp", label: "Mailchimp" },
+    { id: "donations", label: "Donations" },
+  ]
+  const connections = externalSources.map(({ id, label }) => {
+    const source = byId.get(id)
+    return {
+      label,
+      refreshedAt: source?.lastPull ?? null,
+      healthy: sourceIsHealthy(source?.status, source?.lastPull),
+    }
+  })
+
+  const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
+  const portalHealthy = analyticsRefresh?.status === "success"
+  const portalSourceLabels: Record<string, string> = {
+    member_profiles: "Supabase (Membership)",
+    member_source_of_truth: "Supabase (Member SoT)",
+    portal_usage_events: "Supabase (Portal Usage)",
+    portal_event_registrations: "Supabase (Event RSVPs)",
+  }
+
+  if (analyticsRefresh) {
+    for (const [id, label] of Object.entries(portalSourceLabels)) {
+      const source = analyticsRefresh.sources.find((item) => item.id === id)
+      connections.push({
+        label,
+        refreshedAt: portalRefreshedAt,
+        healthy: portalHealthy && source?.status === "success",
+      })
+    }
+  } else {
+    connections.push({
+      label: "Supabase (Membership)",
+      refreshedAt: null,
+      healthy: false,
+    })
+  }
+
+  return connections
+}
+
+function LiveConnectionsStrip({
+  snapshot,
+  analyticsRefresh,
+}: {
+  snapshot: LegacyAnalyticsSnapshot
+  analyticsRefresh: PortalAnalyticsRefreshRun | null
+}) {
+  const connections = useMemo(
+    () => buildLiveConnectionStatuses(snapshot, analyticsRefresh),
+    [analyticsRefresh, snapshot],
+  )
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
+      <div className="flex flex-wrap gap-3">
+        {connections.map((connection) => (
+          <div key={connection.label} className="flex min-w-0 items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${connection.healthy ? "bg-green-500" : "bg-red-500"}`} aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-zinc-800">{connection.label}</p>
+              <p className="whitespace-nowrap text-[11px] text-zinc-500">Last refreshed {formatConnectionDateTime(connection.refreshedAt)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1983,7 +2090,7 @@ function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot
   )
 }
 
-function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
   const marketing = snapshot.marketing
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
@@ -2048,6 +2155,7 @@ function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={mailchimpSource}
+        analyticsRefresh={analyticsRefresh}
         detail="Mailchimp analytics reflect the latest successful pull. The active audience list reflects the current Mailchimp setup; historical campaign rows may still retain deleted legacy audience names from their original sends."
       />
 
@@ -2108,7 +2216,7 @@ function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
   const social = snapshot.social
   const socialSource = snapshot.dataSources.find((source) => source.id === "instagram")
     ?? snapshot.dataSources.find((source) => source.id === "facebook")
@@ -2193,6 +2301,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={socialSource}
+        analyticsRefresh={analyticsRefresh}
         detail="Social history uses the latest available platform pull in each selected day, week, or month. Any missing periods reflect gaps in the legacy social refresh history."
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -2276,7 +2385,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function WebsitePanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
   const website = snapshot.website
   const trendDateBounds = [
     ...website.trend.map((row) => websiteDateToInput(row.month)),
@@ -2359,6 +2468,7 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={websiteSource}
+        analyticsRefresh={analyticsRefresh}
         detail={websiteFreshnessDetail}
       />
       {!hasWebsiteData && (
@@ -2938,11 +3048,13 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
 
 function EventsPanel({
   snapshot,
+  analyticsRefresh,
   eventLabelOverrides,
   portalEvents,
   isSuperadmin,
 }: {
   snapshot: LegacyAnalyticsSnapshot
+  analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
   isSuperadmin: boolean
@@ -3078,6 +3190,7 @@ function EventsPanel({
       ) : (
         <SourceFreshnessNote
           source={active === "zoom" ? zoomSource : eventbriteSource}
+          analyticsRefresh={analyticsRefresh}
           detail={active === "zoom"
             ? "Zoom analytics use a one-time historical Zoom backfill before July 1, 2026. IPN Labs historical rows can combine manual Zoom registration totals with recovered report-derived rows. If only report-derived rows are available, attendance percentage is not computed because those rows may exclude registered no-shows. The July transition event appends unique Zoom registrants to Portal RSVPs; after that, current and future registrant counts come from Member Portal RSVPs."
             : "Eventbrite analytics reflect the latest successful token-backed pull. Counts are filtered to the approved PsychedelX conferences and IPN student/professional mixers."
@@ -3245,49 +3358,337 @@ function EventsPanel({
   )
 }
 
-function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
-  const glossary = [
-    { term: "Portal Members", definition: "Live Supabase member records shown from the authenticated Member Portal admin query." },
-    { term: "Legacy Membership", definition: "Historical membership source-of-truth snapshot combining form records, Mailchimp, and old app records." },
-    { term: "Subscribers", definition: "Current Mailchimp audience members across the pulled lists." },
-    { term: "Open rate", definition: "Campaign opens divided by sent emails for the selected Mailchimp campaigns." },
-    { term: "Click rate", definition: "Campaign clicks divided by sent emails for the selected Mailchimp campaigns." },
-    { term: "Campaign click detail", definition: "URL-level click rows from Mailchimp. Total clicks are preserved; unique clicks appear when present in the source export." },
-    { term: "Sessions", definition: "GA4 website sessions for the selected reporting period." },
-    { term: "Unique visitors", definition: "GA4 users/visitors for the selected reporting period." },
-    { term: "Bounce rate", definition: "GA4 bounce rate shown as a percent. Website cards aggregate visible trend rows when filters are active." },
-    { term: "Zoom included events", definition: "Curated external/event-facing IPN Labs and PsychedelX events approved for leadership analytics. Zoom registrants are retained only as a one-time historical backfill for events before July 1, 2026. Historical IPN Labs rows can use manual Zoom registration totals plus recovered Zoom participant-report rows; report-only rows may exclude registered no-shows." },
-    { term: "Portal RSVP registrants", definition: "Member Portal event registrations are the forward source of truth for event registrant counts. The July 2026 transition event appends unique Zoom registrants so early Zoom signups are not lost. Zoom remains the post-event attendance source." },
-    { term: "Eventbrite included events", definition: "PsychedelX conferences plus IPN student/professional mixers. Unrelated one-off events are excluded from primary counts." },
-    { term: "WhatsApp community metrics", definition: "Pending future source for current community activity, event chats, and connection workflows." },
-    { term: "Source freshness", definition: "Last successful portal refresh timestamp when available, with static snapshot timestamps shown for panels that still use historical exports." },
+function DataSourcesPanel() {
+  const glossarySections: {
+    tab: string
+    description: string
+    items: { term: string; definition: string; methodology?: string }[]
+  }[] = [
+    {
+      tab: "Members",
+      description: "Merged member directory, membership source mix, geography, and first-party Portal utilization.",
+      items: [
+        {
+          term: "Directory members",
+          definition: "Total merged people in the member directory after applying the active filters.",
+          methodology: "The directory combines live Member Portal profiles with imported legacy member source-of-truth rows. Records are deduped by normalized email; Gmail and Googlemail addresses are additionally normalized by removing dots and plus aliases before matching. A person can have multiple source flags but appears once in the directory.",
+        },
+        {
+          term: "Member Portal",
+          definition: "Directory members with a live Supabase profile in the current Member Portal.",
+          methodology: "Counts filtered directory rows where the merged row has a Portal profile. The percentage divides this count by filtered directory members.",
+        },
+        {
+          term: "Mailchimp subscribers",
+          definition: "Directory members connected to Mailchimp and currently marked as subscribed.",
+          methodology: "Counts filtered directory rows where the Mailchimp source flag is present and the resolved Mailchimp status is subscribed. Mailchimp status can come from the Portal profile sync or the imported source-of-truth row.",
+        },
+        {
+          term: "WhatsApp connected",
+          definition: "Directory members with a WhatsApp URL or connection recorded in their Portal profile.",
+          methodology: "Counts filtered merged rows where the live Portal profile has a non-empty WhatsApp URL. Legacy-only members without a Portal profile cannot count as WhatsApp connected.",
+        },
+        {
+          term: "Member discoverable",
+          definition: "Portal members who have opted into being discoverable in the member directory.",
+          methodology: "Counts filtered rows with a Portal profile where is_discoverable is true. The percentage divides by filtered Portal members, not by all merged directory members.",
+        },
+        {
+          term: "Members w/ interest tags",
+          definition: "Portal members who selected at least one interest tag.",
+          methodology: "Counts filtered Portal rows where interest_tags has one or more values. The percentage divides by filtered Portal members.",
+        },
+        {
+          term: "Member growth",
+          definition: "New and cumulative merged members over the selected daily, weekly, or monthly granularity.",
+          methodology: "Uses each merged row's first seen date. First seen is the earliest usable date from old IPN app, Google Form or Mailchimp legacy data, and Portal registration. Low-confidence Mailchimp-only May 2026 first seen dates are flagged in the directory table.",
+        },
+        {
+          term: "Source totals",
+          definition: "How many filtered directory members appear in each membership source.",
+          methodology: "Source flags are calculated independently, so a person can count in more than one source. Current source flags are Member Portal, Google Form, Mailchimp, and IPN App.",
+        },
+        {
+          term: "Profile field charts",
+          definition: "Breakdowns of member-provided fields such as interest tags, school, primary field, referral source, psychedelic field status, and barriers.",
+          methodology: "Charts count non-empty values from filtered merged rows. Portal profile values are preferred when present; legacy source-of-truth values are used as fallback. Multi-select barriers and interest tags count each selected value.",
+        },
+        {
+          term: "Membership geography",
+          definition: "City and country distribution of members with usable location data.",
+          methodology: "Uses filtered merged rows with city and country values. City coordinates come from stored Portal coordinates when available; country view aggregates city rows and uses a member-count-weighted center point.",
+        },
+        {
+          term: "Registration conversion",
+          definition: "Percent of tracked registration visits that completed registration.",
+          methodology: "Calculated as registration_success events divided by registration_view events from retained first-party Portal analytics events.",
+        },
+        {
+          term: "Sign-in conversion",
+          definition: "Percent of tracked sign-in visits that completed sign-in.",
+          methodology: "Calculated as sign_in_success events divided by sign_in_view events from retained first-party Portal analytics events.",
+        },
+        {
+          term: "Portal RSVPs",
+          definition: "Member Portal event registrations in the reporting window.",
+          methodology: "Counts event_registrations rows from Supabase. The recent rows table shows the latest retained registration details.",
+        },
+        {
+          term: "Raw retention",
+          definition: "How long raw first-party Portal analytics events are retained before deletion.",
+          methodology: "The daily maintenance job rolls raw events into daily rollups and deletes raw portal_analytics_events older than 90 days.",
+        },
+        {
+          term: "Top Portal pages and clicks",
+          definition: "Portal pages and named interactions with the most tracked usage.",
+          methodology: "Top pages use retained page duration and session summary events. Top clicks count curated_click events with explicit labels; broad clicks per session include all tracked interactive elements on a page.",
+        },
+      ],
+    },
+    {
+      tab: "Community",
+      description: "Placeholder community-health model for future WhatsApp and Portal connection analytics.",
+      items: [
+        {
+          term: "WhatsApp members",
+          definition: "Planned count of members active or known in WhatsApp community spaces.",
+          methodology: "Pending integration. Current Portal-only WhatsApp profile links are reported in the Members tab, but channel activity is not yet connected.",
+        },
+        {
+          term: "Active conversations",
+          definition: "Planned measure of current WhatsApp or community discussion activity.",
+          methodology: "Pending data model. No Slack, WhatsApp, or community-message activity is currently counted in this tab.",
+        },
+        {
+          term: "Event chat joins",
+          definition: "Planned count of members joining event-specific community chats.",
+          methodology: "Pending event workflow integration.",
+        },
+        {
+          term: "Connection activity",
+          definition: "Planned measure of member-to-member connection behavior across Portal and WhatsApp workflows.",
+          methodology: "Pending combined Portal and WhatsApp model.",
+        },
+      ],
+    },
+    {
+      tab: "Marketing",
+      description: "Mailchimp audience, campaign, unsubscribe, and click performance.",
+      items: [
+        {
+          term: "Subscribers",
+          definition: "Current Mailchimp audience members across pulled lists.",
+          methodology: "Uses the Mailchimp source snapshot summary totalSubscribers and totalLists values.",
+        },
+        {
+          term: "Campaigns",
+          definition: "Mailchimp campaigns included after the active date and list filters.",
+          methodology: "Counts filtered campaign rows. The helper text shows total campaigns in the pulled Mailchimp snapshot.",
+        },
+        {
+          term: "Open rate",
+          definition: "Share of sent campaign emails that were opened.",
+          methodology: "For the selected filters, total opens are divided by total sent. If no sent count is available, the rate is shown as 0.",
+        },
+        {
+          term: "Click rate",
+          definition: "Share of sent campaign emails that received clicks.",
+          methodology: "For the selected filters, total clicks are divided by total sent. URL-level click detail preserves total clicks; unique clicks appear when present in the source export.",
+        },
+        {
+          term: "Unsubscribes per month",
+          definition: "Mailchimp unsubscribes grouped by month.",
+          methodology: "Sums campaign unsubscribe counts within each selected monthly bucket.",
+        },
+        {
+          term: "Mailchimp lists",
+          definition: "Pulled Mailchimp audience/list-level membership and engagement rows.",
+          methodology: "Displays list member counts, unsubscribes, open rate, and click rate from the Mailchimp list snapshot.",
+        },
+        {
+          term: "Campaign detail",
+          definition: "Campaign-level email performance and URL click breakdown.",
+          methodology: "Rows come from pulled Mailchimp campaign data. Expanding a campaign shows click_detail URL rows when present.",
+        },
+      ],
+    },
+    {
+      tab: "Social Media",
+      description: "Instagram and Facebook audience size, posting, and engagement snapshots.",
+      items: [
+        {
+          term: "Followers",
+          definition: "Follower count for each tracked social platform.",
+          methodology: "Uses the latest pulled platform row for Instagram and Facebook. Trend charts aggregate the latest available platform value in the selected day, week, or month.",
+        },
+        {
+          term: "Engagement rate",
+          definition: "Engagement percentage reported by the social snapshot for the selected platform and period.",
+          methodology: "Uses engagementRate values from the social history snapshot. Missing periods reflect gaps in the historical social refresh data.",
+        },
+        {
+          term: "Posts",
+          definition: "Number of social posts recorded in the selected period.",
+          methodology: "Uses the posts value from social history rows, bucketed by the selected daily, weekly, or monthly granularity.",
+        },
+        {
+          term: "Platform status",
+          definition: "Current source status for each social platform.",
+          methodology: "Displays the pulled platform summary status and latest known followers, engagement rate, and monthly post counts.",
+        },
+        {
+          term: "Instagram post engagement",
+          definition: "Engagement for individual Instagram posts.",
+          methodology: "Calculated from pulled Instagram media rows. The engagement value is preserved from the source snapshot and rows are ordered oldest to newest so recent dates appear on the right.",
+        },
+      ],
+    },
+    {
+      tab: "Website",
+      description: "GA4 site traffic, acquisition, device, geography, and page performance.",
+      items: [
+        {
+          term: "Sessions",
+          definition: "GA4 sessions for the selected reporting period.",
+          methodology: "Sums visible website trend rows after filters. The MoM helper comes from the GA4 overview snapshot when present.",
+        },
+        {
+          term: "Unique visitors",
+          definition: "GA4 users or visitors for the selected reporting period.",
+          methodology: "Sums visible users values from website trend rows after filters. The MoM helper comes from the GA4 overview snapshot when present.",
+        },
+        {
+          term: "Pageviews",
+          definition: "Total GA4 pageviews for the selected reporting period.",
+          methodology: "Sums visible pageview values from website trend rows after filters.",
+        },
+        {
+          term: "Bounce rate",
+          definition: "Percent of sessions that GA4 classifies as bounced.",
+          methodology: "Calculated as a weighted average across visible trend rows: each row bounce rate is weighted by its sessions.",
+        },
+        {
+          term: "Avg duration",
+          definition: "Average session duration for the selected website rows.",
+          methodology: "Calculated as a sessions-weighted average duration across visible trend rows, then displayed in minutes or hours.",
+        },
+        {
+          term: "Acquisition channels",
+          definition: "GA4 session and user counts by channel.",
+          methodology: "Uses channel rows from the GA4 source snapshot.",
+        },
+        {
+          term: "Device split",
+          definition: "GA4 sessions and users by device category.",
+          methodology: "Uses device rows from the GA4 source snapshot and supports filtering the Website tab by device.",
+        },
+        {
+          term: "Traffic by location",
+          definition: "GA4 sessions and users by country or city.",
+          methodology: "Uses country and city rows from the GA4 source snapshot.",
+        },
+        {
+          term: "Page and blog performance",
+          definition: "GA4 pageviews, users, average duration, and bounce rate for site pages and blog pages.",
+          methodology: "Uses page and blog rows from the GA4 snapshot. Website cards aggregate visible trend rows, while page tables show source-provided rows.",
+        },
+      ],
+    },
+    {
+      tab: "Events",
+      description: "Zoom attendance, Portal RSVPs, Eventbrite tickets, and event labeling.",
+      items: [
+        {
+          term: "Zoom included events",
+          definition: "Curated external or participant-facing IPN Labs and PsychedelX Zoom events approved for leadership analytics.",
+          methodology: "Events are filtered through the approved include list and labeling overrides. Zoom registrants are retained only as a one-time historical backfill for events before July 1, 2026.",
+        },
+        {
+          term: "Avg attendees",
+          definition: "Average number of attendees across included Zoom events.",
+          methodology: "Total included Zoom attendees divided by included event count.",
+        },
+        {
+          term: "Avg retention",
+          definition: "Average attended-minutes retention for included Zoom events.",
+          methodology: "For each event, retentionPct represents attended minutes relative to event duration when available. The card averages retentionPct across included events.",
+        },
+        {
+          term: "Repeat rate",
+          definition: "Share of unique Zoom attendees who attended more than one included event.",
+          methodology: "Counts topAttendees with events greater than 1, divided by unique attendees in the curated Zoom attendee list.",
+        },
+        {
+          term: "Portal RSVP registrants",
+          definition: "Member Portal event registrations used as the forward source of truth for event registrant counts.",
+          methodology: "Future registrants come from Supabase event_registrations. The July 2026 transition event appends unique Zoom registrants so early Zoom signups are not lost.",
+        },
+        {
+          term: "Eventbrite included events",
+          definition: "Eventbrite events included in Analytics, currently PsychedelX conferences plus IPN student and professional mixers.",
+          methodology: "Unrelated one-off events are excluded from primary counts before tickets, revenue, active events, and event detail rows are calculated.",
+        },
+        {
+          term: "Tickets sold",
+          definition: "Eventbrite ticket quantity sold across included events.",
+          methodology: "Sums tickets from included Eventbrite event rows after filters.",
+        },
+        {
+          term: "Gross revenue",
+          definition: "Gross Eventbrite revenue across included events.",
+          methodology: "Sums grossRevenue from included Eventbrite event rows after filters.",
+        },
+        {
+          term: "Active events",
+          definition: "Included Eventbrite events currently marked live or started.",
+          methodology: "Counts included Eventbrite events where status is live or started.",
+        },
+        {
+          term: "Event labeling controls",
+          definition: "Superadmin-only labels and overrides used to classify events before Analytics filters and tables are calculated.",
+          methodology: "Overrides are saved in Supabase and applied before event filters, counts, and detail tables render.",
+        },
+      ],
+    },
+    {
+      tab: "Data Sources & Glossary",
+      description: "Global source freshness, refresh job behavior, and pending integrations.",
+      items: [
+        {
+          term: "Live connection refresh strip",
+          definition: "Top-of-Analytics source status row showing each connected source, last refresh timestamp, and green or red health dot.",
+          methodology: "External source timestamps come from their source snapshot pull time. Supabase timestamps come from the latest successful GitHub-triggered Portal analytics refresh run.",
+        },
+        {
+          term: "Green and red dots",
+          definition: "Health indicator for whether the latest known refresh succeeded.",
+          methodology: "A source is green when it has a refresh timestamp and a success-like status. A source is red when it has no usable refresh timestamp or an error-like status.",
+        },
+        {
+          term: "Portal refresh job",
+          definition: "Daily GitHub Actions job that calls the Member Portal Netlify maintenance function.",
+          methodology: "The function rolls raw portal_analytics_events into daily rollups, deletes raw events older than 90 days, records a portal_analytics_refresh_runs row, and sends a Slack confirmation.",
+        },
+        {
+          term: "Historical source snapshots",
+          definition: "Static server-side snapshots for external analytics sources that are not yet fully refreshed inside first-party Portal tables.",
+          methodology: "These snapshot dates do not change when the portal rollup job runs. They change only when that external source snapshot is rebuilt or ported into Portal-owned ingestion.",
+        },
+        {
+          term: "Pending integrations",
+          definition: "Known analytics sources or models not yet connected as live automated data feeds.",
+          methodology: "Currently includes WhatsApp community analytics, Search Console SEO analytics, donations reconciliation, and future external source ingestion.",
+        },
+      ],
+    },
   ]
 
   return (
     <div className="flex flex-col gap-6">
-      <Panel title="Source status" subtitle="No analytics JSON is exposed through public routes or public assets">
-        <SimpleTable
-          columns={[
-            { key: "source", label: "Source" },
-            { key: "status", label: "Status" },
-            { key: "mode", label: "Mode" },
-            { key: "lastPull", label: "Last pull" },
-            { key: "note", label: "Note" },
-          ]}
-          rows={snapshot.dataSources.map((source) => ({
-            source: source.label,
-            status: <StatusBadge status={source.status} />,
-            mode: source.mode,
-            lastPull: formatDate(source.lastPull),
-            note: source.note,
-          }))}
-        />
-      </Panel>
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Refresh recovery notes">
           <div className="space-y-3 text-sm leading-6 text-zinc-600">
-            <p>Portal-owned analytics data is read through the server-only admin data layer and passed through the authenticated admin route.</p>
+            <p>Connection refresh status is shown above the Analytics subsections. External source timestamps come from the source snapshot pull time; Supabase timestamps come from the GitHub-triggered portal refresh run.</p>
             <p>Historical snapshot panels are retained for analytics that have not yet been ported to first-party Portal tables. Current Events analytics applies the curated include/exclude list plus the historical Zoom attendance and registrant backfill policy.</p>
             <p>Event analytics now treats Zoom registrants as a one-time historical backfill, with a July 2026 transition merge that appends unique Zoom registrants to Portal RSVPs. Future registrants should come from Portal RSVPs, then actual Zoom attendance can attach after an event occurs.</p>
             <p>New source loaders should use the same admin verification pattern already used by admin server actions.</p>
@@ -3306,13 +3707,29 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
         </Panel>
       </div>
 
-      <Panel title="Data glossary" subtitle="Metric definitions used across Analytics">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {glossary.map((item) => (
-            <details key={item.term} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-zinc-800">{item.term}</summary>
-              <p className="mt-2 text-sm leading-6 text-zinc-600">{item.definition}</p>
-            </details>
+      <Panel title="Data glossary" subtitle="Metric definitions and calculation notes grouped by Analytics tab">
+        <div className="flex flex-col gap-5">
+          {glossarySections.map((section) => (
+            <section key={section.tab} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">{section.tab}</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">{section.description}</p>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {section.items.map((item) => (
+                  <details key={`${section.tab}-${item.term}`} className="rounded-lg border border-zinc-200 bg-white p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-zinc-800">{item.term}</summary>
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">{item.definition}</p>
+                    {item.methodology && (
+                      <p className="mt-2 text-xs leading-5 text-zinc-500">
+                        <span className="font-semibold text-zinc-600">Methodology: </span>
+                        {item.methodology}
+                      </p>
+                    )}
+                  </details>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </Panel>
@@ -3338,6 +3755,8 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
         </div>
       </div>
 
+      <LiveConnectionsStrip snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />
+
       <SectionTabs active={activeSection} onChange={setActiveSection} items={ANALYTICS_SECTIONS.map(({ id, label }) => ({ id, label }))} />
 
       <section className="flex flex-col gap-5">
@@ -3354,11 +3773,11 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
           />
         )}
         {activeSection === "community" && <CommunityPanel />}
-        {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} />}
-        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} />}
-        {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} />}
-        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
-        {activeSection === "data-sources" && <DataSourcesPanel snapshot={analyticsSnapshot} />}
+        {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
+        {activeSection === "data-sources" && <DataSourcesPanel />}
       </section>
     </div>
   )
