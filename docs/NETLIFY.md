@@ -63,9 +63,10 @@ Operations dashboard is not part of the production refresh path.
 
 GitHub Actions runs `.github/workflows/portal-analytics-refresh.yml` at
 **10:30 UTC daily** and on manual dispatch. The workflow pulls external source
-data directly from the Member Portal repo, rebuilds the privacy-safe analytics
-snapshot, commits `src/lib/admin/analytics/legacy-snapshot.json` when the
-snapshot changes, and then calls the production Netlify function at
+data directly from the Member Portal repo, upserts private row-level detail into
+Supabase, rebuilds the privacy-safe aggregate analytics snapshot, commits
+`src/lib/admin/analytics/legacy-snapshot.json` when the snapshot changes, and
+then calls the production Netlify function at
 `/.netlify/functions/portal-analytics-maintenance`. The function rolls raw
 `portal_analytics_events` into `portal_analytics_daily_rollups`, deletes raw
 events older than 90 days, records the refresh and per-source statuses in
@@ -87,17 +88,23 @@ The external source pullers require these GitHub repository secrets:
 | Zoom | `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET` |
 | Eventbrite | `EVENTBRITE_API_TOKEN` |
 | Donations / Squarespace | `SQUARESPACE_API_KEY` |
+| Supabase private detail upload | `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
 
 When a source credential is missing or an API pull fails, the workflow keeps the
 last good dashboard data for that source, records that source as failed, and
 includes the failure in the Slack message.
+
+Private source detail rows, such as Zoom participants/registrants and
+Eventbrite attendees, are stored in `analytics_source_records` in Supabase. The
+committed analytics snapshot intentionally strips member form rows and Zoom
+participant/registrant arrays so Git only stores aggregate reporting data.
 
 To turn the daily refresh on in production:
 
 1. Apply the Supabase migration that creates `portal_analytics_refresh_runs`.
 2. Confirm GitHub has `SITE_URL`, `CONTENT_SYNC_SECRET`, and
    `SLACK_WEBHOOK_URL` secrets.
-3. Add the external source secrets listed above to GitHub.
+3. Add the external source and Supabase upload secrets listed above to GitHub.
 4. Confirm Netlify has `CONTENT_SYNC_SECRET`, or set the same
    `PORTAL_ANALYTICS_MAINTENANCE_SECRET` value in GitHub and Netlify.
 5. Merge the workflow into the default branch. GitHub scheduled workflows only

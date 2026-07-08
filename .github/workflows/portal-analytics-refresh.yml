@@ -78,6 +78,21 @@ jobs:
             echo "EOF_SOURCES"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Upload private analytics source details
+        id: source_details
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          npm run analytics:upload-source-details
+
+          {
+            echo "summary<<EOF_DETAILS"
+            jq -c '.' data/analytics-source-detail-upload.json
+            echo "EOF_DETAILS"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build portal analytics snapshot
         if: steps.sources.outputs.has_success == 'true'
         run: npm run analytics:build-snapshot -- .
@@ -162,6 +177,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SOURCE_STATUS: ${{ steps.sources.outputs.status }}
           SOURCE_SUMMARY: ${{ steps.sources.outputs.summary }}
+          DETAIL_SUMMARY: ${{ steps.source_details.outputs.summary }}
           REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
           REFRESH_STATUS: ${{ steps.refresh.outputs.status }}
           HTTP_STATUS: ${{ steps.refresh.outputs.http_status }}
@@ -205,6 +221,14 @@ jobs:
             end
           ' 2>/dev/null || echo "${SOURCE_SUMMARY:-No source status available.}")
 
+          DETAIL_TEXT=$(echo "${DETAIL_SUMMARY:-}" | jq -r '
+            if .upserted != null then
+              "Private detail rows upserted: \(.upserted) (" + ((.bySource // {}) | to_entries | map("\(.key): \(.value)") | join(", ")) + ")"
+            else
+              "Private detail row upload did not run."
+            end
+          ' 2>/dev/null || echo "Private detail row upload did not run.")
+
           PAYLOAD=$(jq -n \
             --arg title "$TITLE" \
             --arg status "$STATUS_TEXT" \
@@ -212,6 +236,7 @@ jobs:
             --arg http_status "${HTTP_STATUS:-unknown}" \
             --arg summary "$SUMMARY" \
             --arg sources "$SOURCES_TEXT" \
+            --arg details "$DETAIL_TEXT" \
             --arg workflow_url "$WORKFLOW_URL" \
             '{
               blocks: [
@@ -226,6 +251,7 @@ jobs:
                   ]
                 },
                 { type: "section", text: { type: "mrkdwn", text: ("*Sources:*\n" + $sources) } },
+                { type: "section", text: { type: "mrkdwn", text: ("*Private detail upload:*\n" + $details) } },
                 {
                   type: "actions",
                   elements: [

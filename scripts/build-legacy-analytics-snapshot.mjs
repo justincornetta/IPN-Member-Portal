@@ -557,7 +557,35 @@ function refreshedSource(id, fallbackSource, factory) {
   return fallbackSource ? factory() : existingSource(id) || factory()
 }
 
-const snapshot = {
+function sanitizeCommittedSnapshot(value) {
+  const zoom = value.events?.zoom || {}
+  return {
+    ...value,
+    members: {
+      ...value.members,
+      formRows: [],
+    },
+    events: {
+      ...value.events,
+      zoom: {
+        ...zoom,
+        topAttendees: [],
+        events: (Array.isArray(zoom.events) ? zoom.events : []).map((event) => ({
+          ...event,
+          participantEmails: [],
+          participants: [],
+          registrations: [],
+        })),
+        upcomingEvents: (Array.isArray(zoom.upcomingEvents) ? zoom.upcomingEvents : []).map((event) => ({
+          ...event,
+          registrations: [],
+        })),
+      },
+    },
+  }
+}
+
+const snapshot = sanitizeCommittedSnapshot({
   ...base,
   generatedAt: new Date().toISOString(),
   dashboardRepo: legacyDir,
@@ -580,7 +608,7 @@ const snapshot = {
     zoom: hasZoom ? buildZoom(zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill) : base.events?.zoom,
     eventbrite: hasEventbrite ? buildEventbrite(eventbriteEvents) : base.events?.eventbrite,
   },
-}
+})
 
 writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`)
 console.log(`Built ${outputPath}`)

@@ -242,8 +242,27 @@ def pull_attendees(token, event_id, event_name):
     refunded = 0
     by_ticket_class = defaultdict(lambda: {"total": 0, "checked_in": 0})
 
+    attendee_details = []
+
     for att in attendees:
         status = att.get("status", "")
+        profile = att.get("profile", {}) or {}
+        attendee_details.append({
+            "id": att.get("id"),
+            "order_id": att.get("order_id"),
+            "status": status,
+            "cancelled": att.get("cancelled", False),
+            "refunded": att.get("refunded", False),
+            "checked_in": att.get("checked_in", False),
+            "created": att.get("created"),
+            "changed": att.get("changed"),
+            "ticket_class_id": att.get("ticket_class_id"),
+            "ticket_class_name": att.get("ticket_class_name", "Unknown"),
+            "name": profile.get("name") or " ".join(
+                part for part in [profile.get("first_name"), profile.get("last_name")] if part
+            ),
+            "email": profile.get("email") or att.get("email"),
+        })
         if status == "Attending" or att.get("cancelled") is False:
             total += 1
             tc_name = att.get("ticket_class_name", "Unknown")
@@ -282,6 +301,7 @@ def pull_attendees(token, event_id, event_name):
         "attendance_rate": attendance_rate,
         "no_show_rate": no_show_rate,
         "by_ticket_class": by_tc_list,
+        "attendee_details": attendee_details,
     }
 
 
