@@ -162,7 +162,7 @@ jobs:
             echo "body<<EOF_BODY"
             echo "$BODY"
             echo "EOF_BODY"
-            echo "status=$(echo "$BODY" | jq -r '.result.status // "failed"' 2>/dev/null || echo "failed")"
+            echo "status=$(echo "$BODY" | jq -r '.result.status // (if .ok == true then "success" else "failed" end)' 2>/dev/null || echo "failed")"
           } >> "$GITHUB_OUTPUT"
 
           echo "HTTP status: $HTTP_STATUS"
