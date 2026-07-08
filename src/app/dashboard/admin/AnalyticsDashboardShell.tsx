@@ -28,6 +28,7 @@ import { getMemberDirectoryDetail, saveAnalyticsEventLabelOverride } from "@/lib
 import type { AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import type { AnalyticsPoint, LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
+import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
 import type {
   MemberDirectoryData,
   MemberDirectoryDetail,
@@ -189,6 +190,7 @@ type Props = {
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
+  analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
   isSuperadmin: boolean
@@ -476,14 +478,18 @@ function PaginationControls({
 function SourceFreshnessNote({
   source,
   detail,
+  analyticsRefresh,
 }: {
   source: LegacyAnalyticsSnapshot["dataSources"][number] | undefined
   detail?: string
+  analyticsRefresh?: PortalAnalyticsRefreshRun | null
 }) {
   if (!source) return null
+  const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-      <span className="font-semibold">{source.label} freshness:</span> last pulled {formatDate(source.lastPull)}. {detail ?? source.note}
+      <span className="font-semibold">{source.label} source snapshot:</span> last pulled {formatDate(source.lastPull)}. {detail ?? source.note}
+      {portalRefreshedAt ? ` Portal refresh completed ${formatDateTime(portalRefreshedAt)}.` : ""}
     </div>
   )
 }
@@ -491,7 +497,7 @@ function SourceFreshnessNote({
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase()
   const className =
-    normalized === "live" || normalized === "active"
+    normalized === "live" || normalized === "active" || normalized === "success"
       ? "border-green-200 bg-green-50 text-green-700"
       : normalized === "pending"
         ? "border-amber-200 bg-amber-50 text-amber-700"
@@ -502,6 +508,30 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${className}`}>
       {status}
+    </span>
+  )
+}
+
+function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyticsRefreshRun | null; fallbackGeneratedAt: string }) {
+  const refreshedAt = refresh?.finishedAt ?? refresh?.startedAt ?? fallbackGeneratedAt
+  const label = refresh
+    ? refresh.status === "success"
+      ? `Last refreshed ${formatDateTime(refreshedAt)}`
+      : `${refresh.status.replace("_", " ")} ${formatDateTime(refreshedAt)}`
+    : `Snapshot generated ${formatDateTime(fallbackGeneratedAt)}`
+  const status = refresh?.status ?? "snapshot"
+  const className =
+    status === "success"
+      ? "border-blue-200 bg-blue-50 text-blue-700"
+      : status === "failed"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : status === "running"
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+          : "border-zinc-200 bg-zinc-50 text-zinc-600"
+
+  return (
+    <span className={`w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${className}`}>
+      {label}
     </span>
   )
 }
@@ -1957,7 +1987,7 @@ function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot
   )
 }
 
-function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
   const marketing = snapshot.marketing
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
@@ -2022,6 +2052,7 @@ function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={mailchimpSource}
+        analyticsRefresh={analyticsRefresh}
         detail="Mailchimp analytics reflect the latest successful pull. The active audience list reflects the current Mailchimp setup; historical campaign rows may still retain deleted legacy audience names from their original sends."
       />
 
@@ -2082,7 +2113,7 @@ function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
   const social = snapshot.social
   const socialSource = snapshot.dataSources.find((source) => source.id === "instagram")
     ?? snapshot.dataSources.find((source) => source.id === "facebook")
@@ -2167,6 +2198,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={socialSource}
+        analyticsRefresh={analyticsRefresh}
         detail="Social history uses the latest available platform pull in each selected day, week, or month. Any missing periods reflect gaps in the legacy social refresh history."
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -2250,7 +2282,7 @@ function SocialMediaPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function WebsitePanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
   const website = snapshot.website
   const trendDateBounds = [
     ...website.trend.map((row) => websiteDateToInput(row.month)),
@@ -2333,6 +2365,7 @@ function WebsitePanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       </FilterBar>
       <SourceFreshnessNote
         source={websiteSource}
+        analyticsRefresh={analyticsRefresh}
         detail={websiteFreshnessDetail}
       />
       {!hasWebsiteData && (
@@ -2912,11 +2945,13 @@ function ZoomEventExpandedDetail({ event }: { event: ZoomAnalyticsEvent }) {
 
 function EventsPanel({
   snapshot,
+  analyticsRefresh,
   eventLabelOverrides,
   portalEvents,
   isSuperadmin,
 }: {
   snapshot: LegacyAnalyticsSnapshot
+  analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
   isSuperadmin: boolean
@@ -3052,6 +3087,7 @@ function EventsPanel({
       ) : (
         <SourceFreshnessNote
           source={active === "zoom" ? zoomSource : eventbriteSource}
+          analyticsRefresh={analyticsRefresh}
           detail={active === "zoom"
             ? "Zoom analytics use a one-time historical Zoom backfill before July 1, 2026. IPN Labs historical rows can combine manual Zoom registration totals with recovered report-derived rows. If only report-derived rows are available, attendance percentage is not computed because those rows may exclude registered no-shows. The July transition event appends unique Zoom registrants to Portal RSVPs; after that, current and future registrant counts come from Member Portal RSVPs."
             : "Eventbrite analytics reflect the latest successful token-backed pull. Counts are filtered to the approved PsychedelX conferences and IPN student/professional mixers."
@@ -3219,7 +3255,8 @@ function EventsPanel({
   )
 }
 
-function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
+function DataSourcesPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
+  const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
   const glossary = [
     { term: "Portal Members", definition: "Live Supabase member records shown from the authenticated Member Portal admin query." },
     { term: "Legacy Membership", definition: "Historical membership source-of-truth snapshot combining form records, Mailchimp, and old app records." },
@@ -3234,18 +3271,43 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
     { term: "Portal RSVP registrants", definition: "Member Portal event registrations are the forward source of truth for event registrant counts. The July 2026 transition event appends unique Zoom registrants so early Zoom signups are not lost. Zoom remains the post-event attendance source." },
     { term: "Eventbrite included events", definition: "PsychedelX conferences plus IPN student/professional mixers. Unrelated one-off events are excluded from primary counts." },
     { term: "WhatsApp community metrics", definition: "Pending future source for current community activity, event chats, and connection workflows." },
-    { term: "Source freshness", definition: "Last successful pull timestamp from the legacy refresh pipeline or manual snapshot." },
+    { term: "Source freshness", definition: "Portal refresh time is the latest GitHub-triggered Supabase maintenance run. Source snapshot pull time is the original pull date for static historical exports that have not yet moved into first-party Portal tables." },
   ]
 
   return (
     <div className="flex flex-col gap-6">
-      <Panel title="Source status" subtitle="No analytics JSON is exposed through public routes or public assets">
+      <Panel title="Portal refresh status" subtitle={portalRefreshedAt ? `Last completed ${formatDateTime(portalRefreshedAt)}` : "No portal refresh run has been recorded yet"}>
+        {analyticsRefresh ? (
+          <SimpleTable
+            columns={[
+              { key: "source", label: "Source" },
+              { key: "status", label: "Status" },
+              { key: "lastRefresh", label: "Last refresh" },
+              { key: "latestRecord", label: "Latest record" },
+              { key: "records", label: "Records" },
+              { key: "note", label: "Note" },
+            ]}
+            rows={analyticsRefresh.sources.map((source) => ({
+              source: source.label,
+              status: <StatusBadge status={source.status} />,
+              lastRefresh: portalRefreshedAt ? formatDateTime(portalRefreshedAt) : "-",
+              latestRecord: source.lastRefreshedAt ? formatDateTime(source.lastRefreshedAt) : "-",
+              records: source.records == null ? "-" : formatNumber(source.records),
+              note: source.note,
+            }))}
+          />
+        ) : (
+          <EmptyState title="No portal refresh run recorded" description="Run the Portal analytics refresh workflow once from GitHub Actions to populate this table." />
+        )}
+      </Panel>
+
+      <Panel title="Historical source snapshots" subtitle="Static exports still shown in legacy Analytics tabs; these dates do not change when the portal rollup job runs">
         <SimpleTable
           columns={[
             { key: "source", label: "Source" },
             { key: "status", label: "Status" },
             { key: "mode", label: "Mode" },
-            { key: "lastPull", label: "Last pull" },
+            { key: "lastPull", label: "Source snapshot pull" },
             { key: "note", label: "Note" },
           ]}
           rows={snapshot.dataSources.map((source) => ({
@@ -3261,8 +3323,8 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Refresh recovery notes">
           <div className="space-y-3 text-sm leading-6 text-zinc-600">
-            <p>All migrated analytics data is bundled under a server-only admin data layer and passed through the authenticated admin route.</p>
-            <p>The legacy refresh is stale after May 31, 2026. Current Events analytics applies the curated include/exclude list plus the historical Zoom attendance and registrant backfill policy.</p>
+            <p>Portal-owned analytics data is read through the server-only admin data layer and passed through the authenticated admin route.</p>
+            <p>Historical snapshot panels are retained for analytics that have not yet been ported to first-party Portal tables. Current Events analytics applies the curated include/exclude list plus the historical Zoom attendance and registrant backfill policy.</p>
             <p>Event analytics now treats Zoom registrants as a one-time historical backfill, with a July 2026 transition merge that appends unique Zoom registrants to Portal RSVPs. Future registrants should come from Portal RSVPs, then actual Zoom attendance can attach after an event occurs.</p>
             <p>New source loaders should use the same admin verification pattern already used by admin server actions.</p>
           </div>
@@ -3273,7 +3335,7 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
               { label: "WhatsApp community analytics", value: 1 },
               { label: "Search Console SEO analytics", value: 1 },
               { label: "Donations source reconciliation", value: 1 },
-              { label: "Automated snapshot refresh", value: 1 },
+              { label: "External source ingestion", value: 1 },
             ]}
             valueLabel={() => "Pending"}
           />
@@ -3294,10 +3356,9 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, portalEvents, isSuperadmin }: Props) {
+export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, analyticsRefresh, eventLabelOverrides, portalEvents, isSuperadmin }: Props) {
   const [activeSection, setActiveSection] = useState<AnalyticsSectionId>("members")
   const section = ANALYTICS_SECTIONS.find((item) => item.id === activeSection) ?? ANALYTICS_SECTIONS[0]
-  const statusText = useMemo(() => `Snapshot generated ${formatDate(analyticsSnapshot.generatedAt)}`, [analyticsSnapshot.generatedAt])
 
   return (
     <div className="flex flex-col gap-6">
@@ -3306,12 +3367,10 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Analytics</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
-              Authenticated leadership dashboard migrated from IPN operations reporting.
+              Authenticated leadership dashboard powered by Member Portal data.
             </p>
           </div>
-          <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-            {statusText}
-          </span>
+          <RefreshBadge refresh={analyticsRefresh} fallbackGeneratedAt={analyticsSnapshot.generatedAt} />
         </div>
       </div>
 
@@ -3331,11 +3390,11 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
           />
         )}
         {activeSection === "community" && <CommunityPanel />}
-        {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} />}
-        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} />}
-        {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} />}
-        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
-        {activeSection === "data-sources" && <DataSourcesPanel snapshot={analyticsSnapshot} />}
+        {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
+        {activeSection === "data-sources" && <DataSourcesPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
       </section>
     </div>
   )

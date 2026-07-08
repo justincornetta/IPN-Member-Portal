@@ -1,0 +1,131 @@
+name: Portal analytics refresh
+
+on:
+  schedule:
+    # Runs daily at 10:30 UTC.
+    - cron: "30 10 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger portal analytics maintenance
+        id: refresh
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          REFRESH_SECRET: ${{ secrets.PORTAL_ANALYTICS_MAINTENANCE_SECRET || secrets.CONTENT_SYNC_SECRET }}
+        run: |
+          set -euo pipefail
+
+          SITE_URL="${SITE_URL%/}"
+          if [ -z "$SITE_URL" ]; then
+            echo "SITE_URL secret is not set."
+            exit 1
+          fi
+          if [ -z "$REFRESH_SECRET" ]; then
+            echo "Set PORTAL_ANALYTICS_MAINTENANCE_SECRET or CONTENT_SYNC_SECRET in GitHub secrets."
+            exit 1
+          fi
+
+          set +e
+          RESPONSE=$(curl -sS -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/.netlify/functions/portal-analytics-maintenance" \
+            -H "x-portal-analytics-maintenance-secret: ${REFRESH_SECRET}" \
+            -H "x-portal-analytics-trigger: github_actions" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"github_actions"}')
+          CURL_EXIT=$?
+          set -e
+
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            HTTP_STATUS="000"
+            BODY="curl exited with status ${CURL_EXIT}"
+          else
+            HTTP_STATUS=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS__[0-9]*' | grep -o '[0-9]*')
+            BODY=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS__[0-9]*//')
+          fi
+
+          {
+            echo "http_status=$HTTP_STATUS"
+            echo "body<<EOF_BODY"
+            echo "$BODY"
+            echo "EOF_BODY"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            exit 1
+          fi
+
+      - name: Send Slack notification
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
+          HTTP_STATUS: ${{ steps.refresh.outputs.http_status }}
+          RESPONSE_BODY: ${{ steps.refresh.outputs.body }}
+          WORKFLOW_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "SLACK_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          FINISHED_AT=$(date -u +"%Y-%m-%d %H:%M UTC")
+          if [ "$REFRESH_OUTCOME" = "success" ]; then
+            TITLE="IPN Member Portal analytics refresh completed"
+            COLOR_TEXT="success"
+          else
+            TITLE="IPN Member Portal analytics refresh failed"
+            COLOR_TEXT="failed"
+          fi
+
+          SUMMARY=$(echo "${RESPONSE_BODY:-}" | jq -r '
+            if .result then
+              "Rollups: \(.result.rollups // 0), deleted raw events: \(.result.deletedRawEvents // 0), sources checked: \((.result.sources // []) | length)"
+            elif .error then
+              .error
+            else
+              "No JSON response body."
+            end
+          ' 2>/dev/null || echo "${RESPONSE_BODY:-No response body.}")
+
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg status "$COLOR_TEXT" \
+            --arg finished_at "$FINISHED_AT" \
+            --arg http_status "${HTTP_STATUS:-unknown}" \
+            --arg summary "$SUMMARY" \
+            --arg workflow_url "$WORKFLOW_URL" \
+            '{
+              blocks: [
+                { type: "header", text: { type: "plain_text", text: $title, emoji: true } },
+                {
+                  type: "section",
+                  fields: [
+                    { type: "mrkdwn", text: ("*Status:*\n" + $status) },
+                    { type: "mrkdwn", text: ("*Finished:*\n" + $finished_at) },
+                    { type: "mrkdwn", text: ("*HTTP:*\n" + $http_status) },
+                    { type: "mrkdwn", text: ("*Summary:*\n" + $summary) }
+                  ]
+                },
+                {
+                  type: "actions",
+                  elements: [
+                    {
+                      type: "button",
+                      text: { type: "plain_text", text: "View Workflow Run" },
+                      url: $workflow_url
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "$PAYLOAD"
