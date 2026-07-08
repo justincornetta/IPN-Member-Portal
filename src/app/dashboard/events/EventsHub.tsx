@@ -91,7 +91,13 @@ function eventTabFromParam(value: string | null): EventTab {
 
 function RecordingCard({ recording }: { recording: EventRecord }) {
   return (
-    <Link href={`/dashboard/events/${recording.slug}`} className="block h-full min-w-0">
+    <Link
+      href={`/dashboard/events/${recording.slug}`}
+      data-analytics-event="curated_click"
+      data-analytics-id={`recording-detail-card-${recording.slug}`}
+      data-analytics-label="Recording detail card"
+      className="block h-full min-w-0"
+    >
       <article className="flex h-full min-w-0 flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-ipn/30 hover:shadow-md sm:p-4">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-zinc-900">
           {recording.thumbnail_url ? (
@@ -172,6 +178,9 @@ function EventPreviewRow({ event }: { event: EventWithRegistration }) {
   return (
     <Link
       href={`/dashboard/events/${event.slug}`}
+      data-analytics-event="curated_click"
+      data-analytics-id={`event-detail-preview-${event.slug}`}
+      data-analytics-label="Event detail preview"
       className="grid min-h-24 grid-cols-[6rem_1fr] gap-3 rounded-lg border border-zinc-200 bg-white p-2 shadow-sm"
     >
       <div className="relative overflow-hidden rounded-md bg-zinc-900">
@@ -382,7 +391,15 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
                 <div className="flex flex-col gap-2 sm:hidden">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-zinc-900">Upcoming Events</p>
-                    <Link href="/dashboard/events" className="inline-flex min-h-11 items-center text-sm font-medium text-ipn">View all</Link>
+                    <Link
+                      href="/dashboard/events"
+                      data-analytics-event="curated_click"
+                      data-analytics-id="events-hub-view-all-mobile"
+                      data-analytics-label="View all events"
+                      className="inline-flex min-h-11 items-center text-sm font-medium text-ipn"
+                    >
+                      View all
+                    </Link>
                   </div>
                   {upcomingEvents.slice(1, 3).map((event) => (
                     <EventPreviewRow key={event.id} event={event} />

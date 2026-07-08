@@ -6,6 +6,7 @@ import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
 import { registerForEvent, unregisterFromEvent } from "@/lib/events/actions"
 import { canJoinEvent, registrationBand } from "@/lib/events/calendar"
+import { getPortalAnalyticsContext } from "@/lib/portal-analytics/client"
 import type { EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
@@ -138,6 +139,8 @@ function ConfirmationModal({
                 href={eventChatUrl}
                 target="_blank"
                 rel="noreferrer"
+                data-analytics-event="whatsapp_cta_clicked"
+                data-analytics-id={`event-chat-confirmation-${event.slug}`}
                 className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-md border border-ipn/20 bg-white px-3 py-2 text-xs font-medium text-ipn transition hover:bg-white/80 sm:min-h-0 sm:px-2 sm:py-1 sm:text-[11px]"
               >
                 Join event chat
@@ -195,7 +198,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
   function handleRegister() {
     setError(null)
     startTransition(async () => {
-      const result = await registerForEvent(event.id, event.slug)
+      const result = await registerForEvent(event.id, event.slug, getPortalAnalyticsContext())
       if (result.error) {
         setError(result.error)
         return
@@ -216,7 +219,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
   function handleUnrsvp() {
     startTransition(async () => {
-      const result = await unregisterFromEvent(event.id, event.slug)
+      const result = await unregisterFromEvent(event.id, event.slug, getPortalAnalyticsContext())
       if (result.error) {
         setError(result.error)
       } else {
@@ -230,7 +233,15 @@ export default function EventCard({ event, variant = "full" }: Props) {
   return (
     <article className={`rounded-lg border border-zinc-200 bg-white p-3 shadow-sm ${isCompact ? "" : "sm:p-4"}`}>
       <div className={`grid gap-4 ${isCompact ? "" : "sm:grid-cols-[220px_1fr]"}`}>
-        <EventArtwork event={event} compact={isCompact} />
+        <Link
+          href={`/dashboard/events/${event.slug}`}
+          data-analytics-event="curated_click"
+          data-analytics-id={`event-detail-artwork-${event.slug}`}
+          data-analytics-label="Event detail artwork"
+          className="block"
+        >
+          <EventArtwork event={event} compact={isCompact} />
+        </Link>
 
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-center gap-2">
@@ -246,7 +257,13 @@ export default function EventCard({ event, variant = "full" }: Props) {
             </span>
           </div>
 
-          <Link href={`/dashboard/events/${event.slug}`} className="mt-2 group">
+          <Link
+            href={`/dashboard/events/${event.slug}`}
+            data-analytics-event="curated_click"
+            data-analytics-id={`event-detail-title-${event.slug}`}
+            data-analytics-label="Event detail title"
+            className="mt-2 group"
+          >
             <h2 className="text-base font-semibold leading-snug text-zinc-900 group-hover:text-ipn">
               {event.title}
             </h2>
@@ -289,9 +306,12 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     <a
                       href={event.registration_url}
                       target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
-                    >
+	                      rel="noreferrer"
+	                      data-analytics-event="curated_click"
+	                      data-analytics-id={`eventbrite-registration-${event.slug}`}
+	                      data-analytics-label="Register on Eventbrite"
+	                      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
+	                    >
                       Register on Eventbrite
                     </a>
                   )}
@@ -308,6 +328,9 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     type="button"
                     onClick={handleRegister}
                     disabled={pending}
+                    data-analytics-event="curated_click"
+                    data-analytics-id={`event-rsvp-${event.slug}`}
+                    data-analytics-label="RSVP"
                     className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0"
                   >
                     {pending ? "Saving..." : "RSVP"}
@@ -327,8 +350,11 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       href={eventChatUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
-                    >
+	                      data-analytics-event="whatsapp_cta_clicked"
+	                      data-analytics-id={`event-chat-${event.slug}`}
+	                      data-analytics-label="Join event chat"
+	                      className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
+	                    >
                       Join chat
                     </a>
                   ) : (
@@ -347,6 +373,9 @@ export default function EventCard({ event, variant = "full" }: Props) {
                         type="button"
                         onClick={handleUnrsvp}
                         disabled={pending}
+                        data-analytics-event="curated_click"
+                        data-analytics-id={`event-cancel-rsvp-confirm-${event.slug}`}
+                        data-analytics-label="Confirm cancel RSVP"
                         className="min-h-11 rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:min-h-0"
                       >
                         Yes, cancel
@@ -363,6 +392,9 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     <button
                       type="button"
                       onClick={() => setUnrsvpConfirming(true)}
+                      data-analytics-event="curated_click"
+                      data-analytics-id={`event-cancel-rsvp-start-${event.slug}`}
+                      data-analytics-label="Cancel RSVP"
                       className="min-h-11 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-200 hover:text-red-600 sm:min-h-0"
                     >
                       Cancel RSVP
@@ -372,12 +404,15 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 <div className="flex flex-col gap-1.5 sm:items-end">
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                     <AddToCalendarButton event={event} compact />
-                    {canJoin ? (
-                      <button
-                        type="button"
-                        onClick={handleJoin}
-                        className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:min-h-0"
-                      >
+	                    {canJoin ? (
+	                      <button
+	                        type="button"
+	                        onClick={handleJoin}
+	                        data-analytics-event="curated_click"
+	                        data-analytics-id={`event-join-${event.slug}`}
+	                        data-analytics-label="Join event"
+	                        className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:min-h-0"
+	                      >
                         Join
                       </button>
                     ) : (

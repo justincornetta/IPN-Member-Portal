@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
+import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
 import { sendEventRegistrationConfirmation } from "./email-service"
 
 type EventRegistrationResult = {
@@ -14,9 +15,18 @@ type EventRegistrationResult = {
   }
 }
 
+type AnalyticsContext = {
+  sessionId?: string
+  anonymousId?: string
+  pagePath?: string
+  pageTitle?: string
+  referrer?: string
+}
+
 export async function registerForEvent(
   eventId: string,
   eventSlug: string,
+  analytics?: AnalyticsContext,
 ): Promise<EventRegistrationResult> {
   const supabase = await createClient()
   const {
@@ -45,6 +55,18 @@ export async function registerForEvent(
 
   await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
   await sendEventRegistrationConfirmation(eventId, user.id)
+  if (analytics?.sessionId) {
+    await recordPortalAnalyticsEvent({
+      eventName: "event_rsvp_created",
+      sessionId: analytics.sessionId,
+      anonymousId: analytics.anonymousId,
+      pagePath: analytics.pagePath,
+      pageTitle: analytics.pageTitle,
+      referrer: analytics.referrer,
+      userId: user.id,
+      metadata: { eventId, eventSlug },
+    })
+  }
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/events")
   revalidatePath(`/dashboard/events/${eventSlug}`)
@@ -61,6 +83,7 @@ export async function registerForEvent(
 export async function unregisterFromEvent(
   eventId: string,
   eventSlug: string,
+  analytics?: AnalyticsContext,
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const {
@@ -77,6 +100,18 @@ export async function unregisterFromEvent(
 
   if (error) return { error: error.message }
 
+  if (analytics?.sessionId) {
+    await recordPortalAnalyticsEvent({
+      eventName: "event_rsvp_cancelled",
+      sessionId: analytics.sessionId,
+      anonymousId: analytics.anonymousId,
+      pagePath: analytics.pagePath,
+      pageTitle: analytics.pageTitle,
+      referrer: analytics.referrer,
+      userId: user.id,
+      metadata: { eventId, eventSlug },
+    })
+  }
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/events")
   revalidatePath(`/dashboard/events/${eventSlug}`)

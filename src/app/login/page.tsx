@@ -6,6 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import icon from "../../../assets/purple_icon.png"
 import { signIn } from "@/lib/auth/actions"
+import { getPortalAnalyticsContext, trackPortalEvent } from "@/lib/portal-analytics/client"
 import NeuralBackground from "@/components/NeuralBackground"
 
 function LoginCard() {
@@ -21,10 +22,13 @@ function LoginCard() {
     setError(null)
     setLoading(true)
     const fd = new FormData(e.currentTarget)
+    const analytics = getPortalAnalyticsContext()
+    trackPortalEvent("sign_in_submit")
     const result = await signIn(
       fd.get("email") as string,
       fd.get("password") as string,
       next || undefined,
+      analytics,
     )
     if (result?.error) {
       setError(result.error)

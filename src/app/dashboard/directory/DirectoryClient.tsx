@@ -89,6 +89,9 @@ function MemberCard({
     <button
       type="button"
       onClick={() => onOpen(member)}
+      data-analytics-event="curated_click"
+      data-analytics-id={`directory-profile-card-${member.id}`}
+      data-analytics-label="Directory profile card"
       className="group flex w-full cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm transition duration-150 ease-out hover:border-ipn hover:shadow-lg sm:flex-col sm:items-center sm:gap-4 sm:rounded-xl sm:px-4 sm:pb-5 sm:pt-6 sm:hover:[transform:translateY(-6px)]"
     >
       <div className="relative">
@@ -176,7 +179,12 @@ function ConfirmRemoveModal({
             className="min-h-11 flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
             Cancel
           </button>
-          <button type="button" onClick={onConfirm}
+          <button
+            type="button"
+            onClick={onConfirm}
+            data-analytics-event="curated_click"
+            data-analytics-id="connection-remove-confirm"
+            data-analytics-label="Confirm remove connection"
             className="min-h-11 flex-1 rounded-lg border border-ipn bg-transparent py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5">
             Remove connection
           </button>
@@ -354,6 +362,9 @@ function MemberModal({
             <button
               type="button"
               onClick={() => setConfirmRemove(true)}
+              data-analytics-event="curated_click"
+              data-analytics-id={`connection-remove-start-${member.id}`}
+              data-analytics-label="Remove connection"
               className="min-h-11 rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5"
             >
               Remove connection
@@ -414,6 +425,9 @@ function MemberModal({
                       if (!result.error) router.refresh()
                     })
                   }}
+                  data-analytics-event="curated_click"
+                  data-analytics-id={`connection-accept-${member.id}`}
+                  data-analytics-label="Accept connection request"
                   className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
                 >
                   Accept Request
@@ -431,6 +445,9 @@ function MemberModal({
                     if (!result.error) router.refresh()
                   })
                 }}
+                data-analytics-event="curated_click"
+                data-analytics-id={`connection-request-${member.id}`}
+                data-analytics-label="Send connection request"
                 className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
               >
                 Connect

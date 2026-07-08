@@ -6,6 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "analytics:build-snapshot": "node scripts/build-legacy-analytics-snapshot.mjs",
+    "analytics:import-legacy-sot": "node scripts/import-legacy-member-sot.mjs",
+    "analytics:zoom-attendee-backfill": "node scripts/import-zoom-attendee-backfill.mjs",
+    "analytics:zoom-registration-backfill": "node scripts/import-zoom-registration-backfill.mjs",
     "lint": "eslint"
   },
   "dependencies": {
@@ -17,6 +21,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-easy-crop": "^5.5.7",
+    "recharts": "^3.9.1",
     "resend": "^6.16.0"
   },
   "devDependencies": {

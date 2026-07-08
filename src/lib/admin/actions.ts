@@ -5,6 +5,15 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { permanentlyDeleteMailchimpContact } from "@/lib/mailchimp/actions"
 import type { EventSpeakerResources } from "@/lib/events/types"
+import {
+  mergeMemberDirectoryDetail,
+  normalizeMemberEmail,
+} from "@/lib/admin/analytics/member-directory"
+import type {
+  LegacyMemberSotRow,
+  PortalDirectoryProfileRow,
+} from "@/lib/admin/analytics/member-directory"
+import type { MemberDirectoryDetail } from "@/lib/admin/analytics/member-directory-types"
 
 export type AdminContentType =
   | "upcoming_event"
@@ -784,6 +793,105 @@ export async function deleteFeedbackSubmission(id: string): Promise<{ error?: st
   const { error } = await admin.from("feedback_submissions").delete().eq("id", id)
   if (error) return { error: error.message }
   return {}
+}
+
+export type AnalyticsEventLabelOverride = {
+  event_id: string
+  event_topic: string | null
+  event_date: string | null
+  program_label: "IPN Labs" | "PsychedelX" | "Other"
+  event_type: "public" | "internal"
+  include_in_analytics: boolean
+  note: string | null
+  updated_at: string | null
+}
+
+export async function listAnalyticsEventLabelOverrides(): Promise<AnalyticsEventLabelOverride[]> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from("analytics_event_label_overrides")
+    .select("event_id, event_topic, event_date, program_label, event_type, include_in_analytics, note, updated_at")
+    .order("event_date", { ascending: false, nullsFirst: false })
+
+  if (error) return []
+  return (data ?? []) as AnalyticsEventLabelOverride[]
+}
+
+export async function saveAnalyticsEventLabelOverride(payload: {
+  eventId: string
+  eventTopic: string
+  eventDate: string | null
+  programLabel: "IPN Labs" | "PsychedelX" | "Other"
+  eventType: "public" | "internal"
+  includeInAnalytics: boolean
+  note?: string | null
+}): Promise<{ override?: AnalyticsEventLabelOverride; error?: string }> {
+  const auth = await verifySuperadminUser()
+  if ("error" in auth) return auth
+
+  const eventId = clean(payload.eventId)
+  if (!eventId) return { error: "Missing event ID" }
+
+  const admin = createAdminClient()
+  const row = {
+    event_id: eventId,
+    event_topic: clean(payload.eventTopic),
+    event_date: toIso(payload.eventDate),
+    program_label: payload.programLabel,
+    event_type: payload.eventType,
+    include_in_analytics: payload.includeInAnalytics,
+    note: clean(payload.note),
+    updated_by: auth.userId,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data, error } = await admin
+    .from("analytics_event_label_overrides")
+    .upsert(row, { onConflict: "event_id" })
+    .select("event_id, event_topic, event_date, program_label, event_type, include_in_analytics, note, updated_at")
+    .single()
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/admin")
+  return { override: data as AnalyticsEventLabelOverride }
+}
+
+export async function getMemberDirectoryDetail(payload: {
+  normalizedEmail: string
+  portalId?: string | null
+}): Promise<MemberDirectoryDetail | null> {
+  const auth = await verifyAdmin()
+  if ("error" in auth) return null
+
+  const normalizedEmail = normalizeMemberEmail(payload.normalizedEmail)
+  if (!normalizedEmail && !payload.portalId) return null
+
+  const admin = createAdminClient()
+  const [profileResult, legacyResult] = await Promise.all([
+    payload.portalId
+      ? admin
+        .from("profiles")
+        .select("id, first_name, last_name, email, persona, affiliation, school, field, interest_tags, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at")
+        .eq("id", payload.portalId)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    normalizedEmail
+      ? admin
+        .from("legacy_member_sot_rows")
+        .select("id, import_id, legacy_person_id, normalized_email, original_email, first_name, last_name, full_name, affiliation, country, state, city, self_description, primary_field, psychedelic_field_status, psychedelic_field_barriers, current_role_and_goals, ipn_inspiration, referral_source, channels_present, channel_count, in_form, in_mailchimp, in_eventbrite, in_zoom, in_oldapp, in_drive_historical, first_seen_at, last_seen_at, mailchimp_id, mailchimp_audiences, mailchimp_status, eventbrite_event_count, eventbrite_last_event_date, zoom_registrations, zoom_attended, zoom_last_event_date, zoom_total_minutes, zoom_attendance_status, oldapp_user_id, date_of_birth, gender, race, oldapp_signup_location, engagement_status, notes, raw_legacy, imported_at")
+        .eq("normalized_email", normalizedEmail)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ])
+
+  if (profileResult.error || legacyResult.error) return null
+  return mergeMemberDirectoryDetail(
+    (profileResult.data ?? null) as PortalDirectoryProfileRow | null,
+    (legacyResult.data ?? null) as LegacyMemberSotRow | null,
+  )
 }
 
 export async function uploadContentImage(

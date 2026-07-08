@@ -101,6 +101,8 @@ export default function WelcomeModal({
               target="_blank"
               rel="noreferrer"
               onClick={dismiss}
+              data-analytics-event="whatsapp_cta_clicked"
+              data-analytics-id="welcome-modal"
               className="rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-emerald-700"
             >
               Join WhatsApp
