@@ -7,6 +7,7 @@ import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermi
 import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
 import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
+import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
 import ContentIntakeForm from "./ContentIntakeForm"
 
 const TEAMS = ["Strategy and Operations", "Media", "PsychedelX", "Community", "IPN Labs"] as const
@@ -292,6 +293,7 @@ type Props = {
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
+  analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
   teamPermissions: TeamPermissionsMap
@@ -871,7 +873,7 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, portalEvents, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, analyticsRefresh, eventLabelOverrides, portalEvents, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
   const [tab, setTab] = useState<Tab>("analytics")
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
@@ -950,6 +952,7 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
           memberInsights={memberInsights}
           portalUtilization={portalUtilization}
           analyticsSnapshot={analyticsSnapshot}
+          analyticsRefresh={analyticsRefresh}
           eventLabelOverrides={eventLabelOverrides}
           portalEvents={portalEvents}
           isSuperadmin={isSuperadmin}
