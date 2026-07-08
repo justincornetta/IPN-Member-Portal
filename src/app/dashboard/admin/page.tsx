@@ -5,6 +5,7 @@ import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
 import { buildMemberDirectoryData } from "@/lib/admin/analytics/member-directory"
+import { getLatestPortalAnalyticsRefresh } from "@/lib/portal-analytics/rollup"
 import AdminClient from "./AdminClient"
 import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type {
@@ -596,6 +597,7 @@ export default async function AdminPage() {
   const feedback: FeedbackSubmission[] = isSuperadmin ? await listFeedbackSubmissions() : []
   const bannedMembers = isSuperadmin ? await listBannedMembers() : []
   const analyticsSnapshot = await getLegacyAnalyticsSnapshot()
+  const analyticsRefresh = await getLatestPortalAnalyticsRefresh()
   const eventLabelOverrides = await listAnalyticsEventLabelOverrides()
   const [legacyRowsResult, legacyImportResult] = await Promise.all([
     fetchLegacyMemberSotRows(admin),
@@ -680,6 +682,7 @@ export default async function AdminPage() {
       memberInsights={memberInsights}
       portalUtilization={portalUtilization}
       analyticsSnapshot={analyticsSnapshot}
+      analyticsRefresh={analyticsRefresh}
       eventLabelOverrides={eventLabelOverrides}
       portalEvents={portalEvents}
       teamPermissions={teamPermissions}

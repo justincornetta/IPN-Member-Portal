@@ -28,6 +28,7 @@ import { getMemberDirectoryDetail, saveAnalyticsEventLabelOverride } from "@/lib
 import type { AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import type { AnalyticsPoint, LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
+import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
 import type {
   MemberDirectoryData,
   MemberDirectoryDetail,
@@ -189,6 +190,7 @@ type Props = {
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
   analyticsSnapshot: LegacyAnalyticsSnapshot
+  analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
   isSuperadmin: boolean
@@ -502,6 +504,30 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${className}`}>
       {status}
+    </span>
+  )
+}
+
+function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyticsRefreshRun | null; fallbackGeneratedAt: string }) {
+  const refreshedAt = refresh?.finishedAt ?? refresh?.startedAt ?? fallbackGeneratedAt
+  const label = refresh
+    ? refresh.status === "success"
+      ? `Last refreshed ${formatDateTime(refreshedAt)}`
+      : `${refresh.status.replace("_", " ")} ${formatDateTime(refreshedAt)}`
+    : `Snapshot generated ${formatDateTime(fallbackGeneratedAt)}`
+  const status = refresh?.status ?? "snapshot"
+  const className =
+    status === "success"
+      ? "border-blue-200 bg-blue-50 text-blue-700"
+      : status === "failed"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : status === "running"
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+          : "border-zinc-200 bg-zinc-50 text-zinc-600"
+
+  return (
+    <span className={`w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${className}`}>
+      {label}
     </span>
   )
 }
@@ -3234,7 +3260,7 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
     { term: "Portal RSVP registrants", definition: "Member Portal event registrations are the forward source of truth for event registrant counts. The July 2026 transition event appends unique Zoom registrants so early Zoom signups are not lost. Zoom remains the post-event attendance source." },
     { term: "Eventbrite included events", definition: "PsychedelX conferences plus IPN student/professional mixers. Unrelated one-off events are excluded from primary counts." },
     { term: "WhatsApp community metrics", definition: "Pending future source for current community activity, event chats, and connection workflows." },
-    { term: "Source freshness", definition: "Last successful pull timestamp from the legacy refresh pipeline or manual snapshot." },
+    { term: "Source freshness", definition: "Last successful portal refresh timestamp when available, with static snapshot timestamps shown for panels that still use historical exports." },
   ]
 
   return (
@@ -3261,8 +3287,8 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Refresh recovery notes">
           <div className="space-y-3 text-sm leading-6 text-zinc-600">
-            <p>All migrated analytics data is bundled under a server-only admin data layer and passed through the authenticated admin route.</p>
-            <p>The legacy refresh is stale after May 31, 2026. Current Events analytics applies the curated include/exclude list plus the historical Zoom attendance and registrant backfill policy.</p>
+            <p>Portal-owned analytics data is read through the server-only admin data layer and passed through the authenticated admin route.</p>
+            <p>Historical snapshot panels are retained for analytics that have not yet been ported to first-party Portal tables. Current Events analytics applies the curated include/exclude list plus the historical Zoom attendance and registrant backfill policy.</p>
             <p>Event analytics now treats Zoom registrants as a one-time historical backfill, with a July 2026 transition merge that appends unique Zoom registrants to Portal RSVPs. Future registrants should come from Portal RSVPs, then actual Zoom attendance can attach after an event occurs.</p>
             <p>New source loaders should use the same admin verification pattern already used by admin server actions.</p>
           </div>
@@ -3273,7 +3299,7 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
               { label: "WhatsApp community analytics", value: 1 },
               { label: "Search Console SEO analytics", value: 1 },
               { label: "Donations source reconciliation", value: 1 },
-              { label: "Automated snapshot refresh", value: 1 },
+              { label: "External source ingestion", value: 1 },
             ]}
             valueLabel={() => "Pending"}
           />
@@ -3294,10 +3320,9 @@ function DataSourcesPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   )
 }
 
-export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, eventLabelOverrides, portalEvents, isSuperadmin }: Props) {
+export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, analyticsSnapshot, analyticsRefresh, eventLabelOverrides, portalEvents, isSuperadmin }: Props) {
   const [activeSection, setActiveSection] = useState<AnalyticsSectionId>("members")
   const section = ANALYTICS_SECTIONS.find((item) => item.id === activeSection) ?? ANALYTICS_SECTIONS[0]
-  const statusText = useMemo(() => `Snapshot generated ${formatDate(analyticsSnapshot.generatedAt)}`, [analyticsSnapshot.generatedAt])
 
   return (
     <div className="flex flex-col gap-6">
@@ -3306,12 +3331,10 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Analytics</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
-              Authenticated leadership dashboard migrated from IPN operations reporting.
+              Authenticated leadership dashboard powered by Member Portal data.
             </p>
           </div>
-          <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-            {statusText}
-          </span>
+          <RefreshBadge refresh={analyticsRefresh} fallbackGeneratedAt={analyticsSnapshot.generatedAt} />
         </div>
       </div>
 
