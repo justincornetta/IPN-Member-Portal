@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T21:21:33.407Z",
+  "generatedAt": "2026-07-09T13:35:59.772Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-08T21:20:14.948067+00:00",
+      "lastPull": "2026-07-09T13:34:17.396036+00:00",
       "note": "1887 subscribers"
     },
     {
@@ -23,15 +23,15 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-08T21:20:16.081626+00:00",
-      "note": "4605 followers"
+      "lastPull": "2026-07-09T13:34:18.918486+00:00",
+      "note": "4608 followers"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-08T21:20:16.081626+00:00",
+      "lastPull": "2026-07-09T13:34:18.918486+00:00",
       "note": "3162 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-08T21:20:26.489969+00:00",
+      "lastPull": "2026-07-09T13:34:28.728666+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-08T21:20:37.342460+00:00",
+      "lastPull": "2026-07-09T13:34:43.595417+00:00",
       "note": "10 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-08T21:21:31.064754+00:00",
+      "lastPull": "2026-07-09T13:35:56.575665+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-08T21:21:31.345735+00:00",
+      "lastPull": "2026-07-09T13:35:56.873369+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 331,
-      "pulledAt": "2026-07-08T21:20:14.948067+00:00"
+      "pulledAt": "2026-07-09T13:34:17.396036+00:00"
     },
     "lists": [
       {
@@ -1516,10 +1516,10 @@
         "month": "2026-07",
         "campaigns": 1,
         "sent": 1592,
-        "opens": 443,
+        "opens": 446,
         "clicks": 35,
         "unsubscribes": 8,
-        "openRate": 27.8,
+        "openRate": 28,
         "clickRate": 2.2
       }
     ],
@@ -1605,8 +1605,8 @@
         "date": "2026-07-03T15:52:29+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1592,
-        "opens": 443,
-        "openRate": 28.1,
+        "opens": 446,
+        "openRate": 28.3,
         "clicks": 35,
         "clickRate": 2.2,
         "unsubscribes": 8,
@@ -8510,15 +8510,15 @@
         "clickDetail": [
           {
             "url": "https://apps.apple.com/app/id6450196166",
-            "clicks": 176,
+            "clicks": 177,
             "uniqueClicks": 30,
-            "percentOfClicks": 52.7
+            "percentOfClicks": 52.5
           },
           {
             "url": "https://play.google.com/store/apps/details?id=com.ipn.ipn_mobile_app&pli=1",
-            "clicks": 138,
+            "clicks": 140,
             "uniqueClicks": 14,
-            "percentOfClicks": 41.3
+            "percentOfClicks": 41.5
           },
           {
             "url": "https://apps.apple.com/app/id6450196166",
@@ -14852,11 +14852,11 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4605,
+        "followers": 4608,
         "engagementRate": 88,
         "postsThisMonth": 2,
         "status": "live",
-        "updatedAt": "2026-07-08T21:20:16.081626+00:00"
+        "updatedAt": "2026-07-09T13:34:18.918486+00:00"
       },
       {
         "id": "facebook",
@@ -14865,7 +14865,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-07-08T21:20:16.081626+00:00"
+        "updatedAt": "2026-07-09T13:34:18.918486+00:00"
       },
       {
         "id": "linkedin",
@@ -14897,15 +14897,15 @@
     ],
     "history": [
       {
-        "date": "2026-07-08T21:20:16.081626+00:00",
+        "date": "2026-07-09T13:34:18.918486+00:00",
         "month": "2026-07",
         "channel": "instagram",
-        "followers": 4605,
+        "followers": 4608,
         "engagementRate": 88,
         "posts": 2
       },
       {
-        "date": "2026-07-08T21:20:16.081626+00:00",
+        "date": "2026-07-09T13:34:18.918486+00:00",
         "month": "2026-07",
         "channel": "facebook",
         "followers": 3162,
@@ -14919,9 +14919,9 @@
         "date": "2026-07-02T15:57:24+0000",
         "type": "CAROUSEL_ALBUM",
         "caption": "PsychedelX 2026 is officially over, and we are thrilled to announce the runners-up and winners of this year’s talk competition!\n\n🏅Runner up: Faith Halverson-Ramos\n🏅Runner up: Jake Hooper\n🏅Runner up: Taylor Andrews Flatt\n🥉3rd place: Andrew Ferns\n🥈2nd place: Lauren Marchefka\n🥇1st p",
-        "likes": 31,
+        "likes": 32,
         "comments": 3,
-        "engagement": 34,
+        "engagement": 35,
         "permalink": "https://www.instagram.com/p/DaS90AmDbCZ/"
       },
       {
@@ -14959,9 +14959,9 @@
         "date": "2026-06-25T15:45:37+0000",
         "type": "CAROUSEL_ALBUM",
         "caption": "Congratulations to the 6 finalists of PsychedelX 2026! 🌟 \n\nThese PsychedelX participant talks were selected for further review by our panel of professional judges who will determine this year’s talk competition winners! \n\nThe conference is 1 DAY AWAY (June 26th) – register today ",
-        "likes": 73,
+        "likes": 74,
         "comments": 4,
-        "engagement": 77,
+        "engagement": 78,
         "permalink": "https://www.instagram.com/p/DaA65mhjdbC/"
       },
       {
@@ -15110,7 +15110,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-08T21:20:26.489969+00:00"
+    "pulledAt": "2026-07-09T13:34:28.728666+00:00"
   },
   "events": {
     "zoom": {
@@ -15123,7 +15123,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-08T21:20:37.342460+00:00"
+        "pulledAt": "2026-07-09T13:34:43.595417+00:00"
       },
       "byMonth": [
         {
@@ -15844,7 +15844,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-08T21:21:31.064754+00:00"
+        "pulledAt": "2026-07-09T13:35:56.575665+00:00"
       },
       "events": [
         {
