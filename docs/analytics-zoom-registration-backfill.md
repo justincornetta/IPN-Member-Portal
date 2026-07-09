@@ -73,6 +73,26 @@ The importer writes:
 
 The snapshot builder merges those rows into historical Zoom events only when the API snapshot has no registrant rows. This keeps Zoom registrants as a one-time historical recovery path while preserving Member Portal RSVPs as the future registration source of truth.
 
+## Scheduled refresh protection
+
+The portal analytics refresh workflow restores private Zoom backfill artifacts from GitHub Actions secrets before it rebuilds `src/lib/admin/analytics/legacy-snapshot.json`.
+
+Set these repository secrets:
+
+- `ZOOM_REGISTRATION_BACKFILL_GZIP_B64`
+- `ZOOM_ATTENDEE_BACKFILL_GZIP_B64`
+
+Generate each value from the private legacy dashboard data files:
+
+```bash
+gzip -c /Users/jcornetta/Code/ipn-dashboard/data/zoom_registration_backfill.json | base64 | tr -d '\n'
+gzip -c /Users/jcornetta/Code/ipn-dashboard/data/zoom_attendee_backfill.json | base64 | tr -d '\n'
+```
+
+The files contain private registrant and attendee information, so keep them out of git. They are ignored by `/data`.
+
+If the secrets are temporarily missing, the snapshot builder preserves previously backfilled historical aggregate values from the committed snapshot for pre-July 2026 Zoom rows. This prevents a refresh from nulling known historical registration or attendance totals, but detail rows and first-time recoveries still require the private backfill artifacts.
+
 ## Manual count override
 
 If Zoom or an internal record provides the exact total count, update the manifest row like this:
