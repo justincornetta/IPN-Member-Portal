@@ -340,8 +340,21 @@ function buildWebsite(website) {
   }
 }
 
-function buildZoom(zoomStats, zoomEventsPayload, zoomRegistrationBackfillPayload, zoomAttendeeBackfillPayload) {
+function isHistoricalRegistrationSource(value) {
+  return [
+    "manual_zoom_registration_count",
+    "manual_zoom_registration_count_with_csv_rows",
+    "manual_zoom_registration_count_with_zoom_report_rows",
+    "zoom_registration_csv",
+    "zoom_registration_backfill",
+    "zoom_report_participants_include_fields_registrant_id",
+    "zoom_api_registrants",
+  ].includes(String(value || ""))
+}
+
+function buildZoom(baseZoom, zoomStats, zoomEventsPayload, zoomRegistrationBackfillPayload, zoomAttendeeBackfillPayload) {
   const events = Array.isArray(zoomEventsPayload.events) ? zoomEventsPayload.events : []
+  const priorEventsById = new Map((Array.isArray(baseZoom?.events) ? baseZoom.events : []).map((event) => [String(event.id), event]))
   const backfillEvents = Array.isArray(zoomRegistrationBackfillPayload.events) ? zoomRegistrationBackfillPayload.events : []
   const attendeeBackfillEvents = Array.isArray(zoomAttendeeBackfillPayload.events) ? zoomAttendeeBackfillPayload.events : []
   const backfillByEventId = new Map(backfillEvents.filter((event) => event.eventId).map((event) => [String(event.eventId), event]))
@@ -349,6 +362,8 @@ function buildZoom(zoomStats, zoomEventsPayload, zoomRegistrationBackfillPayload
   const attendeeBackfillByEventId = new Map(attendeeBackfillEvents.filter((event) => event.eventId).map((event) => [String(event.eventId), event]))
   const attendeeBackfillByMeetingId = new Map(attendeeBackfillEvents.filter((event) => event.meetingId).map((event) => [String(event.meetingId), event]))
   const mappedEvents = events.map((event) => {
+    const id = String(event.event_id || event.meeting_id || event.topic)
+    const priorEvent = priorEventsById.get(id)
     const includeZoomRegistrantBackfill = isBeforeCutoff(event.start_time, zoomRegistrantBackfillCutoff)
     const registrationBackfill = backfillByEventId.get(String(event.event_id || "")) || backfillByMeetingId.get(String(event.meeting_id || ""))
     const attendeeBackfill = attendeeBackfillByEventId.get(String(event.event_id || "")) || attendeeBackfillByMeetingId.get(String(event.meeting_id || ""))
@@ -378,34 +393,60 @@ function buildZoom(zoomStats, zoomEventsPayload, zoomRegistrationBackfillPayload
           roles: [],
           countries: [],
         }))
+    const liveAttendees = attendeeBackfill?.uniqueAttendees != null
+      ? number(attendeeBackfill.uniqueAttendees)
+      : number(event.unique_participants ?? event.total_participants)
+    const priorHistoricalAttendees = includeZoomRegistrantBackfill && priorEvent?.attendees != null
+      ? number(priorEvent.attendees, null)
+      : null
+    const attendees = priorHistoricalAttendees != null && priorHistoricalAttendees > liveAttendees
+      ? priorHistoricalAttendees
+      : liveAttendees
+    const priorHistoricalRegistrants = includeZoomRegistrantBackfill
+      && !hasApiRegistrants
+      && !registrationBackfill
+      && priorEvent?.registrants != null
+      && isHistoricalRegistrationSource(priorEvent.registrationSource)
+        ? number(priorEvent.registrants, null)
+        : null
+    const registrants = includeZoomRegistrantBackfill
+      ? event.registrants != null
+        ? number(event.registrants)
+        : (manualRegistrantCount ?? (rawRegistrants.length || priorHistoricalRegistrants)) || null
+      : null
+    const registrationSource = includeZoomRegistrantBackfill && rawRegistrants.length
+      ? hasApiRegistrants
+        ? "zoom_api_registrants"
+        : registrationBackfill?.source || "zoom_registration_backfill"
+      : includeZoomRegistrantBackfill && manualRegistrantCount != null
+        ? registrationBackfill?.source || "manual_zoom_registration_count"
+        : priorHistoricalRegistrants != null
+          ? priorEvent.registrationSource
+          : null
+    const liveAvgDuration = attendeeBackfill?.avgDurationMin != null
+      ? number(attendeeBackfill.avgDurationMin)
+      : number(event.retention?.avg_duration_min ?? event.duration_min)
+    const avgDuration = priorHistoricalAttendees != null && priorHistoricalAttendees > liveAttendees && priorEvent?.avgDuration != null
+      ? number(priorEvent.avgDuration)
+      : liveAvgDuration
+    const liveRetentionPct = attendeeBackfill?.retentionPct != null
+      ? number(attendeeBackfill.retentionPct)
+      : number(event.retention?.avg_retention_pct)
+    const retentionPct = priorHistoricalAttendees != null && priorHistoricalAttendees > liveAttendees && priorEvent?.retentionPct != null
+      ? number(priorEvent.retentionPct)
+      : liveRetentionPct
 
     return {
-      id: String(event.event_id || event.meeting_id || event.topic),
+      id,
       topic: event.topic || "",
       date: event.start_time || null,
       program: event.program || "Other",
       type: event.type || "public",
-      attendees: attendeeBackfill?.uniqueAttendees != null
-        ? number(attendeeBackfill.uniqueAttendees)
-        : number(event.unique_participants ?? event.total_participants),
-      registrants: includeZoomRegistrantBackfill
-        ? event.registrants != null
-          ? number(event.registrants)
-          : (manualRegistrantCount ?? rawRegistrants.length) || null
-        : null,
-      registrationSource: includeZoomRegistrantBackfill && rawRegistrants.length
-        ? hasApiRegistrants
-          ? "zoom_api_registrants"
-          : registrationBackfill?.source || "zoom_registration_backfill"
-        : includeZoomRegistrantBackfill && manualRegistrantCount != null
-          ? registrationBackfill?.source || "manual_zoom_registration_count"
-          : null,
-      avgDuration: attendeeBackfill?.avgDurationMin != null
-        ? number(attendeeBackfill.avgDurationMin)
-        : number(event.retention?.avg_duration_min ?? event.duration_min),
-      retentionPct: attendeeBackfill?.retentionPct != null
-        ? number(attendeeBackfill.retentionPct)
-        : number(event.retention?.avg_retention_pct),
+      attendees,
+      registrants,
+      registrationSource,
+      avgDuration,
+      retentionPct,
       repeatPct: number(event.repeat_attendee_pct),
       participantEmails: Array.isArray(attendeeBackfill?.participants)
         ? attendeeBackfill.participants.map((participant) => participant.email).filter(Boolean)
@@ -605,7 +646,7 @@ const snapshot = sanitizeCommittedSnapshot({
   social: hasSocial ? buildSocial(base, socialStats, instagramMedia) : base.social,
   website: hasWebsite ? buildWebsite(websiteStats) : base.website,
   events: {
-    zoom: hasZoom ? buildZoom(zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill) : base.events?.zoom,
+    zoom: hasZoom ? buildZoom(base.events?.zoom, zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill) : base.events?.zoom,
     eventbrite: hasEventbrite ? buildEventbrite(eventbriteEvents) : base.events?.eventbrite,
   },
 })

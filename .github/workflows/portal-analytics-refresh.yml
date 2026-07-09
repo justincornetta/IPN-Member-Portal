@@ -94,6 +94,33 @@ jobs:
             echo "EOF_DETAILS"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Restore private Zoom backfill artifacts
+        if: steps.sources.outputs.has_success == 'true'
+        env:
+          ZOOM_REGISTRATION_BACKFILL_GZIP_B64: ${{ secrets.ZOOM_REGISTRATION_BACKFILL_GZIP_B64 }}
+          ZOOM_ATTENDEE_BACKFILL_GZIP_B64: ${{ secrets.ZOOM_ATTENDEE_BACKFILL_GZIP_B64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+
+          restore_backfill() {
+            local secret_value="$1"
+            local output_path="$2"
+            local label="$3"
+
+            if [ -z "${secret_value:-}" ]; then
+              echo "::warning::${label} secret is not set; snapshot builder will preserve prior historical aggregates but detail rows may be unavailable."
+              return 0
+            fi
+
+            printf '%s' "$secret_value" | base64 --decode | gzip --decompress > "$output_path"
+            jq empty "$output_path"
+            echo "Restored ${label} to ${output_path}"
+          }
+
+          restore_backfill "$ZOOM_REGISTRATION_BACKFILL_GZIP_B64" data/zoom_registration_backfill.json "Zoom registration backfill"
+          restore_backfill "$ZOOM_ATTENDEE_BACKFILL_GZIP_B64" data/zoom_attendee_backfill.json "Zoom attendee backfill"
+
       - name: Build portal analytics snapshot
         if: steps.sources.outputs.has_success == 'true'
         run: npm run analytics:build-snapshot -- .
