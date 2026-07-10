@@ -123,6 +123,7 @@ export const REFERRAL_OPTIONS = [
   "Email / Newsletter",
   "Event / Conference",
   "Academic / Professional Organization",
+  "Other",
 ] as const
 
 export const STEPS = [

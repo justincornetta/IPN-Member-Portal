@@ -63,10 +63,11 @@ Operations dashboard is not part of the production refresh path.
 
 GitHub Actions runs `.github/workflows/portal-analytics-refresh.yml` at
 **10:30 UTC daily** and on manual dispatch. The workflow pulls external source
-data directly from the Member Portal repo, upserts private row-level detail into
-Supabase, rebuilds the privacy-safe aggregate analytics snapshot, commits
-`src/lib/admin/analytics/legacy-snapshot.json` when the snapshot changes, and
-then calls the production Netlify function at
+data directly from the Member Portal repo, restores private Zoom backfills,
+upserts private row-level event detail and daily social snapshots, builds and
+validates a candidate snapshot, retains last-known-good sections for failed
+sources, and commits only the merged result to
+`src/lib/admin/analytics/legacy-snapshot.json`. It then calls the production Netlify function at
 `/.netlify/functions/portal-analytics-maintenance`. The function rolls raw
 `portal_analytics_events` into `portal_analytics_daily_rollups`, deletes raw
 events older than 90 days, records the refresh and per-source statuses in
@@ -84,15 +85,17 @@ The external source pullers require these GitHub repository secrets:
 |---|---|
 | Mailchimp | `MAILCHIMP_API_KEY` |
 | Instagram / Facebook | `INSTAGRAM_ACCESS_TOKEN`, plus `INSTAGRAM_BUSINESS_ACCOUNT_ID` and `FACEBOOK_PAGE_ID` when auto-discovery is not sufficient |
-| GA4 | `GA4_PROPERTY_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| GA4 | `GA4_PROPERTY_ID` (must be `529296668`), `GOOGLE_SERVICE_ACCOUNT_JSON` |
 | Zoom | `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET` |
 | Eventbrite | `EVENTBRITE_API_TOKEN` |
-| Donations / Squarespace | `SQUARESPACE_API_KEY` |
 | Supabase private detail upload | `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
 
-When a source credential is missing or an API pull fails, the workflow keeps the
-last good dashboard data for that source, records that source as failed, and
-includes the failure in the Slack message.
+When a source credential is missing, an API pull fails, or validation detects a
+zero-data collapse, stale timestamp, history/detail regression, or ended Zoom
+event still marked pending, the workflow keeps the last good dashboard data for
+that source, publishes healthy sources, records `partial_failure`, and includes
+the actionable failure in the Slack message. Donations are intentionally absent
+from this workflow; the standalone Squarespace puller and secret remain dormant.
 
 Private source detail rows, such as Zoom participants/registrants and
 Eventbrite attendees, are stored in `analytics_source_records` in Supabase. The
@@ -101,15 +104,20 @@ participant/registrant arrays so Git only stores aggregate reporting data.
 
 To turn the daily refresh on in production:
 
-1. Apply the Supabase migration that creates `portal_analytics_refresh_runs`.
-2. Confirm GitHub has `SITE_URL`, `CONTENT_SYNC_SECRET`, and
+1. Apply the Supabase migrations through
+   `20260710152233_add_member_education_and_analytics_caches.sql` and
+   `20260710190000_remove_member_demographics.sql`, followed by
+   `20260711002500_add_education_level_and_area_of_study.sql`.
+2. Import the existing private legacy geocode cache with
+   `npm run analytics:import-geocodes -- /absolute/path/to/location_geocodes.json`.
+3. Confirm GitHub has `SITE_URL`, `CONTENT_SYNC_SECRET`, and
    `SLACK_WEBHOOK_URL` secrets.
-3. Add the external source and Supabase upload secrets listed above to GitHub.
-4. Confirm Netlify has `CONTENT_SYNC_SECRET`, or set the same
+4. Add the external source and Supabase upload secrets listed above to GitHub.
+5. Confirm Netlify has `CONTENT_SYNC_SECRET`, or set the same
    `PORTAL_ANALYTICS_MAINTENANCE_SECRET` value in GitHub and Netlify.
-5. Merge the workflow into the default branch. GitHub scheduled workflows only
+6. Merge the workflow into the default branch. GitHub scheduled workflows only
    run from the default branch.
-6. Manually run **Portal analytics refresh** once from GitHub Actions and
+7. Manually run **Portal analytics refresh** once from GitHub Actions and
    confirm the Admin Analytics page shows the new last refreshed timestamp.
 
 ## Supabase auth URLs

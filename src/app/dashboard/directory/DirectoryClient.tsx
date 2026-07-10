@@ -10,6 +10,7 @@ import type {
   DirectoryMember,
   DirectoryParams,
 } from "@/lib/directory/types"
+import { educationLevelLabel } from "@/lib/members/education"
 import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
 import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 
@@ -80,7 +81,7 @@ function MemberCard({
   onOpen: (m: DirectoryMember) => void
 }) {
   const initials = getInitials(member.first_name, member.last_name)
-  const institution = member.school ?? member.affiliation
+  const institution = member.education?.[0]?.institution ?? member.school ?? member.affiliation
   const tags = member.interest_tags ?? []
   const isConnected = connectionEntry?.status === "accepted"
   const visibleTags = tags.slice(0, 3)
@@ -212,7 +213,7 @@ function MemberModal({
   const [confirmRemove, setConfirmRemove] = useState(false)
   const initials = getInitials(member.first_name, member.last_name)
   const location = [member.city, member.state].filter(Boolean).join(", ")
-  const institution = member.school ?? member.affiliation
+  const institution = member.education?.[0]?.institution ?? member.school ?? member.affiliation
   const isConnected = connectionEntry?.status === "accepted"
 
   useEffect(() => {
@@ -296,6 +297,27 @@ function MemberModal({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Field</p>
               <p className="mt-1 text-sm text-zinc-700">{member.field}</p>
+            </div>
+          )}
+          {member.education && member.education.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Education</p>
+              <div className="mt-2 flex flex-col gap-3">
+                {member.education.map((entry) => (
+                  <div key={entry.id}>
+                    <p className="text-sm font-medium text-zinc-700">{entry.institution}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {[
+                        educationLevelLabel(entry.education_level),
+                        entry.degree_credential,
+                        entry.area_of_study,
+                        entry.status === "currently_enrolled" ? "Currently enrolled" : entry.status === "completed" ? "Completed / alumni" : null,
+                        entry.graduation_year ? `Class of ${entry.graduation_year}` : null,
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {member.bio && (
@@ -962,7 +984,7 @@ export default function DirectoryClient({
                 : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
-            {tab === "all" ? "All Members" : "Your School"}
+            {tab === "all" ? "All Members" : "Your Schools"}
           </button>
         ))}
       </div>

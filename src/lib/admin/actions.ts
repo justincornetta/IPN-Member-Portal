@@ -870,11 +870,11 @@ export async function getMemberDirectoryDetail(payload: {
   if (!normalizedEmail && !payload.portalId) return null
 
   const admin = createAdminClient()
-  const [profileResult, legacyResult] = await Promise.all([
+  const [profileResult, legacyResult, educationResult] = await Promise.all([
     payload.portalId
       ? admin
         .from("profiles")
-        .select("id, first_name, last_name, email, persona, affiliation, school, field, interest_tags, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at")
+        .select("id, first_name, last_name, email, persona, affiliation, school, field, interest_tags, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, referral_source_other, mailchimp_status, created_at")
         .eq("id", payload.portalId)
         .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -885,13 +885,60 @@ export async function getMemberDirectoryDetail(payload: {
         .eq("normalized_email", normalizedEmail)
         .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    payload.portalId
+      ? admin
+        .from("member_education")
+        .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+        .eq("user_id", payload.portalId)
+        .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
   ])
 
-  if (profileResult.error || legacyResult.error) return null
-  return mergeMemberDirectoryDetail(
-    (profileResult.data ?? null) as PortalDirectoryProfileRow | null,
+  if (profileResult.error || legacyResult.error || educationResult.error) return null
+  const profile = (profileResult.data ?? null) as PortalDirectoryProfileRow | null
+  if (profile) profile.education = educationResult.data ?? []
+  const detail = mergeMemberDirectoryDetail(
+    profile,
     (legacyResult.data ?? null) as LegacyMemberSotRow | null,
   )
+  if (detail && auth.role !== "superadmin") {
+    detail.sensitive = {
+      oldappUserId: "",
+      dateOfBirth: "",
+      gender: "",
+      race: "",
+      oldappSignupLocation: "",
+    }
+  }
+  if (detail) detail.canViewSensitive = auth.role === "superadmin"
+  return detail
+}
+
+export async function saveLinkedInFollowerSnapshot(payload: {
+  snapshotDate: string
+  followerCount: number
+}): Promise<{ error?: string }> {
+  const auth = await verifySuperadminUser()
+  if ("error" in auth) return auth
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.snapshotDate)) return { error: "Choose a valid date." }
+  if (!Number.isInteger(payload.followerCount) || payload.followerCount < 0) {
+    return { error: "Follower count must be a non-negative whole number." }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from("social_metric_snapshots")
+    .upsert({
+      platform: "linkedin",
+      snapshot_date: payload.snapshotDate,
+      follower_count: payload.followerCount,
+      source: "manual",
+      captured_at: new Date().toISOString(),
+      updated_by: auth.userId,
+    }, { onConflict: "platform,snapshot_date" })
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/admin")
+  return {}
 }
 
 export async function uploadContentImage(

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import DirectoryClient from "./DirectoryClient"
 import type {
   ConnectionEntry,
+  DirectoryEducation,
   DirectoryMapCity,
   DirectoryMapMember,
   DirectoryMember,
@@ -10,6 +11,7 @@ import type {
 } from "@/lib/directory/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
 import { memberMatchesDirectorySearch } from "@/lib/directory/search"
+import { normalizeInstitutionName } from "@/lib/members/education"
 
 export default async function DirectoryPage({
   searchParams,
@@ -24,13 +26,37 @@ export default async function DirectoryPage({
 
   if (!user) redirect("/login")
 
-  const { data: userProfile } = await supabase
-    .from("profiles")
-    .select("school")
-    .eq("id", user.id)
-    .single()
+  const [{ data: userProfile }, { data: userEducation }, { data: visibleEducation }] = await Promise.all([
+    supabase.from("profiles").select("school").eq("id", user.id).single(),
+    supabase
+      .from("member_education")
+      .select("institution")
+      .eq("user_id", user.id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("member_education")
+      .select("user_id, institution")
+      .order("institution", { ascending: true }),
+  ])
 
-  const userSchool = userProfile?.school ?? null
+  const userSchoolsByNormalizedName = new Map<string, string>()
+  for (const school of [
+    ...(userEducation ?? []).map((entry) => entry.institution as string),
+    userProfile?.school,
+  ].filter((value): value is string => Boolean(value?.trim()))) {
+    const normalizedSchool = normalizeInstitutionName(school)
+    if (normalizedSchool && !userSchoolsByNormalizedName.has(normalizedSchool)) {
+      userSchoolsByNormalizedName.set(normalizedSchool, school.trim())
+    }
+  }
+  const userSchools = [...userSchoolsByNormalizedName.values()]
+  const normalizedUserSchools = new Set(userSchoolsByNormalizedName.keys())
+  const userSchool = userSchools[0] ?? null
+  const sharedSchoolMemberIds = new Set(
+    (visibleEducation ?? [])
+      .filter((entry) => normalizedUserSchools.has(normalizeInstitutionName(String(entry.institution))))
+      .map((entry) => entry.user_id as string),
+  )
 
   const q = (typeof params.q === "string" ? params.q : "").trim()
   const personaParam = params.persona
@@ -49,22 +75,13 @@ export default async function DirectoryPage({
     .from("profiles")
     .select(
       "id, first_name, last_name, persona, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
+      { count: "exact" },
     )
     .eq("is_discoverable", true)
     .order("first_name", { ascending: true })
 
-  if (tab === "school" && userSchool) {
-    query = query.eq("school", userSchool)
-  }
-
   if (personas.length > 0) {
     query = query.in("persona", personas)
-  }
-
-  if (schoolFilter) {
-    query = query.or(
-      `school.ilike.%${schoolFilter}%,affiliation.ilike.%${schoolFilter}%`,
-    )
   }
 
   if (fieldFilter) {
@@ -75,30 +92,53 @@ export default async function DirectoryPage({
     query = query.overlaps("interest_tags", tagFilter)
   }
 
-  const { data: members } = await query
-  const filteredMembers = ((members ?? []) as DirectoryMember[]).filter((member) =>
-    memberMatchesDirectorySearch(member, q),
-  )
-
-  let showSchoolTab = false
-  if (userSchool) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("school", userSchool)
-      .eq("is_discoverable", true)
-    showSchoolTab = (count ?? 0) > 0
+  const { data: memberRows } = await query
+  const memberIds = (memberRows ?? []).map((member) => member.id as string)
+  const { data: memberEducationRows } = memberIds.length
+    ? await supabase
+      .from("member_education")
+      .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+      .in("user_id", memberIds)
+      .order("sort_order", { ascending: true })
+    : { data: [] }
+  const educationByUser = new Map<string, DirectoryMember["education"]>()
+  for (const entry of memberEducationRows ?? []) {
+    const current = educationByUser.get(entry.user_id as string) ?? []
+    current.push({
+      id: entry.id as string,
+      institution: entry.institution as string,
+      education_level: entry.education_level as DirectoryEducation["education_level"],
+      degree_credential: entry.degree_credential as string | null,
+      area_of_study: entry.area_of_study as string | null,
+      status: entry.status as "currently_enrolled" | "completed" | null,
+      graduation_year: entry.graduation_year as number | null,
+      sort_order: entry.sort_order as number,
+    })
+    educationByUser.set(entry.user_id as string, current)
   }
+  const members = (memberRows ?? []).map((member) => ({
+    ...member,
+    education: educationByUser.get(member.id as string) ?? [],
+  })) as DirectoryMember[]
+  const normalizedSchoolFilter = schoolFilter.toLowerCase()
+  const filteredMembers = members.filter((member) => {
+    if (tab === "school" && userSchool && !sharedSchoolMemberIds.has(member.id)) return false
+    if (schoolFilter) {
+      const matchesEducation = (member.education ?? []).some((entry) => entry.institution.toLowerCase().includes(normalizedSchoolFilter))
+      const matchesLegacy = member.school?.toLowerCase().includes(normalizedSchoolFilter)
+        || member.affiliation?.toLowerCase().includes(normalizedSchoolFilter)
+      if (!matchesEducation && !matchesLegacy) return false
+    }
+    return memberMatchesDirectorySearch(member, q)
+  })
 
-  const { data: schoolRows } = await supabase
-    .from("profiles")
-    .select("school")
-    .eq("is_discoverable", true)
-    .not("school", "is", null)
+  const showSchoolTab = userSchools.length > 0
+    && Array.from(sharedSchoolMemberIds).some((memberId) => memberId !== user.id)
 
-  const schools = [...new Set(
-    (schoolRows ?? []).map((r) => r.school as string).filter(Boolean)
-  )].sort()
+  const schools = [...new Set([
+    ...(visibleEducation ?? []).map((entry) => entry.institution as string),
+    ...members.map((member) => member.school).filter((value): value is string => Boolean(value)),
+  ])].sort()
 
   const { data: tagRows } = await supabase
     .from("profiles")
@@ -160,18 +200,8 @@ export default async function DirectoryPage({
     .not("city_lng", "is", null)
     .order("first_name", { ascending: true })
 
-  if (tab === "school" && userSchool) {
-    mapQuery = mapQuery.eq("school", userSchool)
-  }
-
   if (personas.length > 0) {
     mapQuery = mapQuery.in("persona", personas)
-  }
-
-  if (schoolFilter) {
-    mapQuery = mapQuery.or(
-      `school.ilike.%${schoolFilter}%,affiliation.ilike.%${schoolFilter}%`,
-    )
   }
 
   if (fieldFilter) {
@@ -183,9 +213,19 @@ export default async function DirectoryPage({
   }
 
   const { data: mapRows } = await mapQuery
-  const filteredMapRows = ((mapRows ?? []) as DirectoryMapMember[]).filter((member) =>
-    memberMatchesDirectorySearch(member, q),
-  )
+  const filteredMapRows = ((mapRows ?? []).map((member) => ({
+    ...member,
+    education: educationByUser.get(member.id as string) ?? [],
+  })) as DirectoryMapMember[]).filter((member) => {
+    if (tab === "school" && userSchool && !sharedSchoolMemberIds.has(member.id)) return false
+    if (schoolFilter) {
+      const matchesEducation = (member.education ?? []).some((entry) => entry.institution.toLowerCase().includes(normalizedSchoolFilter))
+      const matchesLegacy = member.school?.toLowerCase().includes(normalizedSchoolFilter)
+        || member.affiliation?.toLowerCase().includes(normalizedSchoolFilter)
+      if (!matchesEducation && !matchesLegacy) return false
+    }
+    return memberMatchesDirectorySearch(member, q)
+  })
   const cityMap = new Map<string, DirectoryMapCity>()
 
   for (const row of filteredMapRows) {

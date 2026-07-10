@@ -7,6 +7,8 @@ export type PortalAnalyticsRefreshSource = {
   label: string
   status: PortalAnalyticsRefreshSourceStatus
   lastRefreshedAt: string | null
+  lastAttemptedAt?: string | null
+  lastSuccessfulAt?: string | null
   records: number | null
   note: string | null
 }
@@ -21,4 +23,5 @@ export type PortalAnalyticsRefreshRun = {
   summary: Record<string, unknown>
   errorMessage: string | null
   createdAt: string
+  lastSuccessfulAt?: string | null
 }

@@ -6,12 +6,18 @@ import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
 import { buildMemberDirectoryData } from "@/lib/admin/analytics/member-directory"
 import { getLatestPortalAnalyticsRefresh } from "@/lib/portal-analytics/rollup"
+import {
+  assembleServerEventAnalytics,
+  type AnalyticsSourceRecord,
+} from "@/lib/admin/analytics/events"
 import AdminClient from "./AdminClient"
 import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type {
+  AnalyticsLocationGeocodeRow,
   LegacyMemberSotImportRow,
   LegacyMemberSotRow,
   PortalDirectoryProfileRow,
+  PortalEducationRow,
 } from "@/lib/admin/analytics/member-directory"
 import type { AdminMemberProfile } from "@/lib/admin/actions"
 import { getTeamPermissions, listFeedbackSubmissions, listBannedMembers, listAnalyticsEventLabelOverrides } from "@/lib/admin/actions"
@@ -43,6 +49,7 @@ type PortalProfileRow = {
   referral_source: string | null
   mailchimp_status: string | null
   created_at: string | null
+  education?: PortalEducationRow[]
 }
 
 type PortalAnalyticsEventRow = {
@@ -539,11 +546,28 @@ export default async function AdminPage() {
   const leadership = (leadershipRows ?? []) as AdminMemberProfile[]
 
   // Member insights (all admin tiers — recent signups only for superadmin)
-  const { data: profileRows } = await admin
-    .from("profiles")
-    .select("id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at")
-
-  const allProfiles = (profileRows ?? []) as PortalProfileRow[]
+  const [profileRowsResult, educationRowsResult, geocodesRowsResult] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, referral_source_other, mailchimp_status, created_at"),
+    admin
+      .from("member_education")
+      .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+      .order("sort_order", { ascending: true }),
+    admin
+      .from("analytics_location_geocodes")
+      .select("location_key, city, state, country, latitude, longitude, precision"),
+  ])
+  const educationByUser = new Map<string, PortalEducationRow[]>()
+  for (const education of (educationRowsResult.data ?? []) as PortalEducationRow[]) {
+    const current = educationByUser.get(education.user_id) ?? []
+    current.push(education)
+    educationByUser.set(education.user_id, current)
+  }
+  const allProfiles = ((profileRowsResult.data ?? []) as PortalProfileRow[]).map((profile) => ({
+    ...profile,
+    education: educationByUser.get(profile.id) ?? [],
+  }))
   const total = allProfiles.length
   const discoverable = allProfiles.filter((p) => p.is_discoverable).length
 
@@ -566,7 +590,10 @@ export default async function AdminPage() {
 
   const schoolCount: Record<string, number> = {}
   for (const p of allProfiles) {
-    if (p.school) schoolCount[p.school] = (schoolCount[p.school] ?? 0) + 1
+    const schools = p.education?.length ? p.education.map((entry) => entry.institution) : [p.school]
+    for (const school of new Set(schools.filter((value): value is string => Boolean(value)))) {
+      schoolCount[school] = (schoolCount[school] ?? 0) + 1
+    }
   }
 
   const countryCount: Record<string, number> = {}
@@ -612,6 +639,7 @@ export default async function AdminPage() {
     profiles: allProfiles as PortalDirectoryProfileRow[],
     legacyRows: legacyRowsResult.rows,
     latestImport: latestLegacyImport,
+    geocodes: (geocodesRowsResult.data ?? []) as AnalyticsLocationGeocodeRow[],
   })
   const ninetyDaysAgo = retentionCutoffIso(90)
   const [
@@ -619,6 +647,7 @@ export default async function AdminPage() {
     onboardingResult,
     eventRegistrationsResult,
     eventRowsResult,
+    analyticsSourceRecordsResult,
   ] = await Promise.all([
     admin
       .from("portal_analytics_events")
@@ -640,6 +669,11 @@ export default async function AdminPage() {
       .eq("is_recording", false)
       .neq("status", "cancelled")
       .order("starts_at", { ascending: true }),
+    admin
+      .from("analytics_source_records")
+      .select("source, record_type, source_record_id, event_source_id, event_name, event_started_at, occurred_at, registered_at, name, email, normalized_email, attended, duration_minutes, details")
+      .eq("source", "zoom")
+      .limit(10000),
   ])
   const eventRegistrations = (eventRegistrationsResult.data ?? []) as EventRegistrationRow[]
   const eventRows = (eventRowsResult.data ?? []) as EventLookupRow[]
@@ -656,6 +690,11 @@ export default async function AdminPage() {
     eventRows,
     eventRegistrations,
     profiles: allProfiles,
+  })
+  const assembledAnalyticsSnapshot = assembleServerEventAnalytics({
+    snapshot: analyticsSnapshot,
+    portalEvents,
+    sourceRecords: (analyticsSourceRecordsResult.data ?? []) as AnalyticsSourceRecord[],
   })
 
   const memberInsights: MemberInsightsData = {
@@ -681,7 +720,7 @@ export default async function AdminPage() {
       leadership={leadership}
       memberInsights={memberInsights}
       portalUtilization={portalUtilization}
-      analyticsSnapshot={analyticsSnapshot}
+      analyticsSnapshot={assembledAnalyticsSnapshot}
       analyticsRefresh={analyticsRefresh}
       eventLabelOverrides={eventLabelOverrides}
       portalEvents={portalEvents}

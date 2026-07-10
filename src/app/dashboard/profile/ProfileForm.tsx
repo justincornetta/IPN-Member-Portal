@@ -11,6 +11,7 @@ import { isProfileOnboardingComplete } from "@/lib/onboarding/progress"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import CityVerificationField from "@/components/location/CityVerificationField"
+import SchoolCombobox from "@/components/SchoolCombobox"
 import type { VerifiedLocation } from "@/components/location/CityVerificationField"
 import {
   PERSONA_OPTIONS,
@@ -26,6 +27,12 @@ import {
   CANADIAN_PROVINCES,
   SCHOOLS_BY_COUNTRY,
 } from "@/lib/constants/locations"
+import {
+  EDUCATION_LEVEL_OPTIONS,
+  EDUCATION_STATUS_OPTIONS,
+  validateEducationEntries,
+  type MemberEducationInput,
+} from "@/lib/members/education"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,6 +62,21 @@ type Contact = {
   whatsapp_url: string | null
 }
 
+type EducationRecord = {
+  id: string
+  institution: string
+  education_level: MemberEducationInput["education_level"] | null
+  degree_credential: string | null
+  area_of_study: string | null
+  status: "currently_enrolled" | "completed" | null
+  graduation_year: number | null
+  sort_order: number
+}
+
+const ALL_SCHOOL_OPTIONS = [...new Set(
+  Object.values(SCHOOLS_BY_COUNTRY).flat(),
+)].sort((a, b) => a.localeCompare(b))
+
 type FormState = {
   first_name: string
   last_name: string
@@ -78,6 +100,7 @@ type FormState = {
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
+  education: MemberEducationInput[]
 }
 
 const WHATSAPP_COUNTRIES: { name: string; iso: string; dial: string }[] = [
@@ -379,7 +402,11 @@ function buildWhatsappUrl(code: string, number: string): string | null {
   return `https://wa.me/${codeDigits}${subscriber}`
 }
 
-function toFormState(profile: Profile | null, contact: Contact | null): FormState {
+function toFormState(
+  profile: Profile | null,
+  contact: Contact | null,
+  education: EducationRecord[],
+): FormState {
   const { countryCode, number } = parseWhatsappUrl(
     contact?.whatsapp_url ?? null,
     profile?.country ?? null,
@@ -410,6 +437,15 @@ function toFormState(profile: Profile | null, contact: Contact | null): FormStat
     is_discoverable: profile?.is_discoverable ?? true,
     share_location: profile?.share_location ?? true,
     avatar_url: profile?.avatar_url ?? null,
+    education: education.map((entry) => ({
+      id: entry.id,
+      institution: entry.institution,
+      education_level: entry.education_level ?? "",
+      degree_credential: entry.degree_credential ?? "",
+      area_of_study: entry.area_of_study ?? "",
+      status: entry.status ?? "",
+      graduation_year: entry.graduation_year,
+    })),
   }
 }
 
@@ -560,53 +596,6 @@ function Select({
       {placeholder && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
-  )
-}
-
-function Combobox({
-  id, name, value, onChange, options, placeholder,
-}: {
-  id: string; name: string; value: string
-  onChange: (v: string) => void; options: string[]
-  placeholder?: string
-}) {
-  const [query, setQuery] = useState(value)
-  const [open, setOpen] = useState(false)
-
-  const filtered = query.length >= 2
-    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())).slice(0, 60)
-    : []
-
-  function select(option: string) {
-    onChange(option)
-    setQuery(option)
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative">
-      <input
-        id={id} name={name} type="text" value={query}
-        placeholder={placeholder} autoComplete="off"
-        onChange={(e) => { setQuery(e.target.value); onChange(""); setOpen(true) }}
-        onFocus={() => { if (query.length >= 2) setOpen(true) }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
-      />
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
-          {filtered.map((o) => (
-            <li
-              key={o}
-              onMouseDown={() => select(o)}
-              className="cursor-pointer px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-50"
-            >
-              {o}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   )
 }
 
@@ -893,18 +882,20 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
 export default function ProfileForm({
   profile,
   contact,
+  education,
   userId,
   userEmail,
   mailchimpStatus,
 }: {
   profile: Profile | null
   contact: Contact | null
+  education: EducationRecord[]
   userId: string
   userEmail: string
   mailchimpStatus: MailchimpStatus
 }) {
   const router = useRouter()
-  const [data, setData] = useState<FormState>(() => toFormState(profile, contact))
+  const [data, setData] = useState<FormState>(() => toFormState(profile, contact, education))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
@@ -918,9 +909,6 @@ export default function ProfileForm({
   const [subscribed, setSubscribed] = useState(mailchimpStatus === "subscribed")
   const [subscriptionSaving, setSubscriptionSaving] = useState(false)
   const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
-  const [atUniversity, setAtUniversity] = useState(() =>
-    PROFESSIONAL_BACKGROUNDS.has(profile?.persona ?? "") && !!profile?.school,
-  )
   const fileInputRef = useRef<HTMLInputElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
 
@@ -982,6 +970,25 @@ export default function ProfileForm({
     setError(null)
   }
 
+  function updateEducation<K extends keyof MemberEducationInput>(
+    index: number,
+    key: K,
+    value: MemberEducationInput[K],
+  ) {
+    update("education", data.education.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, [key]: value } : entry
+    )))
+  }
+
+  function moveEducation(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= data.education.length) return
+    const next = [...data.education]
+    const [entry] = next.splice(index, 1)
+    next.splice(nextIndex, 0, entry)
+    update("education", next)
+  }
+
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1030,6 +1037,13 @@ export default function ProfileForm({
   }
 
   async function handleSave() {
+    const educationError = validateEducationEntries(data.education, {
+      required: STUDENT_BACKGROUNDS.has(data.persona),
+    })
+    if (educationError) {
+      setError(educationError)
+      return
+    }
     setSaving(true)
     setError(null)
     setSaved(false)
@@ -1055,6 +1069,7 @@ export default function ProfileForm({
       is_discoverable: data.is_discoverable,
       share_location: data.share_location,
       avatar_url: data.avatar_url,
+      education: data.education,
     })
 
     setSaving(false)
@@ -1070,10 +1085,6 @@ export default function ProfileForm({
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
   const stateOptions = data.country === "Canada" ? CANADIAN_PROVINCES : US_STATES
   const isProfessional = PROFESSIONAL_BACKGROUNDS.has(data.persona)
-  const showSchool = STUDENT_BACKGROUNDS.has(data.persona) || (isProfessional && atUniversity)
-  const showAffiliation = isProfessional && !atUniversity
-  const schoolLabel = isProfessional ? "University" : "School"
-  const schoolOptions = SCHOOLS_BY_COUNTRY[data.country] ?? []
 
   const initials = data.first_name
     ? `${data.first_name[0]}${data.last_name?.[0] ?? ""}`.toUpperCase()
@@ -1241,7 +1252,7 @@ export default function ProfileForm({
               id="persona"
               name="persona"
               value={data.persona}
-              onChange={(e) => { update("persona", e.target.value); update("school", ""); update("affiliation", ""); setAtUniversity(false) }}
+              onChange={(e) => { update("persona", e.target.value); update("affiliation", "") }}
               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
             >
               <option value="">Select…</option>
@@ -1252,41 +1263,98 @@ export default function ProfileForm({
           </div>
 
           {isProfessional && (
-            <label className="flex min-h-11 cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={atUniversity}
-                onChange={(e) => {
-                  setAtUniversity(e.target.checked)
-                  if (e.target.checked) update("affiliation", "")
-                  else update("school", "")
-                }}
-                className="h-5 w-5 rounded border-zinc-300 accent-[#664fa1]"
-              />
-              <span className="text-sm text-zinc-700">I work at or am affiliated with a university</span>
-            </label>
-          )}
-
-          {showSchool && (
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="school">{schoolLabel}</Label>
-              <Combobox id="school" name="school" value={data.school}
-                onChange={(v) => update("school", v)}
-                options={schoolOptions}
-                placeholder={data.country ? "Type to search…" : "Select a country first"} />
-              <p className="text-xs text-zinc-400">
-                Schools are filtered by country. Update your country in the Location section to see schools in a different country.
-              </p>
-            </div>
-          )}
-
-          {showAffiliation && (
             <div className="flex flex-col gap-1">
               <Label htmlFor="affiliation">Organization or affiliation</Label>
               <TextInput id="affiliation" name="affiliation" value={data.affiliation}
                 onChange={(v) => update("affiliation", v)}
                 placeholder="Company, organization, self-employed…" />
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Education ── */}
+      <section>
+        <SectionHeading>Education</SectionHeading>
+        <p className="-mt-2 mb-4 text-xs text-zinc-400">
+          Your education is visible on your discoverable member profile and helps classmates and alumni find one another.
+        </p>
+        <div className="flex flex-col gap-4">
+          {data.education.map((entry, index) => (
+            <div key={entry.id ?? `education-${index}`} className="rounded-xl border border-zinc-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-zinc-800">Education {index + 1}</p>
+                <div className="flex items-center gap-1">
+                  <button type="button" disabled={index === 0} onClick={() => moveEducation(index, -1)}
+                    className="rounded-lg px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">Up</button>
+                  <button type="button" disabled={index === data.education.length - 1} onClick={() => moveEducation(index, 1)}
+                    className="rounded-lg px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">Down</button>
+                  <button type="button" onClick={() => update("education", data.education.filter((_, entryIndex) => entryIndex !== index))}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Remove</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1 sm:col-span-2">
+                  <Label htmlFor={`education_institution_${index}`}>School or university</Label>
+                  <SchoolCombobox id={`education_institution_${index}`} name={`education_institution_${index}`}
+                    value={entry.institution} onChange={(value) => updateEducation(index, "institution", value)}
+                    options={ALL_SCHOOL_OPTIONS} allowCustom
+                    placeholder="Begin typing a school or university…" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`education_level_${index}`}>Education level</Label>
+                  <select id={`education_level_${index}`} value={entry.education_level}
+                    onChange={(event) => updateEducation(index, "education_level", event.target.value as MemberEducationInput["education_level"])}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20">
+                    <option value="">Select…</option>
+                    {EDUCATION_LEVEL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`education_status_${index}`}>Status</Label>
+                  <select id={`education_status_${index}`} value={entry.status}
+                    onChange={(event) => updateEducation(index, "status", event.target.value as MemberEducationInput["status"])}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20">
+                    <option value="">Select…</option>
+                    {EDUCATION_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`education_degree_${index}`}>Degree or credential</Label>
+                  <TextInput id={`education_degree_${index}`} name={`education_degree_${index}`}
+                    value={entry.degree_credential} onChange={(value) => updateEducation(index, "degree_credential", value)}
+                    placeholder="BA, PhD, certificate…" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`education_area_${index}`}>Area of study (optional)</Label>
+                  <TextInput id={`education_area_${index}`} name={`education_area_${index}`}
+                    value={entry.area_of_study} onChange={(value) => updateEducation(index, "area_of_study", value)}
+                    placeholder="Neuroscience, psychology, law…" />
+                </div>
+                <div className="flex flex-col gap-1 sm:col-span-2">
+                  <Label htmlFor={`education_year_${index}`}>Graduation year (optional)</Label>
+                  <input id={`education_year_${index}`} type="number" min={1900} max={2200}
+                    value={entry.graduation_year ?? ""}
+                    onChange={(event) => updateEducation(index, "graduation_year", event.target.value ? Number(event.target.value) : null)}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20" />
+                </div>
+              </div>
+            </div>
+          ))}
+          <button type="button" onClick={() => update("education", [...data.education, {
+            id: crypto.randomUUID(),
+            institution: "",
+            education_level: "",
+            degree_credential: "",
+            area_of_study: "",
+            status: "",
+            graduation_year: null,
+          }])}
+            className="min-h-11 self-start rounded-lg border border-ipn/30 px-4 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5">
+            Add education
+          </button>
+          {STUDENT_BACKGROUNDS.has(data.persona) && data.education.length === 0 && (
+            <p className="text-xs text-amber-700">Students must add at least one education entry before saving.</p>
           )}
         </div>
       </section>
@@ -1301,7 +1369,6 @@ export default function ProfileForm({
               onChange={(v) => {
                 update("country", v)
                 update("state", "")
-                update("school", "")
                 update("city_lat", null)
                 update("city_lng", null)
               }}

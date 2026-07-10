@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
+import { FeedbackForm } from "@/components/FeedbackFooter"
 import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
@@ -240,8 +241,23 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
   ].filter(Boolean).length
   const totalCount = 5
 
+  if (completedCount === totalCount) {
+    return (
+      <section className="h-full rounded-lg border border-ipn/20 bg-white p-4 shadow-sm sm:rounded-xl sm:p-5">
+        <p className="text-sm font-medium text-ipn">Questions or feedback?</p>
+        <h2 className="mt-1 text-lg font-semibold text-zinc-900">Share it with IPN Leadership</h2>
+        <p className="mt-1 text-xs leading-5 text-zinc-500">
+          Tell us what is working, what needs attention, or what would make the member portal more useful.
+        </p>
+        <div className="mt-4 border-t border-zinc-100 pt-4">
+          <FeedbackForm embedded />
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:rounded-xl">
+    <section className="h-full rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:rounded-xl">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="hidden text-sm font-medium text-ipn sm:block">Get involved</p>
@@ -790,13 +806,13 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
         <UpcomingEventsCarousel
-          className="order-1 self-start"
+          className="order-1 h-full"
           events={upcomingEvents}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
-        <div className="order-2">
+        <div className="order-2 h-full">
           <MemberOnboarding progress={onboardingProgress} />
         </div>
       </div>

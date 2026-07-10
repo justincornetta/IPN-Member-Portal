@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import type { CSSProperties, ReactElement, ReactNode } from "react"
 import mapboxgl, {
   type GeoJSONSource,
@@ -24,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { getMemberDirectoryDetail, saveAnalyticsEventLabelOverride } from "@/lib/admin/actions"
+import { getMemberDirectoryDetail, saveAnalyticsEventLabelOverride, saveLinkedInFollowerSnapshot } from "@/lib/admin/actions"
 import type { AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import type { AnalyticsPoint, LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
@@ -35,6 +36,8 @@ import type {
   MemberDirectoryRow,
   MemberDirectorySources,
 } from "@/lib/admin/analytics/member-directory-types"
+import { educationLevelLabel } from "@/lib/members/education"
+import { buildCarriedSocialTrend } from "@/lib/admin/analytics/social-trend"
 
 const ANALYTICS_SECTIONS = [
   { id: "members", label: "Members", title: "Member analytics", description: "Live Portal membership and legacy membership source-of-truth data." },
@@ -502,10 +505,13 @@ function SourceFreshnessNote({
 }) {
   if (!source) return null
   const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
+  const refreshSource = analyticsRefresh?.sources.find((item) => item.id === source.id)
+  const lastAttemptedAt = refreshSource?.lastAttemptedAt ?? source.lastAttemptedAt ?? portalRefreshedAt
+  const lastSuccessfulAt = refreshSource?.lastSuccessfulAt ?? source.lastSuccessfulAt ?? source.lastPull
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-      <span className="font-semibold">{source.label} source snapshot:</span> last pulled {formatDate(source.lastPull)}. {detail ?? source.note}
-      {portalRefreshedAt ? ` Portal refresh completed ${formatDateTime(portalRefreshedAt)}.` : ""}
+      <span className="font-semibold">{source.label} source snapshot:</span> last successful {formatDateTime(lastSuccessfulAt)}.
+      {lastAttemptedAt ? ` Last attempted ${formatDateTime(lastAttemptedAt)}.` : ""} {detail ?? source.note}
     </div>
   )
 }
@@ -533,7 +539,7 @@ function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyti
   const label = refresh
     ? refresh.status === "success"
       ? `Last refreshed ${formatDateTime(refreshedAt)}`
-      : `${refresh.status.replace("_", " ")} ${formatDateTime(refreshedAt)}`
+      : `${refresh.status.replace("_", " ")} attempted ${formatDateTime(refreshedAt)} · last successful ${formatDateTime(refresh.lastSuccessfulAt)}`
     : `Snapshot generated ${formatDateTime(fallbackGeneratedAt)}`
   const status = refresh?.status ?? "snapshot"
   const className =
@@ -571,7 +577,6 @@ function buildLiveConnectionStatuses(
     { id: "zoom", label: "Zoom" },
     { id: "eventbrite", label: "Eventbrite" },
     { id: "mailchimp", label: "Mailchimp" },
-    { id: "donations", label: "Donations" },
   ]
   const connections = externalSources.map(({ id, label }) => {
     const refreshSource = refreshById.get(id)
@@ -847,7 +852,7 @@ function buildFilteredMemberCharts(rows: MemberDirectoryRow[], directory: Member
     incrementMemberCount(stage, row.persona)
     incrementMemberCount(field, row.primaryField)
     for (const tag of row.interestTags) incrementMemberCount(tags, tag)
-    incrementMemberCount(schools, row.school)
+    for (const school of row.schools) incrementMemberCount(schools, school)
     incrementMemberCount(describes, row.persona || row.selfDescription)
     incrementMemberCount(primary, row.primaryField)
     incrementMemberCount(referrals, row.referralSource)
@@ -1011,6 +1016,11 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
   const geoJsonRef = useRef(geoJson)
   const selectedLocation = activeLocations.find((city) => city.id === selectedCityId) ?? activeLocations[0] ?? null
   const totalLocatedRecords = activeLocations.reduce((sum, city) => sum + city.memberCount, 0)
+  const allLocatedRecords = cities.reduce((sum, city) => sum + city.memberCount, 0)
+  const mappedLocatedRecords = cities
+    .filter((city) => city.lat != null && city.lng != null)
+    .reduce((sum, city) => sum + city.memberCount, 0)
+  const geocodeCoverage = allLocatedRecords ? mappedLocatedRecords / allLocatedRecords * 100 : 0
   const selectedLocationLabel = selectedLocation
     ? geoView === "country"
       ? selectedLocation.country
@@ -1140,7 +1150,7 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
   }, [geoJson])
 
   return (
-    <Panel title="Membership geography" subtitle={`n=${formatNumber(totalLocatedRecords)} located member records`} className="lg:col-span-2">
+    <Panel title="Membership geography" subtitle={`n=${formatNumber(totalLocatedRecords)} located member records · ${formatPercent(geocodeCoverage)} mapped`} className="lg:col-span-2">
       <div className="mb-4 inline-flex rounded-lg border border-zinc-200 bg-white p-1">
         {[
           { id: "city", label: "City" },
@@ -1309,6 +1319,7 @@ function MemberDirectoryDrawer({
                 { label: "Role and goals", value: detail.portal.roleAndGoals },
                 { label: "IPN inspiration", value: detail.portal.inspiration },
                 { label: "Heard about us", value: detail.portal.referralSource },
+                { label: "Heard about us — other details", value: detail.portal.referralSourceOther },
                 { label: "Country", value: detail.portal.country },
                 { label: "State", value: detail.portal.state },
                 { label: "City", value: detail.portal.city },
@@ -1319,6 +1330,28 @@ function MemberDirectoryDrawer({
                 { label: "Created", value: formatDateTime(detail.portal.createdAt) },
                 { label: "Mailchimp status", value: detail.portal.mailchimpStatus },
               ]} />
+
+              {detail.portal.education.length > 0 && (
+                <section className="border-t border-zinc-200 py-5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Education</h3>
+                  <div className="mt-4 flex flex-col gap-3">
+                    {detail.portal.education.map((entry) => (
+                      <div key={entry.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                        <p className="text-sm font-medium text-zinc-800">{entry.institution}</p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {[
+                            educationLevelLabel(entry.educationLevel),
+                            entry.degreeCredential,
+                            entry.areaOfStudy,
+                            entry.status === "currently_enrolled" ? "Currently enrolled" : entry.status === "completed" ? "Completed / alumni" : entry.status,
+                            entry.graduationYear ? `Class of ${entry.graduationYear}` : "",
+                          ].filter(Boolean).join(" · ") || "Legacy education record"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               <DetailFieldGrid title="Legacy SoT Fields" rows={[
                 { label: "Person ID", value: detail.legacy.personId },
@@ -1353,7 +1386,7 @@ function MemberDirectoryDrawer({
                 { label: "Notes", value: detail.legacy.notes },
               ]} />
 
-              <section className="border-t border-zinc-200 py-5">
+              {detail.canViewSensitive && <section className="border-t border-zinc-200 py-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Legacy Sensitive Fields</h3>
                   <button type="button" onClick={() => setShowSensitive((value) => !value)} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600">
@@ -1371,7 +1404,7 @@ function MemberDirectoryDrawer({
                 ) : (
                   <p className="mt-3 text-sm text-zinc-500">Sensitive legacy fields are hidden by default.</p>
                 )}
-              </section>
+              </section>}
             </>
           )}
           {!loading && !detail && <EmptyState title="Member detail unavailable" description="The selected member detail could not be loaded from the admin data layer." />}
@@ -1413,7 +1446,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
     const query = search.trim().toLowerCase()
     return rows
       .filter((row) => {
-        if (query && !`${row.name} ${row.email} ${row.location} ${row.primaryField}`.toLowerCase().includes(query)) return false
+        if (query && !`${row.name} ${row.email} ${row.location} ${row.primaryField} ${row.schools.join(" ")}`.toLowerCase().includes(query)) return false
         if (!isWithinDateRange(row.firstSeenAt, fromDate, toDate)) return false
         if (sourceFilter !== "all" && !row.sources[sourceFilter]) return false
         if (whatsappFilter === "connected" && !row.whatsappConnected) return false
@@ -1606,7 +1639,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
           <table className="min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200">
-                {["Name", "Email", "Location", "Primary Field", "First Seen", "Sources", "WhatsApp", "Mailchimp", "Events"].map((label) => (
+                {["Name", "Email", "Location", "Primary Field", "First Seen", "Sources", "WhatsApp", "Mailchimp"].map((label) => (
                   <th key={label} className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</th>
                 ))}
               </tr>
@@ -1633,7 +1666,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
                       </span>
                     </td>
                     <td className="px-3 py-3"><span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>{badge.label}</span></td>
-                    <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(row.eventCount)}</td>
                   </tr>
                 )
               })}
@@ -2217,7 +2249,44 @@ function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyt
   )
 }
 
-function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
+function LinkedInFollowerEntry() {
+  const router = useRouter()
+  const [snapshotDate, setSnapshotDate] = useState(new Date().toISOString().slice(0, 10))
+  const [followerCount, setFollowerCount] = useState("")
+  const [message, setMessage] = useState("")
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Panel title="LinkedIn followers" subtitle="Superadmin manual daily snapshot">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <FilterField label="Date">
+          <input type="date" value={snapshotDate} max={new Date().toISOString().slice(0, 10)}
+            onChange={(event) => setSnapshotDate(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <FilterField label="Followers">
+          <input type="number" min={0} step={1} value={followerCount}
+            onChange={(event) => setFollowerCount(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <button type="button" disabled={isPending || !snapshotDate || followerCount === ""}
+          onClick={() => startTransition(async () => {
+            const result = await saveLinkedInFollowerSnapshot({ snapshotDate, followerCount: Number(followerCount) })
+            if (result.error) setMessage(result.error)
+            else {
+              setMessage("LinkedIn snapshot saved.")
+              setFollowerCount("")
+              router.refresh()
+            }
+          })}
+          className="min-h-10 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          {isPending ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {message && <p className="mt-3 text-xs text-zinc-500">{message}</p>}
+    </Panel>
+  )
+}
+
+function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null; isSuperadmin: boolean }) {
   const social = snapshot.social
   const socialSource = snapshot.dataSources.find((source) => source.id === "instagram")
     ?? snapshot.dataSources.find((source) => source.id === "facebook")
@@ -2227,51 +2296,33 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
   const [platform, setPlatform] = useState("all")
   const [metric, setMetric] = useState<SocialMetric>("followers")
   const [granularity, setGranularity] = useState<Granularity>("monthly")
-  const platformOptions = social.platforms
-    .filter((item) => item.followers != null)
-    .map((item) => ({ value: item.id, label: item.label }))
-  const latestByPeriodChannel = new Map<string, LegacyAnalyticsSnapshot["social"]["history"][number] & { period: string; timestamp: number }>()
-  social.history
+  const platformOptions = social.platforms.map((item) => ({ value: item.id, label: item.label }))
+  const trendPoints = social.history
     .filter((row) => {
       const dateValue = row.date || `${row.month}-01`
       return isWithinDateRange(dateValue, fromDate, toDate) && (platform === "all" || row.channel === platform)
     })
-    .forEach((row) => {
+    .flatMap((row) => {
       const date = parseDateValue(row.date || `${row.month}-01`)
-      if (!date) return
+      if (!date) return []
       const period = granularityLabel(date, granularity)
-      const key = `${period}:${row.channel}`
-      const timestamp = date.getTime()
-      const existing = latestByPeriodChannel.get(key)
-      if (!existing || timestamp >= existing.timestamp) {
-        latestByPeriodChannel.set(key, { ...row, period, timestamp })
-      }
+      return [{ ...row, period, timestamp: date.getTime() }]
     })
-  const trendByPeriod = Array.from(latestByPeriodChannel.values()).reduce<Record<string, {
-    followers: number
-    posts: number
-    engagementTotal: number
-    engagementRows: number
-  }>>((acc, row) => {
-    const current = acc[row.period] ?? { followers: 0, posts: 0, engagementTotal: 0, engagementRows: 0 }
-    current.followers += row.followers
-    current.posts += row.posts
-    if (row.engagementRate > 0) {
-      current.engagementTotal += row.engagementRate
-      current.engagementRows += 1
-    }
-    acc[row.period] = current
-    return acc
-  }, {})
-  const trend = Object.entries(trendByPeriod)
-    .map(([period, row]) => ({
-      month: period,
-      followers: row.followers,
-      posts: row.posts,
-      engagementRate: row.engagementRows ? roundMetric(row.engagementTotal / row.engagementRows) : 0,
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month))
+  const displayedChannels = platform === "all"
+    ? social.platforms.map((item) => item.id)
+    : [platform]
+  const trend = buildCarriedSocialTrend({
+    points: trendPoints,
+    channels: displayedChannels,
+    metric,
+    includeTotal: platform === "all",
+  })
   const metricLabel = metric === "followers" ? "Followers" : metric === "posts" ? "Posts" : "Engagement rate"
+  const platformColors: Record<string, string> = {
+    instagram: "#db2777",
+    facebook: "#2563eb",
+    linkedin: "#0a66c2",
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -2303,9 +2354,10 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
       <SourceFreshnessNote
         source={socialSource}
         analyticsRefresh={analyticsRefresh}
-        detail="Social history uses the latest available platform pull in each selected day, week, or month. Any missing periods reflect gaps in the legacy social refresh history."
+        detail="Instagram and Facebook are persisted daily from the Meta API. LinkedIn is entered manually. Missing days carry the latest platform value forward."
       />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {isSuperadmin && <LinkedInFollowerEntry />}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {social.platforms.map((platform) => (
           <StatCard
             key={platform.id}
@@ -2317,7 +2369,7 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Follower trend" subtitle={`Tracked Instagram and Facebook history, bucketed ${granularity.replace("ly", "")}`} className="lg:col-span-2">
+        <Panel title="Follower trend" subtitle={`Instagram, Facebook, LinkedIn, and total, bucketed ${granularity.replace("ly", "")}`} className="lg:col-span-2">
           <ResponsiveChart height={320}>
             <LineChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -2325,7 +2377,15 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={tooltipFormatter} />
               <Legend />
-              <Line type="monotone" dataKey={metric} name={metricLabel} stroke="#2563eb" strokeWidth={2} dot />
+              {displayedChannels.map((channel) => (
+                <Line key={channel} type="monotone" connectNulls dataKey={channel}
+                  name={`${social.platforms.find((item) => item.id === channel)?.label ?? channel} ${metricLabel}`}
+                  stroke={platformColors[channel] ?? "#7c3aed"} strokeWidth={2} dot={granularity === "daily"} />
+              ))}
+              {platform === "all" && metric === "followers" && (
+                <Line type="monotone" connectNulls dataKey="total" name={`Total ${metricLabel}`}
+                  stroke="#111111" strokeWidth={3} dot={false} />
+              )}
             </LineChart>
           </ResponsiveChart>
         </Panel>
@@ -2440,8 +2500,10 @@ function WebsitePanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalytic
   const avgDuration = trend.length ? trend.reduce((sum, row) => sum + row.avgDuration, 0) / trend.length : (overview.avg_session_duration as number)
   const geoRows = geoView === "countries" ? website.countries : website.cities
   const hasWebsiteData = Boolean(website.trend.length || website.devices.length || website.channels.length)
-  const websiteFreshnessDetail = hasWebsiteData
-    ? "Server-only snapshot generated from the latest successful GA4 pull. Update the GA4 env var in Netlify before the scheduled refresh runs in production."
+  const websiteFreshnessDetail = websiteSource?.status === "error"
+    ? `The latest GA4 attempt failed validation (${websiteSource.note}). Displaying the last known good Website snapshot instead.`
+    : hasWebsiteData
+      ? "Server-only snapshot generated from the latest successful GA4 pull."
     : "The committed GA4 snapshot contains zero sessions and no trend/device/channel/page rows. This is a source refresh issue, not a Portal chart issue; the Website tab will populate after the GA4 refresh succeeds and the server snapshot is rebuilt."
 
   return (
@@ -2542,7 +2604,7 @@ function WebsitePanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalytic
         </Panel>
         <Panel
           title="Conversion pages"
-          subtitle="GA4 page performance for key action paths tracked in the legacy dashboard, including membership, donation, PsychedelX, and contact pages."
+          subtitle="GA4 page performance for key action paths, including membership, PsychedelX, and contact pages."
         >
           <ResponsiveChart height={280}>
             <BarChart data={website.funnels}>
@@ -3678,7 +3740,7 @@ function DataSourcesPanel() {
         {
           term: "Pending integrations",
           definition: "Known analytics sources or models not yet connected as live automated data feeds.",
-          methodology: "Currently includes WhatsApp community analytics, Search Console SEO analytics, donations reconciliation, and future external source ingestion.",
+          methodology: "Currently includes WhatsApp community analytics, Search Console SEO analytics, and future external source ingestion.",
         },
       ],
     },
@@ -3700,7 +3762,6 @@ function DataSourcesPanel() {
             items={[
               { label: "WhatsApp community analytics", value: 1 },
               { label: "Search Console SEO analytics", value: 1 },
-              { label: "Donations source reconciliation", value: 1 },
               { label: "External source ingestion", value: 1 },
             ]}
             valueLabel={() => "Pending"}
@@ -3775,7 +3836,7 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
         )}
         {activeSection === "community" && <CommunityPanel />}
         {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
-        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} isSuperadmin={isSuperadmin} />}
         {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
         {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
         {activeSection === "data-sources" && <DataSourcesPanel />}

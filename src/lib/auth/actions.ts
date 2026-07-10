@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { sendMemberRegistrationSlackNotification } from "@/lib/slack/member-registration"
@@ -13,6 +14,13 @@ import {
   markOnboardingStepsComplete,
   type OnboardingStep,
 } from "@/lib/onboarding/progress"
+import { STUDENT_BACKGROUNDS } from "@/lib/constants/registration"
+import {
+  compactEducationEntries,
+  educationLevelForPersona,
+  validateEducationEntries,
+  type MemberEducationInput,
+} from "@/lib/members/education"
 
 export type RegistrationData = {
   email: string
@@ -34,6 +42,7 @@ export type RegistrationData = {
   inspiration: string
   support_needs: string
   referral_source: string
+  referral_source_other: string | null
 }
 
 function normalizeWhatsAppUrl(value: string | null): string | null {
@@ -136,6 +145,13 @@ export async function signUp(
   next?: string,
   analytics?: AnalyticsContext,
 ): Promise<{ error: string } | void> {
+  if (data.referral_source === "Other" && !data.referral_source_other?.trim()) {
+    return { error: "Please tell us how you heard about IPN." }
+  }
+  if (STUDENT_BACKGROUNDS.has(data.persona) && !data.school?.trim()) {
+    return { error: "Please select your school from the list." }
+  }
+
   const supabase = await createClient()
   const siteUrl = getSiteUrl()
   const postRegistrationPath = getPostRegistrationPath(next)
@@ -163,6 +179,9 @@ export async function signUp(
         inspiration: data.inspiration,
         support_needs: data.support_needs,
         referral_source: data.referral_source,
+        referral_source_other: data.referral_source === "Other"
+          ? data.referral_source_other?.trim() || null
+          : null,
       },
     },
   })
@@ -174,10 +193,35 @@ export async function signUp(
 
   // The trigger doesn't capture email — set it explicitly on the new profile row
   if (authData.user) {
-    await supabase
+    const { error: profileEmailError } = await supabase
       .from("profiles")
-      .update({ email: data.email })
+      .update({
+        email: data.email,
+        referral_source_other: data.referral_source === "Other"
+          ? data.referral_source_other?.trim() || null
+          : null,
+      })
       .eq("id", authData.user.id)
+
+    const admin = createAdminClient()
+    const educationResult = STUDENT_BACKGROUNDS.has(data.persona) && data.school?.trim()
+      ? await admin.from("member_education").insert({
+          user_id: authData.user.id,
+          institution: data.school.trim(),
+          education_level: educationLevelForPersona(data.persona),
+          degree_credential: null,
+          area_of_study: null,
+          status: "currently_enrolled",
+          graduation_year: null,
+          sort_order: 0,
+        })
+      : { error: null }
+    const privateDataError = profileEmailError ?? educationResult.error
+    if (privateDataError) {
+      await admin.auth.admin.deleteUser(authData.user.id)
+      await recordAuthAnalyticsEvent("registration_error", analytics, null, privateDataError.message)
+      return { error: "We could not save your registration details. Please try again." }
+    }
   }
 
   // Mailchimp sync is tracked for admins, but never blocks registration.
@@ -265,6 +309,7 @@ export type ProfileUpdateData = {
   is_discoverable: boolean
   share_location: boolean
   avatar_url: string | null
+  education: MemberEducationInput[]
 }
 
 export async function updateProfile(
@@ -275,6 +320,11 @@ export async function updateProfile(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
+
+  const educationError = validateEducationEntries(data.education, {
+    required: STUDENT_BACKGROUNDS.has(data.persona),
+  })
+  if (educationError) return { error: educationError }
 
   const whatsappUrl = normalizeWhatsAppUrl(data.whatsapp_url)
   if (whatsappUrl === "") {
@@ -289,7 +339,7 @@ export async function updateProfile(
     city: data.city,
     persona: data.persona,
     affiliation: data.affiliation,
-    school: data.school,
+    school: compactEducationEntries(data.education)[0]?.institution ?? null,
     field: data.field,
     psychedelic_field_status: data.psychedelic_field_status,
     role_and_goals: data.role_and_goals,
@@ -334,6 +384,65 @@ export async function updateProfile(
     .single()
 
   if (error) return { error: error.message }
+
+  const compactEducation = compactEducationEntries(data.education)
+  const { data: currentEducation, error: educationReadError } = await supabase
+    .from("member_education")
+    .select("id")
+    .eq("user_id", user.id)
+  if (educationReadError) return { error: educationReadError.message }
+
+  const existingIds = new Set((currentEducation ?? []).map((entry) => entry.id as string))
+  const retainedIds: string[] = []
+  for (let sortOrder = 0; sortOrder < compactEducation.length; sortOrder += 1) {
+    const entry = compactEducation[sortOrder]
+    if (entry.id && existingIds.has(entry.id)) {
+      const { error: educationUpdateError } = await supabase
+        .from("member_education")
+        .update({
+          institution: entry.institution,
+          education_level: entry.education_level,
+          degree_credential: entry.degree_credential,
+          area_of_study: entry.area_of_study,
+          status: entry.status,
+          graduation_year: entry.graduation_year,
+          sort_order: sortOrder,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", entry.id)
+        .eq("user_id", user.id)
+      if (educationUpdateError) return { error: educationUpdateError.message }
+      retainedIds.push(entry.id)
+    } else {
+      const { data: insertedEducation, error: educationInsertError } = await supabase
+        .from("member_education")
+        .insert({
+          ...(entry.id ? { id: entry.id } : {}),
+          user_id: user.id,
+          institution: entry.institution,
+          education_level: entry.education_level,
+          degree_credential: entry.degree_credential,
+          area_of_study: entry.area_of_study,
+          status: entry.status,
+          graduation_year: entry.graduation_year,
+          sort_order: sortOrder,
+        })
+        .select("id")
+        .single()
+      if (educationInsertError) return { error: educationInsertError.message }
+      retainedIds.push(insertedEducation.id as string)
+    }
+  }
+
+  const removedIds = Array.from(existingIds).filter((id) => !retainedIds.includes(id))
+  if (removedIds.length) {
+    const { error: educationDeleteError } = await supabase
+      .from("member_education")
+      .delete()
+      .eq("user_id", user.id)
+      .in("id", removedIds)
+    if (educationDeleteError) return { error: educationDeleteError.message }
+  }
 
   const completedSteps: OnboardingStep[] = []
   if (isProfileOnboardingComplete({

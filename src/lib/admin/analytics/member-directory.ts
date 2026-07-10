@@ -6,6 +6,37 @@ import type {
   MemberDirectoryRow,
   MemberDirectorySources,
 } from "./member-directory-types"
+import {
+  canonicalMemberField,
+  canonicalPsychedelicFieldStatus,
+} from "./normalization"
+import {
+  analyticsLocationKey,
+  buildAnalyticsGeocodeLookup,
+  resolveAnalyticsLocation,
+} from "./geography"
+
+export type PortalEducationRow = {
+  id: string
+  user_id: string
+  institution: string
+  education_level: string | null
+  degree_credential: string | null
+  area_of_study: string | null
+  status: string | null
+  graduation_year: number | null
+  sort_order: number
+}
+
+export type AnalyticsLocationGeocodeRow = {
+  location_key: string
+  city: string | null
+  state: string | null
+  country: string
+  latitude: number
+  longitude: number
+  precision: "city" | "country"
+}
 
 export type PortalDirectoryProfileRow = {
   id: string
@@ -31,8 +62,10 @@ export type PortalDirectoryProfileRow = {
   role_and_goals?: string | null
   inspiration?: string | null
   referral_source?: string | null
+  referral_source_other?: string | null
   mailchimp_status?: string | null
   created_at: string | null
+  education?: PortalEducationRow[]
 }
 
 export type LegacyMemberSotRow = {
@@ -206,10 +239,15 @@ export function mergeMemberDirectoryRow(
     { source: "Portal", value: profile?.created_at },
   )
   const persona = firstText(profile?.persona, legacy?.self_description)
-  const primaryField = firstText(profile?.field, legacy?.primary_field, "-")
-  const psychedelicFieldStatus = firstText(profile?.psychedelic_field_status, legacy?.psychedelic_field_status)
+  const primaryField = canonicalMemberField(firstText(profile?.field, legacy?.primary_field, "-"))
+  const psychedelicFieldStatus = canonicalPsychedelicFieldStatus(firstText(profile?.psychedelic_field_status, legacy?.psychedelic_field_status))
   const referralSource = firstText(profile?.referral_source, legacy?.referral_source)
-  const school = firstText(profile?.school, legacy?.affiliation)
+  const schools = Array.from(new Set([
+    ...(profile?.education ?? []).map((entry) => text(entry.institution)),
+    text(profile?.school),
+    !profile ? text(legacy?.affiliation) : "",
+  ].filter(Boolean)))
+  const school = schools[0] ?? ""
 
   return {
     id: normalizedEmail,
@@ -229,6 +267,7 @@ export function mergeMemberDirectoryRow(
     psychedelicFieldBarriers: splitMultiValue(profile?.psychedelic_field_barriers?.length ? profile.psychedelic_field_barriers : legacy?.psychedelic_field_barriers),
     referralSource,
     school,
+    schools,
     interestTags: profile?.interest_tags ?? [],
     firstSeenAt: firstSeen?.iso ?? null,
     firstSeenSource: firstSeen?.source ?? "",
@@ -269,13 +308,19 @@ function metadataRecord(value: unknown): Record<string, unknown> {
 function demographicItems(metadata: Record<string, unknown>, key: string) {
   const oldapp = metadataRecord(metadata.oldapp_demographics)
   const bucket = metadataRecord(oldapp[key])
-  return Object.entries(bucket)
+  const counts = Object.keys(metadataRecord(bucket.counts)).length
+    ? metadataRecord(bucket.counts)
+    : bucket
+  return Object.entries(counts)
     .map(([label, value]) => ({ label, value: Number(value) || 0 }))
     .filter((item) => item.label && item.value > 0)
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
 }
 
-function buildChartData(rows: MemberDirectoryRow[], latestImport: LegacyMemberSotImportRow | null): MemberDirectoryData["chartData"] {
+function buildChartData(
+  rows: MemberDirectoryRow[],
+  latestImport: LegacyMemberSotImportRow | null,
+): MemberDirectoryData["chartData"] {
   const stage = new Map<string, number>()
   const field = new Map<string, number>()
   const tags = new Map<string, number>()
@@ -316,11 +361,15 @@ function buildChartData(rows: MemberDirectoryRow[], latestImport: LegacyMemberSo
 }
 
 function normalizeLocationKey(city: string, state: string, country: string) {
-  return [city, state, country].map((part) => part.trim().toLowerCase()).join("|")
+  return analyticsLocationKey(city, state, country)
 }
 
-function buildGeography(rows: MemberDirectoryRow[], profilesByEmail: Map<string, PortalDirectoryProfileRow>): MemberDirectoryData["geography"] {
-  const coordsByLocation = new Map<string, { lat: number; lng: number }>()
+function buildGeography(
+  rows: MemberDirectoryRow[],
+  profilesByEmail: Map<string, PortalDirectoryProfileRow>,
+  geocodes: AnalyticsLocationGeocodeRow[],
+): MemberDirectoryData["geography"] {
+  const geocodeLookup = buildAnalyticsGeocodeLookup(geocodes)
   for (const profile of profilesByEmail.values()) {
     const city = text(profile.city)
     const country = text(profile.country)
@@ -328,17 +377,20 @@ function buildGeography(rows: MemberDirectoryRow[], profilesByEmail: Map<string,
     const lat = Number(profile.city_lat)
     const lng = Number(profile.city_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-    coordsByLocation.set(normalizeLocationKey(city, text(profile.state), country), { lat, lng })
+    geocodeLookup.exact.set(normalizeLocationKey(city, text(profile.state), country), { lat, lng })
   }
 
   const groups = new Map<string, MemberDirectoryData["geography"][number]>()
   for (const row of rows) {
-    if (!row.city || !row.country) continue
-    const key = normalizeLocationKey(row.city, row.state, row.country)
-    const coords = coordsByLocation.get(key) ?? null
+    if (!row.country) continue
+    const city = row.city || "Unknown city"
+    const key = normalizeLocationKey(city, row.state, row.country)
+    const exactKey = normalizeLocationKey(row.city, row.state, row.country)
+    const coords = geocodeLookup.exact.get(exactKey)
+      ?? resolveAnalyticsLocation(geocodeLookup, row.city, row.state, row.country)
     const current = groups.get(key) ?? {
       id: key,
-      city: row.city,
+      city,
       state: row.state,
       country: row.country,
       lat: coords?.lat ?? null,
@@ -371,10 +423,12 @@ export function buildMemberDirectoryData({
   profiles,
   legacyRows,
   latestImport,
+  geocodes = [],
 }: {
   profiles: PortalDirectoryProfileRow[]
   legacyRows: LegacyMemberSotRow[]
   latestImport: LegacyMemberSotImportRow | null
+  geocodes?: AnalyticsLocationGeocodeRow[]
 }): MemberDirectoryData {
   const profilesByEmail = new Map<string, PortalDirectoryProfileRow>()
   for (const profile of profiles) {
@@ -405,6 +459,11 @@ export function buildMemberDirectoryData({
       ? oldappTotal
       : rows.filter((row) => row.sources[source.id]).length,
   }))
+  const geography = buildGeography(rows, profilesByEmail, geocodes)
+  const totalGeographyMembers = rows.filter((row) => row.country).length
+  const resolvedGeographyMembers = geography
+    .filter((location) => location.lat != null && location.lng != null)
+    .reduce((sum, location) => sum + location.memberCount, 0)
 
   return {
     generatedAt: new Date().toISOString(),
@@ -416,7 +475,12 @@ export function buildMemberDirectoryData({
     rows,
     sourceTotals,
     chartData: buildChartData(rows, latestImport),
-    geography: buildGeography(rows, profilesByEmail),
+    geography,
+    geographyCoverage: {
+      resolvedMembers: resolvedGeographyMembers,
+      totalMembers: totalGeographyMembers,
+      percent: totalGeographyMembers ? resolvedGeographyMembers / totalGeographyMembers * 100 : 0,
+    },
     whatsapp: {
       connected: rows.filter((row) => row.whatsappConnected).length,
       totalPortalMembers: rows.filter((row) => row.sources.portal).length,
@@ -433,6 +497,7 @@ export function mergeMemberDirectoryDetail(
 
   return {
     ...row,
+    canViewSensitive: false,
     portal: {
       id: profile?.id ?? null,
       firstName: text(profile?.first_name),
@@ -442,12 +507,22 @@ export function mergeMemberDirectoryDetail(
       persona: text(profile?.persona),
       affiliation: text(profile?.affiliation),
       school: text(profile?.school),
+      education: (profile?.education ?? []).map((entry) => ({
+        id: entry.id,
+        institution: text(entry.institution),
+        educationLevel: text(entry.education_level),
+        degreeCredential: text(entry.degree_credential),
+        areaOfStudy: text(entry.area_of_study),
+        status: text(entry.status),
+        graduationYear: entry.graduation_year,
+      })),
       field: text(profile?.field),
       psychedelicFieldStatus: text(profile?.psychedelic_field_status),
       psychedelicFieldBarriers: profile?.psychedelic_field_barriers ?? [],
       roleAndGoals: text(profile?.role_and_goals),
       inspiration: text(profile?.inspiration),
       referralSource: text(profile?.referral_source),
+      referralSourceOther: text(profile?.referral_source_other),
       country: text(profile?.country),
       state: text(profile?.state),
       city: text(profile?.city),

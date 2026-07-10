@@ -11,7 +11,13 @@ const TYPE_OPTIONS: { id: FeedbackType; label: string; description: string }[] =
   { id: "suggestion", label: "Suggestion", description: "An idea or request" },
 ]
 
-function FeedbackModal({ onClose }: { onClose: () => void }) {
+export function FeedbackForm({
+  onComplete,
+  embedded = false,
+}: {
+  onComplete?: () => void
+  embedded?: boolean
+}) {
   const pathname = usePathname()
   const [type, setType] = useState<FeedbackType>("feedback")
   const [message, setMessage] = useState("")
@@ -20,19 +26,10 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    document.body.style.overflow = "hidden"
-    return () => { document.body.style.overflow = "" }
-  }, [])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onClose])
-
-  useEffect(() => {
-    setTimeout(() => textareaRef.current?.focus(), 50)
-  }, [type])
+    if (embedded) return
+    const timer = window.setTimeout(() => textareaRef.current?.focus(), 50)
+    return () => window.clearTimeout(timer)
+  }, [embedded, type])
 
   async function handleSubmit() {
     if (!message.trim()) return
@@ -56,48 +53,26 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
-          <p className="text-sm font-semibold text-zinc-900">Share feedback</p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-400 transition hover:text-zinc-600"
-            aria-label="Close"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {status === "success" ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+  if (status === "success") {
+    return (
+      <div className={`flex flex-col items-center gap-3 text-center ${embedded ? "py-6" : "px-6 py-10"}`}>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-2xl">
               ✓
             </div>
             <p className="text-sm font-medium text-zinc-900">Thanks for sharing!</p>
             <p className="text-xs text-zinc-400">We read every submission.</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-2 min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
-            >
-              Close
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 px-5 py-5">
+            {onComplete && (
+              <button type="button" onClick={onComplete}
+                className="mt-2 min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                Close
+              </button>
+            )}
+      </div>
+    )
+  }
+
+  return (
+    <div className={`flex flex-col gap-4 ${embedded ? "" : "px-5 py-5"}`}>
             {/* Type selector */}
             <div className="grid grid-cols-3 gap-2">
               {TYPE_OPTIONS.map((opt) => (
@@ -134,7 +109,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
             />
 
             {errorMsg && (
-              <p className="text-xs text-red-500">{errorMsg}</p>
+              <p className="text-xs text-red-500" role="alert">{errorMsg}</p>
             )}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -148,8 +123,37 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
                 {status === "submitting" ? "Sending…" : "Send"}
               </button>
             </div>
-          </div>
-        )}
+    </div>
+  )
+}
+
+function FeedbackModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = "" }
+  }, [])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
+      <div className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }} onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <p className="text-sm font-semibold text-zinc-900">Share feedback</p>
+          <button type="button" onClick={onClose}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-400 transition hover:text-zinc-600"
+            aria-label="Close">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <FeedbackForm onComplete={onClose} />
       </div>
     </div>
   )

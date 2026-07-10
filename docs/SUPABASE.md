@@ -201,6 +201,22 @@ Private contact details that are revealed only after an accepted connection.
 
 RLS allows members to view, insert, and update their own contact row. Accepted connections can select the row, which lets the directory modal reveal email and WhatsApp after the connection is accepted.
 
+### Education and analytics tables
+
+- `member_education` stores ordered, repeatable institution, education-level,
+  credential, area-of-study, enrollment/completion status, and graduation-year
+  records. Authenticated members can read education for discoverable profiles
+  and manage only their own rows.
+- `social_metric_snapshots` stores service-managed Instagram/Facebook daily
+  totals and superadmin-entered LinkedIn totals by platform and date.
+- `analytics_location_geocodes` is the private persistent city/country geocode
+  cache used by membership geography.
+
+These tables use explicit Data API grants in addition to RLS. Apply
+`supabase/migrations/20260710152233_add_member_education_and_analytics_caches.sql`
+and `supabase/migrations/20260711002500_add_education_level_and_area_of_study.sql`
+before deploying application code that reads them.
+
 ---
 
 ## Triggers
