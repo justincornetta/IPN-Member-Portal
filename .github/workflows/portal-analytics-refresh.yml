@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -62,7 +64,6 @@ jobs:
           ZOOM_CLIENT_ID: ${{ secrets.ZOOM_CLIENT_ID }}
           ZOOM_CLIENT_SECRET: ${{ secrets.ZOOM_CLIENT_SECRET }}
           EVENTBRITE_API_TOKEN: ${{ secrets.EVENTBRITE_API_TOKEN }}
-          SQUARESPACE_API_KEY: ${{ secrets.SQUARESPACE_API_KEY }}
         run: |
           set -euo pipefail
           npm run analytics:refresh-sources
@@ -79,20 +80,9 @@ jobs:
             echo "EOF_SOURCES"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upload private analytics source details
-        id: source_details
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          set -euo pipefail
-          npm run analytics:upload-source-details
-
-          {
-            echo "summary<<EOF_DETAILS"
-            jq -c '.' data/analytics-source-detail-upload.json
-            echo "EOF_DETAILS"
-          } >> "$GITHUB_OUTPUT"
+      - name: Prepare historical social snapshots
+        if: steps.sources.outputs.has_success == 'true'
+        run: npm run analytics:prepare-social-backfill
 
       - name: Restore private Zoom backfill artifacts
         if: steps.sources.outputs.has_success == 'true'
@@ -121,9 +111,41 @@ jobs:
           restore_backfill "$ZOOM_REGISTRATION_BACKFILL_GZIP_B64" data/zoom_registration_backfill.json "Zoom registration backfill"
           restore_backfill "$ZOOM_ATTENDEE_BACKFILL_GZIP_B64" data/zoom_attendee_backfill.json "Zoom attendee backfill"
 
+      - name: Upload private analytics source details
+        id: source_details
+        if: steps.sources.outputs.has_success == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          npm run analytics:upload-source-details
+
+          {
+            echo "summary<<EOF_DETAILS"
+            jq -c '.' data/analytics-source-detail-upload.json
+            echo "EOF_DETAILS"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build portal analytics snapshot
         if: steps.sources.outputs.has_success == 'true'
-        run: npm run analytics:build-snapshot -- .
+        run: npm run analytics:build-snapshot -- . data/legacy-snapshot-candidate.json
+
+      - name: Validate and merge analytics snapshot
+        id: validation
+        if: steps.sources.outputs.has_success == 'true'
+        run: |
+          set -euo pipefail
+          npm run analytics:validate-snapshot
+          {
+            echo "status=$(jq -r '.status' data/analytics-validation-report.json)"
+            echo "sources<<EOF_VALIDATED_SOURCES"
+            jq -c '.sources' data/analytics-validation-report.json
+            echo "EOF_VALIDATED_SOURCES"
+            echo "summary<<EOF_VALIDATION_SUMMARY"
+            jq -c '.' data/analytics-validation-report.json
+            echo "EOF_VALIDATION_SUMMARY"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Commit refreshed analytics snapshot
         id: commit_snapshot
@@ -148,7 +170,8 @@ jobs:
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           REFRESH_SECRET: ${{ secrets.PORTAL_ANALYTICS_MAINTENANCE_SECRET || secrets.CONTENT_SYNC_SECRET }}
-          EXTERNAL_SOURCES: ${{ steps.sources.outputs.sources }}
+          EXTERNAL_SOURCES: ${{ steps.validation.outputs.sources || steps.sources.outputs.sources }}
+          VALIDATION_SUMMARY: ${{ steps.validation.outputs.summary || '{}' }}
         run: |
           set -euo pipefail
 
@@ -165,7 +188,8 @@ jobs:
           REQUEST_BODY=$(jq -n \
             --arg trigger "github_actions" \
             --argjson externalSources "${EXTERNAL_SOURCES:-[]}" \
-            '{ trigger: $trigger, externalSources: $externalSources }')
+            --argjson validationSummary "${VALIDATION_SUMMARY:-{}}" \
+            '{ trigger: $trigger, externalSources: $externalSources, validationSummary: $validationSummary }')
 
           set +e
           RESPONSE=$(curl -sS -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/.netlify/functions/portal-analytics-maintenance" \
@@ -203,9 +227,9 @@ jobs:
         if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SOURCE_STATUS: ${{ steps.sources.outputs.status }}
+          SOURCE_STATUS: ${{ steps.validation.outputs.status || steps.sources.outputs.status }}
           SOURCE_SUMMARY: ${{ steps.sources.outputs.summary }}
-          SOURCE_DETAILS: ${{ steps.sources.outputs.sources }}
+          SOURCE_DETAILS: ${{ steps.validation.outputs.sources || steps.sources.outputs.sources }}
           DETAIL_SUMMARY: ${{ steps.source_details.outputs.summary }}
           REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
           REFRESH_STATUS: ${{ steps.refresh.outputs.status }}

@@ -80,6 +80,31 @@ function normalizeRecord(record) {
   }
 }
 
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceRoleKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL/SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+  }
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+async function countSourceRecords(sources) {
+  const supabase = createServiceClient()
+  const counts = {}
+  for (const source of sources) {
+    const { count, error } = await supabase
+      .from("analytics_source_records")
+      .select("source_record_id", { count: "exact", head: true })
+      .eq("source", source)
+    if (error) throw new Error(`Unable to count cumulative ${source} records: ${error.message}`)
+    counts[source] = count ?? 0
+  }
+  return counts
+}
+
 function buildZoomRecords() {
   const payload = readJson("zoom_events.json", { events: [] })
   const pulledAt = payload?.pulled_at ?? null
@@ -176,6 +201,70 @@ function buildZoomRecords() {
   return records
 }
 
+function buildZoomBackfillRecords() {
+  const attendeePayload = readJson("zoom_attendee_backfill.json", { events: [] })
+  const registrationPayload = readJson("zoom_registration_backfill.json", { events: [] })
+  const records = []
+
+  for (const event of Array.isArray(attendeePayload?.events) ? attendeePayload.events : []) {
+    const eventId = cleanString(event.eventId) ?? cleanString(event.meetingId) ?? cleanString(event.topic)
+    if (!eventId) continue
+    for (const [index, participant] of (Array.isArray(event.participants) ? event.participants : []).entries()) {
+      const email = cleanString(participant.email)
+      const name = cleanString(participant.name) ?? email
+      records.push(normalizeRecord({
+        source: "zoom",
+        recordType: "participant",
+        sourceRecordId: recordId("zoom", "participant_backfill", [eventId, email, name, participant.registeredAt, index]),
+        eventSourceId: eventId,
+        eventName: event.topic,
+        eventStartedAt: event.date,
+        occurredAt: event.date,
+        name,
+        email,
+        attended: true,
+        durationSeconds: participant.durationSec,
+        durationMinutes: participant.durationMin,
+        sourcePulledAt: attendeePayload.generatedAt ?? attendeePayload.pulled_at,
+        details: {
+          meetingId: event.meetingId ?? null,
+          daysAttended: participant.daysAttended ?? null,
+          roles: participant.roles ?? [],
+          countries: participant.countries ?? [],
+          source: event.source ?? "zoom_attendee_backfill",
+        },
+      }))
+    }
+  }
+
+  for (const event of Array.isArray(registrationPayload?.events) ? registrationPayload.events : []) {
+    const eventId = cleanString(event.eventId) ?? cleanString(event.meetingId) ?? cleanString(event.topic)
+    if (!eventId) continue
+    for (const [index, registrant] of (Array.isArray(event.registrations) ? event.registrations : []).entries()) {
+      const email = cleanString(registrant.email)
+      const name = cleanString(registrant.name) ?? email
+      records.push(normalizeRecord({
+        source: "zoom",
+        recordType: "registrant",
+        sourceRecordId: recordId("zoom", "registrant_backfill", [eventId, email, name, registrant.registeredAt, index]),
+        eventSourceId: eventId,
+        eventName: event.topic,
+        eventStartedAt: event.date,
+        registeredAt: registrant.registeredAt,
+        name,
+        email,
+        sourcePulledAt: registrationPayload.generatedAt ?? registrationPayload.pulled_at,
+        details: {
+          meetingId: event.meetingId ?? null,
+          source: event.source ?? "zoom_registration_backfill",
+        },
+      }))
+    }
+  }
+
+  return records
+}
+
 function buildEventbriteRecords() {
   const payload = readJson("eventbrite_events.json", { events: [] })
   const pulledAt = payload?.pulled_at ?? null
@@ -220,15 +309,7 @@ function buildEventbriteRecords() {
 }
 
 async function upsertRecords(records) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !serviceRoleKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL/SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-  }
-
-  const supabase = createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  const supabase = createServiceClient()
 
   let upserted = 0
   for (let index = 0; index < records.length; index += chunkSize) {
@@ -254,6 +335,58 @@ async function upsertRecords(records) {
   return upserted
 }
 
+function buildSocialSnapshots() {
+  const social = readJson("social_stats.json", {})
+  const backfill = readJson("social_history_backfill.json", { history: [] })
+  const candidates = [
+    ...(Array.isArray(backfill?.history) ? backfill.history : []),
+    ...(Array.isArray(social?.history) ? social.history : []),
+  ]
+  for (const platform of ["instagram", "facebook"]) {
+    const current = social?.[platform]
+    if (current?.followers != null && current?.updated_at) {
+      candidates.push({
+        channel: platform,
+        followers: current.followers,
+        avg_engagement_rate: current.avg_engagement_rate,
+        posts_this_month: current.posts_this_month,
+        updated_at: current.updated_at,
+      })
+    }
+  }
+
+  const byPlatformDate = new Map()
+  for (const row of candidates) {
+    const platform = String(row.channel || row.platform || "").toLowerCase()
+    if (!['instagram', 'facebook', 'linkedin'].includes(platform)) continue
+    const timestamp = isoOrNull(row.updated_at || row.date)
+    const followerCount = numberOrNull(row.followers ?? row.follower_count)
+    if (!timestamp || followerCount == null || followerCount < 0) continue
+    const snapshotDate = timestamp.slice(0, 10)
+    byPlatformDate.set(`${platform}:${snapshotDate}`, {
+      platform,
+      snapshot_date: snapshotDate,
+      follower_count: Math.round(followerCount),
+      engagement_rate: numberOrNull(row.avg_engagement_rate ?? row.engagement_rate),
+      posts_count: numberOrNull(row.posts_this_month ?? row.posts_count),
+      source: row.source === "manual" ? "manual" : row.source === "backfill" ? "backfill" : "api",
+      details: {},
+      captured_at: timestamp,
+    })
+  }
+  return Array.from(byPlatformDate.values())
+}
+
+async function upsertSocialSnapshots(rows) {
+  if (!rows.length) return 0
+  const supabase = createServiceClient()
+  const { error } = await supabase
+    .from("social_metric_snapshots")
+    .upsert(rows, { onConflict: "platform,snapshot_date" })
+  if (error) throw new Error(error.message)
+  return rows.length
+}
+
 async function main() {
   loadEnvFile(resolve(projectDir, ".env"))
   loadEnvFile(resolve(projectDir, ".env.local"))
@@ -261,8 +394,11 @@ async function main() {
 
   const records = [
     ...buildZoomRecords(),
+    ...buildZoomBackfillRecords(),
     ...buildEventbriteRecords(),
   ]
+  const cumulativeSources = ["zoom", "eventbrite"]
+  const previousCumulativeBySource = await countSourceRecords(cumulativeSources)
 
   const summary = {
     generatedAt: new Date().toISOString(),
@@ -273,9 +409,14 @@ async function main() {
       return acc
     }, {}),
     upserted: 0,
+    socialSnapshotsUpserted: 0,
+    previousCumulativeBySource,
+    cumulativeBySource: {},
   }
 
   summary.upserted = records.length ? await upsertRecords(records) : 0
+  summary.socialSnapshotsUpserted = await upsertSocialSnapshots(buildSocialSnapshots())
+  summary.cumulativeBySource = await countSourceRecords(cumulativeSources)
   writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`)
 
   console.log(`Built ${summary.recordsBuilt} private source detail record(s).`)

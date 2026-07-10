@@ -414,8 +414,6 @@ def build_empty_social_stats():
         "instagram": {},
         "facebook": {},
         "linkedin": {},
-        "x_twitter": {},
-        "youtube": {},
         "history": [],
     }
 

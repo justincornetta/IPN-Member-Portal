@@ -3,7 +3,8 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-const outputPath = resolve(projectDir, "src/lib/admin/analytics/legacy-snapshot.json")
+const committedOutputPath = resolve(projectDir, "src/lib/admin/analytics/legacy-snapshot.json")
+const outputPath = resolve(process.argv[3] || process.env.ANALYTICS_SNAPSHOT_OUTPUT || committedOutputPath)
 const defaultLegacyDir = resolve(projectDir, "..", "ipn-dashboard")
 const legacyDir = resolve(process.argv[2] || process.env.LEGACY_DASHBOARD_DIR || defaultLegacyDir)
 const dataDir = resolve(legacyDir, "data")
@@ -232,7 +233,7 @@ function buildSocial(base, social, instagramMedia) {
         status: "basic",
         updatedAt: facebook.updated_at || null,
       },
-      ...base.social.platforms.filter((platform) => !["instagram", "facebook"].includes(platform.id)),
+      ...base.social.platforms.filter((platform) => platform.id === "linkedin"),
     ],
     history: (Array.isArray(social.history) ? social.history : []).map((row) => ({
       date: row.updated_at || row.date || null,
@@ -567,13 +568,21 @@ function buildEventbrite(eventbritePayload) {
   }
 }
 
-const base = readJson(outputPath)
+const base = readJson(committedOutputPath)
 const sot = readData("sot_dashboard.json")
 const mailchimpAccount = readData("mailchimp_account.json")
 const mailchimpLists = readData("mailchimp_lists.json")
 const mailchimpCampaigns = readData("mailchimp_campaigns.json")
 const mailchimpGrowth = readData("mailchimp_growth.json")
 const socialStats = readData("social_stats.json")
+const socialHistoryBackfill = readData("social_history_backfill.json", { history: [] })
+const socialWithHistory = {
+  ...socialStats,
+  history: [
+    ...(Array.isArray(socialHistoryBackfill.history) ? socialHistoryBackfill.history : []),
+    ...(Array.isArray(socialStats.history) ? socialStats.history : []),
+  ],
+}
 const instagramMedia = readData("instagram_media.json")
 const websiteStats = readData("website_stats.json")
 const zoomStats = readData("zoom_stats.json")
@@ -581,14 +590,12 @@ const zoomEvents = readData("zoom_events.json")
 const zoomRegistrationBackfill = readData("zoom_registration_backfill.json", { events: [] })
 const zoomAttendeeBackfill = readData("zoom_attendee_backfill.json", { events: [] })
 const eventbriteEvents = readData("eventbrite_events.json")
-const donationsLastPull = readData("donations_last_pull.json")
 const hasSot = hasData("sot_dashboard.json")
 const hasMailchimp = hasData("mailchimp_account.json") || hasData("mailchimp_lists.json") || hasData("mailchimp_campaigns.json")
 const hasSocial = hasData("social_stats.json") || hasData("instagram_media.json")
 const hasWebsite = hasData("website_stats.json")
 const hasZoom = hasData("zoom_stats.json") || hasData("zoom_events.json")
 const hasEventbrite = hasData("eventbrite_events.json")
-const hasDonations = hasData("donations_last_pull.json") || hasData("donations_stats.json")
 
 function existingSource(id) {
   return (base.dataSources || []).find((source) => source.id === id) || null
@@ -638,12 +645,11 @@ const snapshot = sanitizeCommittedSnapshot({
     refreshedSource("website", hasWebsite, () => dataSource("website", "Website / GA4", "success", "API snapshot", lastPull(websiteStats) || lastPull(readData("website_last_pull.json")), `${number(websiteStats.overview?.sessions_30d)} sessions in 30d`)),
     refreshedSource("zoom", hasZoom, () => dataSource("zoom", "Zoom", "success", "API snapshot", lastPull(zoomStats) || lastPull(zoomEvents) || lastPull(readData("zoom_last_pull.json")), `${number(zoomStats.total_events, zoomEvents.events?.length)} events`)),
     refreshedSource("eventbrite", hasEventbrite, () => dataSource("eventbrite", "Eventbrite", "success", "API snapshot", lastPull(eventbriteEvents) || lastPull(readData("eventbrite_last_pull.json")), `${number(eventbriteEvents.summary?.total_events, eventbriteEvents.events?.length)} events`)),
-    refreshedSource("donations", hasDonations, () => dataSource("donations", "Donations", "success", "Pending/manual", lastPull(donationsLastPull), "$0 recorded")),
     ...(base.dataSources || []).filter((source) => ["webapp", "whatsapp", "search-console"].includes(source.id)),
   ],
   members: hasSot ? buildMembers(base, sot) : base.members,
   marketing: hasMailchimp ? buildMarketing(base, mailchimpAccount, mailchimpLists, mailchimpCampaigns, mailchimpGrowth) : base.marketing,
-  social: hasSocial ? buildSocial(base, socialStats, instagramMedia) : base.social,
+  social: hasSocial ? buildSocial(base, socialWithHistory, instagramMedia) : base.social,
   website: hasWebsite ? buildWebsite(websiteStats) : base.website,
   events: {
     zoom: hasZoom ? buildZoom(base.events?.zoom, zoomStats, zoomEvents, zoomRegistrationBackfill, zoomAttendeeBackfill) : base.events?.zoom,

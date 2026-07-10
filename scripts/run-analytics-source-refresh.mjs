@@ -69,14 +69,6 @@ const sourceGroups = [
     requiredEnv: ["EVENTBRITE_API_TOKEN"],
     lastPullFiles: ["eventbrite_last_pull.json", "eventbrite_events.json"],
   },
-  {
-    id: "donations",
-    label: "Donations",
-    command: ["python3", "scripts/squarespace_pull.py"],
-    timeoutSeconds: 90,
-    requiredEnv: ["SQUARESPACE_API_KEY"],
-    lastPullFiles: ["donations_last_pull.json", "donations_stats.json"],
-  },
 ]
 
 function readJson(path) {
@@ -146,6 +138,8 @@ function sourceStatus({ id, label, status, lastRefreshedAt, records = null, note
     label,
     status,
     lastRefreshedAt,
+    lastAttemptedAt: nowIso(),
+    lastSuccessfulAt: status === "success" ? lastRefreshedAt : null,
     records,
     note,
   }
@@ -160,6 +154,24 @@ function expandedStatuses(group, status, note) {
     lastRefreshedAt: status === "success" ? firstLastPull(target.lastPullFiles ?? group.lastPullFiles) ?? nowIso() : null,
     note,
   }))
+}
+
+function validateGroupOutput(group) {
+  if (group.id === "website") {
+    const website = readJson(resolve(dataDir, "website_stats.json"))
+    const sessions = Number(website?.overview?.sessions_30d ?? 0)
+    const hasRows = [
+      website?.monthly_trend?.daily,
+      website?.monthly_trend?.monthly,
+      website?.devices,
+      website?.acquisition?.channels,
+      website?.pages,
+    ].some((rows) => Array.isArray(rows) && rows.length > 0)
+    if (sessions <= 0 || !hasRows) {
+      return "GA4 returned zero sessions or no report rows; the previous valid Website snapshot will be retained."
+    }
+  }
+  return null
 }
 
 async function runGroup(group) {
@@ -182,6 +194,9 @@ async function runGroup(group) {
     }
     return expandedStatuses(group, "error", result.output || `Exited with status ${result.code}`)
   }
+
+  const validationError = validateGroupOutput(group)
+  if (validationError) return expandedStatuses(group, "error", validationError)
 
   return expandedStatuses(group, "success", `Pulled in ${result.durationSeconds}s`)
 }
