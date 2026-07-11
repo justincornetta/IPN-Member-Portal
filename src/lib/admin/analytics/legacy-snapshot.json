@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T12:45:44.516Z",
+  "generatedAt": "2026-07-11T11:34:35.887Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,23 +15,23 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-10T12:43:57.522698+00:00",
-      "note": "1888 subscribers"
+      "lastPull": "2026-07-11T11:32:54.707343+00:00",
+      "note": "1889 subscribers"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-10T12:43:59.616185+00:00",
-      "note": "4611 followers"
+      "lastPull": "2026-07-11T11:32:55.962826+00:00",
+      "note": "4615 followers"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-10T12:43:59.616185+00:00",
+      "lastPull": "2026-07-11T11:32:55.962826+00:00",
       "note": "3162 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-10T12:44:12.384636+00:00",
+      "lastPull": "2026-07-11T11:33:06.875301+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-10T12:44:31.746032+00:00",
+      "lastPull": "2026-07-11T11:33:25.124733+00:00",
       "note": "10 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-10T12:45:37.289131+00:00",
+      "lastPull": "2026-07-11T11:34:31.148304+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-10T12:45:37.656770+00:00",
+      "lastPull": "2026-07-11T11:34:31.561726+00:00",
       "note": "$0 recorded"
     },
     {
@@ -943,19 +943,19 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1591,
+      "totalSubscribers": 1592,
       "totalLists": 1,
       "totalCampaigns": 188,
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 331,
-      "pulledAt": "2026-07-10T12:43:57.522698+00:00"
+      "pulledAt": "2026-07-11T11:32:54.707343+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1591,
+        "members": 1592,
         "unsubscribeCount": 297,
         "openRate": 42.21005695112798,
         "clickRate": 4.33093461657322
@@ -1516,10 +1516,10 @@
         "month": "2026-07",
         "campaigns": 1,
         "sent": 1592,
-        "opens": 449,
+        "opens": 451,
         "clicks": 38,
         "unsubscribes": 8,
-        "openRate": 28.2,
+        "openRate": 28.3,
         "clickRate": 2.4
       }
     ],
@@ -1605,8 +1605,8 @@
         "date": "2026-07-03T15:52:29+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1592,
-        "opens": 449,
-        "openRate": 28.5,
+        "opens": 451,
+        "openRate": 28.6,
         "clicks": 38,
         "clickRate": 2.4,
         "unsubscribes": 8,
@@ -8512,19 +8512,19 @@
             "url": "https://apps.apple.com/app/id6450196166",
             "clicks": 177,
             "uniqueClicks": 30,
-            "percentOfClicks": 52.5
+            "percentOfClicks": 52.2
           },
           {
             "url": "https://play.google.com/store/apps/details?id=com.ipn.ipn_mobile_app&pli=1",
-            "clicks": 140,
+            "clicks": 142,
             "uniqueClicks": 14,
-            "percentOfClicks": 41.5
+            "percentOfClicks": 41.9
           },
           {
             "url": "https://apps.apple.com/app/id6450196166",
             "clicks": 14,
             "uniqueClicks": 7,
-            "percentOfClicks": 4.2
+            "percentOfClicks": 4.1
           },
           {
             "url": "https://play.google.com/store/apps/details?id=com.ipn.ipn_mobile_app&pli=1",
@@ -14852,11 +14852,11 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4611,
+        "followers": 4615,
         "engagementRate": 88,
         "postsThisMonth": 2,
         "status": "live",
-        "updatedAt": "2026-07-10T12:43:59.616185+00:00"
+        "updatedAt": "2026-07-11T11:32:55.962826+00:00"
       },
       {
         "id": "facebook",
@@ -14865,7 +14865,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-07-10T12:43:59.616185+00:00"
+        "updatedAt": "2026-07-11T11:32:55.962826+00:00"
       },
       {
         "id": "linkedin",
@@ -14897,15 +14897,15 @@
     ],
     "history": [
       {
-        "date": "2026-07-10T12:43:59.616185+00:00",
+        "date": "2026-07-11T11:32:55.962826+00:00",
         "month": "2026-07",
         "channel": "instagram",
-        "followers": 4611,
+        "followers": 4615,
         "engagementRate": 88,
         "posts": 2
       },
       {
-        "date": "2026-07-10T12:43:59.616185+00:00",
+        "date": "2026-07-11T11:32:55.962826+00:00",
         "month": "2026-07",
         "channel": "facebook",
         "followers": 3162,
@@ -14929,9 +14929,9 @@
         "date": "2026-07-01T11:03:15+0000",
         "type": "IMAGE",
         "caption": "Join us for a lively conversation on the harmonic melodies underlying various states of consciousness, with Dr. Selen Atasoy, our final speaker on “The Shape of Consciousness” series before our Roundtable Talk with the three of our previous guests.\n\nSelen is a neuroscientist who ",
-        "likes": 13,
+        "likes": 14,
         "comments": 1,
-        "engagement": 14,
+        "engagement": 15,
         "permalink": "https://www.instagram.com/p/DaP3DI0N4sn/"
       },
       {
@@ -15110,7 +15110,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-10T12:44:12.384636+00:00"
+    "pulledAt": "2026-07-11T11:33:06.875301+00:00"
   },
   "events": {
     "zoom": {
@@ -15123,7 +15123,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-10T12:44:31.746032+00:00"
+        "pulledAt": "2026-07-11T11:33:25.124733+00:00"
       },
       "byMonth": [
         {
@@ -15165,38 +15165,6 @@
       "topAttendees": [],
       "events": [
         {
-          "id": "yG+3J/mvRRSijbuKo00DWQ==",
-          "topic": "IPN PsychedelX 2026 Leadership Team Meeting #4",
-          "date": "2026-01-11T18:36:29Z",
-          "program": "PsychedelX",
-          "type": "internal",
-          "attendees": 4,
-          "registrants": null,
-          "registrationSource": null,
-          "avgDuration": 23.9,
-          "retentionPct": 29.5,
-          "repeatPct": 0,
-          "participantEmails": [],
-          "participants": [],
-          "registrations": []
-        },
-        {
-          "id": "OmvZaXYXRHWqIecWHtPPPA==",
-          "topic": "IPN Labs TF Biweekly Meeting",
-          "date": "2026-01-11T20:03:32Z",
-          "program": "IPN Labs",
-          "type": "internal",
-          "attendees": 3,
-          "registrants": null,
-          "registrationSource": null,
-          "avgDuration": 65.8,
-          "retentionPct": 59.2,
-          "repeatPct": 33.33333333333333,
-          "participantEmails": [],
-          "participants": [],
-          "registrations": []
-        },
-        {
           "id": "Zfx+F6Y6Q/W85SrvjWDASA==",
           "topic": "IPN PsychedelX Leadership Team Meeting #5",
           "date": "2026-01-25T18:29:22Z",
@@ -15207,7 +15175,7 @@
           "registrationSource": null,
           "avgDuration": 29.3,
           "retentionPct": 48.8,
-          "repeatPct": 16.666666666666664,
+          "repeatPct": 0,
           "participantEmails": [],
           "participants": [],
           "registrations": []
@@ -15224,22 +15192,6 @@
           "avgDuration": 33.8,
           "retentionPct": 54.6,
           "repeatPct": 20,
-          "participantEmails": [],
-          "participants": [],
-          "registrations": []
-        },
-        {
-          "id": "UnyLodFUTTOfhTK9p3Qt0g==",
-          "topic": "IPN Labs Coordinator Meeting ",
-          "date": "2026-02-13T16:02:54Z",
-          "program": "IPN Labs",
-          "type": "internal",
-          "attendees": 3,
-          "registrants": null,
-          "registrationSource": null,
-          "avgDuration": 31.1,
-          "retentionPct": 45.1,
-          "repeatPct": 33.33333333333333,
           "participantEmails": [],
           "participants": [],
           "registrations": []
@@ -15860,7 +15812,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-10T12:45:37.289131+00:00"
+        "pulledAt": "2026-07-11T11:34:31.148304+00:00"
       },
       "events": [
         {
