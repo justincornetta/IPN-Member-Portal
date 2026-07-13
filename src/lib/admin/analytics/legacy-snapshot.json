@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-12T11:42:47.918Z",
+  "generatedAt": "2026-07-13T13:05:25.753Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-12T11:41:04.456112+00:00",
+      "lastPull": "2026-07-13T13:03:32.104960+00:00",
       "note": "1889 subscribers"
     },
     {
@@ -23,15 +23,15 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-12T11:41:06.224667+00:00",
-      "note": "4618 followers"
+      "lastPull": "2026-07-13T13:03:34.265826+00:00",
+      "note": "4622 followers"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-12T11:41:06.224667+00:00",
+      "lastPull": "2026-07-13T13:03:34.265826+00:00",
       "note": "3162 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-12T11:41:17.234109+00:00",
+      "lastPull": "2026-07-13T13:03:48.277692+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-12T11:41:35.424131+00:00",
+      "lastPull": "2026-07-13T13:04:04.753179+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-12T11:42:42.650469+00:00",
+      "lastPull": "2026-07-13T13:05:20.568679+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-12T11:42:43.079852+00:00",
+      "lastPull": "2026-07-13T13:05:20.983117+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 331,
-      "pulledAt": "2026-07-12T11:41:04.456112+00:00"
+      "pulledAt": "2026-07-13T13:03:32.104960+00:00"
     },
     "lists": [
       {
@@ -14852,11 +14852,11 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4618,
+        "followers": 4622,
         "engagementRate": 86,
         "postsThisMonth": 2,
         "status": "live",
-        "updatedAt": "2026-07-12T11:41:06.224667+00:00"
+        "updatedAt": "2026-07-13T13:03:34.265826+00:00"
       },
       {
         "id": "facebook",
@@ -14865,7 +14865,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-07-12T11:41:06.224667+00:00"
+        "updatedAt": "2026-07-13T13:03:34.265826+00:00"
       },
       {
         "id": "linkedin",
@@ -14897,15 +14897,15 @@
     ],
     "history": [
       {
-        "date": "2026-07-12T11:41:06.224667+00:00",
+        "date": "2026-07-13T13:03:34.265826+00:00",
         "month": "2026-07",
         "channel": "instagram",
-        "followers": 4618,
+        "followers": 4622,
         "engagementRate": 86,
         "posts": 2
       },
       {
-        "date": "2026-07-12T11:41:06.224667+00:00",
+        "date": "2026-07-13T13:03:34.265826+00:00",
         "month": "2026-07",
         "channel": "facebook",
         "followers": 3162,
@@ -14919,9 +14919,9 @@
         "date": "2026-07-02T15:57:24+0000",
         "type": "CAROUSEL_ALBUM",
         "caption": "PsychedelX 2026 is officially over, and we are thrilled to announce the runners-up and winners of this year’s talk competition!\n\n🏅Runner up: Faith Halverson-Ramos\n🏅Runner up: Jake Hooper\n🏅Runner up: Taylor Andrews Flatt\n🥉3rd place: Andrew Ferns\n🥈2nd place: Lauren Marchefka\n🥇1st p",
-        "likes": 33,
+        "likes": 34,
         "comments": 3,
-        "engagement": 36,
+        "engagement": 37,
         "permalink": "https://www.instagram.com/p/DaS90AmDbCZ/"
       },
       {
@@ -15100,7 +15100,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-12T11:41:17.234109+00:00"
+    "pulledAt": "2026-07-13T13:03:48.277692+00:00"
   },
   "events": {
     "zoom": {
@@ -15113,7 +15113,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-12T11:41:35.424131+00:00"
+        "pulledAt": "2026-07-13T13:04:04.753179+00:00"
       },
       "byMonth": [
         {
@@ -15182,6 +15182,22 @@
           "avgDuration": 33.8,
           "retentionPct": 54.6,
           "repeatPct": 20,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
+        {
+          "id": "UnyLodFUTTOfhTK9p3Qt0g==",
+          "topic": "IPN Labs Coordinator Meeting ",
+          "date": "2026-02-13T16:02:54Z",
+          "program": "IPN Labs",
+          "type": "internal",
+          "attendees": 3,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 31.1,
+          "retentionPct": 45.1,
+          "repeatPct": 33.33333333333333,
           "participantEmails": [],
           "participants": [],
           "registrations": []
@@ -15745,27 +15761,25 @@
           "participantEmails": [],
           "participants": [],
           "registrations": []
+        },
+        {
+          "id": "/xBg75fgQHqCDjkHeEe45w==",
+          "topic": "Monthly IPN BoD Meeting",
+          "date": "2026-07-12T19:04:16Z",
+          "program": "Other",
+          "type": "internal",
+          "attendees": 0,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 0,
+          "retentionPct": 0,
+          "repeatPct": 0,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
         }
       ],
       "upcomingEvents": [
-        {
-          "id": "87151931518",
-          "topic": "Monthly IPN BoD Meeting",
-          "date": "2026-07-12T16:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
-          "id": "88586210885",
-          "topic": "IPN Labs TF Biweekly Meeting",
-          "date": "2026-07-12T18:00:00Z",
-          "program": "IPN Labs",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
         {
           "id": "86971568145",
           "topic": "Justin:Luke",
@@ -15792,6 +15806,24 @@
           "type": "internal",
           "registrants": 0,
           "registrations": []
+        },
+        {
+          "id": "88586210885",
+          "topic": "IPN Labs TF Biweekly Meeting",
+          "date": "2026-07-26T18:00:00Z",
+          "program": "IPN Labs",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "87151931518",
+          "topic": "Monthly IPN BoD Meeting",
+          "date": "2026-08-02T16:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
         }
       ]
     },
@@ -15802,7 +15834,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-12T11:42:42.650469+00:00"
+        "pulledAt": "2026-07-13T13:05:20.568679+00:00"
       },
       "events": [
         {
