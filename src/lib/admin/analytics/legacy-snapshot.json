@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-14T11:59:29.198Z",
+  "generatedAt": "2026-07-15T12:05:51.678Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-14T11:57:59.432906+00:00",
+      "lastPull": "2026-07-15T12:04:18.084298+00:00",
       "note": "1889 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-14T11:58:03.732657+00:00",
+      "lastPull": "2026-07-15T12:04:21.646545+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-14T11:58:03.732657+00:00",
+      "lastPull": "2026-07-15T12:04:21.646545+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-14T11:58:11.442042+00:00",
+      "lastPull": "2026-07-15T12:04:31.098939+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-14T11:58:22.967406+00:00",
+      "lastPull": "2026-07-15T12:04:43.064587+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-14T11:59:25.250095+00:00",
+      "lastPull": "2026-07-15T12:05:48.459450+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-14T11:59:25.617704+00:00",
+      "lastPull": "2026-07-15T12:05:48.755262+00:00",
       "note": "$0 recorded"
     },
     {
@@ -943,20 +943,20 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1592,
+      "totalSubscribers": 1591,
       "totalLists": 1,
       "totalCampaigns": 188,
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
-      "totalUnsubscribes": 331,
-      "pulledAt": "2026-07-14T11:57:59.432906+00:00"
+      "totalUnsubscribes": 332,
+      "pulledAt": "2026-07-15T12:04:18.084298+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1592,
-        "unsubscribeCount": 297,
+        "members": 1591,
+        "unsubscribeCount": 298,
         "openRate": 42.21005695112798,
         "clickRate": 4.33093461657322
       }
@@ -1506,7 +1506,7 @@
         "month": "2026-06",
         "campaigns": 2,
         "sent": 3230,
-        "opens": 794,
+        "opens": 796,
         "clicks": 76,
         "unsubscribes": 13,
         "openRate": 24.6,
@@ -1516,10 +1516,10 @@
         "month": "2026-07",
         "campaigns": 1,
         "sent": 1592,
-        "opens": 453,
+        "opens": 455,
         "clicks": 38,
-        "unsubscribes": 8,
-        "openRate": 28.5,
+        "unsubscribes": 9,
+        "openRate": 28.6,
         "clickRate": 2.4
       }
     ],
@@ -1605,11 +1605,11 @@
         "date": "2026-07-03T15:52:29+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1592,
-        "opens": 453,
-        "openRate": 28.8,
+        "opens": 455,
+        "openRate": 28.9,
         "clicks": 38,
         "clickRate": 2.4,
-        "unsubscribes": 8,
+        "unsubscribes": 9,
         "clickDetail": [
           {
             "url": "https://members.intercollegiatepsychedelics.net/",
@@ -1692,7 +1692,7 @@
         "date": "2026-06-25T17:12:15+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1608,
-        "opens": 281,
+        "opens": 282,
         "openRate": 18,
         "clicks": 45,
         "clickRate": 2.9,
@@ -1875,8 +1875,8 @@
         "date": "2026-06-01T15:48:59+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1622,
-        "opens": 513,
-        "openRate": 32.6,
+        "opens": 514,
+        "openRate": 32.7,
         "clicks": 31,
         "clickRate": 2,
         "unsubscribes": 11,
@@ -14902,9 +14902,9 @@
         "date": "2026-07-02T15:57:24+0000",
         "type": "CAROUSEL_ALBUM",
         "caption": "PsychedelX 2026 is officially over, and we are thrilled to announce the runners-up and winners of this year’s talk competition!\n\n🏅Runner up: Faith Halverson-Ramos\n🏅Runner up: Jake Hooper\n🏅Runner up: Taylor Andrews Flatt\n🥉3rd place: Andrew Ferns\n🥈2nd place: Lauren Marchefka\n🥇1st p",
-        "likes": 36,
+        "likes": 37,
         "comments": 3,
-        "engagement": 39,
+        "engagement": 40,
         "permalink": "https://www.instagram.com/p/DaS90AmDbCZ/"
       },
       {
@@ -15083,7 +15083,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-14T11:58:11.442042+00:00"
+    "pulledAt": "2026-07-15T12:04:31.098939+00:00"
   },
   "events": {
     "zoom": {
@@ -15096,7 +15096,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-14T11:58:22.967406+00:00"
+        "pulledAt": "2026-07-15T12:04:43.064587+00:00"
       },
       "byMonth": [
         {
@@ -15764,15 +15764,6 @@
       ],
       "upcomingEvents": [
         {
-          "id": "86971568145",
-          "topic": "Justin:Luke",
-          "date": "2026-07-14T22:30:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
           "id": "89025512753",
           "topic": "IPN Community Task Force Weekly Syncs",
           "date": "2026-07-16T22:00:00Z",
@@ -15786,6 +15777,15 @@
           "topic": "IPN PsychedelX: Leadership Team Meeting #17 [LAST MEETING]",
           "date": "2026-07-19T16:30:00Z",
           "program": "PsychedelX",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "86971568145",
+          "topic": "Justin:Luke",
+          "date": "2026-07-21T22:30:00Z",
+          "program": "Other",
           "type": "internal",
           "registrants": 0,
           "registrations": []
@@ -15817,7 +15817,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-14T11:59:25.250095+00:00"
+        "pulledAt": "2026-07-15T12:05:48.459450+00:00"
       },
       "events": [
         {
