@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T12:05:51.678Z",
+  "generatedAt": "2026-07-16T12:06:23.025Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-15T12:04:18.084298+00:00",
+      "lastPull": "2026-07-16T12:04:44.168657+00:00",
       "note": "1889 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-15T12:04:21.646545+00:00",
+      "lastPull": "2026-07-16T12:04:47.718232+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-15T12:04:21.646545+00:00",
+      "lastPull": "2026-07-16T12:04:47.718232+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-15T12:04:31.098939+00:00",
+      "lastPull": "2026-07-16T12:04:56.594823+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-15T12:04:43.064587+00:00",
+      "lastPull": "2026-07-16T12:05:12.794457+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-15T12:05:48.459450+00:00",
+      "lastPull": "2026-07-16T12:06:16.699928+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-15T12:05:48.755262+00:00",
+      "lastPull": "2026-07-16T12:06:17.121650+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 332,
-      "pulledAt": "2026-07-15T12:04:18.084298+00:00"
+      "pulledAt": "2026-07-16T12:04:44.168657+00:00"
     },
     "lists": [
       {
@@ -1516,10 +1516,10 @@
         "month": "2026-07",
         "campaigns": 1,
         "sent": 1592,
-        "opens": 455,
+        "opens": 457,
         "clicks": 38,
         "unsubscribes": 9,
-        "openRate": 28.6,
+        "openRate": 28.7,
         "clickRate": 2.4
       }
     ],
@@ -1605,8 +1605,8 @@
         "date": "2026-07-03T15:52:29+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1592,
-        "opens": 455,
-        "openRate": 28.9,
+        "opens": 457,
+        "openRate": 29,
         "clicks": 38,
         "clickRate": 2.4,
         "unsubscribes": 9,
@@ -14932,9 +14932,9 @@
         "date": "2026-06-25T22:15:01+0000",
         "type": "VIDEO",
         "caption": "Introducing the IPN Member Portal: IPN’s Hub For Member-Exclusive Events, Resources, and Community Connection.\n\nHere, IPN members can:\n\n📆Join events: browse, join, and watch IPN events.\n🔎Discover & connect: search the member directory to find members in your area and with similar",
-        "likes": 34,
+        "likes": 35,
         "comments": 7,
-        "engagement": 41,
+        "engagement": 42,
         "permalink": "https://www.instagram.com/reel/DaBmtH-tpTH/"
       },
       {
@@ -15006,26 +15006,6 @@
         "comments": 3,
         "engagement": 46,
         "permalink": "https://www.instagram.com/p/DZrz5qGDUIr/"
-      },
-      {
-        "id": "17950162335189293",
-        "date": "2026-06-16T11:00:10+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "Meet the PsychedelX Day 2 speakers!\n\nDay 2 of the conference will feature presentations exploring topics in Culture, Anthropology & Sociology 🌍\nPsychedelX is a virtual student talk conference spotlighting emerging voices and novel perspectives in psychedelic research, culture, an",
-        "likes": 30,
-        "comments": 1,
-        "engagement": 31,
-        "permalink": "https://www.instagram.com/p/DZpPKZ-jV6T/"
-      },
-      {
-        "id": "18098572082136909",
-        "date": "2026-06-15T13:10:47+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "Meet the PSYCHEDELX DAY 1 speakers! \nDay 1 of the conference will feature presentations exploring topics in Psychology & Clinical Applications💡\n\nPsychedelX returns for it’s 6th year with an exciting lineup of speakers! The virtual conference will begin on June 26th – get your tic",
-        "likes": 88,
-        "comments": 2,
-        "engagement": 90,
-        "permalink": "https://www.instagram.com/p/DZm5O1-jdV9/"
       }
     ]
   },
@@ -15083,7 +15063,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-15T12:04:31.098939+00:00"
+    "pulledAt": "2026-07-16T12:04:56.594823+00:00"
   },
   "events": {
     "zoom": {
@@ -15096,7 +15076,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-15T12:04:43.064587+00:00"
+        "pulledAt": "2026-07-16T12:05:12.794457+00:00"
       },
       "byMonth": [
         {
@@ -15782,6 +15762,15 @@
           "registrations": []
         },
         {
+          "id": "82030758361",
+          "topic": "Justin <> Logan",
+          "date": "2026-07-21T21:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
           "id": "86971568145",
           "topic": "Justin:Luke",
           "date": "2026-07-21T22:30:00Z",
@@ -15817,7 +15806,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-15T12:05:48.459450+00:00"
+        "pulledAt": "2026-07-16T12:06:16.699928+00:00"
       },
       "events": [
         {
