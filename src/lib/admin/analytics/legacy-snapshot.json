@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-16T12:06:23.025Z",
+  "generatedAt": "2026-07-17T11:57:02.133Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-16T12:04:44.168657+00:00",
+      "lastPull": "2026-07-17T11:55:36.839458+00:00",
       "note": "1889 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-16T12:04:47.718232+00:00",
+      "lastPull": "2026-07-17T11:55:41.312733+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-16T12:04:47.718232+00:00",
+      "lastPull": "2026-07-17T11:55:41.312733+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-16T12:04:56.594823+00:00",
+      "lastPull": "2026-07-17T11:55:49.183672+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-16T12:05:12.794457+00:00",
+      "lastPull": "2026-07-17T11:55:59.267765+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-16T12:06:16.699928+00:00",
+      "lastPull": "2026-07-17T11:56:59.714185+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-16T12:06:17.121650+00:00",
+      "lastPull": "2026-07-17T11:57:00.071498+00:00",
       "note": "$0 recorded"
     },
     {
@@ -943,20 +943,20 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1591,
+      "totalSubscribers": 1590,
       "totalLists": 1,
       "totalCampaigns": 188,
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
-      "totalUnsubscribes": 332,
-      "pulledAt": "2026-07-16T12:04:44.168657+00:00"
+      "totalUnsubscribes": 333,
+      "pulledAt": "2026-07-17T11:55:36.839458+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1591,
-        "unsubscribeCount": 298,
+        "members": 1590,
+        "unsubscribeCount": 299,
         "openRate": 42.21005695112798,
         "clickRate": 4.33093461657322
       }
@@ -1506,20 +1506,20 @@
         "month": "2026-06",
         "campaigns": 2,
         "sent": 3230,
-        "opens": 796,
+        "opens": 797,
         "clicks": 76,
         "unsubscribes": 13,
-        "openRate": 24.6,
+        "openRate": 24.7,
         "clickRate": 2.4
       },
       {
         "month": "2026-07",
         "campaigns": 1,
         "sent": 1592,
-        "opens": 457,
+        "opens": 458,
         "clicks": 38,
-        "unsubscribes": 9,
-        "openRate": 28.7,
+        "unsubscribes": 10,
+        "openRate": 28.8,
         "clickRate": 2.4
       }
     ],
@@ -1605,11 +1605,11 @@
         "date": "2026-07-03T15:52:29+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1592,
-        "opens": 457,
-        "openRate": 29,
+        "opens": 458,
+        "openRate": 29.1,
         "clicks": 38,
         "clickRate": 2.4,
-        "unsubscribes": 9,
+        "unsubscribes": 10,
         "clickDetail": [
           {
             "url": "https://members.intercollegiatepsychedelics.net/",
@@ -1692,8 +1692,8 @@
         "date": "2026-06-25T17:12:15+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1608,
-        "opens": 282,
-        "openRate": 18,
+        "opens": 283,
+        "openRate": 18.1,
         "clicks": 45,
         "clickRate": 2.9,
         "unsubscribes": 2,
@@ -14996,16 +14996,6 @@
         "comments": 2,
         "engagement": 80,
         "permalink": "https://www.instagram.com/p/DZuZ8RtDR1A/"
-      },
-      {
-        "id": "18379685767166601",
-        "date": "2026-06-17T11:00:02+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "Meet the PsychedelX Day 3 speakers!\n\nDay 3 of the conference will feature presentations exploring topics in STEM & Natural Sciences 🔬\n\nPsychedelX is a virtual student talk conference spotlighting emerging voices and novel perspectives in psychedelic research, culture, and practic",
-        "likes": 43,
-        "comments": 3,
-        "engagement": 46,
-        "permalink": "https://www.instagram.com/p/DZrz5qGDUIr/"
       }
     ]
   },
@@ -15063,7 +15053,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-16T12:04:56.594823+00:00"
+    "pulledAt": "2026-07-17T11:55:49.183672+00:00"
   },
   "events": {
     "zoom": {
@@ -15076,7 +15066,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-16T12:05:12.794457+00:00"
+        "pulledAt": "2026-07-17T11:55:59.267765+00:00"
       },
       "byMonth": [
         {
@@ -15744,15 +15734,6 @@
       ],
       "upcomingEvents": [
         {
-          "id": "89025512753",
-          "topic": "IPN Community Task Force Weekly Syncs",
-          "date": "2026-07-16T22:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
           "id": "89771383661",
           "topic": "IPN PsychedelX: Leadership Team Meeting #17 [LAST MEETING]",
           "date": "2026-07-19T16:30:00Z",
@@ -15774,6 +15755,15 @@
           "id": "86971568145",
           "topic": "Justin:Luke",
           "date": "2026-07-21T22:30:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "89025512753",
+          "topic": "IPN Community Task Force Weekly Syncs",
+          "date": "2026-07-23T22:00:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
@@ -15806,7 +15796,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-16T12:06:16.699928+00:00"
+        "pulledAt": "2026-07-17T11:56:59.714185+00:00"
       },
       "events": [
         {
