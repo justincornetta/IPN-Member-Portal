@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-18T11:34:28.796Z",
+  "generatedAt": "2026-07-19T11:41:11.658Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-18T11:32:39.998925+00:00",
+      "lastPull": "2026-07-19T11:39:29.063543+00:00",
       "note": "1889 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-18T11:32:45.641729+00:00",
+      "lastPull": "2026-07-19T11:39:31.397374+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-18T11:32:45.641729+00:00",
+      "lastPull": "2026-07-19T11:39:31.397374+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-18T11:32:55.938532+00:00",
+      "lastPull": "2026-07-19T11:39:42.543107+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-18T11:33:13.611134+00:00",
+      "lastPull": "2026-07-19T11:39:59.813850+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-18T11:34:23.251489+00:00",
+      "lastPull": "2026-07-19T11:41:06.405503+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-18T11:34:23.703873+00:00",
+      "lastPull": "2026-07-19T11:41:06.867229+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-18T11:32:39.998925+00:00"
+      "pulledAt": "2026-07-19T11:39:29.063543+00:00"
     },
     "lists": [
       {
@@ -14976,16 +14976,6 @@
         "comments": 1,
         "engagement": 34,
         "permalink": "https://www.instagram.com/p/DZxCsQrDY8D/"
-      },
-      {
-        "id": "18086340581122106",
-        "date": "2026-06-18T19:10:02+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "Meet the PsychedelX Day 2 keynote speaker: Manvir Singh, PhD. 🌟 @mnvrsngh on X \n\nDr. Singh is an Assistant Professor in the Department of Anthropology at the University of California, Davis, and the author of Shamanism: The Timeless Religion. His work explores why human societies",
-        "likes": 19,
-        "comments": 0,
-        "engagement": 19,
-        "permalink": "https://www.instagram.com/p/DZvQwBNjW0G/"
       }
     ]
   },
@@ -15043,7 +15033,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-18T11:32:55.938532+00:00"
+    "pulledAt": "2026-07-19T11:39:42.543107+00:00"
   },
   "events": {
     "zoom": {
@@ -15056,7 +15046,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-18T11:33:13.611134+00:00"
+        "pulledAt": "2026-07-19T11:39:59.813850+00:00"
       },
       "byMonth": [
         {
@@ -15786,7 +15776,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-18T11:34:23.251489+00:00"
+        "pulledAt": "2026-07-19T11:41:06.405503+00:00"
       },
       "events": [
         {
