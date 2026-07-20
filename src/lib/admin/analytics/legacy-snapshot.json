@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-19T11:41:11.658Z",
+  "generatedAt": "2026-07-20T12:36:45.771Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-19T11:39:29.063543+00:00",
+      "lastPull": "2026-07-20T12:35:07.953086+00:00",
       "note": "1889 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-19T11:39:31.397374+00:00",
+      "lastPull": "2026-07-20T12:35:12.312123+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-19T11:39:31.397374+00:00",
+      "lastPull": "2026-07-20T12:35:12.312123+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-19T11:39:42.543107+00:00",
+      "lastPull": "2026-07-20T12:35:21.096909+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-19T11:39:59.813850+00:00",
+      "lastPull": "2026-07-20T12:35:36.046753+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-19T11:41:06.405503+00:00",
+      "lastPull": "2026-07-20T12:36:40.351818+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-19T11:41:06.867229+00:00",
+      "lastPull": "2026-07-20T12:36:40.775502+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-19T11:39:29.063543+00:00"
+      "pulledAt": "2026-07-20T12:35:07.953086+00:00"
     },
     "lists": [
       {
@@ -14966,16 +14966,6 @@
         "comments": 0,
         "engagement": 7,
         "permalink": "https://www.instagram.com/p/DZ0IoALjco5/"
-      },
-      {
-        "id": "18398810011085408",
-        "date": "2026-06-19T11:45:02+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "PsychedelX Day 2 Graduate Panel – “Paths Into Psychedelics” – will bring together Natasha Greenstein, Rafaelle Lancelotta, and Iva Totomanova for a conversation on graduate studies, research pathways, and emerging directions in psychedelic science.\n\nNatasha (@natasha.cg) is a sci",
-        "likes": 33,
-        "comments": 1,
-        "engagement": 34,
-        "permalink": "https://www.instagram.com/p/DZxCsQrDY8D/"
       }
     ]
   },
@@ -15033,7 +15023,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-19T11:39:42.543107+00:00"
+    "pulledAt": "2026-07-20T12:35:21.096909+00:00"
   },
   "events": {
     "zoom": {
@@ -15046,7 +15036,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-19T11:39:59.813850+00:00"
+        "pulledAt": "2026-07-20T12:35:36.046753+00:00"
       },
       "byMonth": [
         {
@@ -15130,38 +15120,6 @@
           "registrationSource": null,
           "avgDuration": 31.1,
           "retentionPct": 45.1,
-          "repeatPct": 33.33333333333333,
-          "participantEmails": [],
-          "participants": [],
-          "registrations": []
-        },
-        {
-          "id": "2DeIx5nsQC+Aulwajc7uLA==",
-          "topic": "IPN PsychedelX Leadership Team Meeting #7",
-          "date": "2026-02-22T19:01:59Z",
-          "program": "PsychedelX",
-          "type": "internal",
-          "attendees": 4,
-          "registrants": null,
-          "registrationSource": null,
-          "avgDuration": 33.5,
-          "retentionPct": 56.9,
-          "repeatPct": 25,
-          "participantEmails": [],
-          "participants": [],
-          "registrations": []
-        },
-        {
-          "id": "FxMg19PrR0mytq/dEM+P2g==",
-          "topic": "IPN Labs TF Biweekly Meeting",
-          "date": "2026-02-22T20:01:26Z",
-          "program": "IPN Labs",
-          "type": "internal",
-          "attendees": 3,
-          "registrants": null,
-          "registrationSource": null,
-          "avgDuration": 20.5,
-          "retentionPct": 36.6,
           "repeatPct": 33.33333333333333,
           "participantEmails": [],
           "participants": [],
@@ -15710,18 +15668,25 @@
           "participantEmails": [],
           "participants": [],
           "registrations": []
+        },
+        {
+          "id": "jdO9KTXASGaugwfaL95REQ==",
+          "topic": "IPN PsychedelX: Leadership Team Meeting #17 [LAST MEETING]",
+          "date": "2026-07-19T16:34:00Z",
+          "program": "PsychedelX",
+          "type": "internal",
+          "attendees": 2,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 29.2,
+          "retentionPct": 47.8,
+          "repeatPct": 50,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
         }
       ],
       "upcomingEvents": [
-        {
-          "id": "89771383661",
-          "topic": "IPN PsychedelX: Leadership Team Meeting #17 [LAST MEETING]",
-          "date": "2026-07-19T16:30:00Z",
-          "program": "PsychedelX",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
         {
           "id": "82030758361",
           "topic": "Justin <> Logan",
@@ -15773,10 +15738,10 @@
       "summary": {
         "totalEvents": 10,
         "ticketsSold": 1403,
-        "grossRevenue": 6969.47,
+        "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-19T11:41:06.405503+00:00"
+        "pulledAt": "2026-07-20T12:36:40.351818+00:00"
       },
       "events": [
         {
@@ -15789,7 +15754,7 @@
           "capacity": 5994,
           "tickets": 171,
           "grossRevenue": 324.59,
-          "netRevenue": 274.6,
+          "netRevenue": 284.19,
           "checkIns": 0,
           "attendanceRate": 0,
           "ticketClasses": [
@@ -16718,8 +16683,8 @@
           "url": "https://www.eventbrite.com/e/student-rising-professionals-mixer-tickets-650489159587",
           "capacity": 262,
           "tickets": 100,
-          "grossRevenue": 2115.46,
-          "netRevenue": 1810,
+          "grossRevenue": 2133.31,
+          "netRevenue": 1825,
           "checkIns": 0,
           "attendanceRate": 0,
           "ticketClasses": [
@@ -16774,8 +16739,8 @@
             },
             {
               "date": "2023-06-18",
-              "tickets": 6,
-              "revenue": 107.1
+              "tickets": 7,
+              "revenue": 124.95
             },
             {
               "date": "2023-06-19",
@@ -16813,8 +16778,8 @@
           "url": "https://www.eventbrite.com/e/students-et-al-mycelial-mixer-the-unofficial-psychedemia-afterparty-tickets-394133342437",
           "capacity": 200,
           "tickets": 43,
-          "grossRevenue": 600.66,
-          "netRevenue": 500,
+          "grossRevenue": 588.42,
+          "netRevenue": 490,
           "checkIns": 0,
           "attendanceRate": 0,
           "ticketClasses": [
@@ -16835,7 +16800,7 @@
             {
               "date": "2022-08-01",
               "tickets": 2,
-              "revenue": 24.48
+              "revenue": 12.24
             },
             {
               "date": "2022-08-03",
