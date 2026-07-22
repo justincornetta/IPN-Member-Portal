@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-21T12:13:31.610Z",
+  "generatedAt": "2026-07-22T12:16:36.977Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,15 +15,15 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-21T12:11:49.875132+00:00",
-      "note": "1889 subscribers"
+      "lastPull": "2026-07-22T12:14:52.529182+00:00",
+      "note": "1890 subscribers"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-21T12:11:53.945086+00:00",
+      "lastPull": "2026-07-22T12:14:55.795323+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-21T12:11:53.945086+00:00",
+      "lastPull": "2026-07-22T12:14:55.795323+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-21T12:12:05.124800+00:00",
+      "lastPull": "2026-07-22T12:15:04.798627+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-21T12:12:19.920690+00:00",
+      "lastPull": "2026-07-22T12:15:22.669709+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-21T12:13:27.593486+00:00",
+      "lastPull": "2026-07-22T12:16:32.624046+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-21T12:13:27.986211+00:00",
+      "lastPull": "2026-07-22T12:16:33.031217+00:00",
       "note": "$0 recorded"
     },
     {
@@ -943,19 +943,19 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1590,
+      "totalSubscribers": 1591,
       "totalLists": 1,
       "totalCampaigns": 188,
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-21T12:11:49.875132+00:00"
+      "pulledAt": "2026-07-22T12:14:52.529182+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1590,
+        "members": 1591,
         "unsubscribeCount": 299,
         "openRate": 42.21005695112798,
         "clickRate": 4.33093461657322
@@ -15013,7 +15013,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-21T12:12:05.124800+00:00"
+    "pulledAt": "2026-07-22T12:15:04.798627+00:00"
   },
   "events": {
     "zoom": {
@@ -15026,7 +15026,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-21T12:12:19.920690+00:00"
+        "pulledAt": "2026-07-22T12:15:22.669709+00:00"
       },
       "byMonth": [
         {
@@ -15110,6 +15110,38 @@
           "registrationSource": null,
           "avgDuration": 31.1,
           "retentionPct": 45.1,
+          "repeatPct": 33.33333333333333,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
+        {
+          "id": "2DeIx5nsQC+Aulwajc7uLA==",
+          "topic": "IPN PsychedelX Leadership Team Meeting #7",
+          "date": "2026-02-22T19:01:59Z",
+          "program": "PsychedelX",
+          "type": "internal",
+          "attendees": 4,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 33.5,
+          "retentionPct": 56.9,
+          "repeatPct": 25,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
+        {
+          "id": "FxMg19PrR0mytq/dEM+P2g==",
+          "topic": "IPN Labs TF Biweekly Meeting",
+          "date": "2026-02-22T20:01:26Z",
+          "program": "IPN Labs",
+          "type": "internal",
+          "attendees": 3,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 20.5,
+          "retentionPct": 36.6,
           "repeatPct": 33.33333333333333,
           "participantEmails": [],
           "participants": [],
@@ -15678,24 +15710,6 @@
       ],
       "upcomingEvents": [
         {
-          "id": "82030758361",
-          "topic": "Justin <> Logan",
-          "date": "2026-07-21T21:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
-          "id": "86971568145",
-          "topic": "Justin:Luke",
-          "date": "2026-07-21T22:30:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
           "id": "89025512753",
           "topic": "IPN Community Task Force Weekly Syncs",
           "date": "2026-07-23T22:00:00Z",
@@ -15709,6 +15723,24 @@
           "topic": "IPN Labs TF Biweekly Meeting",
           "date": "2026-07-26T18:00:00Z",
           "program": "IPN Labs",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "86971568145",
+          "topic": "Justin:Luke",
+          "date": "2026-07-28T22:30:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "82030758361",
+          "topic": "Justin <> Logan",
+          "date": "2026-07-29T21:00:00Z",
+          "program": "Other",
           "type": "internal",
           "registrants": 0,
           "registrations": []
@@ -15728,10 +15760,10 @@
       "summary": {
         "totalEvents": 10,
         "ticketsSold": 1403,
-        "grossRevenue": 6975.08,
+        "grossRevenue": 6576.24,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-21T12:13:27.593486+00:00"
+        "pulledAt": "2026-07-22T12:16:32.624046+00:00"
       },
       "events": [
         {
@@ -16843,8 +16875,8 @@
           "url": "https://www.eventbrite.com/e/psychedelx-2022-tickets-294273799857",
           "capacity": 9999,
           "tickets": 316,
-          "grossRevenue": 398.84,
-          "netRevenue": 389.1,
+          "grossRevenue": 0,
+          "netRevenue": 0,
           "checkIns": 0,
           "attendanceRate": 0,
           "ticketClasses": [
@@ -16861,133 +16893,7 @@
               "capacity": 0
             }
           ],
-          "dailySales": [
-            {
-              "date": "2022-05-16",
-              "tickets": 2,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-17",
-              "tickets": 13,
-              "revenue": 4.2
-            },
-            {
-              "date": "2022-05-18",
-              "tickets": 4,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-19",
-              "tickets": 7,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-20",
-              "tickets": 4,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-22",
-              "tickets": 2,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-23",
-              "tickets": 1,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-25",
-              "tickets": 4,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-26",
-              "tickets": 11,
-              "revenue": 30.75
-            },
-            {
-              "date": "2022-05-27",
-              "tickets": 9,
-              "revenue": 10.25
-            },
-            {
-              "date": "2022-05-28",
-              "tickets": 4,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-29",
-              "tickets": 8,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-30",
-              "tickets": 2,
-              "revenue": 0
-            },
-            {
-              "date": "2022-05-31",
-              "tickets": 26,
-              "revenue": 61.5
-            },
-            {
-              "date": "2022-06-01",
-              "tickets": 20,
-              "revenue": 112.75
-            },
-            {
-              "date": "2022-06-02",
-              "tickets": 7,
-              "revenue": 0
-            },
-            {
-              "date": "2022-06-03",
-              "tickets": 4,
-              "revenue": 0
-            },
-            {
-              "date": "2022-06-04",
-              "tickets": 4,
-              "revenue": 5.13
-            },
-            {
-              "date": "2022-06-05",
-              "tickets": 9,
-              "revenue": 0
-            },
-            {
-              "date": "2022-06-06",
-              "tickets": 18,
-              "revenue": 0
-            },
-            {
-              "date": "2022-06-07",
-              "tickets": 17,
-              "revenue": 46.13
-            },
-            {
-              "date": "2022-06-08",
-              "tickets": 24,
-              "revenue": 10.25
-            },
-            {
-              "date": "2022-06-09",
-              "tickets": 74,
-              "revenue": 117.88
-            },
-            {
-              "date": "2022-06-10",
-              "tickets": 22,
-              "revenue": 0
-            },
-            {
-              "date": "2022-06-11",
-              "tickets": 8,
-              "revenue": 0
-            }
-          ]
+          "dailySales": []
         },
         {
           "id": "354598161647",
