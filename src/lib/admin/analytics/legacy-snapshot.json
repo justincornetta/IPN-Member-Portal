@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-22T12:16:36.977Z",
+  "generatedAt": "2026-07-23T12:14:58.264Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-22T12:14:52.529182+00:00",
+      "lastPull": "2026-07-23T12:13:12.070033+00:00",
       "note": "1890 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-22T12:14:55.795323+00:00",
+      "lastPull": "2026-07-23T12:13:15.007115+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-22T12:14:55.795323+00:00",
+      "lastPull": "2026-07-23T12:13:15.007115+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-22T12:15:04.798627+00:00",
+      "lastPull": "2026-07-23T12:13:23.251005+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-22T12:15:22.669709+00:00",
+      "lastPull": "2026-07-23T12:13:37.279739+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-22T12:16:32.624046+00:00",
+      "lastPull": "2026-07-23T12:14:53.974014+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-22T12:16:33.031217+00:00",
+      "lastPull": "2026-07-23T12:14:54.368932+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-22T12:14:52.529182+00:00"
+      "pulledAt": "2026-07-23T12:13:12.070033+00:00"
     },
     "lists": [
       {
@@ -15013,7 +15013,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-22T12:15:04.798627+00:00"
+    "pulledAt": "2026-07-23T12:13:23.251005+00:00"
   },
   "events": {
     "zoom": {
@@ -15026,7 +15026,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-22T12:15:22.669709+00:00"
+        "pulledAt": "2026-07-23T12:13:37.279739+00:00"
       },
       "byMonth": [
         {
@@ -15760,10 +15760,10 @@
       "summary": {
         "totalEvents": 10,
         "ticketsSold": 1403,
-        "grossRevenue": 6576.24,
+        "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-22T12:16:32.624046+00:00"
+        "pulledAt": "2026-07-23T12:14:53.974014+00:00"
       },
       "events": [
         {
@@ -16875,8 +16875,8 @@
           "url": "https://www.eventbrite.com/e/psychedelx-2022-tickets-294273799857",
           "capacity": 9999,
           "tickets": 316,
-          "grossRevenue": 0,
-          "netRevenue": 0,
+          "grossRevenue": 398.84,
+          "netRevenue": 389.1,
           "checkIns": 0,
           "attendanceRate": 0,
           "ticketClasses": [
@@ -16893,7 +16893,133 @@
               "capacity": 0
             }
           ],
-          "dailySales": []
+          "dailySales": [
+            {
+              "date": "2022-05-16",
+              "tickets": 2,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-17",
+              "tickets": 13,
+              "revenue": 4.2
+            },
+            {
+              "date": "2022-05-18",
+              "tickets": 4,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-19",
+              "tickets": 7,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-20",
+              "tickets": 4,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-22",
+              "tickets": 2,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-23",
+              "tickets": 1,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-25",
+              "tickets": 4,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-26",
+              "tickets": 11,
+              "revenue": 30.75
+            },
+            {
+              "date": "2022-05-27",
+              "tickets": 9,
+              "revenue": 10.25
+            },
+            {
+              "date": "2022-05-28",
+              "tickets": 4,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-29",
+              "tickets": 8,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-30",
+              "tickets": 2,
+              "revenue": 0
+            },
+            {
+              "date": "2022-05-31",
+              "tickets": 26,
+              "revenue": 61.5
+            },
+            {
+              "date": "2022-06-01",
+              "tickets": 20,
+              "revenue": 112.75
+            },
+            {
+              "date": "2022-06-02",
+              "tickets": 7,
+              "revenue": 0
+            },
+            {
+              "date": "2022-06-03",
+              "tickets": 4,
+              "revenue": 0
+            },
+            {
+              "date": "2022-06-04",
+              "tickets": 4,
+              "revenue": 5.13
+            },
+            {
+              "date": "2022-06-05",
+              "tickets": 9,
+              "revenue": 0
+            },
+            {
+              "date": "2022-06-06",
+              "tickets": 18,
+              "revenue": 0
+            },
+            {
+              "date": "2022-06-07",
+              "tickets": 17,
+              "revenue": 46.13
+            },
+            {
+              "date": "2022-06-08",
+              "tickets": 24,
+              "revenue": 10.25
+            },
+            {
+              "date": "2022-06-09",
+              "tickets": 74,
+              "revenue": 117.88
+            },
+            {
+              "date": "2022-06-10",
+              "tickets": 22,
+              "revenue": 0
+            },
+            {
+              "date": "2022-06-11",
+              "tickets": 8,
+              "revenue": 0
+            }
+          ]
         },
         {
           "id": "354598161647",
