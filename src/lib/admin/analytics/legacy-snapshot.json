@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-23T12:14:58.264Z",
+  "generatedAt": "2026-07-25T11:50:20.092Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-23T12:13:12.070033+00:00",
+      "lastPull": "2026-07-25T11:48:28.874138+00:00",
       "note": "1890 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-23T12:13:15.007115+00:00",
+      "lastPull": "2026-07-25T11:48:31.245132+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-23T12:13:15.007115+00:00",
+      "lastPull": "2026-07-25T11:48:31.245132+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-23T12:13:23.251005+00:00",
+      "lastPull": "2026-07-25T11:48:40.150638+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-23T12:13:37.279739+00:00",
+      "lastPull": "2026-07-25T11:48:57.787553+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-23T12:14:53.974014+00:00",
+      "lastPull": "2026-07-25T11:50:14.434588+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-23T12:14:54.368932+00:00",
+      "lastPull": "2026-07-25T11:50:14.853091+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-23T12:13:12.070033+00:00"
+      "pulledAt": "2026-07-25T11:48:28.874138+00:00"
     },
     "lists": [
       {
@@ -14946,16 +14946,6 @@
         "comments": 4,
         "engagement": 78,
         "permalink": "https://www.instagram.com/p/DaA65mhjdbC/"
-      },
-      {
-        "id": "18119280031697211",
-        "date": "2026-06-23T15:43:37+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "Thank you to our Judges of PsychedelX 2026!\n\nWe truly value your expertise and dedication to uplifting the next generation of students and rising professionals. \n\nProfessional talk competition judges provide valuable feedback and evaluate our PsychedelX finalists talks to select ",
-        "likes": 25,
-        "comments": 0,
-        "engagement": 25,
-        "permalink": "https://www.instagram.com/p/DZ7xFMlDY0W/"
       }
     ]
   },
@@ -15013,7 +15003,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-23T12:13:23.251005+00:00"
+    "pulledAt": "2026-07-25T11:48:40.150638+00:00"
   },
   "events": {
     "zoom": {
@@ -15026,7 +15016,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-23T12:13:37.279739+00:00"
+        "pulledAt": "2026-07-25T11:48:57.787553+00:00"
       },
       "byMonth": [
         {
@@ -15068,22 +15058,6 @@
       "topAttendees": [],
       "events": [
         {
-          "id": "Zfx+F6Y6Q/W85SrvjWDASA==",
-          "topic": "IPN PsychedelX Leadership Team Meeting #5",
-          "date": "2026-01-25T18:29:22Z",
-          "program": "PsychedelX",
-          "type": "internal",
-          "attendees": 6,
-          "registrants": null,
-          "registrationSource": null,
-          "avgDuration": 29.3,
-          "retentionPct": 48.8,
-          "repeatPct": 0,
-          "participantEmails": [],
-          "participants": [],
-          "registrations": []
-        },
-        {
           "id": "GBJ6VtSMQVyLQQ4zSjKnRw==",
           "topic": "IPN PsychedelX Leadership Team Meeting #6",
           "date": "2026-02-08T18:38:41Z",
@@ -15094,7 +15068,7 @@
           "registrationSource": null,
           "avgDuration": 33.8,
           "retentionPct": 54.6,
-          "repeatPct": 20,
+          "repeatPct": 0,
           "participantEmails": [],
           "participants": [],
           "registrations": []
@@ -15710,15 +15684,6 @@
       ],
       "upcomingEvents": [
         {
-          "id": "89025512753",
-          "topic": "IPN Community Task Force Weekly Syncs",
-          "date": "2026-07-23T22:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
           "id": "88586210885",
           "topic": "IPN Labs TF Biweekly Meeting",
           "date": "2026-07-26T18:00:00Z",
@@ -15746,6 +15711,15 @@
           "registrations": []
         },
         {
+          "id": "89025512753",
+          "topic": "IPN Community Task Force Weekly Syncs",
+          "date": "2026-07-30T22:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
           "id": "87151931518",
           "topic": "Monthly IPN BoD Meeting",
           "date": "2026-08-02T16:00:00Z",
@@ -15763,7 +15737,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-23T12:14:53.974014+00:00"
+        "pulledAt": "2026-07-25T11:50:14.434588+00:00"
       },
       "events": [
         {
