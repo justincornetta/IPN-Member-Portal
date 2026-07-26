@@ -276,7 +276,7 @@ function MemberOnboarding({ progress }: { progress: OnboardingProgress | null })
           number={2}
           title="Join WhatsApp Community"
           body="Stay updated and connect with members."
-          href={whatsappUrl || "/dashboard/community"}
+          href={whatsappUrl || "/dashboard/directory?tab=connections"}
           icon={<WhatsAppIcon />}
           completed={Boolean(progress?.whatsapp_completed_at)}
           external={Boolean(whatsappUrl)}
@@ -790,9 +790,9 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
+      <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
         <UpcomingEventsCarousel
-          className="order-1 self-start"
+          className="order-1"
           events={upcomingEvents}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />

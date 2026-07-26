@@ -290,7 +290,7 @@ export default function UpcomingEventsCarousel({ events, totalCount, className =
           )}
         </>
       ) : (
-        <div className="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center">
+        <div className="mt-4 flex flex-1 flex-col justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center">
           <h3 className="text-base font-semibold text-zinc-900">
             New events are coming soon
           </h3>
