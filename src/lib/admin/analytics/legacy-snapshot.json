@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T11:50:20.092Z",
+  "generatedAt": "2026-07-26T11:50:00.969Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-25T11:48:28.874138+00:00",
+      "lastPull": "2026-07-26T11:48:12.854104+00:00",
       "note": "1890 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-25T11:48:31.245132+00:00",
+      "lastPull": "2026-07-26T11:48:18.023038+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-25T11:48:31.245132+00:00",
+      "lastPull": "2026-07-26T11:48:18.023038+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-25T11:48:40.150638+00:00",
+      "lastPull": "2026-07-26T11:48:27.443166+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-25T11:48:57.787553+00:00",
+      "lastPull": "2026-07-26T11:48:44.599147+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-25T11:50:14.434588+00:00",
+      "lastPull": "2026-07-26T11:49:55.558884+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-25T11:50:14.853091+00:00",
+      "lastPull": "2026-07-26T11:49:55.947734+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-25T11:48:28.874138+00:00"
+      "pulledAt": "2026-07-26T11:48:12.854104+00:00"
     },
     "lists": [
       {
@@ -1416,17 +1416,17 @@
         "month": "2025-09",
         "campaigns": 1,
         "sent": 936,
-        "opens": 359,
+        "opens": 360,
         "clicks": 40,
         "unsubscribes": 4,
-        "openRate": 38.4,
+        "openRate": 38.5,
         "clickRate": 4.3
       },
       {
         "month": "2025-10",
         "campaigns": 2,
         "sent": 1850,
-        "opens": 527,
+        "opens": 528,
         "clicks": 48,
         "unsubscribes": 8,
         "openRate": 28.5,
@@ -1476,7 +1476,7 @@
         "month": "2026-03",
         "campaigns": 5,
         "sent": 4373,
-        "opens": 1429,
+        "opens": 1430,
         "clicks": 137,
         "unsubscribes": 14,
         "openRate": 32.7,
@@ -2685,8 +2685,8 @@
         "date": "2026-03-02T03:48:29+00:00",
         "listName": "New Members 2023 - IPN App",
         "sent": 879,
-        "opens": 276,
-        "openRate": 31.5,
+        "opens": 277,
+        "openRate": 31.7,
         "clicks": 11,
         "clickRate": 1.3,
         "unsubscribes": 5,
@@ -3519,8 +3519,8 @@
         "date": "2025-10-21T14:25:42+00:00",
         "listName": "New Members 2023 - IPN App",
         "sent": 924,
-        "opens": 304,
-        "openRate": 33.2,
+        "opens": 305,
+        "openRate": 33.3,
         "clicks": 28,
         "clickRate": 3.1,
         "unsubscribes": 6,
@@ -3639,8 +3639,8 @@
         "date": "2025-09-09T16:16:59+00:00",
         "listName": "New Members 2023 - IPN App",
         "sent": 936,
-        "opens": 359,
-        "openRate": 38.9,
+        "opens": 360,
+        "openRate": 39,
         "clicks": 40,
         "clickRate": 4.3,
         "unsubscribes": 4,
@@ -14926,26 +14926,6 @@
         "comments": 0,
         "engagement": 16,
         "permalink": "https://www.instagram.com/p/DaF4ZURDZ5n/"
-      },
-      {
-        "id": "18090430664377435",
-        "date": "2026-06-25T22:15:01+0000",
-        "type": "VIDEO",
-        "caption": "Introducing the IPN Member Portal: IPN’s Hub For Member-Exclusive Events, Resources, and Community Connection.\n\nHere, IPN members can:\n\n📆Join events: browse, join, and watch IPN events.\n🔎Discover & connect: search the member directory to find members in your area and with similar",
-        "likes": 35,
-        "comments": 7,
-        "engagement": 42,
-        "permalink": "https://www.instagram.com/reel/DaBmtH-tpTH/"
-      },
-      {
-        "id": "18083322197558342",
-        "date": "2026-06-25T15:45:37+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "Congratulations to the 6 finalists of PsychedelX 2026! 🌟 \n\nThese PsychedelX participant talks were selected for further review by our panel of professional judges who will determine this year’s talk competition winners! \n\nThe conference is 1 DAY AWAY (June 26th) – register today ",
-        "likes": 74,
-        "comments": 4,
-        "engagement": 78,
-        "permalink": "https://www.instagram.com/p/DaA65mhjdbC/"
       }
     ]
   },
@@ -15003,7 +14983,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-25T11:48:40.150638+00:00"
+    "pulledAt": "2026-07-26T11:48:27.443166+00:00"
   },
   "events": {
     "zoom": {
@@ -15016,7 +14996,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-25T11:48:57.787553+00:00"
+        "pulledAt": "2026-07-26T11:48:44.599147+00:00"
       },
       "byMonth": [
         {
@@ -15737,7 +15717,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-25T11:50:14.434588+00:00"
+        "pulledAt": "2026-07-26T11:49:55.558884+00:00"
       },
       "events": [
         {
