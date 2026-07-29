@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-28T12:26:06.892Z",
+  "generatedAt": "2026-07-29T12:35:09.450Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-28T12:24:30.987429+00:00",
+      "lastPull": "2026-07-29T12:33:06.898263+00:00",
       "note": "1890 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-28T12:24:33.478220+00:00",
+      "lastPull": "2026-07-29T12:33:08.697986+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-28T12:24:33.478220+00:00",
+      "lastPull": "2026-07-29T12:33:08.697986+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-28T12:24:41.598422+00:00",
+      "lastPull": "2026-07-29T12:33:17.836635+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-28T12:24:52.802926+00:00",
+      "lastPull": "2026-07-29T12:33:53.057625+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-28T12:26:03.909932+00:00",
+      "lastPull": "2026-07-29T12:35:02.084888+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-28T12:26:04.288872+00:00",
+      "lastPull": "2026-07-29T12:35:02.479303+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-28T12:24:30.987429+00:00"
+      "pulledAt": "2026-07-29T12:33:06.898263+00:00"
     },
     "lists": [
       {
@@ -14973,7 +14973,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-28T12:24:41.598422+00:00"
+    "pulledAt": "2026-07-29T12:33:17.836635+00:00"
   },
   "events": {
     "zoom": {
@@ -14986,7 +14986,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-28T12:24:52.802926+00:00"
+        "pulledAt": "2026-07-29T12:33:53.057625+00:00"
       },
       "byMonth": [
         {
@@ -15654,15 +15654,6 @@
       ],
       "upcomingEvents": [
         {
-          "id": "86971568145",
-          "topic": "Justin:Luke",
-          "date": "2026-07-28T22:30:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
           "id": "82030758361",
           "topic": "Justin <> Logan",
           "date": "2026-07-29T21:00:00Z",
@@ -15690,6 +15681,15 @@
           "registrations": []
         },
         {
+          "id": "86971568145",
+          "topic": "Justin:Luke",
+          "date": "2026-08-04T22:30:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
           "id": "88586210885",
           "topic": "IPN Labs TF Biweekly Meeting",
           "date": "2026-08-09T18:00:00Z",
@@ -15707,7 +15707,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-28T12:26:03.909932+00:00"
+        "pulledAt": "2026-07-29T12:35:02.084888+00:00"
       },
       "events": [
         {
