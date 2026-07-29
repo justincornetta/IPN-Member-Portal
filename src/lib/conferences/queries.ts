@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import type { ConferenceAttendee, ConferenceRecord } from "./types"
+import type { ConferenceAttendee, ConferenceRecord, PastConferenceRecord } from "./types"
 
 const CONFERENCE_SELECT =
   "id, slug, name, organizer, category, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status"
@@ -13,6 +13,16 @@ export async function listPublishedConferences(): Promise<ConferenceRecord[]> {
     .order("starts_at", { ascending: true })
 
   return (data ?? []) as ConferenceRecord[]
+}
+
+export async function listPastConferences(): Promise<PastConferenceRecord[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("past_conferences")
+    .select("id, name, organizer, category, starts_at, ends_at, city, state, country, summary, drive_folder_url")
+    .order("starts_at", { ascending: false })
+
+  return (data ?? []) as PastConferenceRecord[]
 }
 
 export async function getConferenceBySlug(slug: string): Promise<ConferenceRecord | null> {
@@ -51,16 +61,12 @@ export async function getConferenceAttendeeState(
   if (visibleIds.length) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, avatar_url, school, persona")
+      .select(
+        "id, first_name, last_name, avatar_url, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, persona, admin_role, team",
+      )
       .in("id", visibleIds)
 
-    visibleAttendees = (profiles ?? []).map((profile) => ({
-      id: profile.id,
-      name: [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() || "IPN member",
-      avatarUrl: profile.avatar_url,
-      school: profile.school,
-      persona: profile.persona,
-    }))
+    visibleAttendees = (profiles ?? []) as ConferenceAttendee[]
   }
 
   return {
@@ -68,4 +74,15 @@ export async function getConferenceAttendeeState(
     isVisible: own?.is_visible ?? true,
     visibleAttendees,
   }
+}
+
+export async function getMeetupRsvpIds(conferenceId: string, userId: string): Promise<Set<string>> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("conference_meetup_rsvps")
+    .select("meetup_id")
+    .eq("conference_id", conferenceId)
+    .eq("user_id", userId)
+
+  return new Set((data ?? []).map((row) => row.meetup_id))
 }

@@ -24,6 +24,11 @@ export default function ConferenceCard({ conference }: { conference: ConferenceR
           <span className="absolute left-3 top-3 rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-zinc-800">
             {conference.category}
           </span>
+          {conference.meetups.length > 0 && (
+            <span className="absolute right-3 top-3 rounded-md bg-ipn px-2 py-1 text-[11px] font-medium text-white">
+              IPN meetup
+            </span>
+          )}
         </div>
 
         <div className="mt-3 flex min-w-0 flex-1 flex-col sm:mt-4">
@@ -37,6 +42,13 @@ export default function ConferenceCard({ conference }: { conference: ConferenceR
           {conference.summary && (
             <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
               {conference.summary}
+            </p>
+          )}
+
+          {conference.discounts.length > 0 && (
+            <p className="mt-2 line-clamp-1 text-xs font-medium text-ipn">
+              {conference.discounts[0].label}
+              {conference.discounts[0].code ? ` — code ${conference.discounts[0].code}` : ""}
             </p>
           )}
 

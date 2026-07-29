@@ -36,7 +36,6 @@ export async function sendConnectionRequest(
   if (error) return { error: error.message }
   await markOnboardingStepsComplete(supabase, user.id, ["connection_request"])
   revalidatePath("/dashboard")
-  revalidatePath("/dashboard/community")
   revalidatePath("/dashboard/directory")
   return {}
 }
@@ -55,7 +54,6 @@ export async function acceptConnection(
     .eq("addressee_id", user.id)
 
   if (error) return { error: error.message }
-  revalidatePath("/dashboard/community")
   revalidatePath("/dashboard/directory")
   return {}
 }
@@ -74,7 +72,7 @@ export async function declineConnection(
     .eq("addressee_id", user.id)
 
   if (error) return { error: error.message }
-  revalidatePath("/dashboard/community")
+  revalidatePath("/dashboard/directory")
   return {}
 }
 
@@ -93,7 +91,6 @@ export async function removeConnection(
     )
 
   if (error) return { error: error.message }
-  revalidatePath("/dashboard/community")
   revalidatePath("/dashboard/directory")
   return {}
 }
