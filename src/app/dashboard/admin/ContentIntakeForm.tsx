@@ -16,7 +16,22 @@ import type {
   AdminEventSummary,
   AdminResourceSummary,
 } from "@/lib/admin/actions"
+import {
+  publishAdminConference,
+  listAdminConferences,
+  deleteAdminConference,
+  publishAdminPastConference,
+  listAdminPastConferences,
+  deleteAdminPastConference,
+} from "@/lib/admin/conference-actions"
+import type {
+  AdminConferencePayload,
+  AdminConferenceMeetupInput,
+  AdminConferenceDiscountInput,
+  AdminPastConferencePayload,
+} from "@/lib/admin/conference-actions"
 import type { EventSpeakerLinkType } from "@/lib/events/types"
+import type { ConferenceCategory, ConferenceRecord, ConferenceStatus, PastConferenceRecord } from "@/lib/conferences/types"
 
 // ─── Speaker & materials form types ──────────────────────────────────────────
 
@@ -735,6 +750,361 @@ function ResourceForm({ initial, onSubmit, pending }: {
   )
 }
 
+// ─── Conference form (4 steps) ────────────────────────────────────────────────
+
+type ConferenceMeetupRow = { id?: string; title: string; type: string; startsAt: string; location: string; description: string }
+type ConferenceDiscountRow = { label: string; code: string; url: string; description: string; howToApply: string; expiresAt: string }
+
+type ConferenceFields = {
+  name: string; organizer: string; category: ConferenceCategory
+  city: string; state: string; country: string; venue: string
+  startsAt: string; endsAt: string; timezone: string
+  websiteUrl: string; registrationUrl: string; whatsappUrl: string
+  status: ConferenceStatus
+  summary: string; description: string; slug: string
+  meetups: ConferenceMeetupRow[]
+  discounts: ConferenceDiscountRow[]
+}
+
+const CONFERENCE_DEFAULTS: ConferenceFields = {
+  name: "", organizer: "", category: "Community",
+  city: "", state: "", country: "", venue: "",
+  startsAt: "", endsAt: "", timezone: "America/New_York",
+  websiteUrl: "", registrationUrl: "", whatsappUrl: "",
+  status: "published",
+  summary: "", description: "", slug: "",
+  meetups: [], discounts: [],
+}
+
+const CONFERENCE_CATEGORIES: ConferenceCategory[] = ["Academic", "Industry", "Community", "Harm Reduction"]
+const CONFERENCE_STATUSES: ConferenceStatus[] = ["draft", "published", "archived"]
+
+function ConferenceForm({ initial, onSubmit, pending }: {
+  initial?: Partial<ConferenceFields>
+  onSubmit: (p: Omit<AdminConferencePayload, "id">) => void
+  pending: boolean
+}) {
+  const [step, setStep] = useState(1)
+  const [f, setF] = useState<ConferenceFields>({ ...CONFERENCE_DEFAULTS, ...initial })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function set<K extends keyof ConferenceFields>(key: K, value: ConferenceFields[K]) {
+    setF((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => { const e = { ...prev }; delete e[key as string]; return e })
+  }
+
+  function validate1() {
+    const e: Record<string, string> = {}
+    if (!f.name.trim()) e.name = "Required"
+    if (!f.startsAt) e.startsAt = "Required"
+    if (!f.endsAt) e.endsAt = "Required"
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  function handleSubmit() {
+    const meetups: AdminConferenceMeetupInput[] = f.meetups
+      .filter((m) => m.title.trim())
+      .map((m) => ({
+        id: m.id,
+        title: m.title.trim(),
+        type: m.type.trim() || "IPN Meetup",
+        startsAt: m.startsAt,
+        location: m.location.trim() || undefined,
+        description: m.description.trim() || undefined,
+      }))
+    const discounts: AdminConferenceDiscountInput[] = f.discounts
+      .filter((d) => d.label.trim())
+      .map((d) => ({
+        label: d.label.trim(),
+        code: d.code.trim() || undefined,
+        url: d.url.trim() || undefined,
+        description: d.description.trim() || undefined,
+        howToApply: d.howToApply.trim() || undefined,
+        expiresAt: d.expiresAt || undefined,
+      }))
+
+    onSubmit({
+      slug: f.slug || undefined,
+      name: f.name,
+      organizer: f.organizer || undefined,
+      category: f.category,
+      summary: f.summary || undefined,
+      description: f.description || undefined,
+      startsAt: f.startsAt,
+      endsAt: f.endsAt,
+      timezone: f.timezone || "America/New_York",
+      city: f.city || undefined,
+      state: f.state || undefined,
+      country: f.country || undefined,
+      venue: f.venue || undefined,
+      websiteUrl: f.websiteUrl || undefined,
+      registrationUrl: f.registrationUrl || undefined,
+      whatsappUrl: f.whatsappUrl || undefined,
+      status: f.status,
+      meetups,
+      discounts,
+    })
+  }
+
+  return (
+    <>
+      {step === 1 && (
+        <>
+          <StepBar step={1} total={4} title="Basics" sub="Name, category, and where/when it happens" />
+          <div className="flex flex-col gap-4">
+            <Field label="Conference name" required>
+              <input value={f.name} onChange={(e) => set("name", e.target.value)} className={inputCls()} placeholder="e.g. Horizons: Perspectives on Psychedelics" />
+              {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
+            </Field>
+            <Field label="Organizer" hint="Optional">
+              <input value={f.organizer} onChange={(e) => set("organizer", e.target.value)} className={inputCls()} />
+            </Field>
+            <Field label="Category">
+              <select value={f.category} onChange={(e) => set("category", e.target.value as ConferenceCategory)} className={`cursor-pointer ${inputCls()}`}>
+                {CONFERENCE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="City" hint="Optional">
+                <input value={f.city} onChange={(e) => set("city", e.target.value)} className={inputCls()} />
+              </Field>
+              <Field label="State" hint="Optional">
+                <input value={f.state} onChange={(e) => set("state", e.target.value)} className={inputCls()} />
+              </Field>
+              <Field label="Country" hint="Optional">
+                <input value={f.country} onChange={(e) => set("country", e.target.value)} className={inputCls()} />
+              </Field>
+            </div>
+            <Field label="Venue" hint="Optional">
+              <input value={f.venue} onChange={(e) => set("venue", e.target.value)} className={inputCls()} />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Start date & time" required>
+                <input type="datetime-local" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inputCls()} />
+                {errors.startsAt && <p className="text-xs text-red-600">{errors.startsAt}</p>}
+              </Field>
+              <Field label="End date & time" required>
+                <input type="datetime-local" value={f.endsAt} onChange={(e) => set("endsAt", e.target.value)} className={inputCls()} />
+                {errors.endsAt && <p className="text-xs text-red-600">{errors.endsAt}</p>}
+              </Field>
+            </div>
+            <Field label="Timezone" hint="Pick the conference's local timezone">
+              <input
+                list="conference-timezones"
+                value={f.timezone}
+                onChange={(e) => set("timezone", e.target.value)}
+                className={inputCls()}
+                placeholder="America/New_York"
+              />
+              <datalist id="conference-timezones">
+                {EVENT_TIMEZONES.map((timezone) => <option key={timezone} value={timezone} />)}
+              </datalist>
+            </Field>
+          </div>
+          <NavRow step={1} total={4} onBack={() => {}} onNext={() => { if (validate1()) setStep(2) }} onSubmit={() => {}} pending={pending} submitLabel="" />
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          <StepBar step={2} total={4} title="Links & status" />
+          <div className="flex flex-col gap-4">
+            <Field label="Conference website" hint="Optional">
+              <input value={f.websiteUrl} onChange={(e) => set("websiteUrl", e.target.value)} className={inputCls()} placeholder="https://..." />
+            </Field>
+            <Field label="Registration URL" hint="Optional — external ticket/registration page">
+              <input value={f.registrationUrl} onChange={(e) => set("registrationUrl", e.target.value)} className={inputCls()} placeholder="https://..." />
+            </Field>
+            <Field label="WhatsApp chat invite URL" hint="Optional — conference-specific member chat">
+              <input value={f.whatsappUrl} onChange={(e) => set("whatsappUrl", e.target.value)} className={inputCls()} placeholder="https://chat.whatsapp.com/..." />
+            </Field>
+            <Field label="Status" hint="Draft is hidden from everyone; published shows on the admin-beta page; archived hides it again">
+              <select value={f.status} onChange={(e) => set("status", e.target.value as ConferenceStatus)} className={`cursor-pointer ${inputCls()}`}>
+                {CONFERENCE_STATUSES.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </Field>
+          </div>
+          <NavRow step={2} total={4} onBack={() => setStep(1)} onNext={() => setStep(3)} onSubmit={() => {}} pending={pending} submitLabel="" />
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          <StepBar step={3} total={4} title="Details" sub="Shown on the conference detail page" />
+          <div className="flex flex-col gap-4">
+            <Field label="Summary" hint="1–2 sentences shown on the conference card">
+              <textarea value={f.summary} onChange={(e) => set("summary", e.target.value)} rows={2} className={inputCls()} />
+            </Field>
+            <Field label="Description" hint="Full text shown on the detail page. Supports multiple paragraphs.">
+              <textarea value={f.description} onChange={(e) => set("description", e.target.value)} rows={5} className={inputCls()} />
+            </Field>
+            <Field label="Slug" hint="URL path for this conference, auto-generated from the name if left blank">
+              <input value={f.slug} onChange={(e) => set("slug", e.target.value)} className={inputCls()} placeholder="auto-generated" />
+            </Field>
+          </div>
+          <NavRow step={3} total={4} onBack={() => setStep(2)} onNext={() => setStep(4)} onSubmit={() => {}} pending={pending} submitLabel="" />
+        </>
+      )}
+
+      {step === 4 && (
+        <>
+          <StepBar step={4} total={4} title="Meetups & discounts" sub="All optional" />
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-zinc-600">IPN meetups</p>
+              <p className="text-[11px] text-zinc-400">On-site IPN gatherings during this conference</p>
+              {f.meetups.map((meetup, i) => (
+                <div key={i} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto]">
+                    <input value={meetup.title} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], title: e.target.value }; set("meetups", next) }} placeholder="Meetup title" className={inputCls()} />
+                    <input value={meetup.type} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], type: e.target.value }; set("meetups", next) }} placeholder="Type (e.g. IPN Meetup)" className={inputCls()} />
+                    <button type="button" onClick={() => set("meetups", f.meetups.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <input type="datetime-local" value={meetup.startsAt} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], startsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                    <input value={meetup.location} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], location: e.target.value }; set("meetups", next) }} placeholder="Location (e.g. Hotel poolside bar)" className={inputCls()} />
+                  </div>
+                  <input value={meetup.description} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], description: e.target.value }; set("meetups", next) }} placeholder="Description (optional)" className={inputCls()} />
+                </div>
+              ))}
+              <p className="text-[11px] text-zinc-400">Members RSVP to meetups in-app — no registration link needed.</p>
+              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", type: "IPN Meetup", startsAt: "", location: "", description: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+                + Add meetup
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-zinc-600">Member discounts</p>
+              <p className="text-[11px] text-zinc-400">Discount codes or links for IPN members</p>
+              {f.discounts.map((discount, i) => (
+                <div key={i} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto]">
+                    <input value={discount.label} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], label: e.target.value }; set("discounts", next) }} placeholder="Discount label" className={inputCls()} />
+                    <input value={discount.code} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], code: e.target.value }; set("discounts", next) }} placeholder="Code (optional)" className={inputCls()} />
+                    <button type="button" onClick={() => set("discounts", f.discounts.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
+                  </div>
+                  <input value={discount.url} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], url: e.target.value }; set("discounts", next) }} placeholder="URL (optional)" className={inputCls()} />
+                  <input value={discount.description} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], description: e.target.value }; set("discounts", next) }} placeholder="Description (optional)" className={inputCls()} />
+                  <input value={discount.howToApply} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], howToApply: e.target.value }; set("discounts", next) }} placeholder="How to apply (e.g. 'Enter code at checkout')" className={inputCls()} />
+                  <Field label="Expires" hint="Optional">
+                    <input type="datetime-local" value={discount.expiresAt} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], expiresAt: e.target.value }; set("discounts", next) }} className={inputCls()} />
+                  </Field>
+                </div>
+              ))}
+              <button type="button" onClick={() => set("discounts", [...f.discounts, { label: "", code: "", url: "", description: "", howToApply: "", expiresAt: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+                + Add discount
+              </button>
+            </div>
+          </div>
+          <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
+        </>
+      )}
+    </>
+  )
+}
+
+// ─── Past conference form (1 step) ─────────────────────────────────────────────
+
+type PastConferenceFields = {
+  name: string
+  organizer: string
+  category: string
+  startsAt: string
+  endsAt: string
+  city: string
+  state: string
+  country: string
+  summary: string
+  driveFolderUrl: string
+}
+
+const PAST_CONFERENCE_DEFAULTS: PastConferenceFields = {
+  name: "", organizer: "", category: "",
+  startsAt: "", endsAt: "", city: "", state: "", country: "",
+  summary: "", driveFolderUrl: "",
+}
+
+function PastConferenceForm({ initial, onSubmit, pending }: {
+  initial?: Partial<PastConferenceFields>
+  onSubmit: (p: Omit<AdminPastConferencePayload, "id">) => void
+  pending: boolean
+}) {
+  const [f, setF] = useState<PastConferenceFields>({ ...PAST_CONFERENCE_DEFAULTS, ...initial })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function set<K extends keyof PastConferenceFields>(key: K, value: PastConferenceFields[K]) {
+    setF((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => { const e = { ...prev }; delete e[key as string]; return e })
+  }
+
+  function handleSubmit() {
+    if (!f.name.trim()) {
+      setErrors({ name: "Required" })
+      return
+    }
+
+    onSubmit({
+      name: f.name,
+      organizer: f.organizer || undefined,
+      category: f.category || undefined,
+      startsAt: f.startsAt || undefined,
+      endsAt: f.endsAt || undefined,
+      city: f.city || undefined,
+      state: f.state || undefined,
+      country: f.country || undefined,
+      summary: f.summary || undefined,
+      driveFolderUrl: f.driveFolderUrl || undefined,
+    })
+  }
+
+  return (
+    <>
+      <StepBar step={1} total={1} title="Past conference" sub="Highlights and photos from a conference IPN has already attended" />
+      <div className="flex flex-col gap-4">
+        <Field label="Conference name" required>
+          <input value={f.name} onChange={(e) => set("name", e.target.value)} className={inputCls()} placeholder="Psychedelic Science 2025" />
+          {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Organizer" hint="Optional">
+            <input value={f.organizer} onChange={(e) => set("organizer", e.target.value)} className={inputCls()} />
+          </Field>
+          <Field label="Category" hint="Optional — e.g. Academic, Industry, Community">
+            <input value={f.category} onChange={(e) => set("category", e.target.value)} className={inputCls()} />
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Start date" hint="Optional">
+            <input type="date" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inputCls()} />
+          </Field>
+          <Field label="End date" hint="Optional">
+            <input type="date" value={f.endsAt} onChange={(e) => set("endsAt", e.target.value)} className={inputCls()} />
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="City" hint="Optional">
+            <input value={f.city} onChange={(e) => set("city", e.target.value)} className={inputCls()} />
+          </Field>
+          <Field label="State" hint="Optional">
+            <input value={f.state} onChange={(e) => set("state", e.target.value)} className={inputCls()} />
+          </Field>
+          <Field label="Country" hint="Optional">
+            <input value={f.country} onChange={(e) => set("country", e.target.value)} className={inputCls()} />
+          </Field>
+        </div>
+        <Field label="Summary" hint="1–2 sentences shown on the card">
+          <textarea value={f.summary} onChange={(e) => set("summary", e.target.value)} rows={2} className={inputCls()} />
+        </Field>
+        <Field label="Google Drive folder URL" hint="Shown as a &quot;View & share photos&quot; button — leave blank to show &quot;Photos coming soon&quot;">
+          <input value={f.driveFolderUrl} onChange={(e) => set("driveFolderUrl", e.target.value)} className={inputCls()} placeholder="https://drive.google.com/..." />
+        </Field>
+      </div>
+      <NavRow step={1} total={1} onBack={() => {}} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Save past conference" />
+    </>
+  )
+}
+
 // ─── DB record → form fields ──────────────────────────────────────────────────
 
 function isoToLocal(
@@ -816,6 +1186,36 @@ function resourceToFields(r: AdminResourceSummary): ResourceFields {
     author: r.author ?? "", summary: r.description ?? "",
     detailBody: r.detail_body ?? "", benefitNote: r.benefit_note ?? "",
     imageUrl: r.image_url ?? "", slug: r.slug ?? "",
+  }
+}
+
+function conferenceToFields(c: ConferenceRecord): ConferenceFields {
+  const timezone = c.timezone ?? "America/New_York"
+  return {
+    name: c.name, organizer: c.organizer ?? "", category: c.category,
+    city: c.city ?? "", state: c.state ?? "", country: c.country ?? "", venue: c.venue ?? "",
+    startsAt: isoToLocal(c.starts_at, timezone), endsAt: isoToLocal(c.ends_at, timezone), timezone,
+    websiteUrl: c.website_url ?? "", registrationUrl: c.registration_url ?? "", whatsappUrl: c.whatsapp_url ?? "",
+    status: c.status,
+    summary: c.summary ?? "", description: c.description ?? "", slug: c.slug,
+    meetups: c.meetups.map((m) => ({
+      id: m.id, title: m.title, type: m.type, startsAt: isoToLocal(m.startsAt, timezone),
+      location: m.location ?? "", description: m.description ?? "",
+    })),
+    discounts: c.discounts.map((d) => ({
+      label: d.label, code: d.code ?? "", url: d.url ?? "",
+      description: d.description ?? "", howToApply: d.howToApply ?? "",
+      expiresAt: d.expiresAt ? isoToLocal(d.expiresAt, timezone) : "",
+    })),
+  }
+}
+
+function pastConferenceToFields(c: PastConferenceRecord): PastConferenceFields {
+  return {
+    name: c.name, organizer: c.organizer ?? "", category: c.category ?? "",
+    startsAt: c.starts_at ?? "", endsAt: c.ends_at ?? "",
+    city: c.city ?? "", state: c.state ?? "", country: c.country ?? "",
+    summary: c.summary ?? "", driveFolderUrl: c.drive_folder_url ?? "",
   }
 }
 
@@ -912,19 +1312,22 @@ type EditTarget =
   | { type: "event"; fields: EventFields }
   | { type: "recording"; fields: RecordingFields }
   | { type: "resource"; fields: ResourceFields }
+  | { type: "conference"; id: string; fields: ConferenceFields }
+  | { type: "pastConference"; id: string; fields: PastConferenceFields }
 
 function ContentRow({
-  title, meta, showPublicLink, slug, onEdit, onDelete,
+  title, meta, showPublicLink, slug, publicPath, onEdit, onDelete,
 }: {
-  title: string; meta: string; showPublicLink?: boolean; slug?: string
+  title: string; meta: string; showPublicLink?: boolean; slug?: string; publicPath?: string
   onEdit: () => void; onDelete: () => void
 }) {
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
 
   function copyPublicLink() {
-    if (!slug) return
-    navigator.clipboard.writeText(`${window.location.origin}/events/${slug}`)
+    const path = publicPath ?? (slug ? `/events/${slug}` : null)
+    if (!path) return
+    navigator.clipboard.writeText(`${window.location.origin}${path}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -1034,6 +1437,16 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
+// starts_at/ends_at on past_conferences are plain "YYYY-MM-DD" dates (no time/timezone) —
+// parsing with `new Date(string)` reads them as UTC midnight, which can shift a day off
+// in local display, so this parses the calendar date directly instead.
+function formatPlainDate(value: string | null) {
+  if (!value) return null
+  const [year, month, day] = value.split("-").map(Number)
+  if (!year || !month || !day) return value
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
 function ResourceGroup({
   label,
   items,
@@ -1071,7 +1484,7 @@ function ResourceGroup({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type SubTab = "events" | "recordings" | "awaiting" | "resources"
+type SubTab = "events" | "recordings" | "awaiting" | "resources" | "conferences" | "pastConferences"
 
 export default function ContentIntakeForm() {
   const [subTab, setSubTab] = useState<SubTab>("events")
@@ -1079,6 +1492,8 @@ export default function ContentIntakeForm() {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
   const [events, setEvents] = useState<AdminEventSummary[]>([])
   const [resources, setResources] = useState<AdminResourceSummary[]>([])
+  const [conferences, setConferences] = useState<ConferenceRecord[]>([])
+  const [pastConferences, setPastConferences] = useState<PastConferenceRecord[]>([])
   const [loadingList, setLoadingList] = useState(true)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -1088,12 +1503,21 @@ export default function ContentIntakeForm() {
   const [perPage, setPerPage] = useState(10)
   const [eventsPage, setEventsPage] = useState(1)
   const [recordingsPage, setRecordingsPage] = useState(1)
+  const [conferencesPage, setConferencesPage] = useState(1)
+  const [pastConferencesPage, setPastConferencesPage] = useState(1)
 
   const loadData = useCallback(async () => {
     setLoadingList(true)
-    const [evts, res] = await Promise.all([listAdminEvents(), listAdminResources()])
+    const [evts, res, confs, pastConfs] = await Promise.all([
+      listAdminEvents(),
+      listAdminResources(),
+      listAdminConferences(),
+      listAdminPastConferences(),
+    ])
     setEvents(evts)
     setResources(res)
+    setConferences(confs)
+    setPastConferences(pastConfs)
     setLoadingList(false)
   }, [])
 
@@ -1116,6 +1540,8 @@ export default function ContentIntakeForm() {
 
   const { items: pagedEvents, totalPages: eventTotalPages } = paginate(upcomingEvents, eventsPage)
   const { items: pagedRecordings, totalPages: recordingTotalPages } = paginate(recordings, recordingsPage)
+  const { items: pagedConferences, totalPages: conferenceTotalPages } = paginate(conferences, conferencesPage)
+  const { items: pagedPastConferences, totalPages: pastConferenceTotalPages } = paginate(pastConferences, pastConferencesPage)
 
   // Resources grouped by type (no pagination — grouping is more useful)
   const blogResources = resources.filter((r) => r.resource_type === "blog_post")
@@ -1164,6 +1590,54 @@ export default function ContentIntakeForm() {
     })
   }
 
+  function handleConferenceSubmit(payload: Omit<AdminConferencePayload, "id">) {
+    setSuccessMsg(null)
+    setErrorMsg(null)
+    const id = editTarget?.type === "conference" ? editTarget.id : undefined
+    startTransition(async () => {
+      const result = await publishAdminConference({ ...payload, id })
+      if (result.error) {
+        setErrorMsg(result.error)
+      } else {
+        setSuccessMsg(`Published: ${result.slug}`)
+        await loadData()
+        setView("list")
+      }
+    })
+  }
+
+  function handleDeleteConference(id: string) {
+    startTransition(async () => {
+      const result = await deleteAdminConference(id)
+      if (result.error) setErrorMsg(result.error)
+      else await loadData()
+    })
+  }
+
+  function handlePastConferenceSubmit(payload: Omit<AdminPastConferencePayload, "id">) {
+    setSuccessMsg(null)
+    setErrorMsg(null)
+    const id = editTarget?.type === "pastConference" ? editTarget.id : undefined
+    startTransition(async () => {
+      const result = await publishAdminPastConference({ ...payload, id })
+      if (result.error) {
+        setErrorMsg(result.error)
+      } else {
+        setSuccessMsg(`Saved: ${payload.name}`)
+        await loadData()
+        setView("list")
+      }
+    })
+  }
+
+  function handleDeletePastConference(id: string) {
+    startTransition(async () => {
+      const result = await deleteAdminPastConference(id)
+      if (result.error) setErrorMsg(result.error)
+      else await loadData()
+    })
+  }
+
   function handlePromote(id: string, url: string) {
     startTransition(async () => {
       const result = await promoteToRecording(id, url)
@@ -1177,13 +1651,22 @@ export default function ContentIntakeForm() {
     recordings: recordings.length,
     awaiting: endedEvents.length,
     resources: resources.length,
+    conferences: conferences.length,
+    pastConferences: pastConferences.length,
   }
 
-  const newLabel = subTab === "events" ? "New event" : subTab === "recordings" ? "New recording" : subTab === "awaiting" ? "" : "New resource"
+  const newLabel = subTab === "events" ? "New event"
+    : subTab === "recordings" ? "New recording"
+    : subTab === "awaiting" ? ""
+    : subTab === "conferences" ? "New conference"
+    : subTab === "pastConferences" ? "New past conference"
+    : "New resource"
 
   const formTitle = editTarget === null ? newLabel
     : editTarget.type === "event" ? `Edit: ${editTarget.fields.title}`
     : editTarget.type === "recording" ? `Edit: ${editTarget.fields.title}`
+    : editTarget.type === "conference" ? `Edit: ${editTarget.fields.name}`
+    : editTarget.type === "pastConference" ? `Edit: ${editTarget.fields.name}`
     : `Edit: ${editTarget.fields.title}`
 
   return (
@@ -1195,7 +1678,7 @@ export default function ContentIntakeForm() {
             {view === "list" ? "Content" : formTitle}
           </h2>
           {view === "list" ? (
-            <p className="mt-0.5 text-sm text-zinc-400">Manage events, recordings, and resources</p>
+            <p className="mt-0.5 text-sm text-zinc-400">Manage events, recordings, resources, and conferences</p>
           ) : (
             <button type="button" onClick={backToList} className="mt-0.5 flex min-h-8 cursor-pointer items-center gap-1 text-xs text-zinc-400 transition hover:text-zinc-700">
               ← Back to list
@@ -1212,7 +1695,7 @@ export default function ContentIntakeForm() {
       {/* Sub-tabs (list only) */}
       {view === "list" && (
         <div className="flex overflow-x-auto border-b border-zinc-100">
-          {(["events", "recordings", "awaiting", "resources"] as SubTab[]).map((id) => (
+          {(["events", "recordings", "awaiting", "resources", "conferences", "pastConferences"] as SubTab[]).map((id) => (
             <button
               key={id}
               type="button"
@@ -1221,7 +1704,7 @@ export default function ContentIntakeForm() {
                 subTab === id ? "-mb-px border-b-2 border-ipn text-ipn" : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
-              {id === "awaiting" ? "Awaiting" : id.charAt(0).toUpperCase() + id.slice(1)}
+              {id === "awaiting" ? "Awaiting" : id === "pastConferences" ? "Past conferences" : id.charAt(0).toUpperCase() + id.slice(1)}
               {!loadingList && (
                 <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
                   id === "awaiting" && tabCounts.awaiting > 0
@@ -1327,6 +1810,47 @@ export default function ContentIntakeForm() {
                       />
                     </div>
               )}
+
+              {subTab === "conferences" && (
+                conferences.length === 0
+                  ? <p className="text-sm text-zinc-400">No conferences. Select New conference to add one.</p>
+                  : <>
+                      <div className="flex flex-col gap-2">
+                        {pagedConferences.map((conference) => (
+                          <ContentRow
+                            key={conference.id}
+                            title={conference.name}
+                            meta={`${conference.category} · ${formatDate(conference.starts_at)} · ${conference.status}`}
+                            showPublicLink
+                            slug={conference.slug}
+                            publicPath={`/dashboard/conferences/${conference.slug}`}
+                            onEdit={() => openEdit({ type: "conference", id: conference.id, fields: conferenceToFields(conference) })}
+                            onDelete={() => handleDeleteConference(conference.id)}
+                          />
+                        ))}
+                      </div>
+                      <Pagination page={conferencesPage} totalPages={conferenceTotalPages} perPage={perPage} onPage={setConferencesPage} onPerPage={setPerPage} />
+                    </>
+              )}
+
+              {subTab === "pastConferences" && (
+                pastConferences.length === 0
+                  ? <p className="text-sm text-zinc-400">No past conferences. Select New past conference to add one.</p>
+                  : <>
+                      <div className="flex flex-col gap-2">
+                        {pagedPastConferences.map((conference) => (
+                          <ContentRow
+                            key={conference.id}
+                            title={conference.name}
+                            meta={[conference.category, formatPlainDate(conference.starts_at), [conference.city, conference.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
+                            onEdit={() => openEdit({ type: "pastConference", id: conference.id, fields: pastConferenceToFields(conference) })}
+                            onDelete={() => handleDeletePastConference(conference.id)}
+                          />
+                        ))}
+                      </div>
+                      <Pagination page={pastConferencesPage} totalPages={pastConferenceTotalPages} perPage={perPage} onPage={setPastConferencesPage} onPerPage={setPerPage} />
+                    </>
+              )}
             </>
           )}
         </div>
@@ -1353,6 +1877,20 @@ export default function ContentIntakeForm() {
             <ResourceForm
               initial={editTarget?.type === "resource" ? editTarget.fields : undefined}
               onSubmit={handleSubmit}
+              pending={pending}
+            />
+          )}
+          {subTab === "conferences" && (
+            <ConferenceForm
+              initial={editTarget?.type === "conference" ? editTarget.fields : undefined}
+              onSubmit={handleConferenceSubmit}
+              pending={pending}
+            />
+          )}
+          {subTab === "pastConferences" && (
+            <PastConferenceForm
+              initial={editTarget?.type === "pastConference" ? editTarget.fields : undefined}
+              onSubmit={handlePastConferenceSubmit}
               pending={pending}
             />
           )}

@@ -10,9 +10,10 @@ import type {
   DirectoryMember,
   DirectoryParams,
 } from "@/lib/directory/types"
-import { educationLevelLabel } from "@/lib/members/education"
-import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
 import { memberMatchesDirectorySearch } from "@/lib/directory/search"
+import { loadMoreDirectoryMembers } from "@/lib/directory/actions"
+import MemberProfileModal, { getInitials, AvatarCircle, PersonaBadge } from "@/components/directory/MemberProfileModal"
+import RequestsPanel, { type ConnectionRow } from "./RequestsPanel"
 
 const MapDirectoryView = dynamic(() => import("./MapDirectoryView"), {
   ssr: false,
@@ -33,40 +34,6 @@ const PERSONA_LABEL: Record<string, string> = Object.fromEntries(
 
 function directoryViewFromParam(value: string | null): DirectoryView {
   return value === "map" || value === "globe" ? "map" : "list"
-}
-
-function getInitials(first: string | null, last: string | null) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?"
-}
-
-function AvatarCircle({
-  avatarUrl,
-  initials,
-}: {
-  avatarUrl: string | null
-  initials: string
-}) {
-  return (
-    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full sm:h-16 sm:w-16">
-      {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-ipn text-lg font-semibold text-white">
-          {initials}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function PersonaBadge({ persona }: { persona: string | null }) {
-  if (!persona) return null
-  return (
-    <span className="inline-block rounded-full bg-ipn-light px-2.5 py-0.5 text-xs font-medium text-ipn">
-      {PERSONA_LABEL[persona] ?? persona}
-    </span>
-  )
 }
 
 function MemberCard({
@@ -149,359 +116,6 @@ function MemberCard({
   )
 }
 
-function ConfirmRemoveModal({
-  name,
-  onConfirm,
-  onCancel,
-}: {
-  name: string
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onCancel() }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onCancel])
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4" onClick={onCancel}>
-      <div
-        className="w-full max-w-sm rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-zinc-900">Remove connection?</h2>
-        <p className="mt-2 text-sm text-zinc-500">
-          You and <span className="font-medium text-zinc-700">{name}</span> will no longer be connected.
-        </p>
-        <div className="mt-5 flex gap-3">
-          <button type="button" onClick={onCancel}
-            className="min-h-11 flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            data-analytics-event="curated_click"
-            data-analytics-id="connection-remove-confirm"
-            data-analytics-label="Confirm remove connection"
-            className="min-h-11 flex-1 rounded-lg border border-ipn bg-transparent py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5">
-            Remove connection
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function MemberModal({
-  member,
-  connectionEntry,
-  isSelf,
-  onConnectionChange,
-  onClose,
-}: {
-  member: DirectoryMember
-  connectionEntry: ConnectionEntry | undefined
-  isSelf: boolean
-  onConnectionChange: (entry: ConnectionEntry) => void
-  onClose: () => void
-}) {
-  const router = useRouter()
-  const [, startTransition] = useTransition()
-  const [confirmRemove, setConfirmRemove] = useState(false)
-  const initials = getInitials(member.first_name, member.last_name)
-  const location = [member.city, member.state].filter(Boolean).join(", ")
-  const institution = member.education?.[0]?.institution ?? member.school ?? member.affiliation
-  const isConnected = connectionEntry?.status === "accepted"
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden"
-    return () => { document.body.style.overflow = "" }
-  }, [])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
-    }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onClose])
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
-          aria-label="Close"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        {/* Header */}
-        <div className="flex flex-col items-center px-6 pb-4 pt-8">
-          <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-full">
-            {member.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={member.avatar_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-ipn text-2xl font-semibold text-white">
-                {initials}
-              </div>
-            )}
-          </div>
-          <h2 className="mt-4 text-xl font-semibold text-zinc-900">
-            {member.first_name} {member.last_name}
-          </h2>
-          {(isSelf || member.persona) && (
-            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-              {isSelf && (
-                <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
-                  You
-                </span>
-              )}
-              <PersonaBadge persona={member.persona} />
-            </div>
-          )}
-          {(institution || location) && (
-            <div className="mt-2 flex flex-col items-center gap-0.5">
-              {institution && (
-                <p className="text-sm font-medium text-zinc-600">{institution}</p>
-              )}
-              {location && (
-                <p className="text-xs text-zinc-400">{location}</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-zinc-100" />
-
-        {/* Body */}
-        <div className="flex flex-col gap-5 px-6 py-5">
-          {member.field && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Field</p>
-              <p className="mt-1 text-sm text-zinc-700">{member.field}</p>
-            </div>
-          )}
-          {member.education && member.education.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Education</p>
-              <div className="mt-2 flex flex-col gap-3">
-                {member.education.map((entry) => (
-                  <div key={entry.id}>
-                    <p className="text-sm font-medium text-zinc-700">{entry.institution}</p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      {[
-                        educationLevelLabel(entry.education_level),
-                        entry.degree_credential,
-                        entry.area_of_study,
-                        entry.status === "currently_enrolled" ? "Currently enrolled" : entry.status === "completed" ? "Completed / alumni" : null,
-                        entry.graduation_year ? `Class of ${entry.graduation_year}` : null,
-                      ].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {member.bio && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">About</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-700">{member.bio}</p>
-            </div>
-          )}
-          {member.interest_tags && member.interest_tags.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Interests</p>
-              <p className="mt-1 text-sm text-zinc-700">{member.interest_tags.join(" · ")}</p>
-            </div>
-          )}
-          {isConnected && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Contact</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {member.contact?.email && (
-                  <a
-                    href={`mailto:${member.contact.email}`}
-                    className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-ipn hover:text-ipn"
-                  >
-                    Email
-                  </a>
-                )}
-                {member.contact?.whatsapp_url && (
-                  <a
-                    href={member.contact.whatsapp_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
-                  >
-                    WhatsApp
-                  </a>
-                )}
-                {!member.contact?.email && !member.contact?.whatsapp_url && (
-                  <p className="text-sm text-zinc-500">No contact details added yet.</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex flex-col gap-3 border-t border-zinc-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          {isSelf ? (
-            member.linkedin_url ? (
-              <a
-                href={member.linkedin_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900"
-              >
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.27c-.97 0-1.75-.79-1.75-1.76s.78-1.75 1.75-1.75 1.75.78 1.75 1.75-.78 1.76-1.75 1.76zm13.5 11.27h-3v-5.6c0-1.34-.03-3.07-1.87-3.07-1.87 0-2.16 1.46-2.16 2.97v5.7h-3v-10h2.88v1.36h.04c.4-.76 1.38-1.56 2.84-1.56 3.04 0 3.6 2 3.6 4.59v5.61z" />
-                </svg>
-                LinkedIn
-              </a>
-            ) : (
-              <span />
-            )
-          ) : isConnected ? (
-            <button
-              type="button"
-              onClick={() => setConfirmRemove(true)}
-              data-analytics-event="curated_click"
-              data-analytics-id={`connection-remove-start-${member.id}`}
-              data-analytics-label="Remove connection"
-              className="min-h-11 rounded-lg border border-ipn bg-transparent px-4 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5"
-            >
-              Remove connection
-            </button>
-          ) : member.linkedin_url ? (
-            <a
-              href={member.linkedin_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900"
-            >
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.27c-.97 0-1.75-.79-1.75-1.76s.78-1.75 1.75-1.75 1.75.78 1.75 1.75-.78 1.76-1.75 1.76zm13.5 11.27h-3v-5.6c0-1.34-.03-3.07-1.87-3.07-1.87 0-2.16 1.46-2.16 2.97v5.7h-3v-10h2.88v1.36h.04c.4-.76 1.38-1.56 2.84-1.56 3.04 0 3.6 2 3.6 4.59v5.61z" />
-              </svg>
-              LinkedIn
-            </a>
-          ) : (
-            <span />
-          )}
-          {(() => {
-            if (isSelf) {
-              return (
-                <span className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-500">
-                  Your profile
-                </span>
-              )
-            }
-
-            const { status, amRequester } = connectionEntry ?? {}
-
-            if (status === "accepted") {
-              return (
-                <span className="flex items-center gap-1.5 text-sm font-medium text-green-600">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                  Connected
-                </span>
-              )
-            }
-
-            if (status === "pending" && amRequester) {
-              return (
-                <button type="button" disabled className="min-h-11 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-400 cursor-default">
-                  Request Sent
-                </button>
-              )
-            }
-
-            if (status === "pending" && !amRequester) {
-              return (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onConnectionChange({ status: "accepted", amRequester: false })
-                    startTransition(async () => {
-                      const result = await acceptConnection(member.id)
-                      if (!result.error) router.refresh()
-                    })
-                  }}
-                  data-analytics-event="curated_click"
-                  data-analytics-id={`connection-accept-${member.id}`}
-                  data-analytics-label="Accept connection request"
-                  className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
-                >
-                  Accept Request
-                </button>
-              )
-            }
-
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  onConnectionChange({ status: "pending", amRequester: true })
-                  startTransition(async () => {
-                    const result = await sendConnectionRequest(member.id)
-                    if (!result.error) router.refresh()
-                  })
-                }}
-                data-analytics-event="curated_click"
-                data-analytics-id={`connection-request-${member.id}`}
-                data-analytics-label="Send connection request"
-                className="min-h-11 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn/90"
-              >
-                Connect
-              </button>
-            )
-          })()}
-        </div>
-
-        {!isSelf && (!connectionEntry || connectionEntry.status === "declined") && (
-          <p className="px-6 pb-4 text-center text-xs text-zinc-400">
-            Connecting lets you share email and WhatsApp details with each other.
-          </p>
-        )}
-      </div>
-
-      {confirmRemove && (
-        <ConfirmRemoveModal
-          name={`${member.first_name ?? ""} ${member.last_name ?? ""}`.trim()}
-          onConfirm={() => {
-            onConnectionChange({ status: "declined", amRequester: true })
-            startTransition(async () => {
-              const result = await removeConnection(member.id)
-              if (!result.error) router.refresh()
-            })
-            setConfirmRemove(false)
-          }}
-          onCancel={() => setConfirmRemove(false)}
-        />
-      )}
-    </div>
-  )
-}
 
 function SchoolCombobox({
   value,
@@ -692,6 +306,7 @@ function FilterDrawer({
 
 type Props = {
   members: DirectoryMember[]
+  hasMore: boolean
   mapCities: DirectoryMapCity[]
   showSchoolTab: boolean
   currentParams: DirectoryParams
@@ -699,10 +314,17 @@ type Props = {
   availableTags: string[]
   connectionMap: Record<string, ConnectionEntry>
   currentUserId: string
+  pendingRequestCount: number
+  connections?: {
+    accepted: ConnectionRow[]
+    incoming: ConnectionRow[]
+    outgoing: ConnectionRow[]
+  }
 }
 
 export default function DirectoryClient({
   members,
+  hasMore: initialHasMore,
   mapCities,
   showSchoolTab,
   currentParams,
@@ -710,6 +332,8 @@ export default function DirectoryClient({
   availableTags,
   connectionMap: initialConnectionMap,
   currentUserId,
+  pendingRequestCount,
+  connections,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -724,16 +348,43 @@ export default function DirectoryClient({
   const [drawerField, setDrawerField] = useState(currentParams.field)
   const [drawerTags, setDrawerTags] = useState<string[]>(currentParams.tags)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
-  const [isCompactMobile, setIsCompactMobile] = useState(false)
-  const [visibleMemberCount, setVisibleMemberCount] = useState(4)
+  const [loadedMembers, setLoadedMembers] = useState(members)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [prevMembers, setPrevMembers] = useState(members)
   const [connectionState, setConnectionState] = useState(() => ({
     source: initialConnectionMap,
     value: initialConnectionMap,
   }))
+
+  // The server sends a fresh (capped) page whenever filters/search/tab/view
+  // change via navigation — reset local "load more" state to match. (Adjusting
+  // state during render, not in an effect, per React's guidance for resetting
+  // state when a prop changes.)
+  if (members !== prevMembers) {
+    setPrevMembers(members)
+    setLoadedMembers(members)
+    setHasMore(initialHasMore)
+  }
+
   const filteredMembers = useMemo(
-    () => members.filter((member) => memberMatchesDirectorySearch(member, searchInput)),
-    [members, searchInput],
+    () => loadedMembers.filter((member) => memberMatchesDirectorySearch(member, searchInput)),
+    [loadedMembers, searchInput],
   )
+
+  async function loadMore() {
+    setLoadingMore(true)
+    const result = await loadMoreDirectoryMembers(loadedMembers.length, {
+      tab: currentParams.tab,
+      personas: currentParams.personas,
+      school: currentParams.school,
+      field: currentParams.field,
+      tags: currentParams.tags,
+    })
+    setLoadedMembers((prev) => [...prev, ...result.members])
+    setHasMore(result.hasMore)
+    setLoadingMore(false)
+  }
   const filteredMapCities = useMemo(() => {
     if (!searchInput.trim()) return mapCities
 
@@ -759,9 +410,6 @@ export default function DirectoryClient({
     () => new Set(filteredMapCities.map((city) => city.country).filter(Boolean)).size,
     [filteredMapCities],
   )
-  const visibleMembers = isCompactMobile
-    ? filteredMembers.slice(0, visibleMemberCount)
-    : filteredMembers
   const mapRenderKey = useMemo(
     () =>
       filteredMapCities
@@ -808,29 +456,22 @@ export default function DirectoryClient({
 
   const clearSearch = useCallback(() => {
     setSearchInput("")
-    window.history.replaceState(null, "", buildUrl({ q: "" }))
-  }, [buildUrl])
+    startTransition(() => router.replace(buildUrl({ q: "" })))
+  }, [buildUrl, router])
 
-  // Keep search instant by filtering local data; mirror q in the URL without a server navigation.
+  // Filtering the already-loaded page is instant, but the loaded page is
+  // capped — once the debounced query settles, also re-fetch from the server
+  // (uncapped) so search actually reaches the whole directory, not just
+  // whatever happened to be loaded already.
   useEffect(() => {
-    if (searchInput.trim() === currentParams.q) return
+    const trimmed = searchInput.trim()
+    if (trimmed === currentParams.q) return
 
     const timer = setTimeout(() => {
-      window.history.replaceState(null, "", buildUrl({ q: searchInput.trim() }))
-    }, 150)
+      startTransition(() => router.replace(buildUrl({ q: trimmed })))
+    }, 300)
     return () => clearTimeout(timer)
-  }, [buildUrl, currentParams.q, searchInput])
-
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 640px)")
-    function updateCompactMode() {
-      setIsCompactMobile(query.matches)
-    }
-
-    updateCompactMode()
-    query.addEventListener("change", updateCompactMode)
-    return () => query.removeEventListener("change", updateCompactMode)
-  }, [])
+  }, [buildUrl, currentParams.q, searchInput, router])
 
   function setTab(tab: string) {
     startTransition(() => router.replace(buildUrl({ tab })))
@@ -894,9 +535,9 @@ export default function DirectoryClient({
   const isMapView = view === "map"
 
   return (
-    <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 ${isMapView ? "py-3 sm:py-10" : "py-4 sm:py-10"}`}>
+    <div>
       <div className={isMapView ? "mb-3 sm:mb-6" : "mb-4 sm:mb-6"}>
-        <p className="hidden text-sm font-medium text-ipn sm:block">Directory</p>
+        <p className="hidden text-sm font-medium text-ipn sm:block">Community</p>
         <h1 className={`font-semibold text-zinc-900 ${isMapView ? "text-xl sm:mt-1 sm:text-2xl" : "text-2xl sm:mt-1"}`}>Member Directory</h1>
         <p className="mt-1 line-clamp-2 text-sm leading-5 text-zinc-500 sm:hidden">
           Search by interests, school, field, or area and connect with members to chat.
@@ -904,6 +545,7 @@ export default function DirectoryClient({
       </div>
 
       {/* Search + filter */}
+      {currentParams.tab !== "connections" && (
       <div className={isMapView ? "mb-3 flex gap-2 sm:flex-row sm:gap-3" : "mb-4 flex flex-col gap-3 sm:flex-row"}>
         <div className="relative flex-1">
           <svg
@@ -970,25 +612,40 @@ export default function DirectoryClient({
           )}
         </button>
       </div>
+      )}
 
       {/* Tabs */}
-      <div className={`hidden border-b border-zinc-200 sm:flex ${isMapView ? "mb-3" : "mb-6"}`}>
-        {(["all", ...(showSchoolTab ? ["school"] : [])] as string[]).map((tab) => (
+      <div className={`flex border-b border-zinc-200 ${isMapView ? "mb-3" : "mb-6"}`}>
+        {(["all", ...(showSchoolTab ? ["school"] : []), "connections"] as string[]).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setTab(tab)}
-            className={`min-h-11 cursor-pointer px-4 py-2.5 text-sm font-medium transition ${
+            className={`relative flex min-h-11 cursor-pointer items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium transition ${
               currentParams.tab === tab
                 ? "-mb-px border-b-2 border-ipn text-ipn"
                 : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
-            {tab === "all" ? "All Members" : "Your Schools"}
+            {tab === "all" ? "All Members" : tab === "school" ? "Your Schools" : "Connections"}
+            {tab === "connections" && pendingRequestCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+                {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
+      {currentParams.tab === "connections" ? (
+        <RequestsPanel
+          userId={currentUserId}
+          accepted={connections?.accepted ?? []}
+          incoming={connections?.incoming ?? []}
+          outgoing={connections?.outgoing ?? []}
+        />
+      ) : (
+      <>
       {/* Active filter chips */}
       {hasActiveFilters && (
         <div className={`flex flex-wrap items-center gap-2 ${isMapView ? "mb-3" : "mb-4"}`}>
@@ -1107,7 +764,7 @@ export default function DirectoryClient({
       ) : filteredMembers.length > 0 ? (
         <div className="flex flex-col gap-4">
           <div className={`grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
-            {visibleMembers.map((member) => (
+            {filteredMembers.map((member) => (
               <MemberCard
                 key={member.id}
                 member={member}
@@ -1117,13 +774,14 @@ export default function DirectoryClient({
               />
             ))}
           </div>
-          {isCompactMobile && visibleMemberCount < filteredMembers.length && (
+          {hasMore && (
             <button
               type="button"
-              onClick={() => setVisibleMemberCount((count) => count + 4)}
-              className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-ipn/30 hover:text-ipn"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-ipn/30 hover:text-ipn disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Show more members
+              {loadingMore ? "Loading…" : "Load more members"}
             </button>
           )}
         </div>
@@ -1138,6 +796,8 @@ export default function DirectoryClient({
               : "Members who set their profile to discoverable will appear here."}
           </p>
         </div>
+      )}
+      </>
       )}
 
       <FilterDrawer
@@ -1163,7 +823,7 @@ export default function DirectoryClient({
       />
 
       {selectedMember && (
-        <MemberModal
+        <MemberProfileModal
           member={selectedMember}
           connectionEntry={connMap[selectedMember.id]}
           isSelf={selectedMember.id === currentUserId}

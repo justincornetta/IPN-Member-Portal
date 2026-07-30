@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import DirectoryClient from "./DirectoryClient"
+import type { ConnectionRow } from "./RequestsPanel"
 import type {
   ConnectionEntry,
-  DirectoryEducation,
   DirectoryMapCity,
   DirectoryMapMember,
   DirectoryMember,
@@ -12,6 +12,15 @@ import type {
 import { resolveDirectoryMapState } from "@/lib/directory/location"
 import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 import { normalizeInstitutionName } from "@/lib/members/education"
+import {
+  attachContacts,
+  attachEducation,
+  buildDirectoryProfilesQuery,
+  getContactMapForMembers,
+  getEducationMapForMembers,
+  DIRECTORY_MEMBER_SELECT,
+  DIRECTORY_PAGE_SIZE,
+} from "@/lib/directory/queries"
 
 export default async function DirectoryPage({
   searchParams,
@@ -58,6 +67,77 @@ export default async function DirectoryPage({
       .map((entry) => entry.user_id as string),
   )
 
+  const { count: pendingRequestCount } = await supabase
+    .from("connections")
+    .select("id", { count: "exact", head: true })
+    .eq("addressee_id", user.id)
+    .eq("status", "pending")
+
+  const tab = params.tab === "school" && userSchool
+    ? "school"
+    : params.tab === "connections"
+      ? "connections"
+      : "all"
+
+  if (tab === "connections") {
+    const { data: rows } = await supabase
+      .from("connections")
+      .select(`
+        id, requester_id, addressee_id, status, created_at,
+        requester:profiles!connections_requester_id_fkey(${DIRECTORY_MEMBER_SELECT}),
+        addressee:profiles!connections_addressee_id_fkey(${DIRECTORY_MEMBER_SELECT})
+      `)
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+      .order("created_at", { ascending: false })
+
+    const connections = (rows ?? []) as unknown as ConnectionRow[]
+    const memberIds = [...new Set(connections.flatMap((c) => [c.requester.id, c.addressee.id]))]
+    const [contactMap, educationMap] = await Promise.all([
+      getContactMapForMembers(supabase, memberIds),
+      getEducationMapForMembers(supabase, memberIds),
+    ])
+    const withContacts = connections.map((c) => ({
+      ...c,
+      requester: {
+        ...c.requester,
+        contact: contactMap.get(c.requester.id) ?? null,
+        education: educationMap.get(c.requester.id) ?? [],
+      },
+      addressee: {
+        ...c.addressee,
+        contact: contactMap.get(c.addressee.id) ?? null,
+        education: educationMap.get(c.addressee.id) ?? [],
+      },
+    }))
+
+    const connectionsData = {
+      accepted: withContacts.filter((c) => c.status === "accepted"),
+      incoming: withContacts.filter((c) => c.status === "pending" && c.addressee_id === user.id),
+      outgoing: withContacts.filter((c) => c.status === "pending" && c.requester_id === user.id),
+    }
+
+    const showSchoolTab = userSchools.length > 0
+      && Array.from(sharedSchoolMemberIds).some((memberId) => memberId !== user.id)
+
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-10">
+        <DirectoryClient
+          members={[]}
+          hasMore={false}
+          mapCities={[]}
+          showSchoolTab={showSchoolTab}
+          currentParams={{ q: "", personas: [], school: "", field: "", tab, tags: [] }}
+          schools={[]}
+          availableTags={[]}
+          connectionMap={{}}
+          currentUserId={user.id}
+          pendingRequestCount={pendingRequestCount ?? 0}
+          connections={connectionsData}
+        />
+      </div>
+    )
+  }
+
   const q = (typeof params.q === "string" ? params.q : "").trim()
   const personaParam = params.persona
   const personas = Array.isArray(personaParam)
@@ -69,75 +149,124 @@ export default async function DirectoryPage({
   const fieldFilter = (typeof params.field === "string" ? params.field : "").trim()
   const tagParam = params.tag
   const tagFilter = Array.isArray(tagParam) ? tagParam : tagParam ? [tagParam] : []
-  const tab = params.tab === "school" && userSchool ? "school" : "all"
+  const view = params.view === "map" ? "map" : "list"
+  const normalizedSchoolFilter = schoolFilter.toLocaleLowerCase()
 
-  let query = supabase
-    .from("profiles")
-    .select(
-      "id, first_name, last_name, persona, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
-      { count: "exact" },
-    )
-    .eq("is_discoverable", true)
-    .order("first_name", { ascending: true })
-
-  if (personas.length > 0) {
-    query = query.in("persona", personas)
-  }
-
-  if (fieldFilter) {
-    query = query.ilike("field", `%${fieldFilter}%`)
-  }
-
-  if (tagFilter.length > 0) {
-    query = query.overlaps("interest_tags", tagFilter)
-  }
-
-  const { data: memberRows } = await query
-  const memberIds = (memberRows ?? []).map((member) => member.id as string)
-  const { data: memberEducationRows } = memberIds.length
-    ? await supabase
-      .from("member_education")
-      .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
-      .in("user_id", memberIds)
-      .order("sort_order", { ascending: true })
-    : { data: [] }
-  const educationByUser = new Map<string, DirectoryMember["education"]>()
-  for (const entry of memberEducationRows ?? []) {
-    const current = educationByUser.get(entry.user_id as string) ?? []
-    current.push({
-      id: entry.id as string,
-      institution: entry.institution as string,
-      education_level: entry.education_level as DirectoryEducation["education_level"],
-      degree_credential: entry.degree_credential as string | null,
-      area_of_study: entry.area_of_study as string | null,
-      status: entry.status as "currently_enrolled" | "completed" | null,
-      graduation_year: entry.graduation_year as number | null,
-      sort_order: entry.sort_order as number,
-    })
-    educationByUser.set(entry.user_id as string, current)
-  }
-  const members = (memberRows ?? []).map((member) => ({
-    ...member,
-    education: educationByUser.get(member.id as string) ?? [],
-  })) as DirectoryMember[]
-  const normalizedSchoolFilter = schoolFilter.toLowerCase()
-  const filteredMembers = members.filter((member) => {
-    if (tab === "school" && userSchool && !sharedSchoolMemberIds.has(member.id)) return false
+  function matchesEducationAwareFilters(member: DirectoryMember) {
+    if (tab === "school" && !sharedSchoolMemberIds.has(member.id)) return false
     if (schoolFilter) {
-      const matchesEducation = (member.education ?? []).some((entry) => entry.institution.toLowerCase().includes(normalizedSchoolFilter))
-      const matchesLegacy = member.school?.toLowerCase().includes(normalizedSchoolFilter)
-        || member.affiliation?.toLowerCase().includes(normalizedSchoolFilter)
+      const matchesEducation = (member.education ?? []).some((entry) =>
+        entry.institution.toLocaleLowerCase().includes(normalizedSchoolFilter)
+      )
+      const matchesLegacy = member.school?.toLocaleLowerCase().includes(normalizedSchoolFilter)
+        || member.affiliation?.toLocaleLowerCase().includes(normalizedSchoolFilter)
       if (!matchesEducation && !matchesLegacy) return false
     }
     return memberMatchesDirectorySearch(member, q)
-  })
+  }
+
+  const filters = { tab, userSchool, personas, school: schoolFilter, field: fieldFilter, tags: tagFilter }
+  const needsEducationAwareFiltering = tab === "school" || Boolean(schoolFilter)
+
+  let membersWithContacts: DirectoryMember[] = []
+  let hasMore = false
+  let mapCities: DirectoryMapCity[] = []
+
+  if (view === "map") {
+    // Map view is only ever fetched when it's actually being rendered — the
+    // old code always ran this near-duplicate query even on list view.
+    let mapQuery = supabase
+      .from("profiles")
+      .select(
+        "id, first_name, last_name, persona, school, affiliation, field, city, state, country, city_lat, city_lng, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
+      )
+      .eq("is_discoverable", true)
+      .eq("share_location", true)
+      .not("city", "is", null)
+      .not("city_lat", "is", null)
+      .not("city_lng", "is", null)
+      .order("first_name", { ascending: true })
+
+    if (personas.length > 0) mapQuery = mapQuery.in("persona", personas)
+    if (fieldFilter) mapQuery = mapQuery.ilike("field", `%${fieldFilter}%`)
+    if (tagFilter.length > 0) mapQuery = mapQuery.overlaps("interest_tags", tagFilter)
+
+    const { data: mapRows } = await mapQuery
+    const mapMembersWithEducation = await attachEducation(supabase, (mapRows ?? []) as DirectoryMapMember[])
+    const filteredMapRows = mapMembersWithEducation.filter(matchesEducationAwareFilters) as DirectoryMapMember[]
+    const contactMap = await getContactMapForMembers(supabase, filteredMapRows.map((r) => r.id))
+    const cityMap = new Map<string, DirectoryMapCity>()
+
+    for (const row of filteredMapRows) {
+      if (!row.city || row.city_lat == null || row.city_lng == null) continue
+
+      const lat = Number(row.city_lat)
+      const lng = Number(row.city_lng)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+
+      const member = {
+        ...row,
+        city_lat: lat,
+        city_lng: lng,
+        contact: contactMap.get(row.id) ?? null,
+      }
+      const displayState = resolveDirectoryMapState(member)
+
+      const id = [
+        row.city.trim().toLowerCase(),
+        row.country?.trim().toLowerCase() ?? "",
+        lat.toFixed(2),
+        lng.toFixed(2),
+      ].join(":")
+
+      const existing = cityMap.get(id)
+      if (existing) {
+        existing.members.push({ ...member, state: existing.state })
+        existing.memberCount += 1
+      } else {
+        cityMap.set(id, {
+          id,
+          city: row.city,
+          state: displayState,
+          country: row.country,
+          lat,
+          lng,
+          memberCount: 1,
+          members: [{ ...member, state: displayState }],
+        })
+      }
+    }
+
+    mapCities = [...cityMap.values()].sort((a, b) => b.memberCount - a.memberCount)
+  } else {
+    // Free-text search needs the full filtered set to fuzzy-match against
+    // (accent-insensitive, reversed-name, multi-term — see lib/directory/search.ts),
+    // so only the plain "just browsing" case gets capped.
+    let query = buildDirectoryProfilesQuery(supabase, {
+      ...filters,
+      ...(needsEducationAwareFiltering ? { tab: "all", school: "" } : {}),
+    })
+    if (!q && !needsEducationAwareFiltering) query = query.range(0, DIRECTORY_PAGE_SIZE - 1)
+
+    const { data: members, count } = await query
+    const membersWithEducation = await attachEducation(supabase, (members ?? []) as DirectoryMember[])
+    const filteredMembers = membersWithEducation.filter(matchesEducationAwareFilters)
+    membersWithContacts = await attachContacts(supabase, filteredMembers)
+    hasMore = !q && !needsEducationAwareFiltering && (count ?? 0) > DIRECTORY_PAGE_SIZE
+  }
 
   const showSchoolTab = userSchools.length > 0
     && Array.from(sharedSchoolMemberIds).some((memberId) => memberId !== user.id)
 
+  const { data: schoolRows } = await supabase
+    .from("profiles")
+    .select("school")
+    .eq("is_discoverable", true)
+    .not("school", "is", null)
+
   const schools = [...new Set([
-    ...(visibleEducation ?? []).map((entry) => entry.institution as string),
-    ...members.map((member) => member.school).filter((value): value is string => Boolean(value)),
+    ...(schoolRows ?? []).map((row) => row.school as string).filter(Boolean),
+    ...(visibleEducation ?? []).map((entry) => entry.institution as string).filter(Boolean),
   ])].sort()
 
   const { data: tagRows } = await supabase
@@ -156,119 +285,13 @@ export default async function DirectoryPage({
     .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
 
   const connectionMap: Record<string, ConnectionEntry> = {}
-  const acceptedConnectionIds: string[] = []
   for (const c of connRows ?? []) {
     const otherId = c.requester_id === user.id ? c.addressee_id : c.requester_id
     connectionMap[otherId] = {
       status: c.status as ConnectionEntry["status"],
       amRequester: c.requester_id === user.id,
     }
-    if (c.status === "accepted") acceptedConnectionIds.push(otherId)
   }
-
-  const { data: contacts } = acceptedConnectionIds.length > 0
-    ? await supabase
-      .from("member_contacts")
-      .select("user_id, email, whatsapp_url")
-      .in("user_id", acceptedConnectionIds)
-    : { data: [] }
-
-  const contactMap = new Map(
-    (contacts ?? []).map((c) => [
-      c.user_id as string,
-      {
-        email: (c.email as string | null) ?? null,
-        whatsapp_url: (c.whatsapp_url as string | null) ?? null,
-      },
-    ]),
-  )
-
-  const membersWithContacts = filteredMembers.map((member) => ({
-    ...member,
-    contact: contactMap.get(member.id) ?? null,
-  }))
-
-  let mapQuery = supabase
-    .from("profiles")
-    .select(
-      "id, first_name, last_name, persona, school, affiliation, field, city, state, country, city_lat, city_lng, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
-    )
-    .eq("is_discoverable", true)
-    .eq("share_location", true)
-    .not("city", "is", null)
-    .not("city_lat", "is", null)
-    .not("city_lng", "is", null)
-    .order("first_name", { ascending: true })
-
-  if (personas.length > 0) {
-    mapQuery = mapQuery.in("persona", personas)
-  }
-
-  if (fieldFilter) {
-    mapQuery = mapQuery.ilike("field", `%${fieldFilter}%`)
-  }
-
-  if (tagFilter.length > 0) {
-    mapQuery = mapQuery.overlaps("interest_tags", tagFilter)
-  }
-
-  const { data: mapRows } = await mapQuery
-  const filteredMapRows = ((mapRows ?? []).map((member) => ({
-    ...member,
-    education: educationByUser.get(member.id as string) ?? [],
-  })) as DirectoryMapMember[]).filter((member) => {
-    if (tab === "school" && userSchool && !sharedSchoolMemberIds.has(member.id)) return false
-    if (schoolFilter) {
-      const matchesEducation = (member.education ?? []).some((entry) => entry.institution.toLowerCase().includes(normalizedSchoolFilter))
-      const matchesLegacy = member.school?.toLowerCase().includes(normalizedSchoolFilter)
-        || member.affiliation?.toLowerCase().includes(normalizedSchoolFilter)
-      if (!matchesEducation && !matchesLegacy) return false
-    }
-    return memberMatchesDirectorySearch(member, q)
-  })
-  const cityMap = new Map<string, DirectoryMapCity>()
-
-  for (const row of filteredMapRows) {
-    if (!row.city || row.city_lat == null || row.city_lng == null) continue
-
-    const lat = Number(row.city_lat)
-    const lng = Number(row.city_lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-
-    const member = {
-      ...row,
-      city_lat: lat,
-      city_lng: lng,
-      contact: contactMap.get(row.id) ?? null,
-    }
-    const displayState = resolveDirectoryMapState(member)
-
-    const id = [
-      row.city.trim().toLowerCase(),
-      row.country?.trim().toLowerCase() ?? "",
-      lat.toFixed(2),
-      lng.toFixed(2),
-    ].join(":")
-
-    const existing = cityMap.get(id)
-    if (existing) {
-      existing.members.push({ ...member, state: existing.state })
-      existing.memberCount += 1
-    } else {
-      cityMap.set(id, {
-        id,
-        city: row.city,
-        state: displayState,
-        country: row.country,
-        lat,
-        lng,
-        memberCount: 1,
-        members: [{ ...member, state: displayState }],
-      })
-    }
-  }
-
-  const mapCities = [...cityMap.values()].sort((a, b) => b.memberCount - a.memberCount)
 
   const currentParams: DirectoryParams = {
     q,
@@ -280,15 +303,19 @@ export default async function DirectoryPage({
   }
 
   return (
-    <DirectoryClient
-      members={membersWithContacts}
-      mapCities={mapCities}
-      showSchoolTab={showSchoolTab}
-      currentParams={currentParams}
-      schools={schools}
-      availableTags={availableTags}
-      connectionMap={connectionMap}
-      currentUserId={user.id}
-    />
+    <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-10">
+      <DirectoryClient
+        members={membersWithContacts}
+        hasMore={hasMore}
+        mapCities={mapCities}
+        showSchoolTab={showSchoolTab}
+        currentParams={currentParams}
+        schools={schools}
+        availableTags={availableTags}
+        connectionMap={connectionMap}
+        currentUserId={user.id}
+        pendingRequestCount={pendingRequestCount ?? 0}
+      />
+    </div>
   )
 }
