@@ -22,6 +22,13 @@ export type MemberDirectoryRow = {
   psychedelicFieldStatus: string
   psychedelicFieldBarriers: string[]
   referralSource: string
+  rawCategoryResponses: {
+    persona: string[]
+    primaryField: string[]
+    psychedelicFieldStatus: string[]
+    psychedelicFieldBarriers: string[]
+    referralSource: string[]
+  }
   school: string
   schools: string[]
   interestTags: string[]

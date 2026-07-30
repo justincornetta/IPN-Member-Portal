@@ -211,6 +211,29 @@ function splitMultiValue(value: string | string[] | null | undefined) {
     .filter(Boolean)
 }
 
+function rawLegacyValue(
+  row: LegacyMemberSotRow | null,
+  key: "self_description" | "primary_field" | "psychedelic_field_status" | "psychedelic_field_barriers" | "referral_source",
+  fallback: string | null | undefined,
+) {
+  const rawValue = row?.raw_legacy?.[key]
+  if (typeof rawValue === "string" || typeof rawValue === "number") return text(rawValue)
+  return text(fallback)
+}
+
+function rawLegacyMultiValue(
+  row: LegacyMemberSotRow | null,
+  key: "psychedelic_field_barriers",
+  fallback: string | string[] | null | undefined,
+) {
+  const rawValue = row?.raw_legacy?.[key]
+  if (Array.isArray(rawValue)) {
+    return rawValue.map((value) => text(typeof value === "string" || typeof value === "number" ? value : "")).filter(Boolean)
+  }
+  if (typeof rawValue === "string" || typeof rawValue === "number") return splitMultiValue(text(rawValue))
+  return splitMultiValue(fallback)
+}
+
 function legacyAcademicInstitutions(value: string | null | undefined) {
   return text(value)
     .split(/[,;|]/)
@@ -249,10 +272,36 @@ export function mergeMemberDirectoryRow(
     { source: "Google Form/Mailchimp", value: legacy?.first_seen_at },
     { source: "Portal", value: profile?.created_at },
   )
-  const persona = canonicalMemberPersona(firstText(profile?.persona, legacy?.self_description))
-  const primaryField = canonicalMemberField(firstText(profile?.field, legacy?.primary_field, "-"))
-  const psychedelicFieldStatus = canonicalPsychedelicFieldStatus(firstText(profile?.psychedelic_field_status, legacy?.psychedelic_field_status))
-  const referralSource = canonicalReferralSource(firstText(profile?.referral_source, legacy?.referral_source))
+  const profilePersona = text(profile?.persona)
+  const profileField = text(profile?.field)
+  const profilePsychedelicFieldStatus = text(profile?.psychedelic_field_status)
+  const profileReferralSource = text(profile?.referral_source)
+  const profileBarriers = profile?.psychedelic_field_barriers?.map(text).filter(Boolean) ?? []
+  const persona = canonicalMemberPersona(firstText(profilePersona, legacy?.self_description))
+  const primaryField = canonicalMemberField(firstText(profileField, legacy?.primary_field, "-"))
+  const psychedelicFieldStatus = canonicalPsychedelicFieldStatus(firstText(profilePsychedelicFieldStatus, legacy?.psychedelic_field_status))
+  const referralSource = canonicalReferralSource(firstText(profileReferralSource, legacy?.referral_source))
+  const psychedelicFieldBarriers = profileBarriers.length
+    ? profileBarriers
+    : splitMultiValue(legacy?.psychedelic_field_barriers)
+  const rawCategoryResponses = {
+    persona: [profilePersona || rawLegacyValue(legacy, "self_description", legacy?.self_description)].filter(Boolean),
+    primaryField: [profileField || rawLegacyValue(legacy, "primary_field", legacy?.primary_field)].filter(Boolean),
+    psychedelicFieldStatus: [
+      profilePsychedelicFieldStatus
+        || rawLegacyValue(legacy, "psychedelic_field_status", legacy?.psychedelic_field_status),
+    ].filter(Boolean),
+    psychedelicFieldBarriers: profileBarriers.length
+      ? profileBarriers
+      : rawLegacyMultiValue(legacy, "psychedelic_field_barriers", legacy?.psychedelic_field_barriers),
+    referralSource: [
+      profileReferralSource
+        ? profileReferralSource === "Other"
+          ? firstText(profile?.referral_source_other, profileReferralSource)
+          : profileReferralSource
+        : rawLegacyValue(legacy, "referral_source", legacy?.referral_source),
+    ].filter(Boolean),
+  }
   const schools = Array.from(new Set([
     ...(profile?.education ?? []).map((entry) => text(entry.institution)),
     text(profile?.school),
@@ -275,8 +324,9 @@ export function mergeMemberDirectoryRow(
     selfDescription: firstText(legacy?.self_description, profile?.persona),
     primaryField,
     psychedelicFieldStatus,
-    psychedelicFieldBarriers: splitMultiValue(profile?.psychedelic_field_barriers?.length ? profile.psychedelic_field_barriers : legacy?.psychedelic_field_barriers),
+    psychedelicFieldBarriers,
     referralSource,
+    rawCategoryResponses,
     school,
     schools,
     interestTags: profile?.interest_tags ?? [],

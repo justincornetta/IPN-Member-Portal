@@ -39,6 +39,7 @@ import type {
 } from "@/lib/admin/analytics/member-directory-types"
 import { educationLevelLabel } from "@/lib/members/education"
 import { buildCarriedSocialTrend } from "@/lib/admin/analytics/social-trend"
+import { buildOtherVariantItems } from "@/lib/admin/analytics/other-variants"
 
 const ANALYTICS_SECTIONS = [
   { id: "members", label: "Members", title: "Member analytics", description: "Live Portal membership and legacy membership source-of-truth data." },
@@ -705,10 +706,80 @@ const MEMBER_DISTRIBUTION_COLORS = [
 
 type DistributionChartItem = AnalyticsPoint & { color: string }
 
+function OtherVariantsModal({
+  chartTitle,
+  items,
+  onClose,
+}: {
+  chartTitle: string
+  items: AnalyticsPoint[]
+  onClose: () => void
+}) {
+  const total = sampleSize(items)
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="other-variants-title"
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ipn">Other responses</p>
+            <h2 id="other-variants-title" className="mt-1 text-lg font-semibold text-zinc-900">{chartTitle}</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Original answers grouped by exact response. Counts reflect the current member filters.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="flex-shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50">
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 sm:px-6">
+          <div className="overflow-hidden rounded-xl border border-zinc-200">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">Raw response</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-400">Count</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-400">% of list</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {items.map((item) => (
+                  <tr key={item.label}>
+                    <td className="break-words px-4 py-3 text-zinc-700">{item.label}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-800">{formatNumber(item.value)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-zinc-500">
+                      {formatPercent(total ? item.value / total * 100 : 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function DistributionTooltip({
   active,
   payload,
   total,
+  hasOtherDrillDown,
 }: {
   active?: boolean
   payload?: {
@@ -717,6 +788,7 @@ function DistributionTooltip({
     payload?: Partial<DistributionChartItem>
   }[]
   total: number
+  hasOtherDrillDown?: boolean
 }) {
   const entry = payload?.[0]
   if (!active || !entry) return null
@@ -729,6 +801,9 @@ function DistributionTooltip({
       <p className="mt-1 text-xs text-zinc-500">
         {formatNumber(value)} responses · {formatPercent(total ? value / total * 100 : 0)} of total
       </p>
+      {label === "Other" && hasOtherDrillDown && (
+        <p className="mt-1 text-[11px] font-medium text-ipn">Click to view original responses</p>
+      )}
     </div>
   )
 }
@@ -736,10 +811,13 @@ function DistributionTooltip({
 function DistributionChartPair({
   title,
   items,
+  otherVariants = [],
 }: {
   title: string
   items: AnalyticsPoint[]
+  otherVariants?: AnalyticsPoint[]
 }) {
+  const [showOtherVariants, setShowOtherVariants] = useState(false)
   const chartItems: DistributionChartItem[] = [...items]
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
     .map((item, index) => ({
@@ -749,68 +827,103 @@ function DistributionChartPair({
   const total = sampleSize(chartItems)
   const subtitle = sampleSubtitle(chartItems)
   const chartHeight = Math.max(300, Math.min(440, chartItems.length * 38))
+  const hasOtherDrillDown = chartItems.some((item) => item.label === "Other") && otherVariants.length > 0
+
+  function openOtherFromChart(data: { payload?: Partial<DistributionChartItem>; name?: string | number }) {
+    const label = String(data.payload?.label ?? data.name ?? "")
+    if (label === "Other" && hasOtherDrillDown) setShowOtherVariants(true)
+  }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:col-span-2 lg:grid-cols-2">
-      <Panel title={title} subtitle={subtitle}>
-        {chartItems.length ? (
-          <div className="grid min-w-0 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
-            <ResponsiveChart height={chartHeight}>
-              <PieChart>
-                <Pie
-                  data={chartItems}
-                  dataKey="value"
-                  nameKey="label"
-                  innerRadius="46%"
-                  outerRadius="72%"
-                  paddingAngle={1}
-                >
-                  {chartItems.map((item) => (
-                    <Cell key={item.label} fill={item.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<DistributionTooltip total={total} />} />
-              </PieChart>
-            </ResponsiveChart>
-            <ol className="flex max-h-[var(--legend-height)] min-w-0 flex-col gap-2 overflow-y-auto pr-1" style={{ "--legend-height": `${chartHeight}px` } as CSSProperties}>
-              {chartItems.map((item) => (
-                <li key={item.label} className="flex min-w-0 items-center gap-2 text-xs text-zinc-600">
-                  <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden="true" />
-                  <span className="truncate" title={item.label}>{item.label}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : (
-          <EmptyState title="No responses" description="No data matches the current member filters." />
-        )}
-      </Panel>
-      <Panel title={title} subtitle={subtitle}>
-        {chartItems.length ? (
-          <ResponsiveChart height={chartHeight}>
-            <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 18 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="label"
-                width={150}
-                tick={{ fontSize: 11 }}
-                tickFormatter={(value) => truncate(String(value), 24)}
-              />
-              <Tooltip content={<DistributionTooltip total={total} />} />
-              <Bar dataKey="value" name="Responses" radius={[0, 6, 6, 0]}>
+    <>
+      <div className="grid grid-cols-1 gap-6 lg:col-span-2 lg:grid-cols-2">
+        <Panel title={title} subtitle={subtitle}>
+          {chartItems.length ? (
+            <div className="grid min-w-0 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
+              <ResponsiveChart height={chartHeight}>
+                <PieChart>
+                  <Pie
+                    data={chartItems}
+                    dataKey="value"
+                    nameKey="label"
+                    innerRadius="46%"
+                    outerRadius="72%"
+                    paddingAngle={1}
+                    onClick={openOtherFromChart}
+                  >
+                    {chartItems.map((item) => (
+                      <Cell
+                        key={item.label}
+                        fill={item.color}
+                        cursor={item.label === "Other" && hasOtherDrillDown ? "pointer" : "default"}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<DistributionTooltip total={total} hasOtherDrillDown={hasOtherDrillDown} />} />
+                </PieChart>
+              </ResponsiveChart>
+              <ol className="flex max-h-[var(--legend-height)] min-w-0 flex-col gap-2 overflow-y-auto pr-1" style={{ "--legend-height": `${chartHeight}px` } as CSSProperties}>
                 {chartItems.map((item) => (
-                  <Cell key={item.label} fill={item.color} />
+                  <li key={item.label} className="min-w-0 text-xs text-zinc-600">
+                    {item.label === "Other" && hasOtherDrillDown ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowOtherVariants(true)}
+                        className="flex w-full min-w-0 items-center gap-2 rounded-md text-left hover:text-ipn focus:outline-none focus:ring-2 focus:ring-ipn/30"
+                        aria-label={`View raw Other responses for ${title}`}
+                      >
+                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                        <span className="truncate underline decoration-dotted underline-offset-2" title={item.label}>{item.label}</span>
+                        <span className="flex-shrink-0 text-[10px] font-medium text-ipn">View</span>
+                      </button>
+                    ) : (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                        <span className="truncate" title={item.label}>{item.label}</span>
+                      </div>
+                    )}
+                  </li>
                 ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveChart>
-        ) : (
-          <EmptyState title="No responses" description="No data matches the current member filters." />
-        )}
-      </Panel>
-    </div>
+              </ol>
+            </div>
+          ) : (
+            <EmptyState title="No responses" description="No data matches the current member filters." />
+          )}
+        </Panel>
+        <Panel title={title} subtitle={subtitle}>
+          {chartItems.length ? (
+            <ResponsiveChart height={chartHeight}>
+              <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 18 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  width={150}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(value) => truncate(String(value), 24)}
+                />
+                <Tooltip content={<DistributionTooltip total={total} hasOtherDrillDown={hasOtherDrillDown} />} />
+                <Bar dataKey="value" name="Responses" radius={[0, 6, 6, 0]} onClick={openOtherFromChart}>
+                  {chartItems.map((item) => (
+                    <Cell
+                      key={item.label}
+                      fill={item.color}
+                      cursor={item.label === "Other" && hasOtherDrillDown ? "pointer" : "default"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveChart>
+          ) : (
+            <EmptyState title="No responses" description="No data matches the current member filters." />
+          )}
+        </Panel>
+      </div>
+      {showOtherVariants && (
+        <OtherVariantsModal chartTitle={title} items={otherVariants} onClose={() => setShowOtherVariants(false)} />
+      )}
+    </>
   )
 }
 
@@ -1002,6 +1115,37 @@ function buildFilteredMemberCharts(rows: MemberDirectoryRow[], directory: Member
     referralSources: topMemberCounts(referrals),
     psychedelicFieldStatus: topMemberCounts(psychedelic),
     psychedelicFieldBarriers: topMemberCounts(barriers),
+    otherVariants: {
+      bestDescribes: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.persona || row.selfDescription,
+        rawValues: row.rawCategoryResponses.persona,
+      }))),
+      primaryField: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.primaryField,
+        rawValues: row.rawCategoryResponses.primaryField,
+      }))),
+      referralSources: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.referralSource,
+        rawValues: row.rawCategoryResponses.referralSource,
+      }))),
+      psychedelicFieldStatus: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.psychedelicFieldStatus,
+        rawValues: row.rawCategoryResponses.psychedelicFieldStatus,
+      }))),
+      psychedelicFieldBarriers: buildOtherVariantItems(rows.flatMap((row) => {
+        const rawValues = row.rawCategoryResponses.psychedelicFieldBarriers
+        if (!rawValues.length) {
+          return row.psychedelicFieldBarriers.map((value) => ({
+            canonicalLabel: canonicalPsychedelicFieldBarrier(value),
+            rawValues: [value],
+          }))
+        }
+        return rawValues.map((value) => ({
+          canonicalLabel: canonicalPsychedelicFieldBarrier(value),
+          rawValues: [value],
+        }))
+      })),
+    },
     gender: directory.chartData.gender,
     age: directory.chartData.age,
     raceEthnicity: directory.chartData.raceEthnicity,
@@ -1823,11 +1967,11 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
         <Panel title="Source totals" subtitle={sampleSubtitle(sourceTotals, "source records")}><BarList items={sourceTotals} /></Panel>
         {filteredCharts && <Panel title="Top interest tags" subtitle={sampleSubtitle(filteredCharts.topInterestTags, "tag selections")}><PaginatedBarList items={filteredCharts.topInterestTags} /></Panel>}
         {filteredCharts && <Panel title="Top schools" subtitle={sampleSubtitle(filteredCharts.topSchools)} className="lg:col-span-2"><BarList items={filteredCharts.topSchools} /></Panel>}
-        {filteredCharts && <DistributionChartPair title="Which best describes you" items={filteredCharts.bestDescribes} />}
-        {filteredCharts && <DistributionChartPair title="Which field are you primarily in" items={filteredCharts.primaryField} />}
-        {filteredCharts && <DistributionChartPair title="How did you hear about us" items={filteredCharts.referralSources} />}
-        {filteredCharts && <DistributionChartPair title="Are you currently working in the psychedelic field?" items={filteredCharts.psychedelicFieldStatus} />}
-        {filteredCharts && <DistributionChartPair title="If not, why not?" items={filteredCharts.psychedelicFieldBarriers} />}
+        {filteredCharts && <DistributionChartPair title="Which best describes you" items={filteredCharts.bestDescribes} otherVariants={filteredCharts.otherVariants.bestDescribes} />}
+        {filteredCharts && <DistributionChartPair title="Which field are you primarily in" items={filteredCharts.primaryField} otherVariants={filteredCharts.otherVariants.primaryField} />}
+        {filteredCharts && <DistributionChartPair title="How did you hear about us" items={filteredCharts.referralSources} otherVariants={filteredCharts.otherVariants.referralSources} />}
+        {filteredCharts && <DistributionChartPair title="Are you currently working in the psychedelic field?" items={filteredCharts.psychedelicFieldStatus} otherVariants={filteredCharts.otherVariants.psychedelicFieldStatus} />}
+        {filteredCharts && <DistributionChartPair title="If not, why not?" items={filteredCharts.psychedelicFieldBarriers} otherVariants={filteredCharts.otherVariants.psychedelicFieldBarriers} />}
         <MembershipGeographyPanel cities={filteredGeography} />
       </div>
 

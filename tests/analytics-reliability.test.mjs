@@ -25,6 +25,10 @@ import {
 } from "../src/lib/admin/analytics/geography.ts"
 import { buildCarriedSocialTrend } from "../src/lib/admin/analytics/social-trend.ts"
 import { assembleServerEventAnalytics } from "../src/lib/admin/analytics/events.ts"
+import {
+  buildOtherVariantItems,
+  OTHER_WITHOUT_DETAILS,
+} from "../src/lib/admin/analytics/other-variants.ts"
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
 
 function snapshotFixture({ sessions = 826, donations = false } = {}) {
@@ -126,6 +130,19 @@ test("education validation enforces profile education requirements", () => {
     normalizeInstitutionName("William & Mary"),
     normalizeInstitutionName("William and Mary"),
   )
+})
+
+test("other category drill-down groups raw variants without crowding charts", () => {
+  assert.deepEqual(buildOtherVariantItems([
+    { canonicalLabel: "Other", rawValues: ["Aspiring Student"] },
+    { canonicalLabel: "Other", rawValues: ["Aspiring Student"] },
+    { canonicalLabel: "Other", rawValues: ["Other"] },
+    { canonicalLabel: "Other", rawValues: [] },
+    { canonicalLabel: "Undergraduate student", rawValues: ["Undergraduate Student (B.A./B.S.)"] },
+  ]), [
+    { label: "Aspiring Student", value: 2 },
+    { label: OTHER_WITHOUT_DETAILS, value: 2 },
+  ])
 })
 
 test("country centroids map Germany when a city coordinate is unavailable", () => {
