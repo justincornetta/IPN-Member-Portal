@@ -125,6 +125,7 @@ export default async function DirectoryPage({
           members={[]}
           hasMore={false}
           mapCities={[]}
+          totalMemberCount={0}
           showSchoolTab={showSchoolTab}
           currentParams={{ q: "", personas: [], school: "", field: "", tab, tags: [] }}
           schools={[]}
@@ -171,6 +172,7 @@ export default async function DirectoryPage({
   let membersWithContacts: DirectoryMember[] = []
   let hasMore = false
   let mapCities: DirectoryMapCity[] = []
+  let totalMemberCount = 0
 
   if (view === "map") {
     // Map view is only ever fetched when it's actually being rendered — the
@@ -238,6 +240,23 @@ export default async function DirectoryPage({
     }
 
     mapCities = [...cityMap.values()].sort((a, b) => b.memberCount - a.memberCount)
+
+    const countQuery = buildDirectoryProfilesQuery(supabase, {
+      ...filters,
+      ...(needsEducationAwareFiltering ? { tab: "all", school: "" } : {}),
+    })
+
+    if (!q && !needsEducationAwareFiltering) {
+      const { count } = await countQuery.range(0, 0)
+      totalMemberCount = count ?? 0
+    } else {
+      const { data: countRows } = await countQuery
+      const countMembersWithEducation = await attachEducation(
+        supabase,
+        (countRows ?? []) as DirectoryMember[],
+      )
+      totalMemberCount = countMembersWithEducation.filter(matchesEducationAwareFilters).length
+    }
   } else {
     // Free-text search needs the full filtered set to fuzzy-match against
     // (accent-insensitive, reversed-name, multi-term — see lib/directory/search.ts),
@@ -252,6 +271,9 @@ export default async function DirectoryPage({
     const membersWithEducation = await attachEducation(supabase, (members ?? []) as DirectoryMember[])
     const filteredMembers = membersWithEducation.filter(matchesEducationAwareFilters)
     membersWithContacts = await attachContacts(supabase, filteredMembers)
+    totalMemberCount = q || needsEducationAwareFiltering
+      ? filteredMembers.length
+      : (count ?? filteredMembers.length)
     hasMore = !q && !needsEducationAwareFiltering && (count ?? 0) > DIRECTORY_PAGE_SIZE
   }
 
@@ -308,6 +330,7 @@ export default async function DirectoryPage({
         members={membersWithContacts}
         hasMore={hasMore}
         mapCities={mapCities}
+        totalMemberCount={totalMemberCount}
         showSchoolTab={showSchoolTab}
         currentParams={currentParams}
         schools={schools}

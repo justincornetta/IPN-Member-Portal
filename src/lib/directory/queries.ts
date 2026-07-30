@@ -4,7 +4,7 @@ import type { DirectoryEducation, DirectoryMember } from "./types"
 export const DIRECTORY_PAGE_SIZE = 60
 
 export const DIRECTORY_MEMBER_SELECT =
-  "id, first_name, last_name, persona, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, avatar_url, admin_role, team"
+  "id, first_name, last_name, persona, school, affiliation, field, city, state, country, city_lat, city_lng, share_location, bio, interest_tags, linkedin_url, avatar_url, admin_role, team"
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 

@@ -36,6 +36,28 @@ function directoryViewFromParam(value: string | null): DirectoryView {
   return value === "map" || value === "globe" ? "map" : "list"
 }
 
+function sharedLocationKey(member: DirectoryMember) {
+  if (
+    !member.share_location
+    || !member.city?.trim()
+    || member.city_lat == null
+    || member.city_lng == null
+  ) {
+    return null
+  }
+
+  const lat = Number(member.city_lat)
+  const lng = Number(member.city_lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+
+  return [
+    member.city.trim().toLocaleLowerCase(),
+    member.country?.trim().toLocaleLowerCase() ?? "",
+    lat.toFixed(2),
+    lng.toFixed(2),
+  ].join("|")
+}
+
 function MemberCard({
   member,
   connectionEntry,
@@ -308,6 +330,7 @@ type Props = {
   members: DirectoryMember[]
   hasMore: boolean
   mapCities: DirectoryMapCity[]
+  totalMemberCount: number
   showSchoolTab: boolean
   currentParams: DirectoryParams
   schools: string[]
@@ -326,6 +349,7 @@ export default function DirectoryClient({
   members,
   hasMore: initialHasMore,
   mapCities,
+  totalMemberCount,
   showSchoolTab,
   currentParams,
   schools,
@@ -402,12 +426,42 @@ export default function DirectoryClient({
       })
       .filter((city) => city.memberCount > 0)
   }, [mapCities, searchInput])
-  const selectedMember = useMemo(
-    () => filteredMembers.find((member) => member.id === selectedMemberId) ?? null,
-    [filteredMembers, selectedMemberId],
+  const filteredMapMembers = useMemo(
+    () => filteredMapCities.flatMap((city) => city.members),
+    [filteredMapCities],
   )
-  const countryCount = useMemo(
-    () => new Set(filteredMapCities.map((city) => city.country).filter(Boolean)).size,
+  const selectedMember = useMemo(
+    () =>
+      (view === "map" ? filteredMapMembers : filteredMembers)
+        .find((member) => member.id === selectedMemberId) ?? null,
+    [filteredMapMembers, filteredMembers, selectedMemberId, view],
+  )
+  const listLocationCounts = useMemo(() => {
+    const cities = new Set<string>()
+    const countries = new Set<string>()
+
+    for (const member of filteredMembers) {
+      const locationKey = sharedLocationKey(member)
+      if (!locationKey) continue
+
+      cities.add(locationKey)
+      const country = member.country?.trim().toLocaleLowerCase()
+      if (country) countries.add(country)
+    }
+
+    return { cities: cities.size, countries: countries.size }
+  }, [filteredMembers])
+  const mapMemberCount = useMemo(
+    () => filteredMapCities.reduce((total, city) => total + city.memberCount, 0),
+    [filteredMapCities],
+  )
+  const mapCountryCount = useMemo(
+    () =>
+      new Set(
+        filteredMapCities
+          .map((city) => city.country?.trim().toLocaleLowerCase())
+          .filter((country): country is string => Boolean(country)),
+      ).size,
     [filteredMapCities],
   )
   const mapRenderKey = useMemo(
@@ -533,6 +587,12 @@ export default function DirectoryClient({
   const drawerHasChanges =
     drawerPersonas.length > 0 || !!drawerSchool || !!drawerField || drawerTags.length > 0
   const isMapView = view === "map"
+  const hasSettledSearch = searchInput.trim() === currentParams.q
+  const displayedMemberCount = hasSettledSearch
+    ? totalMemberCount
+    : (isMapView ? mapMemberCount : filteredMembers.length)
+  const displayedCityCount = isMapView ? filteredMapCities.length : listLocationCounts.cities
+  const displayedCountryCount = isMapView ? mapCountryCount : listLocationCounts.countries
 
   return (
     <div>
@@ -729,7 +789,7 @@ export default function DirectoryClient({
             Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
           </button>
           <p className={`${isMapView ? "text-xs" : "text-sm"} text-right text-zinc-500 transition-opacity sm:text-left ${isPending ? "opacity-50" : ""}`}>
-          {filteredMembers.length} member{filteredMembers.length !== 1 ? "s" : ""} · {filteredMapCities.length} cit{filteredMapCities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
+          {displayedMemberCount} member{displayedMemberCount !== 1 ? "s" : ""} · {displayedCityCount} cit{displayedCityCount === 1 ? "y" : "ies"} · {displayedCountryCount} countr{displayedCountryCount === 1 ? "y" : "ies"}
           </p>
         </div>
         <div className="grid w-full grid-cols-2 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:self-auto">
@@ -755,7 +815,7 @@ export default function DirectoryClient({
           <MapDirectoryView
             key={mapRenderKey}
             cities={filteredMapCities}
-            totalMemberCount={filteredMembers.length}
+            totalMemberCount={displayedMemberCount}
             connectionMap={connMap}
             currentUserId={currentUserId}
             onOpenMember={openMember}

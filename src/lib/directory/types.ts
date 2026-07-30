@@ -27,6 +27,7 @@ export type DirectoryMember = {
   state: string | null
   city_lat?: number | null
   city_lng?: number | null
+  share_location?: boolean | null
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
