@@ -47,6 +47,7 @@ type PortalProfileRow = {
   role_and_goals: string | null
   inspiration: string | null
   referral_source: string | null
+  referral_source_other?: string | null
   mailchimp_status: string | null
   created_at: string | null
   education?: PortalEducationRow[]
@@ -92,6 +93,48 @@ type OnboardingProgressRow = {
 
 const LEGACY_MEMBER_SOT_SELECT =
   "id, import_id, legacy_person_id, normalized_email, original_email, first_name, last_name, full_name, affiliation, country, state, city, self_description, primary_field, psychedelic_field_status, psychedelic_field_barriers, current_role_and_goals, ipn_inspiration, referral_source, channels_present, channel_count, in_form, in_mailchimp, in_eventbrite, in_zoom, in_oldapp, in_drive_historical, first_seen_at, last_seen_at, mailchimp_id, mailchimp_audiences, mailchimp_status, eventbrite_event_count, eventbrite_last_event_date, zoom_registrations, zoom_attended, zoom_last_event_date, zoom_total_minutes, zoom_attendance_status, oldapp_user_id, date_of_birth, gender, race, oldapp_signup_location, engagement_status, notes, raw_legacy, imported_at"
+
+const PORTAL_PROFILE_SELECT =
+  "id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at"
+
+async function fetchPortalProfiles(admin: ReturnType<typeof createAdminClient>) {
+  const { data, error } = await admin
+    .from("profiles")
+    .select(PORTAL_PROFILE_SELECT)
+
+  if (error) {
+    console.error("Unable to load Portal profiles for admin analytics.", {
+      code: error.code,
+      message: error.message,
+    })
+    return [] as PortalProfileRow[]
+  }
+
+  const profiles = (data ?? []) as PortalProfileRow[]
+  const { data: referralDetails, error: referralDetailsError } = await admin
+    .from("profiles")
+    .select("id, referral_source_other")
+
+  if (referralDetailsError) {
+    console.warn("Optional referral detail data is unavailable; continuing with core Portal analytics.", {
+      code: referralDetailsError.code,
+      message: referralDetailsError.message,
+    })
+    return profiles
+  }
+
+  const referralDetailsById = new Map(
+    (referralDetails ?? []).map((profile) => [
+      profile.id as string,
+      (profile.referral_source_other as string | null) ?? null,
+    ]),
+  )
+
+  return profiles.map((profile) => ({
+    ...profile,
+    referral_source_other: referralDetailsById.get(profile.id) ?? null,
+  }))
+}
 
 function dayKey(value: string | null | undefined) {
   const date = value ? new Date(value) : null
@@ -546,10 +589,8 @@ export default async function AdminPage() {
   const leadership = (leadershipRows ?? []) as AdminMemberProfile[]
 
   // Member insights (all admin tiers — recent signups only for superadmin)
-  const [profileRowsResult, educationRowsResult, geocodesRowsResult] = await Promise.all([
-    admin
-      .from("profiles")
-      .select("id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, referral_source_other, mailchimp_status, created_at"),
+  const [profileRows, educationRowsResult, geocodesRowsResult] = await Promise.all([
+    fetchPortalProfiles(admin),
     admin
       .from("member_education")
       .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
@@ -558,13 +599,25 @@ export default async function AdminPage() {
       .from("analytics_location_geocodes")
       .select("location_key, city, state, country, latitude, longitude, precision"),
   ])
+  if (educationRowsResult.error) {
+    console.warn("Member education data is unavailable in admin analytics; continuing with legacy school fields.", {
+      code: educationRowsResult.error.code,
+      message: educationRowsResult.error.message,
+    })
+  }
+  if (geocodesRowsResult.error) {
+    console.warn("Analytics geocode cache is unavailable; continuing with profile coordinates and country centroids.", {
+      code: geocodesRowsResult.error.code,
+      message: geocodesRowsResult.error.message,
+    })
+  }
   const educationByUser = new Map<string, PortalEducationRow[]>()
   for (const education of (educationRowsResult.data ?? []) as PortalEducationRow[]) {
     const current = educationByUser.get(education.user_id) ?? []
     current.push(education)
     educationByUser.set(education.user_id, current)
   }
-  const allProfiles = ((profileRowsResult.data ?? []) as PortalProfileRow[]).map((profile) => ({
+  const allProfiles = profileRows.map((profile) => ({
     ...profile,
     education: educationByUser.get(profile.id) ?? [],
   }))
