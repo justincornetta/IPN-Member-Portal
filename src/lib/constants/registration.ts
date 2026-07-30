@@ -62,6 +62,24 @@ export const BARRIER_OPTIONS = [
   "Other",
 ] as const
 
+function barrierKey(value: string | null | undefined) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[’‘]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
+export function canonicalPsychedelicFieldBarrier(value: string | null | undefined) {
+  const normalized = barrierKey(value)
+  if (!normalized) return ""
+  return BARRIER_OPTIONS
+    .filter((option) => option !== "Other")
+    .find((option) => barrierKey(option) === normalized) ?? "Other"
+}
+
 export const INTEREST_TAG_OPTIONS = [
   "Addiction",
   "Advocacy",

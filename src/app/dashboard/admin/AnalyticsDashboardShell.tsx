@@ -30,6 +30,7 @@ import type { AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import type { AnalyticsPoint, LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
+import { canonicalPsychedelicFieldBarrier } from "@/lib/constants/registration"
 import type {
   MemberDirectoryData,
   MemberDirectoryDetail,
@@ -702,6 +703,36 @@ const MEMBER_DISTRIBUTION_COLORS = [
   "#475569",
 ]
 
+type DistributionChartItem = AnalyticsPoint & { color: string }
+
+function DistributionTooltip({
+  active,
+  payload,
+  total,
+}: {
+  active?: boolean
+  payload?: {
+    value?: number
+    name?: string
+    payload?: Partial<DistributionChartItem>
+  }[]
+  total: number
+}) {
+  const entry = payload?.[0]
+  if (!active || !entry) return null
+  const value = Number(entry.value ?? entry.payload?.value ?? 0)
+  const label = String(entry.payload?.label ?? entry.name ?? "Responses")
+
+  return (
+    <div className="max-w-xs rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-zinc-800">{label}</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        {formatNumber(value)} responses · {formatPercent(total ? value / total * 100 : 0)} of total
+      </p>
+    </div>
+  )
+}
+
 function DistributionChartPair({
   title,
   items,
@@ -709,44 +740,55 @@ function DistributionChartPair({
   title: string
   items: AnalyticsPoint[]
 }) {
-  const subtitle = sampleSubtitle(items)
-  const chartHeight = Math.max(300, Math.min(440, items.length * 38))
+  const chartItems: DistributionChartItem[] = [...items]
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .map((item, index) => ({
+      ...item,
+      color: MEMBER_DISTRIBUTION_COLORS[index % MEMBER_DISTRIBUTION_COLORS.length],
+    }))
+  const total = sampleSize(chartItems)
+  const subtitle = sampleSubtitle(chartItems)
+  const chartHeight = Math.max(300, Math.min(440, chartItems.length * 38))
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:col-span-2 lg:grid-cols-2">
       <Panel title={title} subtitle={subtitle}>
-        {items.length ? (
-          <ResponsiveChart height={chartHeight}>
-            <PieChart>
-              <Pie
-                data={items}
-                dataKey="value"
-                nameKey="label"
-                innerRadius="46%"
-                outerRadius="72%"
-                paddingAngle={1}
-              >
-                {items.map((item, index) => (
-                  <Cell key={`${item.label}-${index}`} fill={MEMBER_DISTRIBUTION_COLORS[index % MEMBER_DISTRIBUTION_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={tooltipFormatter} />
-              <Legend
-                layout="vertical"
-                align="right"
-                verticalAlign="middle"
-                formatter={(value) => truncate(String(value), 28)}
-              />
-            </PieChart>
-          </ResponsiveChart>
+        {chartItems.length ? (
+          <div className="grid min-w-0 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
+            <ResponsiveChart height={chartHeight}>
+              <PieChart>
+                <Pie
+                  data={chartItems}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius="46%"
+                  outerRadius="72%"
+                  paddingAngle={1}
+                >
+                  {chartItems.map((item) => (
+                    <Cell key={item.label} fill={item.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<DistributionTooltip total={total} />} />
+              </PieChart>
+            </ResponsiveChart>
+            <ol className="flex max-h-[var(--legend-height)] min-w-0 flex-col gap-2 overflow-y-auto pr-1" style={{ "--legend-height": `${chartHeight}px` } as CSSProperties}>
+              {chartItems.map((item) => (
+                <li key={item.label} className="flex min-w-0 items-center gap-2 text-xs text-zinc-600">
+                  <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                  <span className="truncate" title={item.label}>{item.label}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         ) : (
           <EmptyState title="No responses" description="No data matches the current member filters." />
         )}
       </Panel>
       <Panel title={title} subtitle={subtitle}>
-        {items.length ? (
+        {chartItems.length ? (
           <ResponsiveChart height={chartHeight}>
-            <BarChart data={items} layout="vertical" margin={{ left: 8, right: 18 }}>
+            <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 18 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
               <YAxis
@@ -756,10 +798,10 @@ function DistributionChartPair({
                 tick={{ fontSize: 11 }}
                 tickFormatter={(value) => truncate(String(value), 24)}
               />
-              <Tooltip formatter={tooltipFormatter} />
+              <Tooltip content={<DistributionTooltip total={total} />} />
               <Bar dataKey="value" name="Responses" radius={[0, 6, 6, 0]}>
-                {items.map((item, index) => (
-                  <Cell key={`${item.label}-${index}`} fill={MEMBER_DISTRIBUTION_COLORS[index % MEMBER_DISTRIBUTION_COLORS.length]} />
+                {chartItems.map((item) => (
+                  <Cell key={item.label} fill={item.color} />
                 ))}
               </Bar>
             </BarChart>
@@ -942,7 +984,12 @@ function buildFilteredMemberCharts(rows: MemberDirectoryRow[], directory: Member
     incrementMemberCount(primary, row.primaryField)
     incrementMemberCount(referrals, row.referralSource)
     incrementMemberCount(psychedelic, row.psychedelicFieldStatus)
-    for (const barrier of row.psychedelicFieldBarriers) incrementMemberCount(barriers, barrier)
+    const barrierLabels = new Set(
+      row.psychedelicFieldBarriers
+        .map(canonicalPsychedelicFieldBarrier)
+        .filter(Boolean),
+    )
+    for (const barrier of barrierLabels) incrementMemberCount(barriers, barrier)
   }
 
   return {
@@ -1093,19 +1140,25 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapboxMap | null>(null)
   const [geoView, setGeoView] = useState<"city" | "country">("city")
-  const [selectedCityId, setSelectedCityId] = useState(cities[0]?.id ?? "")
+  const [mapFocus, setMapFocus] = useState<"world" | "us">("world")
+  const [selectedCityId, setSelectedCityId] = useState("")
   const [mapError, setMapError] = useState("")
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   const activeLocations = useMemo(() => geoView === "country" ? buildCountryGeography(cities) : cities, [cities, geoView])
   const geoJson = useMemo(() => buildMemberGeoJson(activeLocations), [activeLocations])
   const geoJsonRef = useRef(geoJson)
-  const selectedLocation = activeLocations.find((city) => city.id === selectedCityId) ?? activeLocations[0] ?? null
+  const selectedLocation = selectedCityId
+    ? activeLocations.find((city) => city.id === selectedCityId) ?? null
+    : null
   const totalLocatedRecords = activeLocations.reduce((sum, city) => sum + city.memberCount, 0)
   const allLocatedRecords = cities.reduce((sum, city) => sum + city.memberCount, 0)
   const mappedLocatedRecords = cities
     .filter((city) => city.lat != null && city.lng != null)
     .reduce((sum, city) => sum + city.memberCount, 0)
   const geocodeCoverage = allLocatedRecords ? mappedLocatedRecords / allLocatedRecords * 100 : 0
+  const mappedActiveRecords = activeLocations
+    .filter((location) => location.lat != null && location.lng != null)
+    .reduce((sum, location) => sum + location.memberCount, 0)
   const selectedLocationLabel = selectedLocation
     ? geoView === "country"
       ? selectedLocation.country
@@ -1123,8 +1176,10 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
       const map = new mapboxgl.Map({
         container: containerRef.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [-98.5795, 39.8283],
-        zoom: 1.8,
+        center: [0, 20],
+        zoom: 1.15,
+        projection: "mercator",
+        renderWorldCopies: false,
       })
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-left")
       map.on("error", (event) => setMapError(event.error?.message ?? "Mapbox could not load the map."))
@@ -1171,7 +1226,7 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
           source: MEMBER_GEO_SOURCE_ID,
           filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-color": "#2563eb",
+            "circle-color": "#6f51aa",
             "circle-radius": ["step", ["get", "memberCount"], 10, 10, 14, 30, 18],
             "circle-opacity": 0.9,
             "circle-stroke-color": "#ffffff",
@@ -1234,28 +1289,80 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
     }
   }, [geoJson])
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.easeTo({
+      center: mapFocus === "us" ? [-98.5795, 39.8283] : [0, 20],
+      zoom: mapFocus === "us" ? 3.15 : 1.15,
+      duration: 500,
+    })
+  }, [mapFocus])
+
+  function selectLocation(location: MemberDirectoryData["geography"][number]) {
+    setSelectedCityId(location.id)
+    if (location.lat != null && location.lng != null) {
+      mapRef.current?.easeTo({
+        center: [location.lng, location.lat],
+        zoom: geoView === "country" ? 3.75 : 5.25,
+        duration: 450,
+      })
+    }
+  }
+
   return (
     <Panel title="Membership geography" subtitle={`n=${formatNumber(totalLocatedRecords)} located member records · ${formatPercent(geocodeCoverage)} mapped`} className="lg:col-span-2">
-      <div className="mb-4 inline-flex rounded-lg border border-zinc-200 bg-white p-1">
-        {[
-          { id: "city", label: "City" },
-          { id: "country", label: "Country" },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              setGeoView(item.id as "city" | "country")
-              setSelectedCityId("")
-            }}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${geoView === item.id ? "bg-ipn text-white" : "text-zinc-500 hover:text-zinc-800"}`}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1">
+            {[
+              { id: "city", label: "Cities" },
+              { id: "country", label: "Countries" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setGeoView(item.id as "city" | "country")
+                  setSelectedCityId("")
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${geoView === item.id ? "bg-ipn text-white" : "text-zinc-500 hover:text-zinc-800"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1">
+            {[
+              { id: "world", label: "World" },
+              { id: "us", label: "US Focus" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setMapFocus(item.id as "world" | "us")}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${mapFocus === item.id ? "bg-ipn text-white" : "text-zinc-500 hover:text-zinc-800"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Mapped members", value: mappedActiveRecords },
+            { label: geoView === "country" ? "Visible countries" : "Visible cities", value: activeLocations.length },
+            { label: "Unmapped", value: Math.max(0, totalLocatedRecords - mappedActiveRecords) },
+          ].map((metric) => (
+            <div key={metric.label} className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <p className="text-lg font-semibold tabular-nums text-zinc-900">{formatNumber(metric.value)}</p>
+              <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-zinc-400">{metric.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="directory-map-shell relative h-[360px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
+        <div className="directory-map-shell relative h-[420px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
           {mapboxToken && !mapError ? (
             <div ref={containerRef} className="h-full w-full" />
           ) : (
@@ -1266,14 +1373,17 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
         </div>
         <div className="min-w-0">
           {selectedLocation ? (
-            <div className="rounded-xl border border-zinc-200 p-4">
+            <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h4 className="font-semibold text-zinc-900">{selectedLocationLabel}</h4>
                   <p className="mt-1 text-xs text-zinc-400">{formatNumber(selectedLocation.memberCount)} members</p>
                 </div>
+                <button type="button" onClick={() => setSelectedCityId("")} className="text-xs font-medium text-ipn hover:underline">
+                  Back to locations
+                </button>
               </div>
-              <div className="mt-4 max-h-80 overflow-y-auto border-t border-zinc-100 pt-3 pr-2">
+              <div className="mt-4 max-h-[340px] overflow-y-auto border-t border-zinc-100 pt-3 pr-2">
                 {selectedLocation.members.map((member) => (
                   <div key={member.id} className="py-2 text-xs">
                     <div className="min-w-0">
@@ -1285,16 +1395,31 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
               </div>
             </div>
           ) : (
-            <EmptyState title="No geography data" description="No filtered members have usable city and country data." />
+            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+              <div className="border-b border-zinc-100 px-4 py-3">
+                <h4 className="text-sm font-semibold text-zinc-900">{geoView === "country" ? "Countries" : "Cities"} by members</h4>
+                <p className="mt-1 text-xs text-zinc-400">Select a location to view its members.</p>
+              </div>
+              <div className="max-h-[350px] overflow-y-auto">
+                {activeLocations.map((location, index) => (
+                  <button
+                    key={location.id}
+                    type="button"
+                    onClick={() => selectLocation(location)}
+                    className="flex w-full items-center gap-3 border-b border-zinc-100 px-3 py-2.5 text-left text-xs text-zinc-600 last:border-b-0 hover:bg-zinc-50"
+                  >
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-ipn-light font-semibold text-ipn">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-zinc-700">
+                      {geoView === "country"
+                        ? location.country
+                        : [location.city, location.state, location.country].filter(Boolean).join(", ")}
+                    </span>
+                    <span className="flex-shrink-0 tabular-nums text-zinc-400">{formatNumber(location.memberCount)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-          <div className="mt-3 max-h-48 overflow-y-auto rounded-xl border border-zinc-200">
-            {activeLocations.map((city) => (
-              <button key={city.id} type="button" onClick={() => setSelectedCityId(city.id)} className={`flex w-full items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2 text-left text-xs last:border-b-0 ${selectedLocation?.id === city.id ? "bg-ipn-light text-ipn" : "text-zinc-600 hover:bg-zinc-50"}`}>
-                <span className="truncate">{geoView === "country" ? city.country : [city.city, city.state, city.country].filter(Boolean).join(", ")}</span>
-                <span className="tabular-nums">{formatNumber(city.memberCount)}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </Panel>

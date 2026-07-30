@@ -10,6 +10,7 @@ import {
   canonicalMemberField,
   canonicalPsychedelicFieldStatus,
 } from "../src/lib/admin/analytics/normalization.ts"
+import { canonicalPsychedelicFieldBarrier } from "../src/lib/constants/registration.ts"
 import {
   buildAnalyticsGeocodeLookup,
   resolveAnalyticsLocation,
@@ -65,6 +66,8 @@ test("canonical member aliases collapse historical wording and punctuation", () 
   assert.equal(canonicalMemberField("Law and Policy"), "Law & Policy")
   assert.equal(canonicalMemberField("Trade and Personal Services"), "Skilled Trades & Personal Services")
   assert.equal(canonicalPsychedelicFieldStatus("Not yet – I’m interested in working in the field"), "Not yet — I'm interested in working in the field")
+  assert.equal(canonicalPsychedelicFieldBarrier("I haven’t found the right opportunity yet"), "I haven't found the right opportunity yet")
+  assert.equal(canonicalPsychedelicFieldBarrier("I am balancing crisis management work right now"), "Other")
 })
 
 test("education validation enforces profile education requirements", () => {
