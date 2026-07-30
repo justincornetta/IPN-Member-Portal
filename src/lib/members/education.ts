@@ -69,10 +69,10 @@ export function compactEducationEntries(entries: MemberEducationInput[]) {
 }
 
 export function educationLevelForPersona(persona: string): EducationLevel | null {
-  if (persona === "High School") return "high_school"
-  if (persona === "Undergraduate") return "undergraduate"
-  if (persona === "Graduate Student") return "graduate"
-  if (persona === "Professional Degree Student") return "professional_degree"
+  if (persona === "High school / pre-college") return "high_school"
+  if (persona === "Undergraduate student") return "undergraduate"
+  if (persona === "Graduate student (Master's or PhD)") return "graduate"
+  if (persona === "Professional degree student (MD, JD, MBA, etc.)") return "professional_degree"
   return null
 }
 

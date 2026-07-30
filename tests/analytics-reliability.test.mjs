@@ -13,6 +13,8 @@ import {
   canonicalReferralSource,
 } from "../src/lib/admin/analytics/normalization.ts"
 import {
+  FIELD_OPTIONS,
+  FIELD_STATUS_OPTIONS,
   canonicalPsychedelicFieldBarrier,
   PERSONA_OPTIONS,
   REFERRAL_OPTIONS,
@@ -68,13 +70,13 @@ function snapshotFixture({ sessions = 826, donations = false } = {}) {
 }
 
 test("canonical member aliases collapse historical wording and punctuation", () => {
-  assert.equal(canonicalMemberPersona("Undergraduate Student (B.A./B.S.)"), "Undergraduate")
-  assert.equal(canonicalMemberPersona("Graduate Student (Master's or PhD)"), "Graduate Student")
-  assert.equal(canonicalMemberPersona("Graduate Student (M.A./M.S./Ph.D/MBA)"), "Graduate Student")
-  assert.equal(canonicalMemberPersona("Professional Student (M.D./J.D./D.O)"), "Professional Degree Student")
-  assert.equal(canonicalMemberPersona("Professional degree student (MD, JD, MBA, etc.)"), "Professional Degree Student")
-  assert.equal(canonicalMemberPersona("Current Industry Professional"), "Psychedelic Professional")
-  assert.equal(canonicalMemberPersona("Professional in a related field (e.g., healthcare, education, nonprofit, tech, law)"), "Professional")
+  assert.equal(canonicalMemberPersona("Undergraduate Student (B.A./B.S.)"), "Undergraduate student")
+  assert.equal(canonicalMemberPersona("Graduate Student (Master's or PhD)"), "Graduate student (Master's or PhD)")
+  assert.equal(canonicalMemberPersona("Graduate Student (M.A./M.S./Ph.D/MBA)"), "Graduate student (Master's or PhD)")
+  assert.equal(canonicalMemberPersona("Professional Student (M.D./J.D./D.O)"), "Professional degree student (MD, JD, MBA, etc.)")
+  assert.equal(canonicalMemberPersona("Professional degree student (MD, JD, MBA, etc.)"), "Professional degree student (MD, JD, MBA, etc.)")
+  assert.equal(canonicalMemberPersona("Current Industry Professional"), "Professional in psychedelics")
+  assert.equal(canonicalMemberPersona("Professional in a related field (e.g., healthcare, education, nonprofit, tech, law)"), "Professional in another field")
   assert.equal(canonicalMemberPersona("Faculty"), "Other")
   assert.ok(PERSONA_OPTIONS.some((option) => option.value === canonicalMemberPersona("Current Industry Professional")))
   for (const option of PERSONA_OPTIONS) {
@@ -84,6 +86,9 @@ test("canonical member aliases collapse historical wording and punctuation", () 
   assert.equal(canonicalMemberField("Science, Technology, Engineering, & Mathematics"), "Science, Technology, Engineering, Mathematics (STEM)")
   assert.equal(canonicalMemberField("Law and Policy"), "Law & Policy")
   assert.equal(canonicalMemberField("Trade and Personal Services"), "Skilled Trades & Personal Services")
+  for (const option of FIELD_OPTIONS) {
+    assert.equal(canonicalMemberField(option), option)
+  }
 
   assert.equal(canonicalReferralSource("A Friend/Colleague"), "Friend / Colleague")
   assert.equal(canonicalReferralSource("Friend/Colleague"), "Friend / Colleague")
@@ -95,6 +100,9 @@ test("canonical member aliases collapse historical wording and punctuation", () 
   }
 
   assert.equal(canonicalPsychedelicFieldStatus("Not yet – I’m interested in working in the field"), "Not yet — I'm interested in working in the field")
+  for (const option of FIELD_STATUS_OPTIONS) {
+    assert.equal(canonicalPsychedelicFieldStatus(option), option)
+  }
   assert.equal(canonicalPsychedelicFieldBarrier("I haven’t found the right opportunity yet"), "I haven't found the right opportunity yet")
   assert.equal(canonicalPsychedelicFieldBarrier("I am balancing crisis management work right now"), "Other")
 })
@@ -109,7 +117,7 @@ test("education validation enforces profile education requirements", () => {
     status: "completed",
     graduation_year: 2024,
   }], { required: true }), null)
-  assert.equal(educationLevelForPersona("Graduate Student"), "graduate")
+  assert.equal(educationLevelForPersona("Graduate student (Master's or PhD)"), "graduate")
   assert.equal(
     normalizeInstitutionName("University of Pennsylvania"),
     normalizeInstitutionName("  University of Pennsylvania  "),

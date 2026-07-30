@@ -10,28 +10,28 @@ function categoryKey(value) {
 }
 
 const PERSONA_ALIASES = new Map([
-  ["high school", "High School"],
-  ["high school student", "High School"],
-  ["high school/pre-college", "High School"],
-  ["undergraduate", "Undergraduate"],
-  ["undergraduate student", "Undergraduate"],
-  ["undergraduate student (b.a./b.s.)", "Undergraduate"],
-  ["graduate student", "Graduate Student"],
-  ["graduate student (master's or phd)", "Graduate Student"],
+  ["high school", "High school / pre-college"],
+  ["high school student", "High school / pre-college"],
+  ["high school/pre-college", "High school / pre-college"],
+  ["undergraduate", "Undergraduate student"],
+  ["undergraduate student", "Undergraduate student"],
+  ["undergraduate student (b.a./b.s.)", "Undergraduate student"],
+  ["graduate student", "Graduate student (Master's or PhD)"],
+  ["graduate student (master's or phd)", "Graduate student (Master's or PhD)"],
   // This historical option did not store the selected degree. Current MBA
   // registrations use Professional Degree Student; the mixed legacy option
   // stays with its primary Graduate Student label.
-  ["graduate student (m.a./m.s./ph.d/mba)", "Graduate Student"],
-  ["professional degree student", "Professional Degree Student"],
-  ["professional degree student (md, jd, mba, etc.)", "Professional Degree Student"],
-  ["professional student (m.d./j.d./d.o)", "Professional Degree Student"],
-  ["psychedelic professional", "Psychedelic Professional"],
-  ["professional in psychedelics", "Psychedelic Professional"],
-  ["professional in the psychedelic field (e.g., clinician, researcher, policy advocate)", "Psychedelic Professional"],
-  ["current industry professional", "Psychedelic Professional"],
-  ["professional", "Professional"],
-  ["professional in another field", "Professional"],
-  ["professional in a related field (e.g., healthcare, education, nonprofit, tech, law)", "Professional"],
+  ["graduate student (m.a./m.s./ph.d/mba)", "Graduate student (Master's or PhD)"],
+  ["professional degree student", "Professional degree student (MD, JD, MBA, etc.)"],
+  ["professional degree student (md, jd, mba, etc.)", "Professional degree student (MD, JD, MBA, etc.)"],
+  ["professional student (m.d./j.d./d.o)", "Professional degree student (MD, JD, MBA, etc.)"],
+  ["psychedelic professional", "Professional in psychedelics"],
+  ["professional in psychedelics", "Professional in psychedelics"],
+  ["professional in the psychedelic field (e.g., clinician, researcher, policy advocate)", "Professional in psychedelics"],
+  ["current industry professional", "Professional in psychedelics"],
+  ["professional", "Professional in another field"],
+  ["professional in another field", "Professional in another field"],
+  ["professional in a related field (e.g., healthcare, education, nonprofit, tech, law)", "Professional in another field"],
   ["other", "Other"],
 ])
 
