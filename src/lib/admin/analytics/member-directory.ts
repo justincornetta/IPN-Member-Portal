@@ -8,7 +8,9 @@ import type {
 } from "./member-directory-types"
 import {
   canonicalMemberField,
+  canonicalMemberPersona,
   canonicalPsychedelicFieldStatus,
+  canonicalReferralSource,
 } from "./normalization"
 import {
   analyticsLocationKey,
@@ -247,10 +249,10 @@ export function mergeMemberDirectoryRow(
     { source: "Google Form/Mailchimp", value: legacy?.first_seen_at },
     { source: "Portal", value: profile?.created_at },
   )
-  const persona = firstText(profile?.persona, legacy?.self_description)
+  const persona = canonicalMemberPersona(firstText(profile?.persona, legacy?.self_description))
   const primaryField = canonicalMemberField(firstText(profile?.field, legacy?.primary_field, "-"))
   const psychedelicFieldStatus = canonicalPsychedelicFieldStatus(firstText(profile?.psychedelic_field_status, legacy?.psychedelic_field_status))
-  const referralSource = firstText(profile?.referral_source, legacy?.referral_source)
+  const referralSource = canonicalReferralSource(firstText(profile?.referral_source, legacy?.referral_source))
   const schools = Array.from(new Set([
     ...(profile?.education ?? []).map((entry) => text(entry.institution)),
     text(profile?.school),

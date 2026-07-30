@@ -8,9 +8,15 @@ import {
 } from "../src/lib/members/education.ts"
 import {
   canonicalMemberField,
+  canonicalMemberPersona,
   canonicalPsychedelicFieldStatus,
+  canonicalReferralSource,
 } from "../src/lib/admin/analytics/normalization.ts"
-import { canonicalPsychedelicFieldBarrier } from "../src/lib/constants/registration.ts"
+import {
+  canonicalPsychedelicFieldBarrier,
+  PERSONA_OPTIONS,
+  REFERRAL_OPTIONS,
+} from "../src/lib/constants/registration.ts"
 import {
   buildAnalyticsGeocodeLookup,
   resolveAnalyticsLocation,
@@ -62,9 +68,32 @@ function snapshotFixture({ sessions = 826, donations = false } = {}) {
 }
 
 test("canonical member aliases collapse historical wording and punctuation", () => {
+  assert.equal(canonicalMemberPersona("Undergraduate Student (B.A./B.S.)"), "Undergraduate")
+  assert.equal(canonicalMemberPersona("Graduate Student (Master's or PhD)"), "Graduate Student")
+  assert.equal(canonicalMemberPersona("Graduate Student (M.A./M.S./Ph.D/MBA)"), "Graduate Student")
+  assert.equal(canonicalMemberPersona("Professional Student (M.D./J.D./D.O)"), "Professional Degree Student")
+  assert.equal(canonicalMemberPersona("Professional degree student (MD, JD, MBA, etc.)"), "Professional Degree Student")
+  assert.equal(canonicalMemberPersona("Current Industry Professional"), "Psychedelic Professional")
+  assert.equal(canonicalMemberPersona("Professional in a related field (e.g., healthcare, education, nonprofit, tech, law)"), "Professional")
+  assert.equal(canonicalMemberPersona("Faculty"), "Other")
+  assert.ok(PERSONA_OPTIONS.some((option) => option.value === canonicalMemberPersona("Current Industry Professional")))
+  for (const option of PERSONA_OPTIONS) {
+    assert.equal(canonicalMemberPersona(option.value), option.value)
+  }
+
   assert.equal(canonicalMemberField("Science, Technology, Engineering, & Mathematics"), "Science, Technology, Engineering, Mathematics (STEM)")
   assert.equal(canonicalMemberField("Law and Policy"), "Law & Policy")
   assert.equal(canonicalMemberField("Trade and Personal Services"), "Skilled Trades & Personal Services")
+
+  assert.equal(canonicalReferralSource("A Friend/Colleague"), "Friend / Colleague")
+  assert.equal(canonicalReferralSource("Friend/Colleague"), "Friend / Colleague")
+  assert.equal(canonicalReferralSource("Google/Search Engine"), "Google / Search Engine")
+  assert.equal(canonicalReferralSource("The Psychedelic Handbook by Rick Strassman"), "Other")
+  assert.ok(REFERRAL_OPTIONS.includes(canonicalReferralSource("A Friend/Colleague")))
+  for (const option of REFERRAL_OPTIONS) {
+    assert.equal(canonicalReferralSource(option), option)
+  }
+
   assert.equal(canonicalPsychedelicFieldStatus("Not yet – I’m interested in working in the field"), "Not yet — I'm interested in working in the field")
   assert.equal(canonicalPsychedelicFieldBarrier("I haven’t found the right opportunity yet"), "I haven't found the right opportunity yet")
   assert.equal(canonicalPsychedelicFieldBarrier("I am balancing crisis management work right now"), "Other")
