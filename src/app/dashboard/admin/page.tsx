@@ -562,6 +562,28 @@ async function fetchLegacyMemberSotRows(admin: ReturnType<typeof createAdminClie
   }
 }
 
+async function fetchPortalAnalyticsEvents(
+  admin: ReturnType<typeof createAdminClient>,
+  cutoff: string,
+) {
+  const pageSize = 1000
+  const rows: PortalAnalyticsEventRow[] = []
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await admin
+      .from("portal_analytics_events")
+      .select("event_name, user_id, session_id, page_path, target_id, target_label, error_code, duration_seconds, click_count, metadata, occurred_at")
+      .gte("occurred_at", cutoff)
+      .order("occurred_at", { ascending: true })
+      .range(offset, offset + pageSize - 1)
+
+    if (error) return { rows, error }
+    const pageRows = (data ?? []) as PortalAnalyticsEventRow[]
+    rows.push(...pageRows)
+    if (pageRows.length < pageSize) return { rows, error: null }
+  }
+}
+
 export default async function AdminPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -702,12 +724,7 @@ export default async function AdminPage() {
     eventRowsResult,
     analyticsSourceRecordsResult,
   ] = await Promise.all([
-    admin
-      .from("portal_analytics_events")
-      .select("event_name, user_id, session_id, page_path, target_id, target_label, error_code, duration_seconds, click_count, metadata, occurred_at")
-      .gte("occurred_at", ninetyDaysAgo)
-      .order("occurred_at", { ascending: true })
-      .limit(10000),
+    fetchPortalAnalyticsEvents(admin, ninetyDaysAgo),
     admin
       .from("member_onboarding_progress")
       .select("user_id, whatsapp_completed_at"),
@@ -732,7 +749,7 @@ export default async function AdminPage() {
   const eventRows = (eventRowsResult.data ?? []) as EventLookupRow[]
 
   const portalUtilization = buildPortalUtilizationData({
-    analyticsEvents: (analyticsEventsResult.data ?? []) as PortalAnalyticsEventRow[],
+    analyticsEvents: analyticsEventsResult.rows,
     analyticsError: analyticsEventsResult.error?.message ?? null,
     profiles: allProfiles,
     onboardingRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],

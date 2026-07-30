@@ -13,6 +13,7 @@ import {
 import type {
   LegacyMemberSotRow,
   PortalDirectoryProfileRow,
+  PortalEducationRow,
 } from "@/lib/admin/analytics/member-directory"
 import type { MemberDirectoryDetail } from "@/lib/admin/analytics/member-directory-types"
 
@@ -756,11 +757,11 @@ export async function getMemberDirectoryDetail(payload: {
   if (!normalizedEmail && !payload.portalId) return null
 
   const admin = createAdminClient()
-  const [profileResult, legacyResult, educationResult] = await Promise.all([
+  const [profileResult, legacyResult] = await Promise.all([
     payload.portalId
       ? admin
         .from("profiles")
-        .select("id, first_name, last_name, email, persona, affiliation, school, field, interest_tags, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, referral_source_other, mailchimp_status, created_at")
+        .select("id, first_name, last_name, email, persona, affiliation, school, field, interest_tags, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at")
         .eq("id", payload.portalId)
         .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -771,18 +772,51 @@ export async function getMemberDirectoryDetail(payload: {
         .eq("normalized_email", normalizedEmail)
         .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    payload.portalId
-      ? admin
+  ])
+
+  if (profileResult.error || legacyResult.error) {
+    console.error("Unable to load core member directory detail.", {
+      profileError: profileResult.error?.message ?? null,
+      legacyError: legacyResult.error?.message ?? null,
+    })
+    return null
+  }
+
+  const profile = (profileResult.data ?? null) as PortalDirectoryProfileRow | null
+  if (profile && payload.portalId) {
+    const [referralResult, educationResult] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("referral_source_other")
+        .eq("id", payload.portalId)
+        .maybeSingle(),
+      admin
         .from("member_education")
         .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
         .eq("user_id", payload.portalId)
-        .order("sort_order", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
-  ])
+        .order("sort_order", { ascending: true }),
+    ])
 
-  if (profileResult.error || legacyResult.error || educationResult.error) return null
-  const profile = (profileResult.data ?? null) as PortalDirectoryProfileRow | null
-  if (profile) profile.education = educationResult.data ?? []
+    if (referralResult.error) {
+      console.warn("Optional referral detail is unavailable for this member.", {
+        code: referralResult.error.code,
+        message: referralResult.error.message,
+      })
+    } else {
+      profile.referral_source_other = referralResult.data?.referral_source_other ?? null
+    }
+
+    if (educationResult.error) {
+      console.warn("Optional education detail is unavailable for this member.", {
+        code: educationResult.error.code,
+        message: educationResult.error.message,
+      })
+      profile.education = []
+    } else {
+      profile.education = (educationResult.data ?? []) as PortalEducationRow[]
+    }
+  }
+
   const detail = mergeMemberDirectoryDetail(
     profile,
     (legacyResult.data ?? null) as LegacyMemberSotRow | null,

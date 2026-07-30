@@ -209,6 +209,15 @@ function splitMultiValue(value: string | string[] | null | undefined) {
     .filter(Boolean)
 }
 
+function legacyAcademicInstitutions(value: string | null | undefined) {
+  return text(value)
+    .split(/[,;|]/)
+    .map((item) => item.trim())
+    .filter((item) => (
+      /\b(university|college|school|institute|academy|polytechnic|conservatory|seminary|universidad|universität|université|école)\b/i.test(item)
+    ))
+}
+
 function firstSeenConfidence(legacy: LegacyMemberSotRow | null, selectedSource: string) {
   if (!legacy?.in_mailchimp || legacy.in_form || legacy.in_oldapp || selectedSource === "Portal" || selectedSource === "IPN App") {
     return "high" as const
@@ -245,7 +254,7 @@ export function mergeMemberDirectoryRow(
   const schools = Array.from(new Set([
     ...(profile?.education ?? []).map((entry) => text(entry.institution)),
     text(profile?.school),
-    !profile ? text(legacy?.affiliation) : "",
+    ...(!profile ? legacyAcademicInstitutions(legacy?.affiliation) : []),
   ].filter(Boolean)))
   const school = schools[0] ?? ""
 

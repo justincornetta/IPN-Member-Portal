@@ -687,6 +687,91 @@ function sampleSubtitle(items: AnalyticsPoint[], unit = "responses") {
   return `n=${formatNumber(sampleSize(items))} ${unit}`
 }
 
+const MEMBER_DISTRIBUTION_COLORS = [
+  "#6f51aa",
+  "#8b5cf6",
+  "#2563eb",
+  "#0ea5e9",
+  "#16a34a",
+  "#d97706",
+  "#e11d48",
+  "#64748b",
+  "#a855f7",
+  "#14b8a6",
+  "#f59e0b",
+  "#475569",
+]
+
+function DistributionChartPair({
+  title,
+  items,
+}: {
+  title: string
+  items: AnalyticsPoint[]
+}) {
+  const subtitle = sampleSubtitle(items)
+  const chartHeight = Math.max(300, Math.min(440, items.length * 38))
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:col-span-2 lg:grid-cols-2">
+      <Panel title={title} subtitle={subtitle}>
+        {items.length ? (
+          <ResponsiveChart height={chartHeight}>
+            <PieChart>
+              <Pie
+                data={items}
+                dataKey="value"
+                nameKey="label"
+                innerRadius="46%"
+                outerRadius="72%"
+                paddingAngle={1}
+              >
+                {items.map((item, index) => (
+                  <Cell key={`${item.label}-${index}`} fill={MEMBER_DISTRIBUTION_COLORS[index % MEMBER_DISTRIBUTION_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={tooltipFormatter} />
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                formatter={(value) => truncate(String(value), 28)}
+              />
+            </PieChart>
+          </ResponsiveChart>
+        ) : (
+          <EmptyState title="No responses" description="No data matches the current member filters." />
+        )}
+      </Panel>
+      <Panel title={title} subtitle={subtitle}>
+        {items.length ? (
+          <ResponsiveChart height={chartHeight}>
+            <BarChart data={items} layout="vertical" margin={{ left: 8, right: 18 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis
+                type="category"
+                dataKey="label"
+                width={150}
+                tick={{ fontSize: 11 }}
+                tickFormatter={(value) => truncate(String(value), 24)}
+              />
+              <Tooltip formatter={tooltipFormatter} />
+              <Bar dataKey="value" name="Responses" radius={[0, 6, 6, 0]}>
+                {items.map((item, index) => (
+                  <Cell key={`${item.label}-${index}`} fill={MEMBER_DISTRIBUTION_COLORS[index % MEMBER_DISTRIBUTION_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveChart>
+        ) : (
+          <EmptyState title="No responses" description="No data matches the current member filters." />
+        )}
+      </Panel>
+    </div>
+  )
+}
+
 function PaginatedBarList({
   items,
   pageSize = 10,
@@ -1425,7 +1510,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
   const [stateFilter, setStateFilter] = useState("all")
   const [fieldFilter, setFieldFilter] = useState("all")
   const [psychedelicFilter, setPsychedelicFilter] = useState("all")
-  const [attendedOnly, setAttendedOnly] = useState(false)
   const [sortKey, setSortKey] = useState<"name" | "firstSeenAt" | "sourceCount" | "eventCount">("firstSeenAt")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [sourceFilter, setSourceFilter] = useState<keyof MemberDirectorySources | "all">("all")
@@ -1456,7 +1540,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
         if (stateFilter !== "all" && row.state !== stateFilter) return false
         if (fieldFilter !== "all" && row.primaryField !== fieldFilter) return false
         if (psychedelicFilter !== "all" && row.psychedelicFieldStatus !== psychedelicFilter) return false
-        if (attendedOnly && row.eventCount < 1) return false
         return true
       })
       .sort((a, b) => {
@@ -1468,7 +1551,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
         const bTime = b.firstSeenAt ? new Date(b.firstSeenAt).getTime() : 0
         return (aTime - bTime || a.name.localeCompare(b.name)) * direction
       })
-  }, [attendedOnly, countryFilter, fieldFilter, fromDate, mailchimpFilter, psychedelicFilter, rows, search, sortDirection, sortKey, sourceFilter, stateFilter, toDate, whatsappFilter])
+  }, [countryFilter, fieldFilter, fromDate, mailchimpFilter, psychedelicFilter, rows, search, sortDirection, sortKey, sourceFilter, stateFilter, toDate, whatsappFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / 25))
   const currentPage = Math.min(page, totalPages - 1)
@@ -1512,11 +1595,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
-        <span className="font-semibold">Legacy SoT import:</span> {formatNumber(directory.importFreshness.rowCount)} rows imported
-        {directory.importFreshness.importedAt ? ` on ${formatDateTime(directory.importFreshness.importedAt)}` : ""}. Directory rows merge live Portal profiles with approved legacy records.
-      </div>
-
       <FilterBar>
         <FilterField label="Search">
           <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Name, email, location..." className={inputClassName} />
@@ -1590,12 +1668,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
             { value: "eventCount:desc", label: "Most events" },
           ]} />
         </FilterField>
-        <FilterField label="Events">
-          <label className="flex h-10 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-sm text-zinc-600">
-            <input type="checkbox" checked={attendedOnly} onChange={(event) => { setAttendedOnly(event.target.checked); setPage(0) }} />
-            Attended &gt;=1 event
-          </label>
-        </FilterField>
       </FilterBar>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -1625,12 +1697,12 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel title="Source totals" subtitle={sampleSubtitle(sourceTotals, "source records")}><BarList items={sourceTotals} /></Panel>
         {filteredCharts && <Panel title="Top interest tags" subtitle={sampleSubtitle(filteredCharts.topInterestTags, "tag selections")}><PaginatedBarList items={filteredCharts.topInterestTags} /></Panel>}
-        {filteredCharts && <Panel title="Top schools" subtitle={sampleSubtitle(filteredCharts.topSchools)}><BarList items={filteredCharts.topSchools} /></Panel>}
-        {filteredCharts && <Panel title="Which best describes you" subtitle={sampleSubtitle(filteredCharts.bestDescribes)}><BarList items={filteredCharts.bestDescribes} /></Panel>}
-        {filteredCharts && <Panel title="Which field are you primarily in" subtitle={sampleSubtitle(filteredCharts.primaryField)}><BarList items={filteredCharts.primaryField} /></Panel>}
-        {filteredCharts && <Panel title="How did you hear about us" subtitle={sampleSubtitle(filteredCharts.referralSources)}><BarList items={filteredCharts.referralSources} /></Panel>}
-        {filteredCharts && <Panel title="Psychedelic field status" subtitle={sampleSubtitle(filteredCharts.psychedelicFieldStatus)}><BarList items={filteredCharts.psychedelicFieldStatus} /></Panel>}
-        {filteredCharts && <Panel title="Psychedelic field barriers" subtitle={sampleSubtitle(filteredCharts.psychedelicFieldBarriers)}><BarList items={filteredCharts.psychedelicFieldBarriers} /></Panel>}
+        {filteredCharts && <Panel title="Top schools" subtitle={sampleSubtitle(filteredCharts.topSchools)} className="lg:col-span-2"><BarList items={filteredCharts.topSchools} /></Panel>}
+        {filteredCharts && <DistributionChartPair title="Which best describes you" items={filteredCharts.bestDescribes} />}
+        {filteredCharts && <DistributionChartPair title="Which field are you primarily in" items={filteredCharts.primaryField} />}
+        {filteredCharts && <DistributionChartPair title="How did you hear about us" items={filteredCharts.referralSources} />}
+        {filteredCharts && <DistributionChartPair title="Are you currently working in the psychedelic field?" items={filteredCharts.psychedelicFieldStatus} />}
+        {filteredCharts && <DistributionChartPair title="If not, why not?" items={filteredCharts.psychedelicFieldBarriers} />}
         <MembershipGeographyPanel cities={filteredGeography} />
       </div>
 
@@ -1788,15 +1860,14 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
     clickMap.set(key, current)
   }
   const filteredTopClicks = Array.from(clickMap.values()).sort((a, b) => b.clicks - a.clicks || b.users - a.users || a.clickName.localeCompare(b.clickName))
-  const rsvpBuckets = fillMetricBuckets(aggregateByGranularity(data.rsvpTrend
-    .filter((row) => isWithinDateRange(row.date, fromDate, toDate))
-    .map((row) => ({ date: row.date, values: { rsvps: row.rsvps } })), granularity), granularity, data.rsvpTrend.map((row) => row.date), { rsvps: 0 })
-  const rsvpTrend = rsvpBuckets.map((row) => ({ ...row, date: row.label }))
   const totalRegistrationTraffic = funnel.reduce((sum, row) => sum + row.registrationTraffic, 0)
   const totalRegistrationCompleted = funnel.reduce((sum, row) => sum + row.registrationCompleted, 0)
   const totalSignInTraffic = funnel.reduce((sum, row) => sum + row.signInTraffic, 0)
   const totalSignInCompleted = funnel.reduce((sum, row) => sum + row.signInCompleted, 0)
-  const totalRsvps = rsvpTrend.reduce((sum, row) => sum + row.rsvps, 0)
+  const totalRsvps = data.rsvpTrend
+    .filter((row) => isWithinDateRange(row.date, fromDate, toDate))
+    .reduce((sum, row) => sum + row.rsvps, 0)
+  const latestTrackedActivity = data.recentSessions[0]?.lastSeenAt ?? null
   const deviceOptions = [
     { value: "all", label: "All devices" },
     ...data.trafficDevices.map((item) => ({ value: item.label, label: item.label === "unknown" ? "Unknown" : item.label[0].toUpperCase() + item.label.slice(1) })),
@@ -1835,6 +1906,13 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
         />
       )}
 
+      {data.trackingAvailable && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
+          Live Portal activity is available through <span className="font-semibold">{formatDateTime(latestTrackedActivity)}</span>.
+          Raw event detail uses a rolling {data.rawRetentionDays}-day retention window.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Registration conversion" value={formatPercent(totalRegistrationTraffic ? totalRegistrationCompleted / totalRegistrationTraffic * 100 : 0)} helper={`${formatNumber(totalRegistrationCompleted)} completed / ${formatNumber(totalRegistrationTraffic)} visits`} />
         <StatCard label="Sign-in conversion" value={formatPercent(totalSignInTraffic ? totalSignInCompleted / totalSignInTraffic * 100 : 0)} helper={`${formatNumber(totalSignInCompleted)} completed / ${formatNumber(totalSignInTraffic)} visits`} />
@@ -1870,17 +1948,6 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
               <Bar dataKey="signInCompleted" name="Completed" fill="#7c3aed" radius={[6, 6, 0, 0]} />
               <Line type="monotone" dataKey="signInConversion" name="Conversion rate" stroke="#16a34a" strokeWidth={2} dot={false} />
             </ComposedChart>
-          </ResponsiveChart>
-        </Panel>
-        <Panel title="Event RSVPs over time" subtitle="Portal event registrations">
-          <ResponsiveChart height={280}>
-            <BarChart data={rsvpTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={tooltipFormatter} />
-              <Bar dataKey="rsvps" name="RSVPs" fill="#2563eb" radius={[6, 6, 0, 0]} />
-            </BarChart>
           </ResponsiveChart>
         </Panel>
         <Panel title="Portal traffic by device" subtitle="Sessions from retained first-party Portal analytics events">
@@ -1957,22 +2024,6 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
           ) : (
             <EmptyState title="No named clicks yet" description="Named click rows will appear after members interact with tracked Portal buttons and links." />
           )}
-        </Panel>
-        <Panel title="Recent RSVPs" subtitle="Who RSVPed and when" className="lg:col-span-2">
-          <SimpleTable
-            columns={[
-              { key: "member", label: "Member" },
-              { key: "email", label: "Email" },
-              { key: "event", label: "Event" },
-              { key: "created", label: "RSVP date" },
-            ]}
-            rows={data.recentRsvps.slice(0, 20).map((row) => ({
-              member: row.memberName,
-              email: row.memberEmail || "-",
-              event: truncate(row.eventTitle, 60),
-              created: formatDate(row.createdAt),
-            }))}
-          />
         </Panel>
         <Panel title="Recent session samples" subtitle="Retained for short-term admin investigation" className="lg:col-span-2">
           {data.recentSessions.length ? (
