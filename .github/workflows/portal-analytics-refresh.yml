@@ -57,6 +57,7 @@ jobs:
           INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
           INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
           META_APP_ID: ${{ secrets.META_APP_ID }}
           META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
           GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
@@ -272,7 +273,7 @@ jobs:
             ($externalSources | map(.id)) as $externalIds |
             ($externalSources + ($functionSources | map(select(.id as $id | ($externalIds | index($id) | not))))) as $sources |
             if ($sources | length) > 0 then
-              [$sources[] | "• \(.label): \(.status)" + (if .note then " — " + (.note | tostring | gsub("\\n"; " ") | .[0:120]) else "" end)] | join("\n")
+              [$sources[] | "• \(.label): \(.status)" + (if .note then " — " + (.note | tostring | gsub("\\n"; " ") | .[0:300]) else "" end)] | join("\n")
             else
               env.SOURCE_SUMMARY // "No source status available."
             end
@@ -280,7 +281,7 @@ jobs:
 
           DETAIL_TEXT=$(echo "${DETAIL_SUMMARY:-}" | jq -r '
             if .upserted != null then
-              "Private detail rows upserted: \(.upserted) (" + ((.bySource // {}) | to_entries | map("\(.key): \(.value)") | join(", ")) + ")"
+              "Private detail rows upserted: \(.upserted) (" + ((.bySource // {}) | to_entries | map("\(.key): \(.value)") | join(", ")) + "); social snapshots upserted: \(.socialSnapshotsUpserted // 0)"
             else
               "Private detail row upload did not run."
             end

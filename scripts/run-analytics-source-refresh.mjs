@@ -24,7 +24,7 @@ function loadEnvFile(path) {
 loadEnvFile(resolve(projectDir, ".env"))
 loadEnvFile(resolve(projectDir, ".env.local"))
 
-const sourceGroups = [
+export const sourceGroups = [
   {
     id: "mailchimp",
     label: "Mailchimp",
@@ -34,16 +34,20 @@ const sourceGroups = [
     lastPullFiles: ["mailchimp_last_pull.json", "mailchimp_campaigns.json", "mailchimp_lists.json", "mailchimp_account.json"],
   },
   {
-    id: "meta",
-    label: "Instagram / Facebook",
-    command: ["python3", "scripts/instagram_pull.py"],
+    id: "instagram",
+    label: "Instagram",
+    command: ["python3", "scripts/instagram_pull.py", "--platform", "instagram"],
     timeoutSeconds: 90,
-    requiredEnv: ["INSTAGRAM_ACCESS_TOKEN"],
-    lastPullFiles: ["instagram_last_pull.json", "facebook_last_pull.json", "social_stats.json"],
-    expandsTo: [
-      { id: "instagram", label: "Instagram", lastPullFiles: ["instagram_last_pull.json", "social_stats.json"] },
-      { id: "facebook", label: "Facebook", lastPullFiles: ["facebook_last_pull.json", "social_stats.json"] },
-    ],
+    requiredEnv: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_BUSINESS_ACCOUNT_ID"],
+    lastPullFiles: ["instagram_last_pull.json", "social_stats.json"],
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    command: ["python3", "scripts/instagram_pull.py", "--platform", "facebook"],
+    timeoutSeconds: 90,
+    requiredEnv: ["FACEBOOK_PAGE_ID"],
+    lastPullFiles: ["facebook_last_pull.json", "social_stats.json"],
   },
   {
     id: "website",
@@ -84,6 +88,14 @@ function firstLastPull(files) {
     const payload = readJson(resolve(dataDir, file))
     const value = payload?.last_pull ?? payload?.pulled_at ?? payload?.lastPull ?? payload?.timestamp ?? payload?.updated_at
     if (typeof value === "string" && value.trim()) return value
+  }
+  return null
+}
+
+function firstLastPullPayload(files) {
+  for (const file of files) {
+    const payload = readJson(resolve(dataDir, file))
+    if (payload && typeof payload === "object") return payload
   }
   return null
 }
@@ -146,14 +158,22 @@ function sourceStatus({ id, label, status, lastRefreshedAt, records = null, note
 }
 
 function expandedStatuses(group, status, note) {
-  const targets = group.expandsTo ?? [group]
-  return targets.map((target) => sourceStatus({
-    id: target.id,
-    label: target.label,
+  return [sourceStatus({
+    id: group.id,
+    label: group.label,
     status,
-    lastRefreshedAt: status === "success" ? firstLastPull(target.lastPullFiles ?? group.lastPullFiles) ?? nowIso() : null,
+    lastRefreshedAt: status === "success" ? firstLastPull(group.lastPullFiles) ?? nowIso() : null,
     note,
-  }))
+  })]
+}
+
+export function summarizeCommandFailure(output, fallback) {
+  const lines = String(output || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const actionable = [...lines].reverse().find((line) => /(^|\b)(ERROR|Error):/i.test(line))
+  return (actionable || lines.at(-1) || fallback).slice(0, 600)
 }
 
 function validateGroupOutput(group) {
@@ -192,13 +212,21 @@ async function runGroup(group) {
     if (result.code === 124) {
       return expandedStatuses(group, "error", `${group.label} timed out after ${group.timeoutSeconds}s`)
     }
-    return expandedStatuses(group, "error", result.output || `Exited with status ${result.code}`)
+    return expandedStatuses(
+      group,
+      "error",
+      summarizeCommandFailure(result.output, `Exited with status ${result.code}`),
+    )
   }
 
   const validationError = validateGroupOutput(group)
   if (validationError) return expandedStatuses(group, "error", validationError)
 
-  return expandedStatuses(group, "success", `Pulled in ${result.durationSeconds}s`)
+  const pullPayload = firstLastPullPayload(group.lastPullFiles)
+  const successNote = typeof pullPayload?.note === "string" && pullPayload.note.trim()
+    ? `Pulled in ${result.durationSeconds}s. ${pullPayload.note.trim()}`
+    : `Pulled in ${result.durationSeconds}s`
+  return expandedStatuses(group, "success", successNote)
 }
 
 async function main() {
@@ -225,7 +253,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+}

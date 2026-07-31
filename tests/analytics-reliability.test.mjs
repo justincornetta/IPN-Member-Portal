@@ -29,6 +29,13 @@ import {
   buildOtherVariantItems,
   OTHER_WITHOUT_DETAILS,
 } from "../src/lib/admin/analytics/other-variants.ts"
+import {
+  buildFocusedPortalJourneyFlow,
+  buildPortalJourneyFlow,
+  buildPortalUtilizationData,
+  buildRegistrationStepFlow,
+  portalPageCategory,
+} from "../src/lib/admin/analytics/portal-utilization.ts"
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
 
 function snapshotFixture({ sessions = 826, donations = false } = {}) {
@@ -175,6 +182,284 @@ test("social history carries platform values and starts total after all baseline
   assert.equal(rows[0].total, null)
   assert.equal(rows[1].facebook, 20)
   assert.equal(rows[1].total, 61)
+})
+
+test("portal utilization resolves member type, rolling activity, errors, pages, and journeys", () => {
+  const event = (event_name, session_id, occurred_at, overrides = {}) => ({
+    event_name,
+    session_id,
+    occurred_at,
+    user_id: null,
+    page_path: null,
+    target_id: null,
+    target_label: null,
+    error_code: null,
+    duration_seconds: null,
+    click_count: null,
+    metadata: { deviceType: "desktop" },
+    ...overrides,
+  })
+  const memberId = "00000000-0000-0000-0000-000000000001"
+  const leaderId = "00000000-0000-0000-0000-000000000002"
+  const result = buildPortalUtilizationData({
+    now: new Date("2026-07-15T12:00:00Z"),
+    analyticsError: null,
+    profiles: [
+      {
+        id: memberId,
+        first_name: "Member",
+        last_name: "One",
+        email: "member@example.com",
+        role: null,
+        whatsapp_url: "https://wa.me/15555555555",
+        created_at: "2026-07-01T12:00:00Z",
+        last_sign_in_at: "2026-07-14T12:00:00Z",
+        mailchimp_status: "subscribed",
+      },
+      {
+        id: leaderId,
+        first_name: "Leader",
+        last_name: "One",
+        email: "leader@example.com",
+        role: "admin",
+        whatsapp_url: null,
+        created_at: "2026-07-02T12:00:00Z",
+        last_sign_in_at: "2026-07-11T10:01:00Z",
+        mailchimp_status: "unsubscribed",
+      },
+    ],
+    onboardingRows: [],
+    connections: [{
+      requester_id: memberId,
+      addressee_id: leaderId,
+      status: "accepted",
+    }],
+    analyticsEvents: [
+      event("page_view", "member-session", "2026-07-10T10:00:00Z", { page_path: "/login" }),
+      event("sign_in_success", "member-session", "2026-07-10T10:01:00Z", { page_path: "/login", user_id: memberId }),
+      event("page_view", "member-session", "2026-07-10T10:02:00Z", { page_path: "/dashboard", user_id: memberId }),
+      event("page_view", "member-session", "2026-07-10T10:02:30Z", { page_path: "/dashboard", user_id: memberId }),
+      event("page_duration", "member-session", "2026-07-10T10:03:00Z", {
+        page_path: "/dashboard",
+        user_id: memberId,
+        click_count: 1,
+        duration_seconds: 80,
+      }),
+      event("session_summary", "member-session", "2026-07-10T10:03:30Z", {
+        page_path: "/dashboard",
+        user_id: memberId,
+        click_count: 1,
+        duration_seconds: 95,
+      }),
+      event("curated_click", "member-session", "2026-07-10T10:04:00Z", {
+        page_path: "/dashboard",
+        user_id: memberId,
+        target_id: "sidebar-feedback-open",
+        target_label: "Feedback",
+      }),
+      event("page_view", "leader-session", "2026-07-11T10:00:00Z", { page_path: "/login" }),
+      event("sign_in_success", "leader-session", "2026-07-11T10:01:00Z", { page_path: "/login", user_id: leaderId }),
+      event("page_view", "leader-session", "2026-07-11T10:02:00Z", { page_path: "/dashboard/directory", user_id: leaderId }),
+      event("page_duration", "leader-session", "2026-07-11T10:03:00Z", {
+        page_path: "/dashboard/directory",
+        user_id: leaderId,
+        click_count: 1,
+        duration_seconds: 30,
+      }),
+      event("sign_in_error", "failed-session", "2026-07-12T10:00:00Z", { page_path: "/login", error_code: "Invalid login credentials" }),
+      event("page_view", "registration-session", "2026-07-13T09:59:00Z", { page_path: "/" }),
+      event("page_view", "registration-session", "2026-07-13T10:00:00Z", { page_path: "/register" }),
+      event("registration_step_view", "registration-session", "2026-07-13T10:00:01Z", { page_path: "/register", metadata: { deviceType: "desktop", step: 1, stepLabel: "Account" } }),
+      event("registration_step_view", "registration-session", "2026-07-13T10:00:10Z", { page_path: "/register", metadata: { deviceType: "desktop", step: 2, stepLabel: "Location" } }),
+      event("registration_step_view", "registration-session", "2026-07-13T10:00:20Z", { page_path: "/register", metadata: { deviceType: "desktop", step: 3, stepLabel: "Background" } }),
+      event("registration_step_view", "registration-session", "2026-07-13T10:00:30Z", { page_path: "/register", metadata: { deviceType: "desktop", step: 4, stepLabel: "About You" } }),
+      event("registration_submit", "registration-session", "2026-07-13T10:00:50Z", { page_path: "/register" }),
+      event("registration_success", "registration-session", "2026-07-13T10:01:00Z", { page_path: "/register", user_id: memberId }),
+      event("page_view", "registration-session", "2026-07-13T10:02:00Z", { page_path: "/dashboard/events", user_id: memberId }),
+      event("page_duration", "registration-session", "2026-07-13T10:02:42Z", {
+        page_path: "/dashboard/events",
+        user_id: memberId,
+        duration_seconds: 42,
+      }),
+    ],
+  })
+
+  assert.equal(result.funnel.find((row) => row.date === "2026-07-10" && row.audience === "member" && row.device === "all")?.signInTraffic, 1)
+  assert.equal(result.funnel.find((row) => row.date === "2026-07-11" && row.audience === "leadership" && row.device === "all")?.signInCompleted, 1)
+  assert.equal(result.monthlyActiveUsers.find((row) => row.date === "2026-07-15" && row.audience === "all" && row.device === "all")?.users, 2)
+  assert.equal(result.monthlyActiveUsers.find((row) => row.date === "2026-07-15" && row.audience === "all" && row.device === "all")?.members.find((member) => member.userId === memberId)?.uniqueSessions, 2)
+  assert.equal(result.pageViews.find((row) => row.date === "2026-07-10" && row.page === "Dashboard" && row.audience === "member" && row.device === "all")?.views, 1)
+  assert.equal(result.pageViews.find((row) => row.page === "Feedback" && row.audience === "member" && row.device === "all")?.views, 1)
+  assert.equal(result.errors.filter((row) => row.audience === "member").length, 0)
+  assert.equal(result.errors.find((row) => row.audience === "all")?.count, 1)
+  assert.equal(result.journeys.length, 3)
+  const registrationFlowRow = result.registrationFlow.rows.find((row) => (
+    row.date === "2026-07-13" && row.device === "all" && row.audience === "all"
+  ))
+  assert.deepEqual(registrationFlowRow && {
+    home: registrationFlowRow.home,
+    account: registrationFlowRow.account,
+    location: registrationFlowRow.location,
+    background: registrationFlowRow.background,
+    about: registrationFlowRow.about,
+    completed: registrationFlowRow.completed,
+  }, {
+    home: 1,
+    account: 1,
+    location: 1,
+    background: 1,
+    about: 1,
+    completed: 1,
+  })
+  const registrationStepFlow = buildRegistrationStepFlow(registrationFlowRow)
+  assert.equal(registrationStepFlow.nodes.find((node) => node.label === "Registration completed")?.sessions, 1)
+  assert.equal(registrationStepFlow.links.length, 5)
+  assert.equal(result.journeys.find((journey) => journey.startType === "registration")?.steps.at(-1)?.label, "Events")
+  assert.equal(result.journeys.find((journey) => journey.sessionId === "member-session")?.durationSeconds, 95)
+  assert.equal(
+    result.journeys
+      .find((journey) => journey.sessionId === "member-session")
+      ?.steps.find((step) => step.label === "Dashboard")
+      ?.durationSeconds,
+    95,
+  )
+  assert.equal(
+    result.journeys
+      .find((journey) => journey.sessionId === "member-session")
+      ?.steps.find((step) => step.label === "Feedback")
+      ?.durationSeconds,
+    null,
+  )
+  assert.equal(result.journeys.find((journey) => journey.startType === "registration")?.durationSeconds, 42)
+  const memberActivity = result.members.find((member) => member.userId === memberId)
+  assert.equal(memberActivity?.firstRegisteredAt, "2026-07-01T12:00:00Z")
+  assert.equal(memberActivity?.signInActivity.all.lastSignedInAt, "2026-07-14T12:00:00Z")
+  assert.equal(memberActivity?.signInActivity.all.signInsLast30Days, 1)
+  assert.equal(memberActivity?.connectionCount, 1)
+  assert.equal(memberActivity?.whatsappConnected, true)
+  assert.equal(memberActivity?.mailchimpStatus, "subscribed")
+  assert.equal(portalPageCategory("/dashboard/conferences/horizons-2026"), "Conferences")
+
+  const signInFlow = buildPortalJourneyFlow(result.journeys.filter((journey) => journey.startType === "sign_in"))
+  assert.equal(signInFlow.nodes.find((node) => node.step === 0)?.sessions, 2)
+  assert.equal(signInFlow.nodes.some((node) => node.label === "Dashboard"), true)
+  assert.equal(signInFlow.links.reduce((sum, link) => sum + (link.source === 0 ? link.value : 0), 0), 2)
+})
+
+test("registration flow exposes step conversion and drop-off branches", () => {
+  const flow = buildRegistrationStepFlow({
+    home: 10,
+    account: 8,
+    location: 6,
+    background: 4,
+    about: 2,
+    completed: 1,
+  })
+  assert.equal(flow.nodes.find((node) => node.label === "Step 2 · Location")?.sessions, 6)
+  assert.equal(flow.nodes.find((node) => node.label === "Exited before Step 1 · Account")?.sessions, 2)
+  assert.equal(flow.nodes.find((node) => node.label === "Exited after Step 4 · About You")?.sessions, 1)
+  assert.equal(flow.nodes.find((node) => node.label === "Registration completed")?.percentOfPrior, 50)
+})
+
+test("member journey flow reveals five steps at a time and retains end-session branches", () => {
+  const baseJourney = {
+    memberName: "Test Member",
+    memberEmail: "member@example.com",
+    audience: "member",
+    device: "desktop",
+    startType: "sign_in",
+    startedAt: "2026-07-30T12:00:00Z",
+    lastSeenAt: "2026-07-30T12:15:00Z",
+    durationSeconds: 900,
+  }
+  const startStep = {
+    occurredAt: "2026-07-30T12:00:00Z",
+    eventName: "sign_in_success",
+    label: "Signed in",
+    page: "/login",
+    durationSeconds: null,
+  }
+  const longJourney = {
+    ...baseJourney,
+    sessionId: "long-session",
+    steps: [
+      startStep,
+      ...Array.from({ length: 7 }, (_, index) => ({
+        occurredAt: `2026-07-30T12:0${index + 1}:00Z`,
+        eventName: "page_view",
+        label: `Page ${index + 1}`,
+        page: `/page-${index + 1}`,
+        durationSeconds: 60,
+      })),
+    ],
+  }
+  const shortJourney = {
+    ...baseJourney,
+    sessionId: "short-session",
+    steps: [startStep],
+  }
+
+  const firstFiveSteps = buildPortalJourneyFlow([longJourney, shortJourney], 6, 5)
+  assert.equal(firstFiveSteps.totalSteps, 9)
+  assert.equal(firstFiveSteps.maxStep, 4)
+  assert.equal(firstFiveSteps.truncatedSessions, 1)
+  assert.equal(firstFiveSteps.nodes.find((node) => node.label === "End session")?.step, 1)
+  assert.equal(firstFiveSteps.nodes.filter((node) => node.label === "End session").reduce((sum, node) => sum + node.sessions, 0), 1)
+
+  const allSteps = buildPortalJourneyFlow([longJourney, shortJourney], 6, 10)
+  assert.equal(allSteps.maxStep, 8)
+  assert.equal(allSteps.truncatedSessions, 0)
+  assert.equal(allSteps.nodes.find((node) => node.label === "End session" && node.step === 8)?.sessions, 1)
+})
+
+test("member journey flow keeps repeated events scoped to their parent path", () => {
+  const baseJourney = {
+    memberName: "Test Member",
+    memberEmail: "member@example.com",
+    audience: "member",
+    device: "desktop",
+    startType: "sign_in",
+    startedAt: "2026-07-30T12:00:00Z",
+    lastSeenAt: "2026-07-30T12:15:00Z",
+    durationSeconds: 900,
+  }
+  const journey = (sessionId, branch) => ({
+    ...baseJourney,
+    sessionId,
+    steps: [
+      { occurredAt: "2026-07-30T12:00:00Z", eventName: "sign_in_success", label: "Signed in", page: "/login", durationSeconds: null },
+      { occurredAt: "2026-07-30T12:01:00Z", eventName: "page_view", label: branch, page: `/${branch}`, durationSeconds: 60 },
+      { occurredAt: "2026-07-30T12:02:00Z", eventName: "page_view", label: "Shared destination", page: "/shared", durationSeconds: 60 },
+    ],
+  })
+  const fullFlow = buildPortalJourneyFlow([
+    journey("branch-a", "Branch A"),
+    journey("branch-b", "Branch B"),
+  ])
+  const repeatedNodes = fullFlow.nodes.filter((node) => node.label === "Shared destination")
+  assert.equal(repeatedNodes.length, 2)
+  assert.equal(new Set(repeatedNodes.map((node) => node.parentId)).size, 2)
+
+  const focusedFlow = buildFocusedPortalJourneyFlow(fullFlow)
+  assert.deepEqual(
+    focusedFlow.nodes.filter((node) => node.step === 1).map((node) => node.label),
+    ["Branch A", "Branch B"],
+  )
+  assert.deepEqual(
+    focusedFlow.nodes.filter((node) => node.step === 2).map((node) => node.label),
+    ["Shared destination"],
+  )
+  assert.equal(focusedFlow.nodes.find((node) => node.label === "Branch A")?.selected, true)
+  assert.equal(focusedFlow.nodes.find((node) => node.label === "Branch B")?.selected, false)
+
+  const branchB = fullFlow.nodes.find((node) => node.label === "Branch B")
+  assert.ok(branchB)
+  const branchBFlow = buildFocusedPortalJourneyFlow(fullFlow, { 1: branchB.id })
+  assert.equal(branchBFlow.nodes.find((node) => node.label === "Branch B")?.selected, true)
+  assert.equal(
+    branchBFlow.nodes.find((node) => node.label === "Shared destination")?.parentId,
+    branchB.id,
+  )
 })
 
 test("invalid GA4 candidates retain last-known-good data and remove donations", () => {

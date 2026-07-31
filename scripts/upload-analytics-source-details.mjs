@@ -392,16 +392,19 @@ async function main() {
   loadEnvFile(resolve(projectDir, ".env.local"))
   mkdirSync(dataDir, { recursive: true })
 
-  const records = [
+  const socialOnly = process.argv.includes("--social-only")
+
+  const records = socialOnly ? [] : [
     ...buildZoomRecords(),
     ...buildZoomBackfillRecords(),
     ...buildEventbriteRecords(),
   ]
-  const cumulativeSources = ["zoom", "eventbrite"]
+  const cumulativeSources = socialOnly ? [] : ["zoom", "eventbrite"]
   const previousCumulativeBySource = await countSourceRecords(cumulativeSources)
 
   const summary = {
     generatedAt: new Date().toISOString(),
+    mode: socialOnly ? "social_only" : "all_sources",
     recordsBuilt: records.length,
     bySource: records.reduce((acc, record) => {
       const source = record.source

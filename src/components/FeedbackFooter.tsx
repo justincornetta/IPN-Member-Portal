@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
+import { trackPortalEvent } from "@/lib/portal-analytics/client"
 
 type FeedbackType = "bug" | "feedback" | "suggestion"
 
@@ -46,6 +47,11 @@ export function FeedbackForm({
         const data = await res.json().catch(() => ({}))
         throw new Error((data as { error?: string }).error ?? "Something went wrong")
       }
+      trackPortalEvent("curated_click", {
+        targetId: "feedback-submitted",
+        targetLabel: "Feedback submitted",
+        metadata: { feedbackType: type },
+      })
       setStatus("success")
     } catch (err) {
       setStatus("error")

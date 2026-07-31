@@ -206,6 +206,9 @@ function NavContent({
 
         <button
           type="button"
+          data-analytics-event="curated_click"
+          data-analytics-id="sidebar-feedback-open"
+          data-analytics-label="Feedback"
           onClick={() => {
             window.dispatchEvent(new Event("ipn:open-feedback"))
             onClose?.()

@@ -5,13 +5,14 @@ import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
 import { buildMemberDirectoryData } from "@/lib/admin/analytics/member-directory"
+import { buildPortalUtilizationData } from "@/lib/admin/analytics/portal-utilization"
 import { getLatestPortalAnalyticsRefresh } from "@/lib/portal-analytics/rollup"
 import {
   assembleServerEventAnalytics,
   type AnalyticsSourceRecord,
 } from "@/lib/admin/analytics/events"
 import AdminClient from "./AdminClient"
-import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
+import type { MemberInsightsData, PortalAnalyticsEvent } from "./AnalyticsDashboardShell"
 import type {
   AnalyticsLocationGeocodeRow,
   LegacyMemberSotImportRow,
@@ -49,6 +50,7 @@ type PortalProfileRow = {
   referral_source: string | null
   referral_source_other?: string | null
   mailchimp_status: string | null
+  role: string | null
   created_at: string | null
   education?: PortalEducationRow[]
 }
@@ -91,11 +93,23 @@ type OnboardingProgressRow = {
   whatsapp_completed_at: string | null
 }
 
+type PortalAuthUserRow = {
+  id: string
+  created_at: string | null
+  last_sign_in_at: string | null
+}
+
+type PortalConnectionRow = {
+  requester_id: string
+  addressee_id: string
+  status: string
+}
+
 const LEGACY_MEMBER_SOT_SELECT =
   "id, import_id, legacy_person_id, normalized_email, original_email, first_name, last_name, full_name, affiliation, country, state, city, self_description, primary_field, psychedelic_field_status, psychedelic_field_barriers, current_role_and_goals, ipn_inspiration, referral_source, channels_present, channel_count, in_form, in_mailchimp, in_eventbrite, in_zoom, in_oldapp, in_drive_historical, first_seen_at, last_seen_at, mailchimp_id, mailchimp_audiences, mailchimp_status, eventbrite_event_count, eventbrite_last_event_date, zoom_registrations, zoom_attended, zoom_last_event_date, zoom_total_minutes, zoom_attendance_status, oldapp_user_id, date_of_birth, gender, race, oldapp_signup_location, engagement_status, notes, raw_legacy, imported_at"
 
 const PORTAL_PROFILE_SELECT =
-  "id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, created_at"
+  "id, first_name, last_name, email, persona, affiliation, field, interest_tags, school, country, state, city, city_lat, city_lng, is_discoverable, whatsapp_url, linkedin_url, bio, psychedelic_field_status, psychedelic_field_barriers, role_and_goals, inspiration, referral_source, mailchimp_status, role, created_at"
 
 async function fetchPortalProfiles(admin: ReturnType<typeof createAdminClient>) {
   const { data, error } = await admin
@@ -136,18 +150,9 @@ async function fetchPortalProfiles(admin: ReturnType<typeof createAdminClient>) 
   }))
 }
 
-function dayKey(value: string | null | undefined) {
-  const date = value ? new Date(value) : null
-  return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : null
-}
-
 function monthKey(value: string | null | undefined) {
   const date = value ? new Date(value) : null
   return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 7) : null
-}
-
-function percent(numerator: number, denominator: number) {
-  return denominator ? Math.round((numerator / denominator) * 1000) / 10 : 0
 }
 
 function retentionCutoffIso(days: number) {
@@ -158,12 +163,6 @@ function memberName(profile: PortalProfileRow | undefined) {
   if (!profile) return "Unknown member"
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim()
   return name || profile.email || "Unknown member"
-}
-
-function analyticsDevice(metadata: Record<string, unknown> | null) {
-  const deviceType = typeof metadata?.deviceType === "string" ? metadata.deviceType.toLowerCase() : ""
-  if (deviceType === "desktop" || deviceType === "mobile" || deviceType === "tablet") return deviceType
-  return "unknown"
 }
 
 function buildRegistrationTrend(profiles: PortalProfileRow[]): MemberInsightsData["registrationTrend"] {
@@ -180,321 +179,6 @@ function buildRegistrationTrend(profiles: PortalProfileRow[]): MemberInsightsDat
       cumulative += registrations
       return { month, registrations, cumulative }
     })
-}
-
-function buildPortalUtilizationData({
-  analyticsEvents,
-  analyticsError,
-  profiles,
-  onboardingRows,
-  eventRegistrations,
-  eventRows,
-}: {
-  analyticsEvents: PortalAnalyticsEventRow[]
-  analyticsError: string | null
-  profiles: PortalProfileRow[]
-  onboardingRows: OnboardingProgressRow[]
-  eventRegistrations: EventRegistrationRow[]
-  eventRows: EventLookupRow[]
-}): PortalUtilizationData {
-  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
-  const eventsById = new Map(eventRows.map((event) => [event.id, event]))
-  const funnelByDay = new Map<string, PortalUtilizationData["funnel"][number]>()
-  const errorsByKey = new Map<string, PortalUtilizationData["errors"][number]>()
-  const deviceStats = new Map<string, { sessions: Set<string>; users: Set<string> }>()
-  const pageStats = new Map<string, {
-    sessions: Set<string>
-    users: Set<string>
-    duration: number
-    durationSamples: number
-    clicks: number
-    device: string
-  }>()
-  const pageDurationByVisit = new Map<string, {
-    page: string
-    device: string
-    sessionKey: string
-    userId: string | null
-    durationSeconds: number
-    clickCount: number
-  }>()
-  const clickStats = new Map<string, {
-    clickName: string
-    page: string
-    device: string
-    clicks: number
-    users: Set<string>
-    sessions: Set<string>
-  }>()
-  const sessionSummaryByVisit = new Map<string, {
-    sessionKey: string
-    page: string
-    durationSeconds: number
-    clickCount: number
-  }>()
-  const sessions = new Map<string, {
-    sessionId: string
-    userId: string | null
-    startedAt: string
-    lastSeenAt: string
-    pages: Set<string>
-    clicks: number
-    durationSeconds: number
-    lastPage: string
-  }>()
-
-  const getFunnelDay = (date: string, device: string) => {
-    const key = `${date}:${device}`
-    const existing = funnelByDay.get(key)
-    if (existing) return existing
-    const created = {
-      date,
-      device,
-      registrationTraffic: 0,
-      registrationCompleted: 0,
-      registrationConversion: 0,
-      signInTraffic: 0,
-      signInCompleted: 0,
-      signInConversion: 0,
-    }
-    funnelByDay.set(key, created)
-    return created
-  }
-
-  for (const event of analyticsEvents) {
-    const date = dayKey(event.occurred_at)
-    if (!date) continue
-    const page = event.page_path || "Unknown"
-    const sessionKey = event.session_id || `${event.user_id ?? "anonymous"}:${date}:${page}`
-    const visitKey = `${sessionKey}:${page}`
-    const device = analyticsDevice(event.metadata)
-    const allDevicesFunnelDay = getFunnelDay(date, "all")
-    const deviceFunnelDay = getFunnelDay(date, device)
-
-    const currentDevice = deviceStats.get(device) ?? { sessions: new Set<string>(), users: new Set<string>() }
-    currentDevice.sessions.add(sessionKey)
-    if (event.user_id) currentDevice.users.add(event.user_id)
-    deviceStats.set(device, currentDevice)
-
-    if (event.event_name === "page_view" && page.startsWith("/register")) {
-      allDevicesFunnelDay.registrationTraffic += 1
-      deviceFunnelDay.registrationTraffic += 1
-    }
-    if (event.event_name === "registration_success") {
-      allDevicesFunnelDay.registrationCompleted += 1
-      deviceFunnelDay.registrationCompleted += 1
-    }
-    if (event.event_name === "page_view" && page.startsWith("/login")) {
-      allDevicesFunnelDay.signInTraffic += 1
-      deviceFunnelDay.signInTraffic += 1
-    }
-    if (event.event_name === "sign_in_success") {
-      allDevicesFunnelDay.signInCompleted += 1
-      deviceFunnelDay.signInCompleted += 1
-    }
-
-    if (event.event_name === "registration_error" || event.event_name === "sign_in_error") {
-      const errorCode = event.error_code || event.event_name
-      const key = `${page}:${errorCode}`
-      const existing = errorsByKey.get(key) ?? { page, errorCode, count: 0 }
-      existing.count += 1
-      errorsByKey.set(key, existing)
-    }
-
-    if (event.event_name === "page_duration" || event.event_name === "session_summary" || event.event_name === "page_view") {
-      const pageKey = `${page}:${device}`
-      const existingPage = pageStats.get(pageKey) ?? {
-        sessions: new Set<string>(),
-        users: new Set<string>(),
-        duration: 0,
-        durationSamples: 0,
-        clicks: 0,
-        device,
-      }
-      existingPage.sessions.add(sessionKey)
-      if (event.user_id) existingPage.users.add(event.user_id)
-      pageStats.set(pageKey, existingPage)
-    }
-
-    if (event.event_name === "page_duration") {
-      const existingVisit = pageDurationByVisit.get(visitKey)
-      pageDurationByVisit.set(visitKey, {
-        page,
-        device,
-        sessionKey,
-        userId: event.user_id,
-        durationSeconds: Math.max(existingVisit?.durationSeconds ?? 0, event.duration_seconds ?? 0),
-        clickCount: Math.max(existingVisit?.clickCount ?? 0, event.click_count ?? 0),
-      })
-    }
-
-    if (event.event_name === "curated_click" || event.event_name === "whatsapp_cta_clicked") {
-      const clickName = event.target_label || event.target_id || event.event_name
-      const key = `${page}:${clickName}:${device}`
-      const existingClick = clickStats.get(key) ?? {
-        clickName,
-        page,
-        device,
-        clicks: 0,
-        users: new Set<string>(),
-        sessions: new Set<string>(),
-      }
-      existingClick.clicks += 1
-      existingClick.sessions.add(sessionKey)
-      if (event.user_id) existingClick.users.add(event.user_id)
-      clickStats.set(key, existingClick)
-    }
-
-    if (event.event_name === "session_summary") {
-      const existingSummary = sessionSummaryByVisit.get(visitKey)
-      sessionSummaryByVisit.set(visitKey, {
-        sessionKey,
-        page,
-        durationSeconds: Math.max(existingSummary?.durationSeconds ?? 0, event.duration_seconds ?? 0),
-        clickCount: Math.max(existingSummary?.clickCount ?? 0, event.click_count ?? 0),
-      })
-    }
-
-    const existingSession = sessions.get(sessionKey) ?? {
-      sessionId: sessionKey,
-      userId: event.user_id,
-      startedAt: event.occurred_at,
-      lastSeenAt: event.occurred_at,
-      pages: new Set<string>(),
-      clicks: 0,
-      durationSeconds: 0,
-      lastPage: page,
-    }
-    if (event.user_id) existingSession.userId = event.user_id
-    if (event.occurred_at < existingSession.startedAt) existingSession.startedAt = event.occurred_at
-    if (event.occurred_at >= existingSession.lastSeenAt) {
-      existingSession.lastSeenAt = event.occurred_at
-      existingSession.lastPage = page
-    }
-    existingSession.pages.add(page)
-    sessions.set(sessionKey, existingSession)
-  }
-
-  for (const visit of pageDurationByVisit.values()) {
-    const pageKey = `${visit.page}:${visit.device}`
-    const existingPage = pageStats.get(pageKey) ?? {
-      sessions: new Set<string>(),
-      users: new Set<string>(),
-      duration: 0,
-      durationSamples: 0,
-      clicks: 0,
-      device: visit.device,
-    }
-    existingPage.sessions.add(visit.sessionKey)
-    if (visit.userId) existingPage.users.add(visit.userId)
-    if (visit.durationSeconds) {
-      existingPage.duration += visit.durationSeconds
-      existingPage.durationSamples += 1
-    }
-    existingPage.clicks += visit.clickCount
-    pageStats.set(pageKey, existingPage)
-  }
-
-  for (const summary of sessionSummaryByVisit.values()) {
-    const existingSession = sessions.get(summary.sessionKey)
-    if (!existingSession) continue
-    existingSession.durationSeconds += summary.durationSeconds
-    existingSession.clicks += summary.clickCount
-  }
-
-  const funnel = Array.from(funnelByDay.values())
-    .map((row) => ({
-      ...row,
-      registrationConversion: percent(row.registrationCompleted, row.registrationTraffic),
-      signInConversion: percent(row.signInCompleted, row.signInTraffic),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date))
-
-  const topPages = Array.from(pageStats.entries())
-    .map(([key, stats]) => ({
-      page: key.slice(0, -(stats.device.length + 1)),
-      device: stats.device,
-      sessions: stats.sessions.size,
-      users: stats.users.size,
-      avgDurationSeconds: stats.durationSamples ? Math.round(stats.duration / stats.durationSamples) : 0,
-      clicks: stats.clicks,
-      clicksPerSession: stats.sessions.size ? Math.round((stats.clicks / stats.sessions.size) * 10) / 10 : 0,
-    }))
-    .sort((a, b) => b.sessions - a.sessions || b.clicks - a.clicks)
-
-  const topClicks = Array.from(clickStats.values())
-    .map((stats) => ({
-      clickName: stats.clickName,
-      page: stats.page,
-      device: stats.device,
-      clicks: stats.clicks,
-      users: stats.users.size,
-      sessions: stats.sessions.size,
-    }))
-    .sort((a, b) => b.clicks - a.clicks || b.users - a.users || a.clickName.localeCompare(b.clickName))
-
-  const rsvpsByDay = eventRegistrations.reduce<Record<string, number>>((acc, row) => {
-    const date = dayKey(row.created_at)
-    if (date) acc[date] = (acc[date] ?? 0) + 1
-    return acc
-  }, {})
-
-  return {
-    generatedAt: new Date().toISOString(),
-    rawRetentionDays: 90,
-    trackingAvailable: !analyticsError,
-    trackingError: analyticsError,
-    funnel,
-    errors: Array.from(errorsByKey.values()).sort((a, b) => b.count - a.count),
-    topPages,
-    topClicks,
-    recentSessions: Array.from(sessions.values())
-      .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))
-      .slice(0, 50)
-      .map((session) => {
-        const profile = session.userId ? profilesById.get(session.userId) : undefined
-        return {
-          sessionId: session.sessionId,
-          memberName: memberName(profile),
-          memberEmail: profile?.email ?? "",
-          startedAt: session.startedAt,
-          lastSeenAt: session.lastSeenAt,
-          pages: session.pages.size,
-          clicks: session.clicks,
-          durationSeconds: session.durationSeconds,
-          lastPage: session.lastPage,
-        }
-      }),
-    rsvpTrend: Object.entries(rsvpsByDay)
-      .map(([date, rsvps]) => ({ date, rsvps }))
-      .sort((a, b) => a.date.localeCompare(b.date)),
-    trafficDevices: Array.from(deviceStats.entries())
-      .map(([label, stats]) => ({
-        label,
-        sessions: stats.sessions.size,
-        users: stats.users.size,
-      }))
-      .sort((a, b) => b.sessions - a.sessions || a.label.localeCompare(b.label)),
-    recentRsvps: eventRegistrations
-      .slice()
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, 50)
-      .map((registration) => {
-        const profile = profilesById.get(registration.user_id)
-        const event = eventsById.get(registration.event_id)
-        return {
-          memberName: memberName(profile),
-          memberEmail: profile?.email ?? "",
-          eventTitle: event?.title ?? event?.slug ?? registration.event_id,
-          createdAt: registration.created_at,
-        }
-      }),
-    whatsapp: {
-      linkedProfiles: profiles.filter((profile) => Boolean(profile.whatsapp_url?.trim())).length,
-      onboardingComplete: onboardingRows.filter((row) => Boolean(row.whatsapp_completed_at)).length,
-      totalMembers: profiles.length,
-    },
-  }
 }
 
 function buildPortalAnalyticsEvents({
@@ -584,6 +268,23 @@ async function fetchPortalAnalyticsEvents(
   }
 }
 
+async function fetchPortalAuthUsers(admin: ReturnType<typeof createAdminClient>) {
+  const perPage = 1000
+  const users: PortalAuthUserRow[] = []
+
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+    if (error) return { users, error }
+    const pageUsers = data.users.map((user) => ({
+      id: user.id,
+      created_at: user.created_at ?? null,
+      last_sign_in_at: user.last_sign_in_at ?? null,
+    }))
+    users.push(...pageUsers)
+    if (pageUsers.length < perPage) return { users, error: null }
+  }
+}
+
 export default async function AdminPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -611,7 +312,7 @@ export default async function AdminPage() {
   const leadership = (leadershipRows ?? []) as AdminMemberProfile[]
 
   // Member insights (all admin tiers — recent signups only for superadmin)
-  const [profileRows, educationRowsResult, geocodesRowsResult] = await Promise.all([
+  const [profileRows, educationRowsResult, geocodesRowsResult, authUsersResult] = await Promise.all([
     fetchPortalProfiles(admin),
     admin
       .from("member_education")
@@ -620,6 +321,7 @@ export default async function AdminPage() {
     admin
       .from("analytics_location_geocodes")
       .select("location_key, city, state, country, latitude, longitude, precision"),
+    fetchPortalAuthUsers(admin),
   ])
   if (educationRowsResult.error) {
     console.warn("Member education data is unavailable in admin analytics; continuing with legacy school fields.", {
@@ -639,8 +341,16 @@ export default async function AdminPage() {
     current.push(education)
     educationByUser.set(education.user_id, current)
   }
+  if (authUsersResult.error) {
+    console.warn("Supabase Auth activity is unavailable in admin analytics; falling back to tracked sign-in events.", {
+      message: authUsersResult.error.message,
+    })
+  }
+  const authUsersById = new Map(authUsersResult.users.map((user) => [user.id, user]))
   const allProfiles = profileRows.map((profile) => ({
     ...profile,
+    created_at: authUsersById.get(profile.id)?.created_at ?? profile.created_at,
+    last_sign_in_at: authUsersById.get(profile.id)?.last_sign_in_at ?? null,
     education: educationByUser.get(profile.id) ?? [],
   }))
   const total = allProfiles.length
@@ -723,6 +433,7 @@ export default async function AdminPage() {
     eventRegistrationsResult,
     eventRowsResult,
     analyticsSourceRecordsResult,
+    connectionsResult,
   ] = await Promise.all([
     fetchPortalAnalyticsEvents(admin, ninetyDaysAgo),
     admin
@@ -744,17 +455,25 @@ export default async function AdminPage() {
       .select("source, record_type, source_record_id, event_source_id, event_name, event_started_at, occurred_at, registered_at, name, email, normalized_email, attended, duration_minutes, details")
       .eq("source", "zoom")
       .limit(10000),
+    admin
+      .from("connections")
+      .select("requester_id, addressee_id, status"),
   ])
   const eventRegistrations = (eventRegistrationsResult.data ?? []) as EventRegistrationRow[]
   const eventRows = (eventRowsResult.data ?? []) as EventLookupRow[]
+  if (connectionsResult.error) {
+    console.warn("Member connection counts are unavailable in admin analytics.", {
+      code: connectionsResult.error.code,
+      message: connectionsResult.error.message,
+    })
+  }
 
   const portalUtilization = buildPortalUtilizationData({
     analyticsEvents: analyticsEventsResult.rows,
     analyticsError: analyticsEventsResult.error?.message ?? null,
     profiles: allProfiles,
     onboardingRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],
-    eventRegistrations,
-    eventRows,
+    connections: (connectionsResult.data ?? []) as PortalConnectionRow[],
   })
   const portalEvents = buildPortalAnalyticsEvents({
     eventRows,

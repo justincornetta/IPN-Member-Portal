@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, Suspense } from "react"
+import { useEffect, useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -467,6 +467,15 @@ function RegisterPageContent() {
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    trackPortalEvent("registration_step_view", {
+      metadata: {
+        step,
+        stepLabel: STEPS[step - 1],
+      },
+    })
+  }, [step])
 
   function update(key: StringFormKey, value: string) {
     setData((prev) => ({ ...prev, [key]: value }))
