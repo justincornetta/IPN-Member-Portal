@@ -330,7 +330,7 @@ export default async function AdminPage() {
     })
   }
   if (geocodesRowsResult.error) {
-    console.warn("Analytics geocode cache is unavailable; continuing with profile coordinates and country centroids.", {
+    console.warn("Analytics geocode cache is unavailable; continuing with Portal profile coordinates only.", {
       code: geocodesRowsResult.error.code,
       message: geocodesRowsResult.error.message,
     })
