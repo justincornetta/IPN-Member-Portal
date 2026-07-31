@@ -310,7 +310,7 @@ function connectionRequestEmail(
     preview: `${requesterName} would like to connect with you through IPN.`,
     greeting: `Hi ${firstName(recipient)},`,
     body: [
-      `${requesterName} is interested in connecting with you through the IPN community.`,
+      `Looks like ${requesterName} from IPN wants to be your friend!`,
       "Open the Member Portal to view their profile and respond. If you accept, you’ll be able to connect with them directly either via email or WhatsApp.",
     ],
     buttonLabel: "Review connection request",
