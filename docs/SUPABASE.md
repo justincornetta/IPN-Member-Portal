@@ -305,7 +305,7 @@ Resend.
 RLS is enabled, all `anon` and `authenticated` privileges are revoked, and no
 member-facing policies exist. Only service-role server code can access the
 queue. The migration is
-`supabase/migrations/20260731160027_member_email_notifications.sql`.
+`supabase/migrations/20260731182209_member_email_notifications.sql`.
 
 ### `public.resources`
 
