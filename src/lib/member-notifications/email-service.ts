@@ -330,8 +330,8 @@ function connectionAcceptedEmail(
     preview: `${memberName} accepted your IPN connection request.`,
     greeting: `Hi ${firstName(recipient)},`,
     body: [
-      `Great news, ${memberName} accepted your connection request!`,
-      "Open the IPN Member Portal to find the contact information they’ve shared, including their email and WhatsApp if available. We hope this is the start of a valuable connection.",
+      `Looks like you made a new friend, ${memberName} accepted your connection request!`,
+      "Don't be shy, open the IPN Member Portal to find their contact information and send them a message!",
     ],
     buttonLabel: "Open your connection",
     buttonUrl: connectionsUrl(),
