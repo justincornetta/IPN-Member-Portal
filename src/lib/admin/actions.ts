@@ -10,6 +10,11 @@ import {
   mergeMemberDirectoryDetail,
   normalizeMemberEmail,
 } from "@/lib/admin/analytics/member-directory"
+import {
+  isLeadershipTeam,
+  isPortalAdminRole,
+  roleAfterLeadershipAssignment,
+} from "@/lib/admin/leadership"
 import type {
   LegacyMemberSotRow,
   PortalDirectoryProfileRow,
@@ -79,7 +84,7 @@ export async function verifyAdmin(): Promise<
     .eq("id", user.id)
     .single()
 
-  if (data?.role !== "superadmin" && data?.role !== "admin") {
+  if (!isPortalAdminRole(data?.role)) {
     return { error: "Unauthorized" }
   }
 
@@ -197,17 +202,17 @@ export type AdminMemberDetail = AdminMemberProfile & {
 const MEMBER_PROFILE_SELECT = "id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio, whatsapp_url, is_banned"
 
 export async function searchMembersForAdmin(query: string): Promise<AdminMemberProfile[]> {
-  const authError = await verifySuperadmin()
-  if (authError) return []
+  const auth = await verifyAdmin()
+  if ("error" in auth) return []
 
-  const q = query.trim()
+  const q = query.trim().replace(/[,()%]/g, " ").slice(0, 80).trim()
   if (!q) return []
 
   const admin = createAdminClient()
   const { data } = await admin
     .from("profiles")
     .select(MEMBER_PROFILE_SELECT)
-    .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+    .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
     .limit(10)
 
   return (data ?? []) as AdminMemberProfile[]
@@ -315,27 +320,33 @@ export async function assignAdminAccess(
   adminRole: string | null,
   team: string | null,
 ): Promise<{ error?: string }> {
-  const authError = await verifySuperadmin()
-  if (authError) return authError
+  const auth = await verifyAdmin()
+  if ("error" in auth) return auth
+
+  const normalizedAdminRole = clean(adminRole)?.slice(0, 120) ?? null
+  const normalizedTeam = clean(team)
+  if (normalizedTeam && !isLeadershipTeam(normalizedTeam)) {
+    return { error: "Select a valid leadership team" }
+  }
 
   const admin = createAdminClient()
 
-  const { data: target } = await admin
+  const { data: target, error: targetError } = await admin
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .single()
+  if (targetError || !target) return { error: "Member not found" }
 
-  const newRole =
-    target?.role === "superadmin"
-      ? "superadmin"
-      : adminRole || team
-        ? "admin"
-        : null
+  const newRole = roleAfterLeadershipAssignment(
+    target.role,
+    normalizedAdminRole,
+    normalizedTeam,
+  )
 
   const { error } = await admin
     .from("profiles")
-    .update({ admin_role: adminRole, team, role: newRole })
+    .update({ admin_role: normalizedAdminRole, team: normalizedTeam, role: newRole })
     .eq("id", userId)
 
   if (error) return { error: error.message }
