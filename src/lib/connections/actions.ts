@@ -72,7 +72,7 @@ export async function acceptConnection(
   if (!user) return { error: "Not authenticated" }
 
   const updatedAt = new Date().toISOString()
-  const { data: connection, error } = await supabase
+  const { data: updatedConnection, error } = await supabase
     .from("connections")
     .update({ status: "accepted", updated_at: updatedAt })
     .eq("requester_id", requesterId)
@@ -82,6 +82,24 @@ export async function acceptConnection(
     .maybeSingle()
 
   if (error) return { error: error.message }
+
+  // A duplicate/retried action may arrive after the first request committed.
+  // Re-read the accepted row so the idempotent notification queue can recover
+  // if the original request stopped after the database update.
+  let connection = updatedConnection
+  if (!connection) {
+    const { data: existingConnection, error: existingError } = await supabase
+      .from("connections")
+      .select("id, requester_id, addressee_id, updated_at")
+      .eq("requester_id", requesterId)
+      .eq("addressee_id", user.id)
+      .eq("status", "accepted")
+      .maybeSingle()
+
+    if (existingError) return { error: existingError.message }
+    connection = existingConnection
+  }
+
   if (!connection) return {}
   await notifyConnectionRequestAccepted({
     connectionId: connection.id,
