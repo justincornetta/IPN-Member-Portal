@@ -78,10 +78,12 @@ next 5-minute run.
 
 To queue an existing event for the allowlisted test recipients, keep
 `MEMBER_NOTIFICATION_MODE=test` and manually POST its exact slug to the
-function with the existing content-sync secret:
+on-demand test function with the existing content-sync secret. This endpoint is
+separate from the scheduled retry worker because Netlify scheduled functions do
+not expose a public invocation URL:
 
 ```bash
-curl -X POST "https://<deploy-url>/.netlify/functions/send-member-notifications" \
+curl -X POST "https://<deploy-url>/.netlify/functions/queue-member-event-notification" \
   -H "x-content-sync-secret: <CONTENT_SYNC_SECRET>" \
   -H "content-type: application/json" \
   --data '{"eventSlug":"Consciousness"}'
