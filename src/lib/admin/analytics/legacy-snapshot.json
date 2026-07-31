@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-30T12:16:26.169Z",
+  "generatedAt": "2026-07-31T12:32:06.732Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-30T12:14:47.477609+00:00",
+      "lastPull": "2026-07-31T12:30:15.943676+00:00",
       "note": "1890 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-30T12:14:50.671872+00:00",
+      "lastPull": "2026-07-31T12:30:23.209629+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-07-30T12:14:50.671872+00:00",
+      "lastPull": "2026-07-31T12:30:23.209629+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-30T12:14:59.246055+00:00",
+      "lastPull": "2026-07-31T12:30:32.383617+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-30T12:15:13.415180+00:00",
+      "lastPull": "2026-07-31T12:30:50.159687+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-07-30T12:16:22.848325+00:00",
+      "lastPull": "2026-07-31T12:32:03.278013+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-07-30T12:16:23.265316+00:00",
+      "lastPull": "2026-07-31T12:32:03.607202+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 333,
-      "pulledAt": "2026-07-30T12:14:47.477609+00:00"
+      "pulledAt": "2026-07-31T12:30:15.943676+00:00"
     },
     "lists": [
       {
@@ -14898,6 +14898,16 @@
     "history": [],
     "instagramPosts": [
       {
+        "id": "18111992425975696",
+        "date": "2026-07-31T03:09:59+0000",
+        "type": "CAROUSEL_ALBUM",
+        "caption": "🏆 ANNOUNCING\nPsychedelX 2026: People’s Choice Award\n\n🎉Congratulations to Mirko Vercelli & Alexandra Carelli for winning the People’s Choice Award at PsychedelX 2026! \n\n➡️You can now watch their presentations and PsychedelX 2026 recordings on IPN’s YouTube channel (link in bio)💜\n\n",
+        "likes": 20,
+        "comments": 8,
+        "engagement": 28,
+        "permalink": "https://www.instagram.com/p/DbcRCr-FGah/"
+      },
+      {
         "id": "18127144066639759",
         "date": "2026-07-02T15:57:24+0000",
         "type": "CAROUSEL_ALBUM",
@@ -14906,16 +14916,6 @@
         "comments": 3,
         "engagement": 41,
         "permalink": "https://www.instagram.com/p/DaS90AmDbCZ/"
-      },
-      {
-        "id": "18017457212698310",
-        "date": "2026-07-01T11:03:15+0000",
-        "type": "IMAGE",
-        "caption": "Join us for a lively conversation on the harmonic melodies underlying various states of consciousness, with Dr. Selen Atasoy, our final speaker on “The Shape of Consciousness” series before our Roundtable Talk with the three of our previous guests.\n\nSelen is a neuroscientist who ",
-        "likes": 14,
-        "comments": 1,
-        "engagement": 15,
-        "permalink": "https://www.instagram.com/p/DaP3DI0N4sn/"
       }
     ]
   },
@@ -14973,7 +14973,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-07-30T12:14:59.246055+00:00"
+    "pulledAt": "2026-07-31T12:30:32.383617+00:00"
   },
   "events": {
     "zoom": {
@@ -14986,7 +14986,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-07-30T12:15:13.415180+00:00"
+        "pulledAt": "2026-07-31T12:30:50.159687+00:00"
       },
       "byMonth": [
         {
@@ -15650,22 +15650,38 @@
           "participantEmails": [],
           "participants": [],
           "registrations": []
+        },
+        {
+          "id": "qmFMlZa+R5+/rlnQ6X/ikg==",
+          "topic": "IPN Community Task Force Weekly Syncs",
+          "date": "2026-07-30T22:04:08Z",
+          "program": "Other",
+          "type": "internal",
+          "attendees": 3,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 5.5,
+          "retentionPct": 27.5,
+          "repeatPct": 33.33333333333333,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
         }
       ],
       "upcomingEvents": [
         {
-          "id": "89025512753",
-          "topic": "IPN Community Task Force Weekly Syncs",
-          "date": "2026-07-30T22:00:00Z",
+          "id": "86971568145",
+          "topic": "Justin:Luke",
+          "date": "2026-08-04T22:30:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
           "registrations": []
         },
         {
-          "id": "86971568145",
-          "topic": "Justin:Luke",
-          "date": "2026-08-04T22:30:00Z",
+          "id": "89025512753",
+          "topic": "IPN Community Task Force Weekly Syncs",
+          "date": "2026-08-06T22:00:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
@@ -15688,6 +15704,15 @@
           "type": "internal",
           "registrants": 0,
           "registrations": []
+        },
+        {
+          "id": "83055225102",
+          "topic": "IPN Labs Roundtable Talk: The Science of Consciousness with Dr. Selen Atasoy, Dr. Justin Riddle, and Andrés Gómez-Emilsson",
+          "date": "2026-08-28T16:00:00Z",
+          "program": "IPN Labs",
+          "type": "public",
+          "registrants": 0,
+          "registrations": []
         }
       ]
     },
@@ -15698,7 +15723,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-07-30T12:16:22.848325+00:00"
+        "pulledAt": "2026-07-31T12:32:03.278013+00:00"
       },
       "events": [
         {
