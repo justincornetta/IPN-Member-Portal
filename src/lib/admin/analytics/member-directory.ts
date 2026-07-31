@@ -15,7 +15,6 @@ import {
 import {
   analyticsLocationKey,
   buildAnalyticsGeocodeLookup,
-  resolveAnalyticsLocation,
 } from "./geography"
 
 export type PortalEducationRow = {
@@ -447,8 +446,9 @@ function buildGeography(
     const city = row.city || "Unknown city"
     const key = normalizeLocationKey(city, row.state, row.country)
     const exactKey = normalizeLocationKey(row.city, row.state, row.country)
-    const coords = geocodeLookup.exact.get(exactKey)
-      ?? resolveAnalyticsLocation(geocodeLookup, row.city, row.state, row.country)
+    const exactCoords = geocodeLookup.exact.get(exactKey)
+    const countryCoords = geocodeLookup.countries.get(row.country.trim().toLowerCase())
+    const coords = exactCoords ?? countryCoords
     const current = groups.get(key) ?? {
       id: key,
       city,
@@ -456,6 +456,9 @@ function buildGeography(
       country: row.country,
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
+      countryLat: countryCoords?.lat ?? null,
+      countryLng: countryCoords?.lng ?? null,
+      coordinatePrecision: exactCoords ? "city" as const : countryCoords ? "country" as const : null,
       memberCount: 0,
       identifiableCount: 0,
       sourceCounts: SOURCE_LABELS.map((source) => ({ ...source, value: 0 })),

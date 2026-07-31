@@ -2,8 +2,11 @@ import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { createClient } from "@supabase/supabase-js"
 
+const cliArgs = process.argv.slice(2)
+const dryRun = cliArgs.includes("--dry-run")
+const sourceArgument = cliArgs.find((argument) => !argument.startsWith("--"))
 const sourcePath = resolve(
-  process.argv[2]
+  sourceArgument
     || process.env.LEGACY_LOCATION_GEOCODES_PATH
     || "data/location_geocodes.json",
 )
@@ -13,14 +16,9 @@ if (!existsSync(sourcePath)) {
   process.exit(0)
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.")
-}
-
 const payload = JSON.parse(readFileSync(sourcePath, "utf8"))
-const rows = Object.values(payload.locations ?? {})
+const entries = Object.values(payload.locations ?? {})
+const rows = entries
   .filter((entry) => (
     entry
     && typeof entry === "object"
@@ -40,6 +38,27 @@ const rows = Object.values(payload.locations ?? {})
     resolved_at: entry.updated_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }))
+
+if (rows.length !== entries.length) {
+  throw new Error(`Geocode cache contains ${entries.length - rows.length} invalid rows.`)
+}
+
+const locationKeys = new Set(rows.map((row) => row.location_key))
+if (locationKeys.size !== rows.length) {
+  throw new Error(`Geocode cache contains ${rows.length - locationKeys.size} duplicate location keys.`)
+}
+
+const cityRows = rows.filter((row) => row.precision === "city").length
+const countryRows = rows.length - cityRows
+console.log(`Validated ${rows.length} location geocodes (${cityRows} city, ${countryRows} country) from ${sourcePath}.`)
+
+if (dryRun) process.exit(0)
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!supabaseUrl || !serviceRoleKey) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.")
+}
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },

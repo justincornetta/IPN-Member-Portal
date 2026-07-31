@@ -157,6 +157,9 @@ export type MemberDirectoryData = {
     country: string
     lat: number | null
     lng: number | null
+    countryLat: number | null
+    countryLng: number | null
+    coordinatePrecision: "city" | "country" | null
     memberCount: number
     identifiableCount: number
     sourceCounts: { id: keyof MemberDirectorySources; label: string; value: number }[]

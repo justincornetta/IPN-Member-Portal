@@ -40,6 +40,12 @@ import type {
 import { educationLevelLabel } from "@/lib/members/education"
 import { buildCarriedSocialTrend } from "@/lib/admin/analytics/social-trend"
 import { buildOtherVariantItems } from "@/lib/admin/analytics/other-variants"
+import {
+  buildCountryMemberGeography,
+  buildFilteredMemberGeography,
+  cityMemberGeography,
+  memberGeographyCoverage,
+} from "@/lib/admin/analytics/membership-geography"
 
 const ANALYTICS_SECTIONS = [
   { id: "members", label: "Members", title: "Member analytics", description: "Live Portal membership and legacy membership source-of-truth data." },
@@ -1152,94 +1158,6 @@ function buildFilteredMemberCharts(rows: MemberDirectoryRow[], directory: Member
   }
 }
 
-function geographyKey(city: string, state: string, country: string) {
-  return [city, state, country].map((part) => part.trim().toLowerCase()).join("|")
-}
-
-function buildFilteredGeography(rows: MemberDirectoryRow[], directory: MemberDirectoryData): MemberDirectoryData["geography"] {
-  const baseById = new Map(directory.geography.map((city) => [city.id, city]))
-  const groups = new Map<string, MemberDirectoryData["geography"][number]>()
-
-  for (const row of rows) {
-    if (!row.city || !row.country) continue
-    const id = geographyKey(row.city, row.state, row.country)
-    const base = baseById.get(id)
-    const current = groups.get(id) ?? {
-      id,
-      city: row.city,
-      state: row.state,
-      country: row.country,
-      lat: base?.lat ?? null,
-      lng: base?.lng ?? null,
-      memberCount: 0,
-      identifiableCount: 0,
-      sourceCounts: MEMBER_SOURCE_LABELS.map((source) => ({ id: source.id, label: source.label, value: 0 })),
-      members: [],
-    }
-    current.memberCount += 1
-    current.identifiableCount += 1
-    current.members.push({ id: row.id, name: row.name, email: row.email, sources: row.sources })
-    for (const source of current.sourceCounts) {
-      if (row.sources[source.id]) source.value += 1
-    }
-    groups.set(id, current)
-  }
-
-  return Array.from(groups.values()).sort((a, b) => b.memberCount - a.memberCount || a.city.localeCompare(b.city))
-}
-
-function buildCountryGeography(cities: MemberDirectoryData["geography"]): MemberDirectoryData["geography"] {
-  const countries = new Map<string, MemberDirectoryData["geography"][number] & { weightedLat: number; weightedLng: number; weightedCount: number }>()
-
-  for (const city of cities) {
-    if (!city.country) continue
-    const id = `country:${city.country.toLowerCase()}`
-    const current = countries.get(id) ?? {
-      id,
-      city: "",
-      state: "",
-      country: city.country,
-      lat: null,
-      lng: null,
-      memberCount: 0,
-      identifiableCount: 0,
-      sourceCounts: MEMBER_SOURCE_LABELS.map((source) => ({ id: source.id, label: source.label, value: 0 })),
-      members: [],
-      weightedLat: 0,
-      weightedLng: 0,
-      weightedCount: 0,
-    }
-    current.memberCount += city.memberCount
-    current.identifiableCount += city.identifiableCount
-    current.members.push(...city.members)
-    if (city.lat != null && city.lng != null) {
-      current.weightedLat += city.lat * city.memberCount
-      current.weightedLng += city.lng * city.memberCount
-      current.weightedCount += city.memberCount
-    }
-    for (const source of current.sourceCounts) {
-      const citySource = city.sourceCounts.find((item) => item.id === source.id)
-      source.value += citySource?.value ?? 0
-    }
-    countries.set(id, current)
-  }
-
-  return Array.from(countries.values())
-    .map((country) => ({
-      id: country.id,
-      city: "",
-      state: "",
-      country: country.country,
-      lat: country.weightedCount ? country.weightedLat / country.weightedCount : null,
-      lng: country.weightedCount ? country.weightedLng / country.weightedCount : null,
-      memberCount: country.memberCount,
-      identifiableCount: country.identifiableCount,
-      sourceCounts: country.sourceCounts,
-      members: country.members.sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    .sort((a, b) => b.memberCount - a.memberCount || a.country.localeCompare(b.country))
-}
-
 const MEMBER_GEO_SOURCE_ID = "admin-member-geography"
 const MEMBER_GEO_CLUSTER_LAYER_ID = "admin-member-geography-clusters"
 const MEMBER_GEO_CLUSTER_COUNT_LAYER_ID = "admin-member-geography-cluster-count"
@@ -1280,7 +1198,7 @@ function buildMemberGeoJson(cities: MemberDirectoryData["geography"]): FeatureCo
   }
 }
 
-function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geography"] }) {
+function MembershipGeographyPanel({ locations }: { locations: MemberDirectoryData["geography"] }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapboxMap | null>(null)
   const [geoView, setGeoView] = useState<"city" | "country">("city")
@@ -1288,21 +1206,17 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
   const [selectedCityId, setSelectedCityId] = useState("")
   const [mapError, setMapError] = useState("")
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  const activeLocations = useMemo(() => geoView === "country" ? buildCountryGeography(cities) : cities, [cities, geoView])
+  const cityLocations = useMemo(() => cityMemberGeography(locations), [locations])
+  const activeLocations = useMemo(
+    () => geoView === "country" ? buildCountryMemberGeography(locations) : cityLocations,
+    [cityLocations, geoView, locations],
+  )
+  const coverage = useMemo(() => memberGeographyCoverage(activeLocations), [activeLocations])
   const geoJson = useMemo(() => buildMemberGeoJson(activeLocations), [activeLocations])
   const geoJsonRef = useRef(geoJson)
   const selectedLocation = selectedCityId
     ? activeLocations.find((city) => city.id === selectedCityId) ?? null
     : null
-  const totalLocatedRecords = activeLocations.reduce((sum, city) => sum + city.memberCount, 0)
-  const allLocatedRecords = cities.reduce((sum, city) => sum + city.memberCount, 0)
-  const mappedLocatedRecords = cities
-    .filter((city) => city.lat != null && city.lng != null)
-    .reduce((sum, city) => sum + city.memberCount, 0)
-  const geocodeCoverage = allLocatedRecords ? mappedLocatedRecords / allLocatedRecords * 100 : 0
-  const mappedActiveRecords = activeLocations
-    .filter((location) => location.lat != null && location.lng != null)
-    .reduce((sum, location) => sum + location.memberCount, 0)
   const selectedLocationLabel = selectedLocation
     ? geoView === "country"
       ? selectedLocation.country
@@ -1455,7 +1369,7 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
   }
 
   return (
-    <Panel title="Membership geography" subtitle={`n=${formatNumber(totalLocatedRecords)} located member records · ${formatPercent(geocodeCoverage)} mapped`} className="lg:col-span-2">
+    <Panel title="Membership geography" subtitle={`n=${formatNumber(coverage.totalMembers)} located member records · ${formatPercent(coverage.percent)} mapped`} className="lg:col-span-2">
       <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1">
@@ -1492,11 +1406,12 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
-            { label: "Mapped members", value: mappedActiveRecords },
-            { label: geoView === "country" ? "Visible countries" : "Visible cities", value: activeLocations.length },
-            { label: "Unmapped", value: Math.max(0, totalLocatedRecords - mappedActiveRecords) },
+            { label: "Mapped members", value: coverage.mappedMembers },
+            { label: "Map markers", value: coverage.mappedLocations },
+            { label: geoView === "city" ? "Country fallbacks" : "Listed countries", value: geoView === "city" ? coverage.countryFallbackLocations : coverage.totalLocations },
+            { label: "Unmapped members", value: coverage.unmappedMembers },
           ].map((metric) => (
             <div key={metric.label} className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
               <p className="text-lg font-semibold tabular-nums text-zinc-900">{formatNumber(metric.value)}</p>
@@ -1558,6 +1473,11 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
                         ? location.country
                         : [location.city, location.state, location.country].filter(Boolean).join(", ")}
                     </span>
+                    {location.lat == null || location.lng == null ? (
+                      <span className="flex-shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">No marker</span>
+                    ) : geoView === "city" && location.coordinatePrecision === "country" ? (
+                      <span className="flex-shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">Country fallback</span>
+                    ) : null}
                     <span className="flex-shrink-0 tabular-nums text-zinc-400">{formatNumber(location.memberCount)}</span>
                   </button>
                 ))}
@@ -1847,7 +1767,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
   }))
   const sourceTotals = filteredRows.length === rows.length ? unfilteredSourceTotals : filteredSourceTotals
   const filteredCharts = directory ? buildFilteredMemberCharts(filteredRows, directory) : null
-  const filteredGeography = directory ? buildFilteredGeography(filteredRows, directory) : []
+  const filteredGeography = directory ? buildFilteredMemberGeography(filteredRows, directory) : []
 
   function openDetail(row: MemberDirectoryRow) {
     setSelectedRow(row)
@@ -1972,7 +1892,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
         {filteredCharts && <DistributionChartPair title="How did you hear about us" items={filteredCharts.referralSources} otherVariants={filteredCharts.otherVariants.referralSources} />}
         {filteredCharts && <DistributionChartPair title="Are you currently working in the psychedelic field?" items={filteredCharts.psychedelicFieldStatus} otherVariants={filteredCharts.otherVariants.psychedelicFieldStatus} />}
         {filteredCharts && <DistributionChartPair title="If not, why not?" items={filteredCharts.psychedelicFieldBarriers} otherVariants={filteredCharts.otherVariants.psychedelicFieldBarriers} />}
-        <MembershipGeographyPanel cities={filteredGeography} />
+        <MembershipGeographyPanel locations={filteredGeography} />
       </div>
 
       <Panel title="Member Directory" subtitle={`Showing ${formatNumber(filteredRows.length)} of ${formatNumber(rows.length)} merged members. Click a row to open full detail.`}>
@@ -3799,7 +3719,7 @@ function DataSourcesPanel() {
         {
           term: "Membership geography",
           definition: "City and country distribution of members with usable location data.",
-          methodology: "Uses filtered merged rows with city and country values. City coordinates come from stored Portal coordinates when available; country view aggregates city rows and uses a member-count-weighted center point.",
+          methodology: "Uses filtered merged rows with country values. City view includes records with a city, while country view also includes country-only members. Stored Portal or cached city coordinates are preferred; explicit country centroids provide labeled fallbacks. Country markers use a stored country centroid when available, otherwise a member-count-weighted center of mapped cities. The panel reports marker count separately from listed locations and flags country fallbacks or missing markers.",
         },
         {
           term: "Registration conversion",
