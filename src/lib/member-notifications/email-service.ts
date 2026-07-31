@@ -97,6 +97,7 @@ export type MemberNotificationRunResult = {
 const DEFAULT_MEMBER_EMAIL_FROM =
   "IPN Member Portal <members@members.intercollegiatepsychedelics.net>"
 const DEFAULT_MEMBER_EMAIL_REPLY_TO = "info@intercollegiatepsychedelics.net"
+const NEW_EVENT_TEMPLATE_VERSION = "v2"
 const MAX_ATTEMPTS = 5
 const BATCH_SIZE = 100
 const RUN_LIMIT = 100
@@ -190,11 +191,11 @@ function htmlEmail(content: EmailContent) {
   const details = (content.details ?? [])
     .map(
       (detail) =>
-        `<li style="margin:0 0 8px;color:#3f3f46;line-height:1.5;"><strong>${escapeHtml(detail.label)}:</strong> ${escapeHtml(detail.value)}</li>`,
+        `<p style="margin:0 0 10px;color:#3f3f46;line-height:1.5;"><strong>${escapeHtml(detail.label)}:</strong> ${escapeHtml(detail.value)}</p>`,
     )
     .join("")
   const detailsBlock = details
-    ? `<ul style="margin:18px 0 22px;padding-left:20px;">${details}</ul>`
+    ? `<div style="margin:18px 0 22px;">${details}</div>`
     : ""
   const afterDetails = (content.afterDetails ?? [])
     .map(
@@ -243,7 +244,7 @@ function textEmail(content: EmailContent) {
     content.greeting,
     "",
     ...content.body.flatMap((paragraph) => [paragraph, ""]),
-    ...(content.details ?? []).map((detail) => `- ${detail.label}: ${detail.value}`),
+    ...(content.details ?? []).map((detail) => `${detail.label}: ${detail.value}`),
     ...(content.details?.length ? [""] : []),
     ...(content.afterDetails ?? []).flatMap((paragraph) => [paragraph, ""]),
     `${content.buttonLabel}: ${content.buttonUrl}`,
@@ -286,7 +287,7 @@ function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
     ],
     details,
     afterDetails: [
-      "You can read more details about the event by clicking on the button below. After registering, you’ll receive confirmation and reminder emails. If the event has a WhatsApp group, you’ll also be able to join the conversation with other attendees.",
+      "Read more and RSVP through the link below. After registering, you’ll receive confirmation and reminder emails. If the event has a WhatsApp group, you’ll also be able to join the conversation with other attendees.",
     ],
     buttonLabel: "View event and RSVP",
     buttonUrl: publicEventUrl(event),
@@ -412,7 +413,7 @@ export async function queueNewEventAnnouncement(
           actor_user_id: null,
           event_id: event.id,
           connection_id: null,
-          dedupe_key: `new-event/${event.id}/${profile.id}`,
+          dedupe_key: `new-event/${NEW_EVENT_TEMPLATE_VERSION}/${event.id}/${profile.id}`,
           to_email: normalizeEmail(profile.email),
           status: "pending" as const,
         })),
