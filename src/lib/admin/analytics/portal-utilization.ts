@@ -646,29 +646,44 @@ export function buildPortalUtilizationData({
 
   const registrationFlowByKey = new Map<string, RegistrationFlowAccumulator>()
   const registrationFlowTrackingStartedAt = sortedEvents.find(
-    (event) => event.event_name === "registration_step_view",
+    (event) => (
+      event.event_name === "registration_step_view"
+      || event.event_name === "registration_submit"
+    ),
   )?.occurred_at ?? null
   const registrationStageIds = REGISTRATION_FLOW_STAGES.map((stage) => stage.id)
 
   for (const session of sessions.values()) {
     const hasStepTracking = session.events.some((event) => registrationStep(event) != null)
-    if (!hasStepTracking) continue
 
     const homeIndex = session.events.findIndex((event) => (
       event.event_name === "page_view" && cleanPagePath(event.page_path) === "/"
     ))
     if (homeIndex < 0) continue
 
+    const submittedIndex = session.events.findIndex((event, index) => (
+      index > homeIndex && event.event_name === "registration_submit"
+    ))
+    if (!hasStepTracking && submittedIndex < 0) continue
+
     const reached: RegistrationFlowStageId[] = ["home"]
     let cursor = homeIndex
     const stepStageIds: RegistrationFlowStageId[] = ["account", "location", "background", "about"]
-    for (let step = 1; step <= 4; step += 1) {
-      const stepIndex = session.events.findIndex((event, index) => (
-        index > cursor && registrationStep(event) === step
-      ))
-      if (stepIndex < 0) break
-      reached.push(stepStageIds[step - 1])
-      cursor = stepIndex
+    if (submittedIndex >= 0) {
+      // Submission is only possible after all four client-side steps validate,
+      // so it safely reconstructs pre-fix sessions whose step events were
+      // rejected by the database event-name constraint.
+      reached.push(...stepStageIds)
+      cursor = submittedIndex
+    } else {
+      for (let step = 1; step <= 4; step += 1) {
+        const stepIndex = session.events.findIndex((event, index) => (
+          index > cursor && registrationStep(event) === step
+        ))
+        if (stepIndex < 0) break
+        reached.push(stepStageIds[step - 1])
+        cursor = stepIndex
+      }
     }
     if (reached.includes("about")) {
       const completedIndex = session.events.findIndex((event, index) => (

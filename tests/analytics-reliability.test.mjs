@@ -491,6 +491,53 @@ test("registration flow exposes step conversion and drop-off branches", () => {
   assert.equal(flow.nodes.find((node) => node.label === "Registration completed")?.percentOfPrior, 50)
 })
 
+test("registration submits reconstruct pre-fix step journeys without waiting for session exit", () => {
+  const event = (event_name, session_id, occurred_at, overrides = {}) => ({
+    event_name,
+    session_id,
+    occurred_at,
+    page_path: overrides.page_path ?? null,
+    user_id: overrides.user_id ?? null,
+    metadata: overrides.metadata ?? {},
+    error_code: overrides.error_code ?? null,
+  })
+  const result = buildPortalUtilizationData({
+    now: new Date("2026-07-31T18:00:00Z"),
+    analyticsError: null,
+    profiles: [],
+    onboardingRows: [],
+    connections: [],
+    analyticsEvents: [
+      event("page_view", "pre-fix-registration-session", "2026-07-31T16:30:00Z", { page_path: "/" }),
+      event("page_view", "pre-fix-registration-session", "2026-07-31T16:31:00Z", { page_path: "/register" }),
+      event("registration_submit", "pre-fix-registration-session", "2026-07-31T16:33:00Z", { page_path: "/register" }),
+      event("registration_error", "pre-fix-registration-session", "2026-07-31T16:33:01Z", {
+        page_path: "/register",
+        error_code: "Database error saving new user",
+      }),
+    ],
+  })
+  const flow = result.registrationFlow.rows.find((row) => (
+    row.date === "2026-07-31" && row.device === "all" && row.audience === "all"
+  ))
+  assert.deepEqual(flow && {
+    home: flow.home,
+    account: flow.account,
+    location: flow.location,
+    background: flow.background,
+    about: flow.about,
+    completed: flow.completed,
+  }, {
+    home: 1,
+    account: 1,
+    location: 1,
+    background: 1,
+    about: 1,
+    completed: 0,
+  })
+  assert.equal(result.registrationFlow.trackingStartedAt, "2026-07-31T16:33:00Z")
+})
+
 test("member journey flow reveals five steps at a time and retains end-session branches", () => {
   const baseJourney = {
     memberName: "Test Member",

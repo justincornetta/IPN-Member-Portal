@@ -1240,7 +1240,16 @@ function MembershipGeographyPanel({ locations }: { locations: MemberDirectoryDat
           filter: ["has", "point_count"],
           paint: {
             "circle-color": "#6f51aa",
-            "circle-radius": ["step", ["get", "memberCountSum"], 18, 25, 24, 100, 32],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["sqrt", ["get", "memberCountSum"]],
+              1, 12,
+              4, 18,
+              10, 24,
+              20, 32,
+              32, 46,
+            ],
             "circle-opacity": 0.9,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
@@ -1266,7 +1275,16 @@ function MembershipGeographyPanel({ locations }: { locations: MemberDirectoryDat
           filter: ["!", ["has", "point_count"]],
           paint: {
             "circle-color": "#6f51aa",
-            "circle-radius": ["step", ["get", "memberCount"], 10, 10, 14, 30, 18],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["sqrt", ["get", "memberCount"]],
+              1, 10,
+              4, 14,
+              10, 20,
+              20, 28,
+              32, 40,
+            ],
             "circle-opacity": 0.9,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
@@ -1387,13 +1405,17 @@ function MembershipGeographyPanel({ locations }: { locations: MemberDirectoryDat
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            { label: "Mapped members", value: coverage.mappedMembers },
-            { label: "Map markers", value: coverage.mappedLocations },
-            { label: geoView === "city" ? "Country fallbacks" : "Listed countries", value: geoView === "city" ? coverage.countryFallbackLocations : coverage.totalLocations },
-            { label: "Unmapped members", value: coverage.unmappedMembers },
-          ].map((metric) => (
+        <div className="grid grid-cols-2 gap-2">
+          {(geoView === "city"
+            ? [
+                { label: "Mapped members", value: coverage.mappedMembers },
+                { label: "Map markers", value: coverage.mappedLocations },
+              ]
+            : [
+                { label: "Mapped members", value: coverage.mappedMembers },
+                { label: "Listed countries", value: coverage.totalLocations },
+              ]
+          ).map((metric) => (
             <div key={metric.label} className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
               <p className="text-lg font-semibold tabular-nums text-zinc-900">{formatNumber(metric.value)}</p>
               <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-zinc-400">{metric.label}</p>
@@ -2697,7 +2719,7 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
         title="Registration step drop-off"
         subtitle={data.registrationFlow.trackingStartedAt
           ? `Home-to-registration journeys tracked since ${formatDate(data.registrationFlow.trackingStartedAt)}`
-          : "Step-level registration tracking will begin after this update is deployed"}
+          : "No registration step events have been recorded yet"}
       >
         {registrationFlowCounts.home ? (
           <div>
@@ -2709,7 +2731,7 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
         ) : (
           <EmptyState
             title="No tracked home-to-registration journeys yet"
-            description="The flow will populate as visitors move from the Portal home page through Account, Location, Background, About You, and account creation."
+            description="Steps are recorded as they are viewed; the session does not need to be closed. Only journeys that begin on the Portal home page and then continue through Account, Location, Background, About You, and account creation are included."
           />
         )}
       </Panel>
@@ -4428,7 +4450,7 @@ function DataSourcesPanel() {
         {
           term: "Membership geography",
           definition: "City and country distribution of members with usable location data.",
-          methodology: "Uses filtered merged rows with country values. City view includes records with a city, while country view also includes country-only members. Stored Portal or cached city coordinates are preferred; explicit country centroids provide labeled fallbacks. Country markers use a stored country centroid when available, otherwise a member-count-weighted center of mapped cities. The panel reports marker count separately from listed locations and flags country fallbacks or missing markers.",
+          methodology: "Uses filtered merged rows with country values. City view includes records with a city, while country view also includes country-only members. Stored Portal or cached city coordinates are preferred; explicit country centroids provide labeled fallbacks. Country markers use a stored country centroid when available, otherwise a member-count-weighted center of mapped cities. Bubble area scales with member count. City view reports mapped members and marker count; country view reports mapped members and listed countries.",
         },
         {
           term: "Registration conversion",
