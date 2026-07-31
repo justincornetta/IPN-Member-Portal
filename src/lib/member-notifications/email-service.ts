@@ -112,7 +112,10 @@ function getEnv(name: string) {
 function siteUrl() {
   const explicit = getEnv("NEXT_PUBLIC_SITE_URL")
   const deployUrl = getEnv("DEPLOY_PRIME_URL") ?? getEnv("URL")
-  return (explicit ?? deployUrl ?? "http://localhost:3000").replace(/\/$/, "")
+  // Netlify exposes DEPLOY_PRIME_URL for the exact deploy, including PR
+  // previews. Prefer it so test notification links stay on the preview that
+  // produced them instead of falling through to the production site URL.
+  return (deployUrl ?? explicit ?? "http://localhost:3000").replace(/\/$/, "")
 }
 
 export function memberNotificationMode(): NotificationMode {
