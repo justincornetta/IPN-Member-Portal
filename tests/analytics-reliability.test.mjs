@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import test from "node:test"
 
 import {
@@ -44,6 +45,11 @@ import {
   portalPageCategory,
 } from "../src/lib/admin/analytics/portal-utilization.ts"
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
+
+const PERSONA_MIGRATION_SQL = readFileSync(
+  new URL("../supabase/migrations/20260730195316_align_personas_with_registration_labels.sql", import.meta.url),
+  "utf8",
+)
 
 function snapshotFixture({ sessions = 826, donations = false } = {}) {
   return {
@@ -123,6 +129,26 @@ test("canonical member aliases collapse historical wording and punctuation", () 
   }
   assert.equal(canonicalPsychedelicFieldBarrier("I haven’t found the right opportunity yet"), "I haven't found the right opportunity yet")
   assert.equal(canonicalPsychedelicFieldBarrier("I am balancing crisis management work right now"), "Other")
+})
+
+test("registration persona values match the database constraint", () => {
+  const constraintStart = PERSONA_MIGRATION_SQL.lastIndexOf(
+    "profiles_persona_registration_values_check",
+  )
+  assert.notEqual(constraintStart, -1)
+
+  const constraintSql = PERSONA_MIGRATION_SQL.slice(constraintStart)
+  const arrayMatch = constraintSql.match(/array\[(.*?)\]\s*\)\s*\)/s)
+  assert.ok(arrayMatch, "profiles persona constraint must define an allowed-values array")
+
+  const databaseValues = [...arrayMatch[1].matchAll(/'((?:''|[^'])*)'/g)]
+    .map((match) => match[1].replaceAll("''", "'"))
+  const registrationValues = PERSONA_OPTIONS.map((option) => option.value)
+
+  assert.deepEqual(registrationValues, databaseValues)
+  for (const option of PERSONA_OPTIONS) {
+    assert.equal(option.value, option.label)
+  }
 })
 
 test("education validation enforces profile education requirements", () => {
