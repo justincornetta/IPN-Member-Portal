@@ -260,6 +260,14 @@ function textEmail(content: EmailContent) {
 function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
   const details: EmailDetail[] = [
     {
+      label: "Event Title",
+      value: event.title,
+    },
+    {
+      label: "Speakers",
+      value: event.speakers?.trim() || "To be announced",
+    },
+    {
       label: "When",
       value: formatEventDateTime(event.starts_at, event.ends_at, event.timezone),
     },
@@ -268,9 +276,6 @@ function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
       value: event.location_label ?? event.location_details ?? "Online",
     },
   ]
-  if (event.speakers?.trim()) {
-    details.push({ label: "Featuring", value: event.speakers.trim() })
-  }
 
   return {
     subject: `New IPN event: ${event.title}`,
@@ -278,11 +283,10 @@ function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
     greeting: `Hi ${firstName(recipient)},`,
     body: [
       "We just posted a new event in the IPN Member Portal that we think you’ll enjoy.",
-      ...(event.summary?.trim() ? [event.summary.trim()] : []),
     ],
     details,
     afterDetails: [
-      "After registering, you’ll receive confirmation and reminder emails. If the event has a WhatsApp group, you’ll also be able to join the conversation with other attendees.",
+      "You can read more details about the event by clicking on the button below. After registering, you’ll receive confirmation and reminder emails. If the event has a WhatsApp group, you’ll also be able to join the conversation with other attendees.",
     ],
     buttonLabel: "View event and RSVP",
     buttonUrl: publicEventUrl(event),
