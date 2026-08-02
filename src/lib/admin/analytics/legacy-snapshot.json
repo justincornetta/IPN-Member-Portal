@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T11:47:28.314Z",
+  "generatedAt": "2026-08-02T11:47:03.017Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,15 +15,15 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-01T11:45:43.184679+00:00",
-      "note": "1892 subscribers"
+      "lastPull": "2026-08-02T11:45:19.267477+00:00",
+      "note": "1880 subscribers"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-01T11:45:45.893485+00:00",
+      "lastPull": "2026-08-02T11:45:22.332496+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-08-01T11:45:45.893485+00:00",
+      "lastPull": "2026-08-02T11:45:22.332496+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-01T11:45:54.647305+00:00",
+      "lastPull": "2026-08-02T11:45:32.013463+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-01T11:46:11.546730+00:00",
+      "lastPull": "2026-08-02T11:45:48.031041+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-01T11:47:22.658876+00:00",
+      "lastPull": "2026-08-02T11:46:57.983515+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-08-01T11:47:23.080456+00:00",
+      "lastPull": "2026-08-02T11:46:58.389290+00:00",
       "note": "$0 recorded"
     },
     {
@@ -943,20 +943,20 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1593,
+      "totalSubscribers": 1577,
       "totalLists": 1,
-      "totalCampaigns": 188,
+      "totalCampaigns": 189,
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
-      "totalUnsubscribes": 333,
-      "pulledAt": "2026-08-01T11:45:43.184679+00:00"
+      "totalUnsubscribes": 337,
+      "pulledAt": "2026-08-02T11:45:19.267477+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1593,
-        "unsubscribeCount": 299,
+        "members": 1577,
+        "unsubscribeCount": 303,
         "openRate": 42.21005695112798,
         "clickRate": 4.33093461657322
       }
@@ -1521,15 +1521,19 @@
         "unsubscribes": 10,
         "openRate": 28.9,
         "clickRate": 2.4
+      },
+      {
+        "month": "2026-08",
+        "campaigns": 1,
+        "sent": 1593,
+        "opens": 389,
+        "clicks": 22,
+        "unsubscribes": 4,
+        "openRate": 24.4,
+        "clickRate": 1.4
       }
     ],
     "growth": [
-      {
-        "listName": "Intercollegiate Psychedelics Network",
-        "month": "2025-08",
-        "members": 0,
-        "newMembers": 0
-      },
       {
         "listName": "Intercollegiate Psychedelics Network",
         "month": "2025-09",
@@ -1595,9 +1599,126 @@
         "month": "2026-07",
         "members": 0,
         "newMembers": 0
+      },
+      {
+        "listName": "Intercollegiate Psychedelics Network",
+        "month": "2026-08",
+        "members": 0,
+        "newMembers": 0
       }
     ],
     "campaigns": [
+      {
+        "id": "5941765e72",
+        "title": "IPN Newsletter August 1, 2026",
+        "subject": "IPN Members Newsletter - August 2026",
+        "date": "2026-08-01T15:28:01+00:00",
+        "listName": "Intercollegiate Psychedelics Network",
+        "sent": 1593,
+        "opens": 389,
+        "openRate": 24.7,
+        "clicks": 22,
+        "clickRate": 1.4,
+        "unsubscribes": 4,
+        "clickDetail": [
+          {
+            "url": "https://ipn-member-portal.netlify.app/dashboard/events/Consciousness",
+            "clicks": 14,
+            "uniqueClicks": 10,
+            "percentOfClicks": 21.5
+          },
+          {
+            "url": "https://intercollegiatepsychedelics.net",
+            "clicks": 9,
+            "uniqueClicks": 5,
+            "percentOfClicks": 13.8
+          },
+          {
+            "url": "https://members.intercollegiatepsychedelics.net/",
+            "clicks": 8,
+            "uniqueClicks": 8,
+            "percentOfClicks": 12.3
+          },
+          {
+            "url": "https://members.intercollegiatepsychedelics.net/",
+            "clicks": 6,
+            "uniqueClicks": 6,
+            "percentOfClicks": 9.2
+          },
+          {
+            "url": "https://members.intercollegiatepsychedelics.net/",
+            "clicks": 6,
+            "uniqueClicks": 6,
+            "percentOfClicks": 9.2
+          },
+          {
+            "url": "https://substack.com/home/post/p-204282593",
+            "clicks": 4,
+            "uniqueClicks": 4,
+            "percentOfClicks": 6.2
+          },
+          {
+            "url": "https://psychedelicscience.org/registration-options/#group-scholarship",
+            "clicks": 3,
+            "uniqueClicks": 3,
+            "percentOfClicks": 4.6
+          },
+          {
+            "url": "https://psychedelicscience.org/get-involved/#ps27-gi-volunteer",
+            "clicks": 3,
+            "uniqueClicks": 3,
+            "percentOfClicks": 4.6
+          },
+          {
+            "url": "https://www.instagram.com/intercollegiatepsychedelics/",
+            "clicks": 3,
+            "uniqueClicks": 3,
+            "percentOfClicks": 4.6
+          },
+          {
+            "url": "https://intercollegiatepsychedelics.net/",
+            "clicks": 3,
+            "uniqueClicks": 3,
+            "percentOfClicks": 4.6
+          },
+          {
+            "url": "https://psychedelicscience.org/registration-options/",
+            "clicks": 2,
+            "uniqueClicks": 2,
+            "percentOfClicks": 3.1
+          },
+          {
+            "url": "https://www.linkedin.com/company/intercollegiate-psychedelics-network",
+            "clicks": 2,
+            "uniqueClicks": 1,
+            "percentOfClicks": 3.1
+          },
+          {
+            "url": "https://horizonsconference.org/scholarship/",
+            "clicks": 1,
+            "uniqueClicks": 1,
+            "percentOfClicks": 1.5
+          },
+          {
+            "url": "https://docs.google.com/forms/d/e/1FAIpQLSdp2VmQ9wWNFQLfeOTnK4WTBbWBHq2rmBhoDaGRehfrenedgQ/viewform?usp=sharing&ouid=104462990920310936696",
+            "clicks": 1,
+            "uniqueClicks": 1,
+            "percentOfClicks": 1.5
+          },
+          {
+            "url": "https://na-admin.eventscloud.com/eSites/psychedelicscience/Homepage",
+            "clicks": 0,
+            "uniqueClicks": 0,
+            "percentOfClicks": 0
+          },
+          {
+            "url": "https://substack.com/home/post/p-204282593",
+            "clicks": 0,
+            "uniqueClicks": 0,
+            "percentOfClicks": 0
+          }
+        ]
+      },
       {
         "id": "afd9d16529",
         "title": "IPN Newsletter July 1, 2026",
@@ -14906,16 +15027,6 @@
         "comments": 9,
         "engagement": 35,
         "permalink": "https://www.instagram.com/p/DbcRCr-FGah/"
-      },
-      {
-        "id": "18127144066639759",
-        "date": "2026-07-02T15:57:24+0000",
-        "type": "CAROUSEL_ALBUM",
-        "caption": "PsychedelX 2026 is officially over, and we are thrilled to announce the runners-up and winners of this year’s talk competition!\n\n🏅Runner up: Faith Halverson-Ramos\n🏅Runner up: Jake Hooper\n🏅Runner up: Taylor Andrews Flatt\n🥉3rd place: Andrew Ferns\n🥈2nd place: Lauren Marchefka\n🥇1st p",
-        "likes": 38,
-        "comments": 3,
-        "engagement": 41,
-        "permalink": "https://www.instagram.com/p/DaS90AmDbCZ/"
       }
     ]
   },
@@ -14973,7 +15084,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-08-01T11:45:54.647305+00:00"
+    "pulledAt": "2026-08-02T11:45:32.013463+00:00"
   },
   "events": {
     "zoom": {
@@ -14986,7 +15097,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-08-01T11:46:11.546730+00:00"
+        "pulledAt": "2026-08-02T11:45:48.031041+00:00"
       },
       "byMonth": [
         {
@@ -15723,7 +15834,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-08-01T11:47:22.658876+00:00"
+        "pulledAt": "2026-08-02T11:46:57.983515+00:00"
       },
       "events": [
         {
