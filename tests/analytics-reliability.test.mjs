@@ -1,5 +1,8 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import test from "node:test"
 
 import {
@@ -770,4 +773,85 @@ test("July 7 aggregate Zoom count is retained when private registrant rows are i
   })
   assert.equal(result.events.zoom.events[0].registrants, 22)
   assert.equal(result.events.zoom.events[0].attendees, 8)
+})
+
+test("historical Zoom-only events hydrate attendee and registrant details from Supabase rows", () => {
+  const snapshot = snapshotFixture()
+  snapshot.events.zoom.events = [{
+    id: "historical-event",
+    topic: "Historical IPN Labs Seminar",
+    date: "2026-04-22T21:00:00Z",
+    program: "IPN Labs",
+    type: "public",
+    attendees: 2,
+    registrants: 3,
+    registrationSource: "zoom_registration_csv",
+    avgDuration: 30,
+    retentionPct: 40,
+    repeatPct: 0,
+    participantEmails: [],
+    participants: [],
+    registrations: [],
+  }]
+  const sourceRecords = [
+    ...Array.from({ length: 2 }, (_, index) => ({
+      source: "zoom", record_type: "participant", source_record_id: `historical-participant-${index}`,
+      event_source_id: "historical-event", event_name: "Historical IPN Labs Seminar",
+      event_started_at: "2026-04-22T21:00:00Z", occurred_at: "2026-04-22T21:00:00Z", registered_at: null,
+      name: `Attendee ${index}`, email: `attendee${index}@example.com`, normalized_email: `attendee${index}@example.com`,
+      attended: true, duration_minutes: 45 + index, details: {},
+    })),
+    ...Array.from({ length: 3 }, (_, index) => ({
+      source: "zoom", record_type: "registrant", source_record_id: `historical-registrant-${index}`,
+      event_source_id: "historical-event", event_name: "Historical IPN Labs Seminar",
+      event_started_at: "2026-04-22T21:00:00Z", occurred_at: null, registered_at: "2026-04-01T00:00:00Z",
+      name: `Registrant ${index}`, email: `registrant${index}@example.com`, normalized_email: `registrant${index}@example.com`,
+      attended: null, duration_minutes: null, details: {},
+    })),
+  ]
+
+  const result = assembleServerEventAnalytics({ snapshot, portalEvents: [], sourceRecords })
+  const event = result.events.zoom.events[0]
+  assert.equal(event.attendees, 2)
+  assert.equal(event.registrants, 3)
+  assert.equal(event.participants.length, 2)
+  assert.equal(event.registrations.length, 3)
+  assert.equal(result.events.zoom.topAttendees.length, 2)
+})
+
+test("snapshot builder restores a backfill-only PsychedelX webinar omitted by the Zoom API", () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "ipn-analytics-backfill-"))
+  const dataDir = join(fixtureDir, "data")
+  const outputPath = join(fixtureDir, "snapshot.json")
+  mkdirSync(dataDir)
+  writeFileSync(join(dataDir, "zoom_events.json"), JSON.stringify({ events: [], pulled_at: "2026-08-03T12:00:00Z" }))
+  writeFileSync(join(dataDir, "zoom_stats.json"), JSON.stringify({ pulled_at: "2026-08-03T12:00:00Z" }))
+  writeFileSync(join(dataDir, "zoom_registration_backfill.json"), JSON.stringify({ events: [] }))
+  writeFileSync(join(dataDir, "zoom_attendee_backfill.json"), JSON.stringify({ events: [{
+    eventId: "xImfgyAlRresYfbr1qlOiQ==",
+    meetingId: "89543551090",
+    topic: "PsychedelX 2026: The Premier Global Psychedelic Student Talk Conferences",
+    date: "2026-06-28T15:00:00Z",
+    uniqueAttendees: 85,
+    avgDurationMin: 199.9,
+    retentionPct: 21.6,
+    daySummaries: [{ registrants: 79 }, { registrants: 95 }, { registrants: 100 }],
+    participants: [],
+  }] }))
+
+  try {
+    execFileSync(process.execPath, ["scripts/build-legacy-analytics-snapshot.mjs", fixtureDir, outputPath], {
+      cwd: new URL("..", import.meta.url),
+      stdio: "pipe",
+    })
+    const snapshot = JSON.parse(readFileSync(outputPath, "utf8"))
+    const event = snapshot.events.zoom.events.find((item) => item.id === "xImfgyAlRresYfbr1qlOiQ==")
+    assert.ok(event)
+    assert.equal(event.attendees, 85)
+    assert.equal(event.registrants, 100)
+    assert.equal(event.avgDuration, 199.9)
+    assert.equal(event.retentionPct, 21.6)
+  } finally {
+    rmSync(fixtureDir, { recursive: true, force: true })
+  }
 })

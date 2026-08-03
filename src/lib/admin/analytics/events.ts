@@ -81,6 +81,61 @@ function round(value: number, digits = 1) {
   return Math.round(value * factor) / factor
 }
 
+function zoomRecordDetails(records: AnalyticsSourceRecord[]) {
+  const participantMap = new Map<string, ZoomEvent["participants"][number]>()
+  const registrationMap = new Map<string, ZoomEvent["registrations"][number]>()
+
+  for (const record of records) {
+    const key = personKey(record)
+    if (!key) continue
+    if (record.record_type.startsWith("participant") || record.attended === true) {
+      const current = participantMap.get(key)
+      const durationMin = Number(record.duration_minutes ?? 0)
+      participantMap.set(key, {
+        name: record.name || record.email || current?.name || "Unknown",
+        email: record.email || current?.email || "",
+        durationMin: Math.max(durationMin, current?.durationMin ?? 0),
+        eventsAttended: 0,
+        daysAttended: Number(record.details?.daysAttended ?? current?.daysAttended ?? 0) || null,
+        roles: Array.isArray(record.details?.roles) ? record.details.roles as string[] : current?.roles ?? [],
+        countries: Array.isArray(record.details?.countries) ? record.details.countries as string[] : current?.countries ?? [],
+      })
+    }
+    if (record.record_type === "registrant") {
+      registrationMap.set(key, {
+        name: record.name || record.email || "Unknown",
+        email: record.email || "",
+        registeredAt: record.registered_at,
+      })
+    }
+  }
+
+  return { participantMap, registrationMap }
+}
+
+function hydrateHistoricalZoomEvent(event: ZoomEvent, records: AnalyticsSourceRecord[]): ZoomEvent {
+  const { participantMap, registrationMap } = zoomRecordDetails(records)
+  const participants = Array.from(participantMap.values())
+  const registrations = Array.from(registrationMap.values())
+    .sort((a, b) => String(a.registeredAt ?? "").localeCompare(String(b.registeredAt ?? "")))
+  const aggregateRegistrantCount = event.registrants == null ? 0 : Number(event.registrants)
+
+  return {
+    ...event,
+    attendees: Math.max(event.attendees, participants.length),
+    registrants: event.registrants == null && registrations.length === 0
+      ? null
+      : Math.max(aggregateRegistrantCount, registrations.length),
+    avgDuration: participants.length
+      ? round(average(participants.map((participant) => participant.durationMin)))
+      : event.avgDuration,
+    participantEmails: participants.map((participant) => participant.email).filter(Boolean),
+    participants,
+    registrations,
+    source: "zoom",
+  }
+}
+
 export function assembleServerEventAnalytics({
   snapshot,
   portalEvents,
@@ -151,32 +206,7 @@ export function assembleServerEventAnalytics({
     }
 
     consumedGroups.add(group.id)
-    const participantMap = new Map<string, ZoomEvent["participants"][number]>()
-    const registrationMap = new Map<string, ZoomEvent["registrations"][number]>()
-    for (const record of group.records) {
-      const key = personKey(record)
-      if (!key) continue
-      if (record.record_type.startsWith("participant") || record.attended === true) {
-        const current = participantMap.get(key)
-        const durationMin = Number(record.duration_minutes ?? 0)
-        participantMap.set(key, {
-          name: record.name || record.email || current?.name || "Unknown",
-          email: record.email || current?.email || "",
-          durationMin: Math.max(durationMin, current?.durationMin ?? 0),
-          eventsAttended: 0,
-          daysAttended: Number(record.details?.daysAttended ?? current?.daysAttended ?? 0) || null,
-          roles: Array.isArray(record.details?.roles) ? record.details.roles as string[] : current?.roles ?? [],
-          countries: Array.isArray(record.details?.countries) ? record.details.countries as string[] : current?.countries ?? [],
-        })
-      }
-      if (record.record_type === "registrant") {
-        registrationMap.set(key, {
-          name: record.name || record.email || "Unknown",
-          email: record.email || "",
-          registeredAt: record.registered_at,
-        })
-      }
-    }
+    const { participantMap, registrationMap } = zoomRecordDetails(group.records)
     const zoomRegistrationKeys = new Set(registrationMap.keys())
     for (const registration of portalEvent.registrations) {
       const key = personKey({ email: registration.memberEmail, name: registration.memberName })
@@ -229,7 +259,9 @@ export function assembleServerEventAnalytics({
   }
 
   for (const event of zoom.events) {
-    if (!consumedGroups.has(event.id)) assembled.push(event)
+    if (consumedGroups.has(event.id)) continue
+    const records = recordGroups.get(event.id)
+    assembled.push(records?.length ? hydrateHistoricalZoomEvent(event, records) : event)
   }
 
   const attendanceByPerson = new Map<string, number>()

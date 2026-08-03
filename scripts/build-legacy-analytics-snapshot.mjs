@@ -353,11 +353,64 @@ function isHistoricalRegistrationSource(value) {
   ].includes(String(value || ""))
 }
 
+function inferredProgram(topic) {
+  const normalized = String(topic || "").toLowerCase()
+  if (normalized.includes("psychedelx")) return "PsychedelX"
+  if (normalized.includes("ipn labs") || normalized.includes("roundtable") || normalized.includes("seminar")) return "IPN Labs"
+  return "Other"
+}
+
+function syntheticBackfillEvents(events, registrationBackfillEvents, attendeeBackfillEvents) {
+  const liveIds = new Set(events.map((event) => String(event.event_id || event.meeting_id || event.topic)))
+  const candidates = new Map()
+
+  for (const event of [...registrationBackfillEvents, ...attendeeBackfillEvents]) {
+    const id = String(event.eventId || event.meetingId || event.topic || "")
+    if (!id || liveIds.has(id)) continue
+    const current = candidates.get(id) || {}
+    candidates.set(id, { ...current, ...event })
+  }
+
+  return Array.from(candidates.entries()).map(([id, event]) => {
+    const dayRegistrantCounts = (Array.isArray(event.daySummaries) ? event.daySummaries : [])
+      .map((day) => number(day.registrants, null))
+      .filter((value) => value != null)
+    const registrants = event.registrants != null
+      ? number(event.registrants)
+      : dayRegistrantCounts.length
+        ? Math.max(...dayRegistrantCounts)
+        : null
+
+    return {
+      event_id: id,
+      meeting_id: event.meetingId || null,
+      topic: event.topic || "Historical Zoom event",
+      start_time: event.date || null,
+      program: inferredProgram(event.topic),
+      type: "public",
+      unique_participants: event.uniqueAttendees ?? event.participants?.length ?? 0,
+      total_participants: event.uniqueAttendees ?? event.participants?.length ?? 0,
+      registrants,
+      repeat_attendee_pct: event.repeatPct ?? 0,
+      retention: {
+        avg_duration_min: event.avgDurationMin ?? 0,
+        avg_retention_pct: event.retentionPct ?? 0,
+      },
+      participants_detail: [],
+      registrants_detail: [],
+    }
+  })
+}
+
 function buildZoom(baseZoom, zoomStats, zoomEventsPayload, zoomRegistrationBackfillPayload, zoomAttendeeBackfillPayload) {
-  const events = Array.isArray(zoomEventsPayload.events) ? zoomEventsPayload.events : []
+  const liveEvents = Array.isArray(zoomEventsPayload.events) ? zoomEventsPayload.events : []
   const priorEventsById = new Map((Array.isArray(baseZoom?.events) ? baseZoom.events : []).map((event) => [String(event.id), event]))
   const backfillEvents = Array.isArray(zoomRegistrationBackfillPayload.events) ? zoomRegistrationBackfillPayload.events : []
   const attendeeBackfillEvents = Array.isArray(zoomAttendeeBackfillPayload.events) ? zoomAttendeeBackfillPayload.events : []
+  const events = [
+    ...liveEvents,
+    ...syntheticBackfillEvents(liveEvents, backfillEvents, attendeeBackfillEvents),
+  ]
   const backfillByEventId = new Map(backfillEvents.filter((event) => event.eventId).map((event) => [String(event.eventId), event]))
   const backfillByMeetingId = new Map(backfillEvents.filter((event) => event.meetingId).map((event) => [String(event.meetingId), event]))
   const attendeeBackfillByEventId = new Map(attendeeBackfillEvents.filter((event) => event.eventId).map((event) => [String(event.eventId), event]))
@@ -486,6 +539,12 @@ function buildZoom(baseZoom, zoomStats, zoomEventsPayload, zoomRegistrationBackf
     for (const email of seenThisEvent) priorEventsByEmail.set(email, (priorEventsByEmail.get(email) || 0) + 1)
   }
 
+  const mappedEventIds = new Set(mappedEvents.map((event) => event.id))
+  const preservedHistoricalEvents = (Array.isArray(baseZoom?.events) ? baseZoom.events : [])
+    .filter((event) => !mappedEventIds.has(String(event.id)) && isBeforeCutoff(event.date, zoomRegistrantBackfillCutoff))
+  const allEvents = [...preservedHistoricalEvents, ...mappedEvents]
+    .sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime())
+
   return {
     stats: {
       totalEvents: number(zoomStats.total_events, events.length),
@@ -512,7 +571,7 @@ function buildZoom(baseZoom, zoomStats, zoomEventsPayload, zoomRegistrationBackf
       totalDurationMin: number(attendee.total_duration_min),
       lastEventDate: attendee.last_event_date || null,
     })),
-    events: mappedEvents,
+    events: allEvents,
     upcomingEvents: (Array.isArray(zoomStats.upcoming_events) ? zoomStats.upcoming_events : []).map((event) => ({
       id: String(event.meeting_id || event.event_id || event.topic),
       topic: event.topic || "",
