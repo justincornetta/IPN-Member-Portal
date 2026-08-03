@@ -11,11 +11,16 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single()
+  const [profileResult, educationResult] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    supabase
+      .from("member_education")
+      .select("id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+      .eq("user_id", user.id)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+  ])
+  const profile = profileResult.data
 
   const storedMailchimpStatus = profile?.mailchimp_status as MailchimpStatus | null
   const mailchimpStatus =
@@ -29,6 +34,7 @@ export default async function ProfilePage() {
       <ProfileForm
         profile={profile}
         contact={profile}
+        education={educationResult.data ?? []}
         userId={user.id}
         userEmail={user.email ?? ""}
         mailchimpStatus={mailchimpStatus}

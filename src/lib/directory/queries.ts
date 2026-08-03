@@ -1,10 +1,10 @@
 import type { createClient } from "@/lib/supabase/server"
-import type { DirectoryMember } from "./types"
+import type { DirectoryEducation, DirectoryMember } from "./types"
 
 export const DIRECTORY_PAGE_SIZE = 60
 
 export const DIRECTORY_MEMBER_SELECT =
-  "id, first_name, last_name, persona, school, affiliation, field, city, state, country, bio, interest_tags, linkedin_url, avatar_url, admin_role, team"
+  "id, first_name, last_name, persona, school, affiliation, field, city, state, country, city_lat, city_lng, share_location, bio, interest_tags, linkedin_url, avatar_url, admin_role, team"
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -72,6 +72,49 @@ export async function getContactMapForMembers(
       },
     ]),
   )
+}
+
+export async function getEducationMapForMembers(
+  supabase: SupabaseClient,
+  memberIds: string[],
+): Promise<Map<string, DirectoryEducation[]>> {
+  if (memberIds.length === 0) return new Map()
+
+  const { data: educationRows } = await supabase
+    .from("member_education")
+    .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+    .in("user_id", memberIds)
+    .order("sort_order", { ascending: true })
+
+  const educationByUser = new Map<string, DirectoryEducation[]>()
+  for (const entry of educationRows ?? []) {
+    const userId = entry.user_id as string
+    const current = educationByUser.get(userId) ?? []
+    current.push({
+      id: entry.id as string,
+      institution: entry.institution as string,
+      education_level: entry.education_level as DirectoryEducation["education_level"],
+      degree_credential: entry.degree_credential as string | null,
+      area_of_study: entry.area_of_study as string | null,
+      status: entry.status as DirectoryEducation["status"],
+      graduation_year: entry.graduation_year as number | null,
+      sort_order: entry.sort_order as number,
+    })
+    educationByUser.set(userId, current)
+  }
+
+  return educationByUser
+}
+
+export async function attachEducation(
+  supabase: SupabaseClient,
+  members: DirectoryMember[],
+): Promise<DirectoryMember[]> {
+  const educationMap = await getEducationMapForMembers(supabase, members.map((member) => member.id))
+  return members.map((member) => ({
+    ...member,
+    education: educationMap.get(member.id) ?? [],
+  }))
 }
 
 export async function attachContacts(

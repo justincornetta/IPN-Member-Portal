@@ -196,7 +196,7 @@ function MemberPreviewRow({
   isSelf: boolean
   onOpen: (member: DirectoryMember) => void
 }) {
-  const institution = member.school ?? member.affiliation
+  const institution = member.education?.[0]?.institution ?? member.school ?? member.affiliation
   const tags = member.interest_tags ?? []
   const bio = member.bio?.trim()
 

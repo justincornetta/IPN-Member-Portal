@@ -11,9 +11,15 @@ import {
   mergeMemberDirectoryDetail,
   normalizeMemberEmail,
 } from "@/lib/admin/analytics/member-directory"
+import {
+  isLeadershipTeam,
+  isPortalAdminRole,
+  roleAfterLeadershipAssignment,
+} from "@/lib/admin/leadership"
 import type {
   LegacyMemberSotRow,
   PortalDirectoryProfileRow,
+  PortalEducationRow,
 } from "@/lib/admin/analytics/member-directory"
 import type { MemberDirectoryDetail } from "@/lib/admin/analytics/member-directory-types"
 
@@ -79,7 +85,7 @@ export async function verifyAdmin(): Promise<
     .eq("id", user.id)
     .single()
 
-  if (data?.role !== "superadmin" && data?.role !== "admin") {
+  if (!isPortalAdminRole(data?.role)) {
     return { error: "Unauthorized" }
   }
 
@@ -197,17 +203,17 @@ export type AdminMemberDetail = AdminMemberProfile & {
 const MEMBER_PROFILE_SELECT = "id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio, whatsapp_url, is_banned"
 
 export async function searchMembersForAdmin(query: string): Promise<AdminMemberProfile[]> {
-  const authError = await verifySuperadmin()
-  if (authError) return []
+  const auth = await verifyAdmin()
+  if ("error" in auth) return []
 
-  const q = query.trim()
+  const q = query.trim().replace(/[,()%]/g, " ").slice(0, 80).trim()
   if (!q) return []
 
   const admin = createAdminClient()
   const { data } = await admin
     .from("profiles")
     .select(MEMBER_PROFILE_SELECT)
-    .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+    .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
     .limit(10)
 
   return (data ?? []) as AdminMemberProfile[]
@@ -315,27 +321,33 @@ export async function assignAdminAccess(
   adminRole: string | null,
   team: string | null,
 ): Promise<{ error?: string }> {
-  const authError = await verifySuperadmin()
-  if (authError) return authError
+  const auth = await verifyAdmin()
+  if ("error" in auth) return auth
+
+  const normalizedAdminRole = clean(adminRole)?.slice(0, 120) ?? null
+  const normalizedTeam = clean(team)
+  if (normalizedTeam && !isLeadershipTeam(normalizedTeam)) {
+    return { error: "Select a valid leadership team" }
+  }
 
   const admin = createAdminClient()
 
-  const { data: target } = await admin
+  const { data: target, error: targetError } = await admin
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .single()
+  if (targetError || !target) return { error: "Member not found" }
 
-  const newRole =
-    target?.role === "superadmin"
-      ? "superadmin"
-      : adminRole || team
-        ? "admin"
-        : null
+  const newRole = roleAfterLeadershipAssignment(
+    target.role,
+    normalizedAdminRole,
+    normalizedTeam,
+  )
 
   const { error } = await admin
     .from("profiles")
-    .update({ admin_role: adminRole, team, role: newRole })
+    .update({ admin_role: normalizedAdminRole, team: normalizedTeam, role: newRole })
     .eq("id", userId)
 
   if (error) return { error: error.message }
@@ -803,11 +815,91 @@ export async function getMemberDirectoryDetail(payload: {
       : Promise.resolve({ data: null, error: null }),
   ])
 
-  if (profileResult.error || legacyResult.error) return null
-  return mergeMemberDirectoryDetail(
-    (profileResult.data ?? null) as PortalDirectoryProfileRow | null,
+  if (profileResult.error || legacyResult.error) {
+    console.error("Unable to load core member directory detail.", {
+      profileError: profileResult.error?.message ?? null,
+      legacyError: legacyResult.error?.message ?? null,
+    })
+    return null
+  }
+
+  const profile = (profileResult.data ?? null) as PortalDirectoryProfileRow | null
+  if (profile && payload.portalId) {
+    const [referralResult, educationResult] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("referral_source_other")
+        .eq("id", payload.portalId)
+        .maybeSingle(),
+      admin
+        .from("member_education")
+        .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+        .eq("user_id", payload.portalId)
+        .order("sort_order", { ascending: true }),
+    ])
+
+    if (referralResult.error) {
+      console.warn("Optional referral detail is unavailable for this member.", {
+        code: referralResult.error.code,
+        message: referralResult.error.message,
+      })
+    } else {
+      profile.referral_source_other = referralResult.data?.referral_source_other ?? null
+    }
+
+    if (educationResult.error) {
+      console.warn("Optional education detail is unavailable for this member.", {
+        code: educationResult.error.code,
+        message: educationResult.error.message,
+      })
+      profile.education = []
+    } else {
+      profile.education = (educationResult.data ?? []) as PortalEducationRow[]
+    }
+  }
+
+  const detail = mergeMemberDirectoryDetail(
+    profile,
     (legacyResult.data ?? null) as LegacyMemberSotRow | null,
   )
+  if (detail && auth.role !== "superadmin") {
+    detail.sensitive = {
+      oldappUserId: "",
+      dateOfBirth: "",
+      gender: "",
+      race: "",
+      oldappSignupLocation: "",
+    }
+  }
+  if (detail) detail.canViewSensitive = auth.role === "superadmin"
+  return detail
+}
+
+export async function saveLinkedInFollowerSnapshot(payload: {
+  snapshotDate: string
+  followerCount: number
+}): Promise<{ error?: string }> {
+  const auth = await verifySuperadminUser()
+  if ("error" in auth) return auth
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.snapshotDate)) return { error: "Choose a valid date." }
+  if (!Number.isInteger(payload.followerCount) || payload.followerCount < 0) {
+    return { error: "Follower count must be a non-negative whole number." }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from("social_metric_snapshots")
+    .upsert({
+      platform: "linkedin",
+      snapshot_date: payload.snapshotDate,
+      follower_count: payload.followerCount,
+      source: "manual",
+      captured_at: new Date().toISOString(),
+      updated_by: auth.userId,
+    }, { onConflict: "platform,snapshot_date" })
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/admin")
+  return {}
 }
 
 export async function uploadContentImage(

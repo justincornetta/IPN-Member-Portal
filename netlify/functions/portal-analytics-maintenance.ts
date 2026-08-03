@@ -28,6 +28,7 @@ async function getPayload(request: Request) {
     return await request.clone().json() as {
       trigger?: unknown
       externalSources?: unknown
+      validationSummary?: unknown
     }
   } catch {
     // The request body is optional for manual invocations.
@@ -56,6 +57,9 @@ export default async function handler(request: Request) {
     const result = await runPortalAnalyticsMaintenance({
       trigger: await getTrigger(request, payload),
       externalSources: Array.isArray(payload.externalSources) ? payload.externalSources : [],
+      validationSummary: payload.validationSummary && typeof payload.validationSummary === "object" && !Array.isArray(payload.validationSummary)
+        ? payload.validationSummary as Record<string, unknown>
+        : {},
     })
 
     return new Response(JSON.stringify({ ok: true, result }), {

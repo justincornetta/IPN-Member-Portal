@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { analyticsLocationKey } from "@/lib/admin/analytics/geography"
 import type {
   PortalAnalyticsRefreshRun,
   PortalAnalyticsRefreshRunStatus,
@@ -32,6 +33,7 @@ type RollupAccumulator = {
 type MaintenanceOptions = {
   trigger?: string
   externalSources?: PortalAnalyticsRefreshSource[]
+  validationSummary?: Record<string, unknown>
 }
 
 type RefreshRunRow = {
@@ -50,6 +52,13 @@ type AdminClient = ReturnType<typeof createAdminClient>
 
 const RAW_RETENTION_DAYS = 90
 const PAGE_SIZE = 1000
+
+type GeocodeCoverageResult = {
+  located: number
+  mapped: number
+  coveragePct: number
+  error: string | null
+}
 
 function dateDaysAgo(days: number) {
   const date = new Date()
@@ -82,25 +91,27 @@ function normalizeSources(value: unknown): PortalAnalyticsRefreshSource[] {
 
 function normalizeInputSources(value: unknown): PortalAnalyticsRefreshSource[] {
   if (!Array.isArray(value)) return []
-  return value
-    .map((source) => {
-      const record = toRecord(source)
-      const id = typeof record.id === "string" ? record.id.trim() : ""
-      const label = typeof record.label === "string" ? record.label.trim() : ""
-      const status = record.status === "success" || record.status === "warning" || record.status === "error"
-        ? record.status
-        : "error"
-      if (!id || !label) return null
-      return {
-        id,
-        label,
-        status,
-        lastRefreshedAt: typeof record.lastRefreshedAt === "string" ? record.lastRefreshedAt : null,
-        records: typeof record.records === "number" ? record.records : null,
-        note: typeof record.note === "string" ? record.note : null,
-      } satisfies PortalAnalyticsRefreshSource
+  const sources: PortalAnalyticsRefreshSource[] = []
+  for (const source of value) {
+    const record = toRecord(source)
+    const id = typeof record.id === "string" ? record.id.trim() : ""
+    const label = typeof record.label === "string" ? record.label.trim() : ""
+    const status = record.status === "success" || record.status === "warning" || record.status === "error"
+      ? record.status
+      : "error"
+    if (!id || !label) continue
+    sources.push({
+      id,
+      label,
+      status,
+      lastRefreshedAt: typeof record.lastRefreshedAt === "string" ? record.lastRefreshedAt : null,
+      lastAttemptedAt: typeof record.lastAttemptedAt === "string" ? record.lastAttemptedAt : null,
+      lastSuccessfulAt: typeof record.lastSuccessfulAt === "string" ? record.lastSuccessfulAt : null,
+      records: typeof record.records === "number" ? record.records : null,
+      note: typeof record.note === "string" ? record.note : null,
     })
-    .filter((source): source is PortalAnalyticsRefreshSource => Boolean(source))
+  }
+  return sources
 }
 
 function mapRefreshRun(row: RefreshRunRow): PortalAnalyticsRefreshRun {
@@ -254,7 +265,123 @@ async function getPortalAnalyticsSourceStatuses(admin: AdminClient) {
       latestColumn: "updated_at",
       note: "Member onboarding completion state stored in Supabase.",
     }),
+    (async (): Promise<PortalAnalyticsRefreshSource> => {
+      const [{ count }, { data, error }] = await Promise.all([
+        admin.from("social_metric_snapshots").select("platform", { count: "exact", head: true }).eq("platform", "linkedin"),
+        admin
+          .from("social_metric_snapshots")
+          .select("snapshot_date, captured_at")
+          .eq("platform", "linkedin")
+          .order("snapshot_date", { ascending: false })
+          .limit(1),
+      ])
+      if (error) return {
+        id: "linkedin",
+        label: "LinkedIn",
+        status: "error",
+        lastRefreshedAt: null,
+        records: count ?? 0,
+        note: error.message,
+      }
+      const latest = data?.[0] ?? null
+      const latestAt = latest?.captured_at ?? (latest?.snapshot_date ? `${latest.snapshot_date}T00:00:00Z` : null)
+      const stale = !latestAt || Date.now() - new Date(latestAt).getTime() > 30 * 24 * 60 * 60 * 1000
+      return {
+        id: "linkedin",
+        label: "LinkedIn",
+        status: stale ? "warning" : "success",
+        lastRefreshedAt: latestAt,
+        records: count ?? 0,
+        note: stale ? "LinkedIn follower data is missing or more than 30 days old." : "Manual LinkedIn follower snapshots are current.",
+      }
+    })(),
   ])
+}
+
+async function fetchCoverageRows(admin: AdminClient, table: string, columns: string) {
+  const rows: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await admin
+      .from(table)
+      .select(columns)
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) return { rows, error: error.message }
+    const page = (data ?? []) as unknown as Record<string, unknown>[]
+    rows.push(...page)
+    if (page.length < PAGE_SIZE) return { rows, error: null }
+  }
+}
+
+function cleanLocationPart(value: unknown) {
+  return typeof value === "string" ? value.trim() : ""
+}
+
+async function getMembershipGeocodeCoverage(admin: AdminClient): Promise<GeocodeCoverageResult> {
+  const [profilesResult, legacyResult, geocodesResult] = await Promise.all([
+    fetchCoverageRows(admin, "profiles", "id,email,city,state,country,city_lat,city_lng"),
+    fetchCoverageRows(admin, "legacy_member_sot_rows", "id,normalized_email,city,state,country"),
+    fetchCoverageRows(admin, "analytics_location_geocodes", "city,state,country,latitude,longitude,precision"),
+  ])
+  const error = profilesResult.error ?? legacyResult.error ?? geocodesResult.error
+  if (error) return { located: 0, mapped: 0, coveragePct: 0, error }
+
+  const exact = new Set<string>()
+  const countries = new Set<string>()
+  for (const row of geocodesResult.rows) {
+    const country = cleanLocationPart(row.country)
+    const city = cleanLocationPart(row.city)
+    if (!country) continue
+    if (row.precision === "country" || !city) countries.add(country.toLowerCase())
+    else exact.add(analyticsLocationKey(city, cleanLocationPart(row.state), country))
+  }
+
+  const memberLocations = new Map<string, Record<string, unknown>>()
+  for (const row of profilesResult.rows) {
+    const email = cleanLocationPart(row.email).toLowerCase()
+    memberLocations.set(email || `portal:${String(row.id)}`, row)
+  }
+  for (const row of legacyResult.rows) {
+    const email = cleanLocationPart(row.normalized_email).toLowerCase()
+    const key = email || `legacy:${String(row.id)}`
+    if (!memberLocations.has(key)) memberLocations.set(key, row)
+  }
+
+  let located = 0
+  let mapped = 0
+  for (const row of memberLocations.values()) {
+    const city = cleanLocationPart(row.city)
+    const state = cleanLocationPart(row.state)
+    const country = cleanLocationPart(row.country)
+    if (!city && !country) continue
+    located += 1
+    const hasProfileCoordinates = Number.isFinite(Number(row.city_lat)) && Number.isFinite(Number(row.city_lng))
+      && row.city_lat != null && row.city_lng != null
+    if (
+      hasProfileCoordinates
+      || (country && exact.has(analyticsLocationKey(city, state, country)))
+      || (country && countries.has(country.toLowerCase()))
+    ) mapped += 1
+  }
+
+  return {
+    located,
+    mapped,
+    coveragePct: located ? Math.round(mapped / located * 1000) / 10 : 0,
+    error: null,
+  }
+}
+
+async function getPreviousGeocodeCoverage(admin: AdminClient) {
+  const { data } = await admin
+    .from("portal_analytics_refresh_runs")
+    .select("summary")
+    .in("status", ["success", "partial_failure"])
+    .order("started_at", { ascending: false })
+    .limit(1)
+  const summary = toRecord(data?.[0]?.summary)
+  const coverage = toRecord(summary.geocodeCoverage)
+  const value = Number(coverage.coveragePct)
+  return Number.isFinite(value) ? value : null
 }
 
 async function rollupPortalAnalyticsEvents(admin: AdminClient) {
@@ -342,16 +469,40 @@ export async function runPortalAnalyticsMaintenance(options: MaintenanceOptions 
   const admin = createAdminClient()
   const trigger = options.trigger || "manual"
   const externalSources = normalizeInputSources(options.externalSources)
+  const previousGeocodeCoverage = await getPreviousGeocodeCoverage(admin)
   const runId = await startRefreshRun(admin, trigger)
 
   try {
-    const rollupResult = await rollupPortalAnalyticsEvents(admin)
-    const portalSources = await getPortalAnalyticsSourceStatuses(admin)
-    const sources = [...externalSources, ...portalSources]
+    const [rollupResult, portalSources, geocodeCoverage] = await Promise.all([
+      rollupPortalAnalyticsEvents(admin),
+      getPortalAnalyticsSourceStatuses(admin),
+      getMembershipGeocodeCoverage(admin),
+    ])
     const finishedAt = new Date().toISOString()
+    const coverageFell = previousGeocodeCoverage != null
+      && geocodeCoverage.coveragePct < previousGeocodeCoverage
+    portalSources.push({
+      id: "membership_geography",
+      label: "Membership geography",
+      status: geocodeCoverage.error ? "error" : coverageFell ? "warning" : "success",
+      lastRefreshedAt: geocodeCoverage.error ? null : finishedAt,
+      lastAttemptedAt: finishedAt,
+      lastSuccessfulAt: geocodeCoverage.error ? null : finishedAt,
+      records: geocodeCoverage.located,
+      note: geocodeCoverage.error
+        ?? (coverageFell
+          ? `Geocode coverage fell from ${previousGeocodeCoverage}% to ${geocodeCoverage.coveragePct}%.`
+          : `${geocodeCoverage.mapped} of ${geocodeCoverage.located} located member records are mapped (${geocodeCoverage.coveragePct}%).`),
+    })
+    const sources = [...externalSources, ...portalSources]
     const hasSourceErrors = sources.some((source) => source.status === "error")
     const summary = {
       ...rollupResult,
+      validation: options.validationSummary ?? {},
+      geocodeCoverage: {
+        ...geocodeCoverage,
+        previousCoveragePct: previousGeocodeCoverage,
+      },
       externalSourceCount: externalSources.length,
       portalSourceCount: portalSources.length,
       sourceCount: sources.length,
@@ -400,5 +551,18 @@ export async function getLatestPortalAnalyticsRefresh(): Promise<PortalAnalytics
   }
 
   const row = (data?.[0] ?? null) as RefreshRunRow | null
-  return row ? mapRefreshRun(row) : null
+  if (!row) return null
+  const refresh = mapRefreshRun(row)
+  if (row.status === "success") {
+    refresh.lastSuccessfulAt = row.finished_at ?? row.started_at
+    return refresh
+  }
+  const { data: previousSuccess } = await admin
+    .from("portal_analytics_refresh_runs")
+    .select("finished_at, started_at")
+    .eq("status", "success")
+    .order("started_at", { ascending: false })
+    .limit(1)
+  refresh.lastSuccessfulAt = previousSuccess?.[0]?.finished_at ?? previousSuccess?.[0]?.started_at ?? null
+  return refresh
 }

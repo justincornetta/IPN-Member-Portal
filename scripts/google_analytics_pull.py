@@ -43,6 +43,7 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
+EXPECTED_GA4_PROPERTY_ID = "529296668"
 DATA_DIR.mkdir(exist_ok=True)
 ENV_PATHS = [
     PROJECT_DIR / ".env",
@@ -66,6 +67,10 @@ def load_env():
     property_id = os.environ.get("GA4_PROPERTY_ID")
     if not property_id:
         raise ValueError("GA4_PROPERTY_ID not found in .env")
+    if property_id.strip() != EXPECTED_GA4_PROPERTY_ID:
+        raise ValueError(
+            f"GA4_PROPERTY_ID must be {EXPECTED_GA4_PROPERTY_ID}; received {property_id.strip()}"
+        )
 
     key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_KEY_PATH")
     if not key_path:
@@ -338,7 +343,6 @@ def pull_conversion_funnels(client, property_id):
 
     key_pages = [
         "/become-a-member",
-        "/donate",
         "/psychedelx",
         "/contact",
     ]

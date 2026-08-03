@@ -6,6 +6,7 @@ export const PORTAL_ANALYTICS_EVENTS = [
   "session_summary",
   "curated_click",
   "registration_view",
+  "registration_step_view",
   "registration_submit",
   "registration_success",
   "registration_error",

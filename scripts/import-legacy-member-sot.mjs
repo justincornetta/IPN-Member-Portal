@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { createClient } from "@supabase/supabase-js"
+import {
+  canonicalMemberField,
+  canonicalMemberPersona,
+  canonicalPsychedelicFieldStatus,
+  canonicalReferralSource,
+  normalizeLegacyBarrierText,
+} from "../src/lib/admin/analytics/category-normalization.mjs"
 
 const defaultLegacyPath = "/Users/jcornetta/Code/ipn-dashboard/data/sot/master.json"
 const defaultOldappSupplementPath = "/Users/jcornetta/Code/ipn-dashboard/data/sot/oldapp_supplement.json"
@@ -187,13 +194,13 @@ function mapRow(row, importId) {
     country: text(row.country),
     state: text(row.state),
     city: text(row.city),
-    self_description: text(row.self_description),
-    primary_field: text(row.primary_field),
-    psychedelic_field_status: text(row.psychedelic_field_status),
-    psychedelic_field_barriers: text(row.psychedelic_field_barriers),
+    self_description: text(canonicalMemberPersona(row.self_description)),
+    primary_field: text(canonicalMemberField(row.primary_field)),
+    psychedelic_field_status: text(canonicalPsychedelicFieldStatus(row.psychedelic_field_status)),
+    psychedelic_field_barriers: text(normalizeLegacyBarrierText(row.psychedelic_field_barriers)),
     current_role_and_goals: text(row.current_role_and_goals),
     ipn_inspiration: text(row.ipn_inspiration),
-    referral_source: text(row.referral_source),
+    referral_source: text(canonicalReferralSource(row.referral_source)),
     channels_present: sources.join(", "),
     channel_count: sources.length,
     in_form: bool(row.in_form),

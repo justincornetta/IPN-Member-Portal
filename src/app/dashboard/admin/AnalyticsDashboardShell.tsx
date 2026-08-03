@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import type { CSSProperties, ReactElement, ReactNode } from "react"
 import mapboxgl, {
   type GeoJSONSource,
@@ -20,21 +21,47 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Sankey,
   Tooltip,
   XAxis,
   YAxis,
+  type SankeyNodeProps,
 } from "recharts"
-import { getMemberDirectoryDetail, saveAnalyticsEventLabelOverride } from "@/lib/admin/actions"
+import { getMemberDirectoryDetail, saveAnalyticsEventLabelOverride, saveLinkedInFollowerSnapshot } from "@/lib/admin/actions"
 import type { AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import type { AnalyticsPoint, LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
+import { canonicalPsychedelicFieldBarrier } from "@/lib/constants/registration"
 import type {
   MemberDirectoryData,
   MemberDirectoryDetail,
   MemberDirectoryRow,
   MemberDirectorySources,
 } from "@/lib/admin/analytics/member-directory-types"
+import { educationLevelLabel } from "@/lib/members/education"
+import { buildCarriedSocialTrend } from "@/lib/admin/analytics/social-trend"
+import { buildOtherVariantItems } from "@/lib/admin/analytics/other-variants"
+import {
+  buildFocusedPortalJourneyFlow,
+  buildPortalJourneyFlow,
+  buildRegistrationStepFlow,
+  PORTAL_PAGE_CATEGORIES,
+  type PortalJourneyFlowData,
+  type PortalJourneyFlowNode,
+  type PortalPageCategory,
+  type PortalUtilizationData,
+  type RegistrationFlowCounts,
+  type UtilizationAudience,
+} from "@/lib/admin/analytics/portal-utilization"
+import {
+  buildCountryMemberGeography,
+  buildFilteredMemberGeography,
+  cityMemberGeography,
+  memberGeographyCoverage,
+} from "@/lib/admin/analytics/membership-geography"
+
+export type { PortalUtilizationData } from "@/lib/admin/analytics/portal-utilization"
 
 const ANALYTICS_SECTIONS = [
   { id: "members", label: "Members", title: "Member analytics", description: "Live Portal membership and legacy membership source-of-truth data." },
@@ -46,14 +73,43 @@ const ANALYTICS_SECTIONS = [
   { id: "data-sources", label: "Data Sources & Glossary", title: "Data sources & glossary", description: "Connected platform feeds, refresh status, and metric definitions." },
 ] as const
 
+const PORTAL_PAGE_COLORS: Record<PortalPageCategory, string> = {
+  Dashboard: "#6f51aa",
+  Community: "#8b5cf6",
+  Events: "#2563eb",
+  Conferences: "#0ea5e9",
+  Profile: "#16a34a",
+  Feedback: "#d97706",
+}
+
+const JOURNEY_FLOW_DEFAULT_STEPS = 5
+const JOURNEY_FLOW_STEP_INCREMENT = 5
+const JOURNEY_FLOW_MAX_STEPS = 15
+
 type AnalyticsSectionId = (typeof ANALYTICS_SECTIONS)[number]["id"]
 type MemberAnalyticsView = "members" | "utilization"
 type EventsView = "zoom" | "eventbrite" | "labeling"
+type MemberUtilizationSortKey = "firstRegisteredAt" | "lastSignedInAt" | "signInsLast30Days" | "connectionCount" | "whatsappConnected" | "mailchimpStatus"
+type SortDirection = "asc" | "desc"
+
+const MEMBER_UTILIZATION_SORT_COLUMNS: Array<{
+  key: MemberUtilizationSortKey
+  label: string
+  defaultDirection: SortDirection
+}> = [
+  { key: "firstRegisteredAt", label: "First registered", defaultDirection: "desc" },
+  { key: "lastSignedInAt", label: "Last signed in", defaultDirection: "desc" },
+  { key: "signInsLast30Days", label: "Sign-ins (30d)", defaultDirection: "desc" },
+  { key: "connectionCount", label: "Connections", defaultDirection: "desc" },
+  { key: "whatsappConnected", label: "WhatsApp", defaultDirection: "desc" },
+  { key: "mailchimpStatus", label: "Mailchimp", defaultDirection: "asc" },
+]
 type WebsiteGeoView = "countries" | "cities"
 type Granularity = "daily" | "weekly" | "monthly"
 type EventbriteMetric = "tickets" | "revenue"
 type SocialMetric = "followers" | "engagementRate" | "posts"
 type DeviceFilter = "all" | "desktop" | "mobile" | "tablet" | "unknown"
+type AudienceFilter = UtilizationAudience
 type AnalyticsEventProgram = "IPN Labs" | "PsychedelX" | "Other"
 type AnalyticsEventType = "public" | "internal"
 type LiveConnectionStatus = {
@@ -103,76 +159,6 @@ export type MemberInsightsData = {
     mailchimp_last_error_description: string | null
   }[] | null
   memberDirectory: MemberDirectoryData
-}
-
-export type PortalUtilizationData = {
-  generatedAt: string
-  rawRetentionDays: number
-  trackingAvailable: boolean
-  trackingError: string | null
-  funnel: {
-    date: string
-    device: string
-    registrationTraffic: number
-    registrationCompleted: number
-    registrationConversion: number
-    signInTraffic: number
-    signInCompleted: number
-    signInConversion: number
-  }[]
-  errors: {
-    page: string
-    errorCode: string
-    count: number
-  }[]
-  topPages: {
-    page: string
-    device: string
-    sessions: number
-    users: number
-    avgDurationSeconds: number
-    clicks: number
-    clicksPerSession: number
-  }[]
-  topClicks: {
-    clickName: string
-    page: string
-    device: string
-    clicks: number
-    users: number
-    sessions: number
-  }[]
-  recentSessions: {
-    sessionId: string
-    memberName: string
-    memberEmail: string
-    startedAt: string
-    lastSeenAt: string
-    pages: number
-    clicks: number
-    durationSeconds: number
-    lastPage: string
-  }[]
-  rsvpTrend: {
-    date: string
-    rsvps: number
-  }[]
-  trafficDevices: {
-    label: string
-    sessions: number
-    users: number
-  }[]
-  recentRsvps: {
-    memberName: string
-    memberEmail: string
-    eventTitle: string
-    createdAt: string
-  }[]
-  whatsapp: {
-    linkedProfiles: number
-    onboardingComplete: number
-    totalMembers: number
-  }
 }
 
 export type PortalAnalyticsEvent = {
@@ -381,15 +367,18 @@ function formatDuration(minutes: number | null | undefined) {
   return `${hours}h ${mins}m`
 }
 
-function formatSeconds(seconds: number | null | undefined) {
+function formatTrackedDuration(seconds: number | null | undefined) {
   if (seconds == null || Number.isNaN(seconds)) return "-"
-  if (seconds < 60) return `${formatNumber(seconds, 0)}s`
-  const minutes = Math.floor(seconds / 60)
-  const remainder = Math.round(seconds % 60)
-  if (minutes < 60) return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`
+  const rounded = Math.max(0, Math.round(seconds))
+  if (rounded < 60) return `${rounded}s`
+  const minutes = Math.floor(rounded / 60)
+  const remainingSeconds = rounded % 60
+  if (minutes < 60) {
+    return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`
+  }
   const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  return mins ? `${hours}h ${mins}m` : `${hours}h`
+  const remainingMinutes = minutes % 60
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`
 }
 
 function truncate(value: string, length = 72) {
@@ -502,10 +491,16 @@ function SourceFreshnessNote({
 }) {
   if (!source) return null
   const portalRefreshedAt = analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt ?? null
+  const refreshSource = analyticsRefresh?.sources.find((item) => item.id === source.id)
+  const lastAttemptedAt = refreshSource?.lastAttemptedAt ?? refreshSource?.lastRefreshedAt ?? source.lastAttemptedAt ?? portalRefreshedAt
+  const lastSuccessfulAt = refreshSource?.lastSuccessfulAt ??
+    (refreshSource?.status === "success" ? refreshSource.lastRefreshedAt : null) ??
+    source.lastSuccessfulAt ??
+    source.lastPull
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-      <span className="font-semibold">{source.label} source snapshot:</span> last pulled {formatDate(source.lastPull)}. {detail ?? source.note}
-      {portalRefreshedAt ? ` Portal refresh completed ${formatDateTime(portalRefreshedAt)}.` : ""}
+      <span className="font-semibold">{source.label} source snapshot:</span> last successful {formatDateTime(lastSuccessfulAt)}.
+      {lastAttemptedAt ? ` Last attempted ${formatDateTime(lastAttemptedAt)}.` : ""} {detail ?? source.note}
     </div>
   )
 }
@@ -533,7 +528,7 @@ function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyti
   const label = refresh
     ? refresh.status === "success"
       ? `Last refreshed ${formatDateTime(refreshedAt)}`
-      : `${refresh.status.replace("_", " ")} ${formatDateTime(refreshedAt)}`
+      : `${refresh.status.replace("_", " ")} attempted ${formatDateTime(refreshedAt)} · last successful ${formatDateTime(refresh.lastSuccessfulAt)}`
     : `Snapshot generated ${formatDateTime(fallbackGeneratedAt)}`
   const status = refresh?.status ?? "snapshot"
   const className =
@@ -571,7 +566,6 @@ function buildLiveConnectionStatuses(
     { id: "zoom", label: "Zoom" },
     { id: "eventbrite", label: "Eventbrite" },
     { id: "mailchimp", label: "Mailchimp" },
-    { id: "donations", label: "Donations" },
   ]
   const connections = externalSources.map(({ id, label }) => {
     const refreshSource = refreshById.get(id)
@@ -680,6 +674,244 @@ function sampleSize(items: AnalyticsPoint[]) {
 
 function sampleSubtitle(items: AnalyticsPoint[], unit = "responses") {
   return `n=${formatNumber(sampleSize(items))} ${unit}`
+}
+
+const MEMBER_DISTRIBUTION_COLORS = [
+  "#6f51aa",
+  "#8b5cf6",
+  "#2563eb",
+  "#0ea5e9",
+  "#16a34a",
+  "#d97706",
+  "#e11d48",
+  "#64748b",
+  "#a855f7",
+  "#14b8a6",
+  "#f59e0b",
+  "#475569",
+]
+
+type DistributionChartItem = AnalyticsPoint & { color: string }
+
+function OtherVariantsModal({
+  chartTitle,
+  items,
+  onClose,
+}: {
+  chartTitle: string
+  items: AnalyticsPoint[]
+  onClose: () => void
+}) {
+  const total = sampleSize(items)
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="other-variants-title"
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ipn">Other responses</p>
+            <h2 id="other-variants-title" className="mt-1 text-lg font-semibold text-zinc-900">{chartTitle}</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Original answers grouped by exact response. Counts reflect the current member filters.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="flex-shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50">
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 sm:px-6">
+          <div className="overflow-hidden rounded-xl border border-zinc-200">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">Raw response</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-400">Count</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-400">% of list</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {items.map((item) => (
+                  <tr key={item.label}>
+                    <td className="break-words px-4 py-3 text-zinc-700">{item.label}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-800">{formatNumber(item.value)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-zinc-500">
+                      {formatPercent(total ? item.value / total * 100 : 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function DistributionTooltip({
+  active,
+  payload,
+  total,
+  hasOtherDrillDown,
+}: {
+  active?: boolean
+  payload?: {
+    value?: number
+    name?: string
+    payload?: Partial<DistributionChartItem>
+  }[]
+  total: number
+  hasOtherDrillDown?: boolean
+}) {
+  const entry = payload?.[0]
+  if (!active || !entry) return null
+  const value = Number(entry.value ?? entry.payload?.value ?? 0)
+  const label = String(entry.payload?.label ?? entry.name ?? "Responses")
+
+  return (
+    <div className="max-w-xs rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-zinc-800">{label}</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        {formatNumber(value)} responses · {formatPercent(total ? value / total * 100 : 0)} of total
+      </p>
+      {label === "Other" && hasOtherDrillDown && (
+        <p className="mt-1 text-[11px] font-medium text-ipn">Click to view original responses</p>
+      )}
+    </div>
+  )
+}
+
+function DistributionChartPair({
+  title,
+  items,
+  otherVariants = [],
+}: {
+  title: string
+  items: AnalyticsPoint[]
+  otherVariants?: AnalyticsPoint[]
+}) {
+  const [showOtherVariants, setShowOtherVariants] = useState(false)
+  const chartItems: DistributionChartItem[] = [...items]
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .map((item, index) => ({
+      ...item,
+      color: MEMBER_DISTRIBUTION_COLORS[index % MEMBER_DISTRIBUTION_COLORS.length],
+    }))
+  const total = sampleSize(chartItems)
+  const subtitle = sampleSubtitle(chartItems)
+  const chartHeight = Math.max(300, Math.min(440, chartItems.length * 38))
+  const hasOtherDrillDown = chartItems.some((item) => item.label === "Other") && otherVariants.length > 0
+
+  function openOtherFromChart(data: { payload?: Partial<DistributionChartItem>; name?: string | number }) {
+    const label = String(data.payload?.label ?? data.name ?? "")
+    if (label === "Other" && hasOtherDrillDown) setShowOtherVariants(true)
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-6 lg:col-span-2 lg:grid-cols-2">
+        <Panel title={title} subtitle={subtitle}>
+          {chartItems.length ? (
+            <div className="grid min-w-0 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
+              <ResponsiveChart height={chartHeight}>
+                <PieChart>
+                  <Pie
+                    data={chartItems}
+                    dataKey="value"
+                    nameKey="label"
+                    innerRadius="46%"
+                    outerRadius="72%"
+                    paddingAngle={1}
+                    onClick={openOtherFromChart}
+                  >
+                    {chartItems.map((item) => (
+                      <Cell
+                        key={item.label}
+                        fill={item.color}
+                        cursor={item.label === "Other" && hasOtherDrillDown ? "pointer" : "default"}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<DistributionTooltip total={total} hasOtherDrillDown={hasOtherDrillDown} />} />
+                </PieChart>
+              </ResponsiveChart>
+              <ol className="flex max-h-[var(--legend-height)] min-w-0 flex-col gap-2 overflow-y-auto pr-1" style={{ "--legend-height": `${chartHeight}px` } as CSSProperties}>
+                {chartItems.map((item) => (
+                  <li key={item.label} className="min-w-0 text-xs text-zinc-600">
+                    {item.label === "Other" && hasOtherDrillDown ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowOtherVariants(true)}
+                        className="flex w-full min-w-0 items-center gap-2 rounded-md text-left hover:text-ipn focus:outline-none focus:ring-2 focus:ring-ipn/30"
+                        aria-label={`View raw Other responses for ${title}`}
+                      >
+                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                        <span className="truncate underline decoration-dotted underline-offset-2" title={item.label}>{item.label}</span>
+                        <span className="flex-shrink-0 text-[10px] font-medium text-ipn">View</span>
+                      </button>
+                    ) : (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                        <span className="truncate" title={item.label}>{item.label}</span>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : (
+            <EmptyState title="No responses" description="No data matches the current member filters." />
+          )}
+        </Panel>
+        <Panel title={title} subtitle={subtitle}>
+          {chartItems.length ? (
+            <ResponsiveChart height={chartHeight}>
+              <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 18 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  width={150}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(value) => truncate(String(value), 24)}
+                />
+                <Tooltip content={<DistributionTooltip total={total} hasOtherDrillDown={hasOtherDrillDown} />} />
+                <Bar dataKey="value" name="Responses" radius={[0, 6, 6, 0]} onClick={openOtherFromChart}>
+                  {chartItems.map((item) => (
+                    <Cell
+                      key={item.label}
+                      fill={item.color}
+                      cursor={item.label === "Other" && hasOtherDrillDown ? "pointer" : "default"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveChart>
+          ) : (
+            <EmptyState title="No responses" description="No data matches the current member filters." />
+          )}
+        </Panel>
+      </div>
+      {showOtherVariants && (
+        <OtherVariantsModal chartTitle={title} items={otherVariants} onClose={() => setShowOtherVariants(false)} />
+      )}
+    </>
+  )
 }
 
 function PaginatedBarList({
@@ -847,12 +1079,17 @@ function buildFilteredMemberCharts(rows: MemberDirectoryRow[], directory: Member
     incrementMemberCount(stage, row.persona)
     incrementMemberCount(field, row.primaryField)
     for (const tag of row.interestTags) incrementMemberCount(tags, tag)
-    incrementMemberCount(schools, row.school)
+    for (const school of row.schools) incrementMemberCount(schools, school)
     incrementMemberCount(describes, row.persona || row.selfDescription)
     incrementMemberCount(primary, row.primaryField)
     incrementMemberCount(referrals, row.referralSource)
     incrementMemberCount(psychedelic, row.psychedelicFieldStatus)
-    for (const barrier of row.psychedelicFieldBarriers) incrementMemberCount(barriers, barrier)
+    const barrierLabels = new Set(
+      row.psychedelicFieldBarriers
+        .map(canonicalPsychedelicFieldBarrier)
+        .filter(Boolean),
+    )
+    for (const barrier of barrierLabels) incrementMemberCount(barriers, barrier)
   }
 
   return {
@@ -865,98 +1102,41 @@ function buildFilteredMemberCharts(rows: MemberDirectoryRow[], directory: Member
     referralSources: topMemberCounts(referrals),
     psychedelicFieldStatus: topMemberCounts(psychedelic),
     psychedelicFieldBarriers: topMemberCounts(barriers),
+    otherVariants: {
+      bestDescribes: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.persona || row.selfDescription,
+        rawValues: row.rawCategoryResponses.persona,
+      }))),
+      primaryField: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.primaryField,
+        rawValues: row.rawCategoryResponses.primaryField,
+      }))),
+      referralSources: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.referralSource,
+        rawValues: row.rawCategoryResponses.referralSource,
+      }))),
+      psychedelicFieldStatus: buildOtherVariantItems(rows.map((row) => ({
+        canonicalLabel: row.psychedelicFieldStatus,
+        rawValues: row.rawCategoryResponses.psychedelicFieldStatus,
+      }))),
+      psychedelicFieldBarriers: buildOtherVariantItems(rows.flatMap((row) => {
+        const rawValues = row.rawCategoryResponses.psychedelicFieldBarriers
+        if (!rawValues.length) {
+          return row.psychedelicFieldBarriers.map((value) => ({
+            canonicalLabel: canonicalPsychedelicFieldBarrier(value),
+            rawValues: [value],
+          }))
+        }
+        return rawValues.map((value) => ({
+          canonicalLabel: canonicalPsychedelicFieldBarrier(value),
+          rawValues: [value],
+        }))
+      })),
+    },
     gender: directory.chartData.gender,
     age: directory.chartData.age,
     raceEthnicity: directory.chartData.raceEthnicity,
   }
-}
-
-function geographyKey(city: string, state: string, country: string) {
-  return [city, state, country].map((part) => part.trim().toLowerCase()).join("|")
-}
-
-function buildFilteredGeography(rows: MemberDirectoryRow[], directory: MemberDirectoryData): MemberDirectoryData["geography"] {
-  const baseById = new Map(directory.geography.map((city) => [city.id, city]))
-  const groups = new Map<string, MemberDirectoryData["geography"][number]>()
-
-  for (const row of rows) {
-    if (!row.city || !row.country) continue
-    const id = geographyKey(row.city, row.state, row.country)
-    const base = baseById.get(id)
-    const current = groups.get(id) ?? {
-      id,
-      city: row.city,
-      state: row.state,
-      country: row.country,
-      lat: base?.lat ?? null,
-      lng: base?.lng ?? null,
-      memberCount: 0,
-      identifiableCount: 0,
-      sourceCounts: MEMBER_SOURCE_LABELS.map((source) => ({ id: source.id, label: source.label, value: 0 })),
-      members: [],
-    }
-    current.memberCount += 1
-    current.identifiableCount += 1
-    current.members.push({ id: row.id, name: row.name, email: row.email, sources: row.sources })
-    for (const source of current.sourceCounts) {
-      if (row.sources[source.id]) source.value += 1
-    }
-    groups.set(id, current)
-  }
-
-  return Array.from(groups.values()).sort((a, b) => b.memberCount - a.memberCount || a.city.localeCompare(b.city))
-}
-
-function buildCountryGeography(cities: MemberDirectoryData["geography"]): MemberDirectoryData["geography"] {
-  const countries = new Map<string, MemberDirectoryData["geography"][number] & { weightedLat: number; weightedLng: number; weightedCount: number }>()
-
-  for (const city of cities) {
-    if (!city.country) continue
-    const id = `country:${city.country.toLowerCase()}`
-    const current = countries.get(id) ?? {
-      id,
-      city: "",
-      state: "",
-      country: city.country,
-      lat: null,
-      lng: null,
-      memberCount: 0,
-      identifiableCount: 0,
-      sourceCounts: MEMBER_SOURCE_LABELS.map((source) => ({ id: source.id, label: source.label, value: 0 })),
-      members: [],
-      weightedLat: 0,
-      weightedLng: 0,
-      weightedCount: 0,
-    }
-    current.memberCount += city.memberCount
-    current.identifiableCount += city.identifiableCount
-    current.members.push(...city.members)
-    if (city.lat != null && city.lng != null) {
-      current.weightedLat += city.lat * city.memberCount
-      current.weightedLng += city.lng * city.memberCount
-      current.weightedCount += city.memberCount
-    }
-    for (const source of current.sourceCounts) {
-      const citySource = city.sourceCounts.find((item) => item.id === source.id)
-      source.value += citySource?.value ?? 0
-    }
-    countries.set(id, current)
-  }
-
-  return Array.from(countries.values())
-    .map((country) => ({
-      id: country.id,
-      city: "",
-      state: "",
-      country: country.country,
-      lat: country.weightedCount ? country.weightedLat / country.weightedCount : null,
-      lng: country.weightedCount ? country.weightedLng / country.weightedCount : null,
-      memberCount: country.memberCount,
-      identifiableCount: country.identifiableCount,
-      sourceCounts: country.sourceCounts,
-      members: country.members.sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    .sort((a, b) => b.memberCount - a.memberCount || a.country.localeCompare(b.country))
 }
 
 const MEMBER_GEO_SOURCE_ID = "admin-member-geography"
@@ -999,18 +1179,25 @@ function buildMemberGeoJson(cities: MemberDirectoryData["geography"]): FeatureCo
   }
 }
 
-function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geography"] }) {
+function MembershipGeographyPanel({ locations }: { locations: MemberDirectoryData["geography"] }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapboxMap | null>(null)
   const [geoView, setGeoView] = useState<"city" | "country">("city")
-  const [selectedCityId, setSelectedCityId] = useState(cities[0]?.id ?? "")
+  const [mapFocus, setMapFocus] = useState<"world" | "us">("world")
+  const [selectedCityId, setSelectedCityId] = useState("")
   const [mapError, setMapError] = useState("")
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  const activeLocations = useMemo(() => geoView === "country" ? buildCountryGeography(cities) : cities, [cities, geoView])
+  const cityLocations = useMemo(() => cityMemberGeography(locations), [locations])
+  const activeLocations = useMemo(
+    () => geoView === "country" ? buildCountryMemberGeography(locations) : cityLocations,
+    [cityLocations, geoView, locations],
+  )
+  const coverage = useMemo(() => memberGeographyCoverage(activeLocations), [activeLocations])
   const geoJson = useMemo(() => buildMemberGeoJson(activeLocations), [activeLocations])
   const geoJsonRef = useRef(geoJson)
-  const selectedLocation = activeLocations.find((city) => city.id === selectedCityId) ?? activeLocations[0] ?? null
-  const totalLocatedRecords = activeLocations.reduce((sum, city) => sum + city.memberCount, 0)
+  const selectedLocation = selectedCityId
+    ? activeLocations.find((city) => city.id === selectedCityId) ?? null
+    : null
   const selectedLocationLabel = selectedLocation
     ? geoView === "country"
       ? selectedLocation.country
@@ -1028,8 +1215,10 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
       const map = new mapboxgl.Map({
         container: containerRef.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [-98.5795, 39.8283],
-        zoom: 1.8,
+        center: [0, 20],
+        zoom: 1.15,
+        projection: "mercator",
+        renderWorldCopies: false,
       })
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-left")
       map.on("error", (event) => setMapError(event.error?.message ?? "Mapbox could not load the map."))
@@ -1051,7 +1240,16 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
           filter: ["has", "point_count"],
           paint: {
             "circle-color": "#6f51aa",
-            "circle-radius": ["step", ["get", "memberCountSum"], 18, 25, 24, 100, 32],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["sqrt", ["get", "memberCountSum"]],
+              1, 12,
+              4, 18,
+              10, 24,
+              20, 32,
+              32, 46,
+            ],
             "circle-opacity": 0.9,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
@@ -1076,8 +1274,17 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
           source: MEMBER_GEO_SOURCE_ID,
           filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-color": "#2563eb",
-            "circle-radius": ["step", ["get", "memberCount"], 10, 10, 14, 30, 18],
+            "circle-color": "#6f51aa",
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["sqrt", ["get", "memberCount"]],
+              1, 10,
+              4, 14,
+              10, 20,
+              20, 28,
+              32, 40,
+            ],
             "circle-opacity": 0.9,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
@@ -1139,28 +1346,85 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
     }
   }, [geoJson])
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.easeTo({
+      center: mapFocus === "us" ? [-98.5795, 39.8283] : [0, 20],
+      zoom: mapFocus === "us" ? 3.15 : 1.15,
+      duration: 500,
+    })
+  }, [mapFocus])
+
+  function selectLocation(location: MemberDirectoryData["geography"][number]) {
+    setSelectedCityId(location.id)
+    if (location.lat != null && location.lng != null) {
+      mapRef.current?.easeTo({
+        center: [location.lng, location.lat],
+        zoom: geoView === "country" ? 3.75 : 5.25,
+        duration: 450,
+      })
+    }
+  }
+
   return (
-    <Panel title="Membership geography" subtitle={`n=${formatNumber(totalLocatedRecords)} located member records`} className="lg:col-span-2">
-      <div className="mb-4 inline-flex rounded-lg border border-zinc-200 bg-white p-1">
-        {[
-          { id: "city", label: "City" },
-          { id: "country", label: "Country" },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              setGeoView(item.id as "city" | "country")
-              setSelectedCityId("")
-            }}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${geoView === item.id ? "bg-ipn text-white" : "text-zinc-500 hover:text-zinc-800"}`}
-          >
-            {item.label}
-          </button>
-        ))}
+    <Panel title="Membership geography" subtitle={`n=${formatNumber(coverage.totalMembers)} located member records · ${formatPercent(coverage.percent)} mapped`} className="lg:col-span-2">
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1">
+            {[
+              { id: "city", label: "Cities" },
+              { id: "country", label: "Countries" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setGeoView(item.id as "city" | "country")
+                  setSelectedCityId("")
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${geoView === item.id ? "bg-ipn text-white" : "text-zinc-500 hover:text-zinc-800"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-1">
+            {[
+              { id: "world", label: "World" },
+              { id: "us", label: "US Focus" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setMapFocus(item.id as "world" | "us")}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${mapFocus === item.id ? "bg-ipn text-white" : "text-zinc-500 hover:text-zinc-800"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {(geoView === "city"
+            ? [
+                { label: "Mapped members", value: coverage.mappedMembers },
+                { label: "Map markers", value: coverage.mappedLocations },
+              ]
+            : [
+                { label: "Mapped members", value: coverage.mappedMembers },
+                { label: "Listed countries", value: coverage.totalLocations },
+              ]
+          ).map((metric) => (
+            <div key={metric.label} className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <p className="text-lg font-semibold tabular-nums text-zinc-900">{formatNumber(metric.value)}</p>
+              <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-zinc-400">{metric.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="directory-map-shell relative h-[360px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
+        <div className="directory-map-shell relative h-[420px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
           {mapboxToken && !mapError ? (
             <div ref={containerRef} className="h-full w-full" />
           ) : (
@@ -1171,14 +1435,17 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
         </div>
         <div className="min-w-0">
           {selectedLocation ? (
-            <div className="rounded-xl border border-zinc-200 p-4">
+            <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h4 className="font-semibold text-zinc-900">{selectedLocationLabel}</h4>
                   <p className="mt-1 text-xs text-zinc-400">{formatNumber(selectedLocation.memberCount)} members</p>
                 </div>
+                <button type="button" onClick={() => setSelectedCityId("")} className="text-xs font-medium text-ipn hover:underline">
+                  Back to locations
+                </button>
               </div>
-              <div className="mt-4 max-h-80 overflow-y-auto border-t border-zinc-100 pt-3 pr-2">
+              <div className="mt-4 max-h-[340px] overflow-y-auto border-t border-zinc-100 pt-3 pr-2">
                 {selectedLocation.members.map((member) => (
                   <div key={member.id} className="py-2 text-xs">
                     <div className="min-w-0">
@@ -1190,16 +1457,36 @@ function MembershipGeographyPanel({ cities }: { cities: MemberDirectoryData["geo
               </div>
             </div>
           ) : (
-            <EmptyState title="No geography data" description="No filtered members have usable city and country data." />
+            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+              <div className="border-b border-zinc-100 px-4 py-3">
+                <h4 className="text-sm font-semibold text-zinc-900">{geoView === "country" ? "Countries" : "Cities"} by members</h4>
+                <p className="mt-1 text-xs text-zinc-400">Select a location to view its members.</p>
+              </div>
+              <div className="max-h-[350px] overflow-y-auto">
+                {activeLocations.map((location, index) => (
+                  <button
+                    key={location.id}
+                    type="button"
+                    onClick={() => selectLocation(location)}
+                    className="flex w-full items-center gap-3 border-b border-zinc-100 px-3 py-2.5 text-left text-xs text-zinc-600 last:border-b-0 hover:bg-zinc-50"
+                  >
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-ipn-light font-semibold text-ipn">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-zinc-700">
+                      {geoView === "country"
+                        ? location.country
+                        : [location.city, location.state, location.country].filter(Boolean).join(", ")}
+                    </span>
+                    {location.lat == null || location.lng == null ? (
+                      <span className="flex-shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">No marker</span>
+                    ) : geoView === "city" && location.coordinatePrecision === "country" ? (
+                      <span className="flex-shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">Country fallback</span>
+                    ) : null}
+                    <span className="flex-shrink-0 tabular-nums text-zinc-400">{formatNumber(location.memberCount)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-          <div className="mt-3 max-h-48 overflow-y-auto rounded-xl border border-zinc-200">
-            {activeLocations.map((city) => (
-              <button key={city.id} type="button" onClick={() => setSelectedCityId(city.id)} className={`flex w-full items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2 text-left text-xs last:border-b-0 ${selectedLocation?.id === city.id ? "bg-ipn-light text-ipn" : "text-zinc-600 hover:bg-zinc-50"}`}>
-                <span className="truncate">{geoView === "country" ? city.country : [city.city, city.state, city.country].filter(Boolean).join(", ")}</span>
-                <span className="tabular-nums">{formatNumber(city.memberCount)}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </Panel>
@@ -1309,6 +1596,7 @@ function MemberDirectoryDrawer({
                 { label: "Role and goals", value: detail.portal.roleAndGoals },
                 { label: "IPN inspiration", value: detail.portal.inspiration },
                 { label: "Heard about us", value: detail.portal.referralSource },
+                { label: "Heard about us — other details", value: detail.portal.referralSourceOther },
                 { label: "Country", value: detail.portal.country },
                 { label: "State", value: detail.portal.state },
                 { label: "City", value: detail.portal.city },
@@ -1319,6 +1607,28 @@ function MemberDirectoryDrawer({
                 { label: "Created", value: formatDateTime(detail.portal.createdAt) },
                 { label: "Mailchimp status", value: detail.portal.mailchimpStatus },
               ]} />
+
+              {detail.portal.education.length > 0 && (
+                <section className="border-t border-zinc-200 py-5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Education</h3>
+                  <div className="mt-4 flex flex-col gap-3">
+                    {detail.portal.education.map((entry) => (
+                      <div key={entry.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                        <p className="text-sm font-medium text-zinc-800">{entry.institution}</p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {[
+                            educationLevelLabel(entry.educationLevel),
+                            entry.degreeCredential,
+                            entry.areaOfStudy,
+                            entry.status === "currently_enrolled" ? "Currently enrolled" : entry.status === "completed" ? "Completed / alumni" : entry.status,
+                            entry.graduationYear ? `Class of ${entry.graduationYear}` : "",
+                          ].filter(Boolean).join(" · ") || "Legacy education record"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               <DetailFieldGrid title="Legacy SoT Fields" rows={[
                 { label: "Person ID", value: detail.legacy.personId },
@@ -1353,7 +1663,7 @@ function MemberDirectoryDrawer({
                 { label: "Notes", value: detail.legacy.notes },
               ]} />
 
-              <section className="border-t border-zinc-200 py-5">
+              {detail.canViewSensitive && <section className="border-t border-zinc-200 py-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Legacy Sensitive Fields</h3>
                   <button type="button" onClick={() => setShowSensitive((value) => !value)} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600">
@@ -1371,7 +1681,7 @@ function MemberDirectoryDrawer({
                 ) : (
                   <p className="mt-3 text-sm text-zinc-500">Sensitive legacy fields are hidden by default.</p>
                 )}
-              </section>
+              </section>}
             </>
           )}
           {!loading && !detail && <EmptyState title="Member detail unavailable" description="The selected member detail could not be loaded from the admin data layer." />}
@@ -1392,7 +1702,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
   const [stateFilter, setStateFilter] = useState("all")
   const [fieldFilter, setFieldFilter] = useState("all")
   const [psychedelicFilter, setPsychedelicFilter] = useState("all")
-  const [attendedOnly, setAttendedOnly] = useState(false)
   const [sortKey, setSortKey] = useState<"name" | "firstSeenAt" | "sourceCount" | "eventCount">("firstSeenAt")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [sourceFilter, setSourceFilter] = useState<keyof MemberDirectorySources | "all">("all")
@@ -1413,7 +1722,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
     const query = search.trim().toLowerCase()
     return rows
       .filter((row) => {
-        if (query && !`${row.name} ${row.email} ${row.location} ${row.primaryField}`.toLowerCase().includes(query)) return false
+        if (query && !`${row.name} ${row.email} ${row.location} ${row.primaryField} ${row.schools.join(" ")}`.toLowerCase().includes(query)) return false
         if (!isWithinDateRange(row.firstSeenAt, fromDate, toDate)) return false
         if (sourceFilter !== "all" && !row.sources[sourceFilter]) return false
         if (whatsappFilter === "connected" && !row.whatsappConnected) return false
@@ -1423,7 +1732,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
         if (stateFilter !== "all" && row.state !== stateFilter) return false
         if (fieldFilter !== "all" && row.primaryField !== fieldFilter) return false
         if (psychedelicFilter !== "all" && row.psychedelicFieldStatus !== psychedelicFilter) return false
-        if (attendedOnly && row.eventCount < 1) return false
         return true
       })
       .sort((a, b) => {
@@ -1435,7 +1743,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
         const bTime = b.firstSeenAt ? new Date(b.firstSeenAt).getTime() : 0
         return (aTime - bTime || a.name.localeCompare(b.name)) * direction
       })
-  }, [attendedOnly, countryFilter, fieldFilter, fromDate, mailchimpFilter, psychedelicFilter, rows, search, sortDirection, sortKey, sourceFilter, stateFilter, toDate, whatsappFilter])
+  }, [countryFilter, fieldFilter, fromDate, mailchimpFilter, psychedelicFilter, rows, search, sortDirection, sortKey, sourceFilter, stateFilter, toDate, whatsappFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / 25))
   const currentPage = Math.min(page, totalPages - 1)
@@ -1462,7 +1770,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
   }))
   const sourceTotals = filteredRows.length === rows.length ? unfilteredSourceTotals : filteredSourceTotals
   const filteredCharts = directory ? buildFilteredMemberCharts(filteredRows, directory) : null
-  const filteredGeography = directory ? buildFilteredGeography(filteredRows, directory) : []
+  const filteredGeography = directory ? buildFilteredMemberGeography(filteredRows, directory) : []
 
   function openDetail(row: MemberDirectoryRow) {
     setSelectedRow(row)
@@ -1479,11 +1787,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
-        <span className="font-semibold">Legacy SoT import:</span> {formatNumber(directory.importFreshness.rowCount)} rows imported
-        {directory.importFreshness.importedAt ? ` on ${formatDateTime(directory.importFreshness.importedAt)}` : ""}. Directory rows merge live Portal profiles with approved legacy records.
-      </div>
-
       <FilterBar>
         <FilterField label="Search">
           <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Name, email, location..." className={inputClassName} />
@@ -1557,12 +1860,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
             { value: "eventCount:desc", label: "Most events" },
           ]} />
         </FilterField>
-        <FilterField label="Events">
-          <label className="flex h-10 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-sm text-zinc-600">
-            <input type="checkbox" checked={attendedOnly} onChange={(event) => { setAttendedOnly(event.target.checked); setPage(0) }} />
-            Attended &gt;=1 event
-          </label>
-        </FilterField>
       </FilterBar>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -1592,13 +1889,13 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel title="Source totals" subtitle={sampleSubtitle(sourceTotals, "source records")}><BarList items={sourceTotals} /></Panel>
         {filteredCharts && <Panel title="Top interest tags" subtitle={sampleSubtitle(filteredCharts.topInterestTags, "tag selections")}><PaginatedBarList items={filteredCharts.topInterestTags} /></Panel>}
-        {filteredCharts && <Panel title="Top schools" subtitle={sampleSubtitle(filteredCharts.topSchools)}><BarList items={filteredCharts.topSchools} /></Panel>}
-        {filteredCharts && <Panel title="Which best describes you" subtitle={sampleSubtitle(filteredCharts.bestDescribes)}><BarList items={filteredCharts.bestDescribes} /></Panel>}
-        {filteredCharts && <Panel title="Which field are you primarily in" subtitle={sampleSubtitle(filteredCharts.primaryField)}><BarList items={filteredCharts.primaryField} /></Panel>}
-        {filteredCharts && <Panel title="How did you hear about us" subtitle={sampleSubtitle(filteredCharts.referralSources)}><BarList items={filteredCharts.referralSources} /></Panel>}
-        {filteredCharts && <Panel title="Psychedelic field status" subtitle={sampleSubtitle(filteredCharts.psychedelicFieldStatus)}><BarList items={filteredCharts.psychedelicFieldStatus} /></Panel>}
-        {filteredCharts && <Panel title="Psychedelic field barriers" subtitle={sampleSubtitle(filteredCharts.psychedelicFieldBarriers)}><BarList items={filteredCharts.psychedelicFieldBarriers} /></Panel>}
-        <MembershipGeographyPanel cities={filteredGeography} />
+        {filteredCharts && <Panel title="Top schools" subtitle={sampleSubtitle(filteredCharts.topSchools)} className="lg:col-span-2"><BarList items={filteredCharts.topSchools} /></Panel>}
+        {filteredCharts && <DistributionChartPair title="Which best describes you" items={filteredCharts.bestDescribes} otherVariants={filteredCharts.otherVariants.bestDescribes} />}
+        {filteredCharts && <DistributionChartPair title="Which field are you primarily in" items={filteredCharts.primaryField} otherVariants={filteredCharts.otherVariants.primaryField} />}
+        {filteredCharts && <DistributionChartPair title="How did you hear about us" items={filteredCharts.referralSources} otherVariants={filteredCharts.otherVariants.referralSources} />}
+        {filteredCharts && <DistributionChartPair title="Are you currently working in the psychedelic field?" items={filteredCharts.psychedelicFieldStatus} otherVariants={filteredCharts.otherVariants.psychedelicFieldStatus} />}
+        {filteredCharts && <DistributionChartPair title="If not, why not?" items={filteredCharts.psychedelicFieldBarriers} otherVariants={filteredCharts.otherVariants.psychedelicFieldBarriers} />}
+        <MembershipGeographyPanel locations={filteredGeography} />
       </div>
 
       <Panel title="Member Directory" subtitle={`Showing ${formatNumber(filteredRows.length)} of ${formatNumber(rows.length)} merged members. Click a row to open full detail.`}>
@@ -1606,7 +1903,7 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
           <table className="min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200">
-                {["Name", "Email", "Location", "Primary Field", "First Seen", "Sources", "WhatsApp", "Mailchimp", "Events"].map((label) => (
+                {["Name", "Email", "Location", "Primary Field", "First Seen", "Sources", "WhatsApp", "Mailchimp"].map((label) => (
                   <th key={label} className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</th>
                 ))}
               </tr>
@@ -1633,7 +1930,6 @@ function CombinedMembersPanel({ memberInsights }: { memberInsights: MemberInsigh
                       </span>
                     </td>
                     <td className="px-3 py-3"><span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>{badge.label}</span></td>
-                    <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(row.eventCount)}</td>
                   </tr>
                 )
               })}
@@ -1695,14 +1991,438 @@ function MembersAnalyticsPanel({
   )
 }
 
+function rollingWindowStart(endDate: string, days = 30) {
+  const end = new Date(`${endDate}T00:00:00.000Z`)
+  return new Date(end.getTime() - (days - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+function ErrorDetailsModal({
+  date,
+  rows,
+  onClose,
+}: {
+  date: string
+  rows: PortalUtilizationData["errors"]
+  onClose: () => void
+}) {
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="error-details-title"
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 sm:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ipn">Error detail</p>
+            <h2 id="error-details-title" className="mt-1 text-lg font-semibold text-zinc-900">{formatDate(date)}</h2>
+            <p className="mt-1 text-sm text-zinc-500">Frequency by error and page for the selected audience and device.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50">
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 sm:px-6">
+          {rows.length ? (
+            <SimpleTable
+              columns={[
+                { key: "error", label: "Error" },
+                { key: "page", label: "Page" },
+                { key: "count", label: "Count", align: "right" },
+              ]}
+              rows={rows.map((row) => ({
+                error: row.errorCode,
+                page: row.page,
+                count: formatNumber(row.count),
+              }))}
+            />
+          ) : (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-6 text-sm text-emerald-800">
+              No registration or sign-in errors were recorded on this day.
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function MauDetailsModal({
+  row,
+  onClose,
+}: {
+  row: PortalUtilizationData["monthlyActiveUsers"][number]
+  onClose: () => void
+}) {
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mau-details-title"
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 sm:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ipn">Monthly active users</p>
+            <h2 id="mau-details-title" className="mt-1 text-lg font-semibold text-zinc-900">{formatDate(row.date)}</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Members who signed in and engaged from {formatDate(rollingWindowStart(row.date))} through {formatDate(row.date)}.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50">
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 sm:px-6">
+          <SimpleTable
+            columns={[
+              { key: "name", label: "Full name" },
+              { key: "email", label: "Email" },
+              { key: "sessions", label: "Unique sessions", align: "right" },
+            ]}
+            rows={row.members.map((member) => ({
+              name: member.fullName,
+              email: member.email || "-",
+              sessions: formatNumber(member.uniqueSessions),
+            }))}
+          />
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function JourneyDetailsModal({
+  journey,
+  onClose,
+}: {
+  journey: PortalUtilizationData["journeys"][number]
+  onClose: () => void
+}) {
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="journey-details-title"
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ipn">Session journey</p>
+            <h2 id="journey-details-title" className="mt-1 truncate text-lg font-semibold text-zinc-900">
+              {journey.memberName || journey.memberEmail || "Anonymous member"}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              {journey.startType === "registration" ? "Registered" : "Signed in"} {formatDateTime(journey.startedAt)} · {journey.device}
+            </p>
+            <p className="mt-1 text-sm font-medium text-zinc-700">
+              {formatTrackedDuration(journey.durationSeconds)} overall tracked page time
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50">
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 sm:px-6">
+          <div className="overflow-hidden rounded-xl border border-zinc-200">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="hidden w-40 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400 sm:table-cell">Time</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">Step</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400 md:table-cell">Page</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-400">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {journey.steps.map((step, index) => (
+                  <tr key={`${step.occurredAt}-${step.eventName}-${index}`}>
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-xs text-zinc-500 sm:table-cell">{formatDateTime(step.occurredAt)}</td>
+                    <td className="px-4 py-3 font-medium text-zinc-700">{step.label}</td>
+                    <td className="hidden break-all px-4 py-3 text-zinc-500 md:table-cell">{step.page}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-zinc-600">
+                      {formatTrackedDuration(step.durationSeconds)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function JourneyFlowNodeShape({
+  x,
+  y,
+  width,
+  height,
+  payload,
+  onExplore,
+}: SankeyNodeProps & { onExplore?: (node: PortalJourneyFlowNode) => void }) {
+  const node = payload as typeof payload & PortalJourneyFlowNode
+  const nodeHeight = Math.max(height, 8)
+  const labelY = y + Math.max(height, 18) / 2
+  const sessionLabel = `${formatNumber(node.sessions)} ${node.sessions === 1 ? "session" : "sessions"}`
+  const isTerminal = node.label === "End session" || node.label.startsWith("Exited")
+  const isSelectable = Boolean(onExplore && node.hasChildren)
+  const fill = isTerminal
+    ? "#a1a1aa"
+    : node.selected === false
+      ? "#c4b5fd"
+      : node.step === 0 ? "#5b3f92" : "#6f51aa"
+
+  function selectNode() {
+    if (isSelectable) onExplore?.(node)
+  }
+
+  return (
+    <g
+      role={isSelectable ? "button" : undefined}
+      tabIndex={isSelectable ? 0 : undefined}
+      aria-label={isSelectable ? `Explore next steps after ${node.label}` : undefined}
+      className={isSelectable ? "cursor-pointer" : undefined}
+      onClick={selectNode}
+      onKeyDown={(event) => {
+        if (isSelectable && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault()
+          selectNode()
+        }
+      }}
+    >
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={nodeHeight}
+        rx={3}
+        fill={fill}
+      />
+      <text x={x + width + 9} y={labelY - 5} fill="#27272a" fontSize={12} fontWeight={600}>
+        {truncate(node.label, 25)}
+      </text>
+      <text x={x + width + 9} y={labelY + 12} fill="#71717a" fontSize={11}>
+        {sessionLabel} · {formatPercent(node.percentOfPrior)} of prior step
+      </text>
+      <title>{node.label}: {sessionLabel}, {formatPercent(node.percentOfPrior)} of the prior step</title>
+    </g>
+  )
+}
+
+function PortalSankeyFlowChart({
+  flow,
+  onNodeSelect,
+}: {
+  flow: PortalJourneyFlowData
+  onNodeSelect?: (node: PortalJourneyFlowNode) => void
+}) {
+  const height = Math.min(660, Math.max(380, flow.maxNodesInStep * 78))
+  const stepCount = Math.max(flow.maxStep + 1, 1)
+  const minWidth = Math.max(1100, stepCount * 220 + 210)
+  return (
+    <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50/50">
+      <div className="px-3 py-4" style={{ minWidth: `${minWidth}px` }}>
+        <div
+          className="grid border-b border-zinc-200 pb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400"
+          style={{
+            gridTemplateColumns: `repeat(${stepCount}, minmax(0, 1fr))`,
+            paddingLeft: "20px",
+            paddingRight: "210px",
+          }}
+        >
+          {Array.from({ length: stepCount }, (_, index) => (
+            <span key={index}>Step {index + 1}</span>
+          ))}
+        </div>
+        <div style={{ height: `${height}px` }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <Sankey
+              data={{ nodes: flow.nodes, links: flow.links }}
+              node={(props: SankeyNodeProps) => (
+                <JourneyFlowNodeShape {...props} onExplore={onNodeSelect} />
+              )}
+              nodeWidth={14}
+              nodePadding={38}
+              link={{ stroke: "#a78bfa", strokeOpacity: 0.28 }}
+              linkCurvature={0.55}
+              align="left"
+              iterations={onNodeSelect ? 0 : undefined}
+              sort={onNodeSelect ? false : undefined}
+              margin={{ top: 14, right: 210, bottom: 14, left: 20 }}
+            >
+              <Tooltip formatter={(value) => {
+                const sessions = Number(value)
+                return [`${formatNumber(sessions)} ${sessions === 1 ? "session" : "sessions"}`, "Flow"]
+              }} />
+            </Sankey>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function JourneyFlowChart({ journeys }: { journeys: PortalUtilizationData["journeys"] }) {
+  const [visibleSteps, setVisibleSteps] = useState(JOURNEY_FLOW_DEFAULT_STEPS)
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Record<number, string>>({})
+  const fullFlow = useMemo(() => buildPortalJourneyFlow(journeys, 6, visibleSteps), [journeys, visibleSteps])
+  const flow = useMemo(
+    () => buildFocusedPortalJourneyFlow(fullFlow, selectedNodeIds),
+    [fullFlow, selectedNodeIds],
+  )
+  const cappedTotalSteps = Math.min(fullFlow.totalSteps, JOURNEY_FLOW_MAX_STEPS)
+  const displayedSteps = Math.min(visibleSteps, cappedTotalSteps)
+  const nextVisibleSteps = Math.min(visibleSteps + JOURNEY_FLOW_STEP_INCREMENT, cappedTotalSteps)
+  const canShowMore = displayedSteps < cappedTotalSteps
+  const isAtStepCap = visibleSteps >= JOURNEY_FLOW_MAX_STEPS && fullFlow.totalSteps > JOURNEY_FLOW_MAX_STEPS
+
+  function selectJourneyNode(node: PortalJourneyFlowNode) {
+    setSelectedNodeIds((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([step]) => Number(step) < node.step),
+      ) as Record<number, string>
+      next[node.step] = node.id
+      return next
+    })
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-zinc-500">
+          Showing steps 1–{displayedSteps} of {cappedTotalSteps}
+          {fullFlow.totalSteps > JOURNEY_FLOW_MAX_STEPS ? " (15-step chart limit)" : ""}.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {visibleSteps > JOURNEY_FLOW_DEFAULT_STEPS && (
+            <button
+              type="button"
+              onClick={() => setVisibleSteps((current) => Math.max(JOURNEY_FLOW_DEFAULT_STEPS, current - JOURNEY_FLOW_STEP_INCREMENT))}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            >
+              Show fewer steps
+            </button>
+          )}
+          {canShowMore && (
+            <button
+              type="button"
+              onClick={() => setVisibleSteps(nextVisibleSteps)}
+              className="rounded-lg border border-ipn/20 bg-ipn/5 px-3 py-1.5 text-xs font-medium text-ipn hover:bg-ipn/10"
+            >
+              Show {nextVisibleSteps - displayedSteps} more {nextVisibleSteps - displayedSteps === 1 ? "step" : "steps"}
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="text-xs leading-5 text-zinc-500">
+        The most common continuing path is selected by default. Select another event to explore its next steps.
+      </p>
+      <PortalSankeyFlowChart flow={flow} onNodeSelect={selectJourneyNode} />
+      {fullFlow.truncatedSessions > 0 && (
+        <p className="text-xs leading-5 text-zinc-500">
+          {formatNumber(fullFlow.truncatedSessions)} {fullFlow.truncatedSessions === 1 ? "session continues" : "sessions continue"} beyond step {displayedSteps}.
+          {isAtStepCap
+            ? " Complete paths remain available in the individual sessions table below."
+            : " Select Show more steps to continue the aggregate path."}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function RegistrationStepFlowChart({ counts }: { counts: RegistrationFlowCounts }) {
+  const flow = useMemo(() => buildRegistrationStepFlow(counts), [counts])
+  return <PortalSankeyFlowChart flow={flow} />
+}
+
+function MauChartDot({
+  cx,
+  cy,
+  payload,
+  onSelect,
+}: {
+  cx?: number
+  cy?: number
+  payload?: { date?: string; users?: number }
+  onSelect: (date: string) => void
+}) {
+  if (cx == null || cy == null || !payload?.date) return <g />
+  function selectDate() {
+    if (payload?.date) onSelect(payload.date)
+  }
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${formatNumber(payload.users ?? 0)} monthly active users for ${formatDate(payload.date)}`}
+      className="cursor-pointer"
+      onClick={selectDate}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          selectDate()
+        }
+      }}
+    >
+      <circle cx={cx} cy={cy} r={10} fill="transparent" />
+      <circle cx={cx} cy={cy} r={3} fill="#fff" stroke="#6f51aa" strokeWidth={2.5} />
+    </g>
+  )
+}
+
 function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
-  const dates = data.funnel.map((row) => row.date).sort()
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
   const [granularity, setGranularity] = useState<Granularity>("daily")
   const [device, setDevice] = useState<DeviceFilter>("all")
+  const [audience, setAudience] = useState<AudienceFilter>("all")
+  const [selectedErrorDate, setSelectedErrorDate] = useState<string | null>(null)
+  const [selectedMauDate, setSelectedMauDate] = useState<string | null>(null)
+  const [journeyStart, setJourneyStart] = useState<"registration" | "sign_in">("sign_in")
+  const [selectedJourney, setSelectedJourney] = useState<PortalUtilizationData["journeys"][number] | null>(null)
+  const [visiblePages, setVisiblePages] = useState<PortalPageCategory[]>(() => [...PORTAL_PAGE_CATEGORIES])
+  const [memberSearch, setMemberSearch] = useState("")
+  const [memberPage, setMemberPage] = useState(0)
+  const [memberSortKey, setMemberSortKey] = useState<MemberUtilizationSortKey>("lastSignedInAt")
+  const [memberSortDirection, setMemberSortDirection] = useState<SortDirection>("desc")
+  const dates = data.funnel.map((row) => row.date).sort()
+  const filteredDates = dates.filter((date) => isWithinDateRange(date, fromDate, toDate))
+
   const filteredFunnelRows = data.funnel.filter((row) => (
     row.device === device &&
+    row.audience === audience &&
     isWithinDateRange(row.date, fromDate, toDate)
   ))
   const funnelBuckets = fillMetricBuckets(aggregateByGranularity(filteredFunnelRows.map((row) => ({
@@ -1713,7 +2433,7 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
       signInTraffic: row.signInTraffic,
       signInCompleted: row.signInCompleted,
     },
-  })), granularity), granularity, dates, {
+  })), granularity), granularity, filteredDates, {
     registrationTraffic: 0,
     registrationCompleted: 0,
     signInTraffic: 0,
@@ -1721,59 +2441,203 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
   })
   const funnel = funnelBuckets.map((row) => ({
     ...row,
-    date: row.label,
     registrationConversion: row.registrationTraffic ? row.registrationCompleted / row.registrationTraffic * 100 : 0,
     signInConversion: row.signInTraffic ? row.signInCompleted / row.signInTraffic * 100 : 0,
   }))
-  const filteredErrors = data.errors
-  const filteredPageRows = data.topPages.filter((row) => device === "all" || row.device === device)
-  const filteredClickRows = data.topClicks.filter((row) => device === "all" || row.device === device)
-  const pageMap = new Map<string, { page: string; sessions: number; users: number; durationTotal: number; durationSamples: number; clicks: number }>()
-  for (const row of filteredPageRows) {
-    const current = pageMap.get(row.page) ?? { page: row.page, sessions: 0, users: 0, durationTotal: 0, durationSamples: 0, clicks: 0 }
-    current.sessions += row.sessions
-    current.users += row.users
-    current.durationTotal += row.avgDurationSeconds * row.sessions
-    current.durationSamples += row.sessions
-    current.clicks += row.clicks
-    pageMap.set(row.page, current)
+  const registrationFlowCounts = data.registrationFlow.rows
+    .filter((row) => (
+      row.device === device &&
+      row.audience === audience &&
+      isWithinDateRange(row.date, fromDate, toDate)
+    ))
+    .reduce<RegistrationFlowCounts>((counts, row) => ({
+      home: counts.home + row.home,
+      account: counts.account + row.account,
+      location: counts.location + row.location,
+      background: counts.background + row.background,
+      about: counts.about + row.about,
+      completed: counts.completed + row.completed,
+    }), {
+      home: 0,
+      account: 0,
+      location: 0,
+      background: 0,
+      about: 0,
+      completed: 0,
+    })
+
+  const windowEnd = data.dateRange.last
+  const windowStart = windowEnd ? rollingWindowStart(windowEnd) : null
+  const lastThirtyDays = data.funnel.filter((row) => (
+    row.device === device &&
+    row.audience === audience &&
+    Boolean(windowStart && windowEnd && row.date >= windowStart && row.date <= windowEnd)
+  ))
+  const registrations30d = lastThirtyDays.reduce((sum, row) => sum + row.registrationCompleted, 0)
+  const registrationTraffic30d = lastThirtyDays.reduce((sum, row) => sum + row.registrationTraffic, 0)
+  const signIns30d = lastThirtyDays.reduce((sum, row) => sum + row.signInCompleted, 0)
+  const signInTraffic30d = lastThirtyDays.reduce((sum, row) => sum + row.signInTraffic, 0)
+  const latestMau = data.monthlyActiveUsers
+    .filter((row) => row.device === device && row.audience === audience && (!windowEnd || row.date <= windowEnd))
+    .sort((a, b) => b.date.localeCompare(a.date))[0]?.users ?? 0
+
+  const filteredMauRows = data.monthlyActiveUsers.filter((row) => (
+    row.device === device &&
+    row.audience === audience &&
+    isWithinDateRange(row.date, fromDate, toDate)
+  ))
+  const mauByBucket = new Map<string, { label: string; date: string; users: number }>()
+  for (const row of filteredMauRows) {
+    const label = granularityLabel(new Date(`${row.date}T00:00:00.000Z`), granularity)
+    const current = mauByBucket.get(label)
+    if (!current || row.date > current.date) mauByBucket.set(label, { label, date: row.date, users: row.users })
   }
-  const filteredTopPages = Array.from(pageMap.values()).map((row) => ({
-    page: row.page,
-    sessions: row.sessions,
-    users: row.users,
-    avgDurationSeconds: row.durationSamples ? Math.round(row.durationTotal / row.durationSamples) : 0,
-    clicks: row.clicks,
-    clicksPerSession: row.sessions ? row.clicks / row.sessions : 0,
-  })).sort((a, b) => b.sessions - a.sessions || b.clicks - a.clicks)
-  const clickMap = new Map<string, { clickName: string; page: string; clicks: number; users: number; sessions: number }>()
-  for (const row of filteredClickRows) {
-    const key = `${row.page}:${row.clickName}`
-    const current = clickMap.get(key) ?? { clickName: row.clickName, page: row.page, clicks: 0, users: 0, sessions: 0 }
-    current.clicks += row.clicks
-    current.users += row.users
-    current.sessions += row.sessions
-    clickMap.set(key, current)
-  }
-  const filteredTopClicks = Array.from(clickMap.values()).sort((a, b) => b.clicks - a.clicks || b.users - a.users || a.clickName.localeCompare(b.clickName))
-  const rsvpBuckets = fillMetricBuckets(aggregateByGranularity(data.rsvpTrend
-    .filter((row) => isWithinDateRange(row.date, fromDate, toDate))
-    .map((row) => ({ date: row.date, values: { rsvps: row.rsvps } })), granularity), granularity, data.rsvpTrend.map((row) => row.date), { rsvps: 0 })
-  const rsvpTrend = rsvpBuckets.map((row) => ({ ...row, date: row.label }))
-  const totalRegistrationTraffic = funnel.reduce((sum, row) => sum + row.registrationTraffic, 0)
-  const totalRegistrationCompleted = funnel.reduce((sum, row) => sum + row.registrationCompleted, 0)
-  const totalSignInTraffic = funnel.reduce((sum, row) => sum + row.signInTraffic, 0)
-  const totalSignInCompleted = funnel.reduce((sum, row) => sum + row.signInCompleted, 0)
-  const totalRsvps = rsvpTrend.reduce((sum, row) => sum + row.rsvps, 0)
+  const mauTrend = Array.from(mauByBucket.values()).sort((a, b) => a.date.localeCompare(b.date))
+  const selectedMauRow = selectedMauDate
+    ? data.monthlyActiveUsers.find((row) => (
+      row.date === selectedMauDate &&
+      row.device === device &&
+      row.audience === audience
+    )) ?? null
+    : null
+
+  const filteredErrors = data.errors.filter((row) => (
+    row.device === device &&
+    row.audience === audience &&
+    isWithinDateRange(row.date, fromDate, toDate)
+  ))
+  const errorTrend = fillMetricBuckets(
+    aggregateByGranularity(filteredErrors.map((row) => ({
+      date: row.date,
+      values: { errors: row.count },
+    })), "daily"),
+    "daily",
+    filteredDates,
+    { errors: 0 },
+  ).map((row) => ({ date: row.label, errors: row.errors }))
+  const selectedErrors = selectedErrorDate
+    ? filteredErrors.filter((row) => row.date === selectedErrorDate).sort((a, b) => b.count - a.count)
+    : []
+
+  const filteredPageViews = data.pageViews.filter((row) => (
+    row.device === device &&
+    row.audience === audience &&
+    isWithinDateRange(row.date, fromDate, toDate)
+  ))
+  const emptyPageViews = Object.fromEntries(PORTAL_PAGE_CATEGORIES.map((page) => [page, 0])) as Record<string, number>
+  const pageViewTrend = fillMetricBuckets(
+    aggregateByGranularity(filteredPageViews.map((row) => ({
+      date: row.date,
+      values: { [row.page]: row.views },
+    })), granularity),
+    granularity,
+    filteredDates,
+    emptyPageViews,
+  )
+
+  const filteredJourneys = data.journeys.filter((journey) => (
+    journey.startType === journeyStart &&
+    (audience === "all" || journey.audience === audience) &&
+    (device === "all" || journey.device === device) &&
+    isWithinDateRange(journey.startedAt, fromDate, toDate)
+  ))
+
+  const filteredMemberActivity = useMemo(() => {
+    const memberQuery = memberSearch.trim().toLowerCase()
+
+    function compareNullableDates(a: string | null, b: string | null) {
+      if (!a && !b) return 0
+      if (!a) return 1
+      if (!b) return -1
+      return memberSortDirection === "asc" ? a.localeCompare(b) : b.localeCompare(a)
+    }
+
+    function compareValues(a: number | string, b: number | string) {
+      const comparison = typeof a === "number" && typeof b === "number"
+        ? a - b
+        : String(a).localeCompare(String(b))
+      return memberSortDirection === "asc" ? comparison : -comparison
+    }
+
+    return data.members
+      .filter((member) => (
+        (audience === "all" || member.audience === audience) &&
+        (!memberQuery ||
+          member.fullName.toLowerCase().includes(memberQuery) ||
+          member.email.toLowerCase().includes(memberQuery))
+      ))
+      .sort((a, b) => {
+        const aActivity = a.signInActivity[device]
+        const bActivity = b.signInActivity[device]
+        let comparison = 0
+
+        switch (memberSortKey) {
+          case "firstRegisteredAt":
+            comparison = compareNullableDates(a.firstRegisteredAt, b.firstRegisteredAt)
+            break
+          case "lastSignedInAt":
+            comparison = compareNullableDates(aActivity.lastSignedInAt, bActivity.lastSignedInAt)
+            break
+          case "signInsLast30Days":
+            comparison = compareValues(aActivity.signInsLast30Days, bActivity.signInsLast30Days)
+            break
+          case "connectionCount":
+            comparison = compareValues(a.connectionCount, b.connectionCount)
+            break
+          case "whatsappConnected":
+            comparison = compareValues(Number(a.whatsappConnected), Number(b.whatsappConnected))
+            break
+          case "mailchimpStatus":
+            comparison = compareValues(
+              mailchimpBadge(a.mailchimpStatus as MailchimpStatus | null).label,
+              mailchimpBadge(b.mailchimpStatus as MailchimpStatus | null).label,
+            )
+            break
+        }
+
+        return comparison || a.fullName.localeCompare(b.fullName) || a.email.localeCompare(b.email)
+      })
+  }, [audience, data.members, device, memberSearch, memberSortDirection, memberSortKey])
+  const memberPageSize = 25
+  const memberTotalPages = Math.max(1, Math.ceil(filteredMemberActivity.length / memberPageSize))
+  const currentMemberPage = Math.min(memberPage, memberTotalPages - 1)
+  const memberPageRows = filteredMemberActivity.slice(
+    currentMemberPage * memberPageSize,
+    (currentMemberPage + 1) * memberPageSize,
+  )
+
   const deviceOptions = [
     { value: "all", label: "All devices" },
-    ...data.trafficDevices.map((item) => ({ value: item.label, label: item.label === "unknown" ? "Unknown" : item.label[0].toUpperCase() + item.label.slice(1) })),
+    ...data.trafficDevices.map((item) => ({
+      value: item.label,
+      label: item.label === "unknown" ? "Unknown" : item.label[0].toUpperCase() + item.label.slice(1),
+    })),
   ]
-  const devicePieRows = data.trafficDevices.map((item) => ({
-    name: item.label === "unknown" ? "Unknown" : item.label[0].toUpperCase() + item.label.slice(1),
-    value: item.sessions,
-  }))
-  const pieColors = ["#2563eb", "#16a34a", "#d97706", "#7c3aed"]
+  const allPagesVisible = visiblePages.length === PORTAL_PAGE_CATEGORIES.length
+
+  function openErrorDay(point: unknown) {
+    const payload = point as { date?: string; payload?: { date?: string } }
+    const date = payload.date ?? payload.payload?.date
+    if (date) setSelectedErrorDate(date)
+  }
+
+  function togglePage(page: PortalPageCategory) {
+    setVisiblePages((current) => (
+      current.includes(page)
+        ? current.filter((item) => item !== page)
+        : PORTAL_PAGE_CATEGORIES.filter((item) => item === page || current.includes(item))
+    ))
+  }
+
+  function changeMemberSort(key: MemberUtilizationSortKey, defaultDirection: SortDirection) {
+    setMemberSortDirection(
+      memberSortKey === key
+        ? memberSortDirection === "desc" ? "asc" : "desc"
+        : defaultDirection,
+    )
+    setMemberSortKey(key)
+    setMemberPage(0)
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -1791,182 +2655,356 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
             { value: "monthly", label: "Monthly" },
           ]} />
         </FilterField>
+        <FilterField label="Member type">
+          <SelectInput value={audience} onChange={(value) => {
+            setAudience(value as AudienceFilter)
+            setMemberPage(0)
+          }} options={[
+            { value: "all", label: "All" },
+            { value: "leadership", label: "IPN leadership" },
+            { value: "member", label: "IPN members" },
+          ]} />
+        </FilterField>
         <FilterField label="Device">
-          <SelectInput value={device} onChange={(value) => setDevice(value as DeviceFilter)} options={deviceOptions} />
+          <SelectInput value={device} onChange={(value) => {
+            setDevice(value as DeviceFilter)
+            setMemberPage(0)
+          }} options={deviceOptions} />
         </FilterField>
       </FilterBar>
 
       {!data.trackingAvailable && (
         <EmptyState
-          title="Utilization tracking is waiting for the analytics migration"
-          description={data.trackingError ?? "After the Portal analytics tables are migrated, this tab will populate from first-party Portal usage events."}
+          title="Utilization tracking is unavailable"
+          description={data.trackingError ?? "The first-party Portal analytics event stream could not be loaded."}
         />
       )}
 
+      {data.trackingAvailable && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
+          Live Portal activity is available through <span className="font-semibold">{formatDate(data.dateRange.last)}</span>.
+          Metrics use first-party events; session-level detail is retained for {data.rawRetentionDays} days.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Registration conversion" value={formatPercent(totalRegistrationTraffic ? totalRegistrationCompleted / totalRegistrationTraffic * 100 : 0)} helper={`${formatNumber(totalRegistrationCompleted)} completed / ${formatNumber(totalRegistrationTraffic)} visits`} />
-        <StatCard label="Sign-in conversion" value={formatPercent(totalSignInTraffic ? totalSignInCompleted / totalSignInTraffic * 100 : 0)} helper={`${formatNumber(totalSignInCompleted)} completed / ${formatNumber(totalSignInTraffic)} visits`} />
-        <StatCard label="Portal RSVPs" value={formatNumber(totalRsvps)} helper={`${formatNumber(data.recentRsvps.length)} recent rows shown`} />
-        <StatCard label="WhatsApp profiles" value={formatNumber(data.whatsapp.linkedProfiles)} helper={`${formatPercent(data.whatsapp.totalMembers ? data.whatsapp.linkedProfiles / data.whatsapp.totalMembers * 100 : 0)} of members`} />
-        <StatCard label="Raw retention" value={`${data.rawRetentionDays}d`} helper={`Generated ${formatDate(data.generatedAt)}`} />
+        <StatCard label="Portal registrations (30d)" value={formatNumber(registrations30d)} helper="Successful member registrations" />
+        <StatCard label="Portal sign-ins (30d)" value={formatNumber(signIns30d)} helper="Successful member sign-ins" />
+        <StatCard label="Monthly active users" value={formatNumber(latestMau)} helper="Signed in + engaged in the rolling 30 days" />
+        <StatCard label="Registration conversion (30d)" value={formatPercent(registrationTraffic30d ? registrations30d / registrationTraffic30d * 100 : 0)} helper={`${formatNumber(registrations30d)} completed / ${formatNumber(registrationTraffic30d)} sessions`} />
+        <StatCard label="Sign-in conversion (30d)" value={formatPercent(signInTraffic30d ? signIns30d / signInTraffic30d * 100 : 0)} helper={`${formatNumber(signIns30d)} completed / ${formatNumber(signInTraffic30d)} sessions`} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Registration funnel over time" subtitle="Traffic, completed registrations, and conversion percentage">
-          <ResponsiveChart height={300}>
-            <ComposedChart data={funnel}>
+      <Panel title="Registration funnel over time" subtitle="Unique traffic sessions, completed registrations, and conversion rate">
+        {funnel.length ? (
+          <ResponsiveChart height={320}>
+            <LineChart data={funnel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="count" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="rate" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(value) => `${value}%`} />
               <Tooltip formatter={tooltipFormatter} />
               <Legend />
-              <Bar dataKey="registrationTraffic" name="Registration traffic" fill="#bfdbfe" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="registrationCompleted" name="Completed" fill="#2563eb" radius={[6, 6, 0, 0]} />
-              <Line type="monotone" dataKey="registrationConversion" name="Conversion rate" stroke="#16a34a" strokeWidth={2} dot={false} />
-            </ComposedChart>
+              <Line yAxisId="count" type="monotone" dataKey="registrationTraffic" name="Registration traffic" stroke="#a78bfa" strokeWidth={2} dot={false} />
+              <Line yAxisId="count" type="monotone" dataKey="registrationCompleted" name="Completed registrations" stroke="#5b3f92" strokeWidth={2.5} dot={false} />
+              <Line yAxisId="rate" type="monotone" dataKey="registrationConversion" name="Conversion rate" stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 5" dot={false} />
+            </LineChart>
           </ResponsiveChart>
-        </Panel>
-        <Panel title="Sign-in funnel over time" subtitle="Traffic, completed sign-ins, and conversion percentage">
-          <ResponsiveChart height={300}>
-            <ComposedChart data={funnel}>
+        ) : (
+          <EmptyState title="No registration funnel data" description="No tracked registration activity matches the current filters." />
+        )}
+      </Panel>
+
+      <Panel
+        title="Registration step drop-off"
+        subtitle={data.registrationFlow.trackingStartedAt
+          ? `Home-to-registration journeys tracked since ${formatDate(data.registrationFlow.trackingStartedAt)}`
+          : "No registration step events have been recorded yet"}
+      >
+        {registrationFlowCounts.home ? (
+          <div>
+            <p className="mb-3 text-xs leading-5 text-zinc-500">
+              Includes sessions that visit the Portal home page before entering registration. Gray branches show where a session exited; incomplete registrations can only be assigned a member type after account creation.
+            </p>
+            <RegistrationStepFlowChart counts={registrationFlowCounts} />
+          </div>
+        ) : (
+          <EmptyState
+            title="No tracked home-to-registration journeys yet"
+            description="Steps are recorded as they are viewed; the session does not need to be closed. Only journeys that begin on the Portal home page and then continue through Account, Location, Background, About You, and account creation are included."
+          />
+        )}
+      </Panel>
+
+      <Panel title="Sign-in funnel over time" subtitle="Unique traffic sessions, completed sign-ins, and conversion rate">
+        {funnel.length ? (
+          <ResponsiveChart height={320}>
+            <LineChart data={funnel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="count" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="rate" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(value) => `${value}%`} />
               <Tooltip formatter={tooltipFormatter} />
               <Legend />
-              <Bar dataKey="signInTraffic" name="Sign-in traffic" fill="#ddd6fe" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="signInCompleted" name="Completed" fill="#7c3aed" radius={[6, 6, 0, 0]} />
-              <Line type="monotone" dataKey="signInConversion" name="Conversion rate" stroke="#16a34a" strokeWidth={2} dot={false} />
-            </ComposedChart>
+              <Line yAxisId="count" type="monotone" dataKey="signInTraffic" name="Sign-in traffic" stroke="#a78bfa" strokeWidth={2} dot={false} />
+              <Line yAxisId="count" type="monotone" dataKey="signInCompleted" name="Completed sign-ins" stroke="#5b3f92" strokeWidth={2.5} dot={false} />
+              <Line yAxisId="rate" type="monotone" dataKey="signInConversion" name="Conversion rate" stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 5" dot={false} />
+            </LineChart>
           </ResponsiveChart>
-        </Panel>
-        <Panel title="Event RSVPs over time" subtitle="Portal event registrations">
+        ) : (
+          <EmptyState title="No sign-in funnel data" description="No tracked sign-in activity matches the current filters." />
+        )}
+      </Panel>
+
+      <Panel title="Monthly active users over time" subtitle="Rolling 30-day unique members who both signed in and engaged. Click a date to see the members and their unique sessions.">
+        {mauTrend.length ? (
+          <ResponsiveChart height={300}>
+            <LineChart data={mauTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={tooltipFormatter} />
+              <Line
+                type="monotone"
+                dataKey="users"
+                name="Monthly active users"
+                stroke="#6f51aa"
+                strokeWidth={2.5}
+                dot={<MauChartDot onSelect={setSelectedMauDate} />}
+                activeDot={{ r: 6, pointerEvents: "none" }}
+              />
+            </LineChart>
+          </ResponsiveChart>
+        ) : (
+          <EmptyState title="No monthly active users yet" description="This metric populates when a member signs in and then interacts with the Portal." />
+        )}
+      </Panel>
+
+      <Panel title="Errors over time" subtitle="Registration and sign-in errors. Click a day to see error frequency and page detail.">
+        {errorTrend.length ? (
           <ResponsiveChart height={280}>
-            <BarChart data={rsvpTrend}>
+            <BarChart data={errorTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip formatter={tooltipFormatter} />
-              <Bar dataKey="rsvps" name="RSVPs" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="errors" name="Errors" fill="#dc2626" radius={[6, 6, 0, 0]} cursor="pointer" onClick={openErrorDay} />
             </BarChart>
           </ResponsiveChart>
-        </Panel>
-        <Panel title="Portal traffic by device" subtitle="Sessions from retained first-party Portal analytics events">
-          {devicePieRows.length ? (
-            <ResponsiveChart height={280}>
-              <PieChart>
-                <Pie data={devicePieRows} dataKey="value" nameKey="name" innerRadius={58} outerRadius={90} paddingAngle={2}>
-                  {devicePieRows.map((row, index) => <Cell key={row.name} fill={pieColors[index % pieColors.length]} />)}
-                </Pie>
-                <Tooltip formatter={tooltipFormatter} />
-                <Legend />
-              </PieChart>
-            </ResponsiveChart>
-          ) : (
-            <EmptyState title="No device data yet" description="Device split will populate after new Portal analytics events include device metadata." />
-          )}
-        </Panel>
-        <Panel title="Error types by page">
-          {filteredErrors.length ? (
-            <SimpleTable
-              columns={[
-                { key: "page", label: "Page" },
-                { key: "errorCode", label: "Error" },
-                { key: "count", label: "Count", align: "right" },
-              ]}
-              rows={filteredErrors.slice(0, 12).map((row) => ({
-                page: truncate(row.page || "Unknown", 48),
-                errorCode: truncate(row.errorCode, 52),
-                count: formatNumber(row.count),
-              }))}
+        ) : (
+          <EmptyState title="No tracked errors" description="No registration or sign-in errors match the current filters." />
+        )}
+      </Panel>
+
+      <Panel title="Page views over time" subtitle="Unique route visits, counted once per session per day. Feedback represents modal opens; use Member type to separate leadership testing from member usage.">
+        {pageViewTrend.length ? (
+          <div>
+            <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Pages shown in the chart">
+              <button
+                type="button"
+                aria-pressed={allPagesVisible}
+                onClick={() => setVisiblePages(allPagesVisible ? [] : [...PORTAL_PAGE_CATEGORIES])}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  allPagesVisible
+                    ? "border-ipn bg-ipn text-white"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                }`}
+              >
+                All pages
+              </button>
+              {PORTAL_PAGE_CATEGORIES.map((page) => {
+                const isVisible = visiblePages.includes(page)
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    aria-pressed={isVisible}
+                    onClick={() => togglePage(page)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      isVisible
+                        ? "border-zinc-300 bg-white text-zinc-800 shadow-sm"
+                        : "border-zinc-200 bg-zinc-50 text-zinc-400 hover:border-zinc-300"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: isVisible ? PORTAL_PAGE_COLORS[page] : "#d4d4d8" }}
+                    />
+                    {page}
+                  </button>
+                )
+              })}
+            </div>
+            {visiblePages.length ? (
+              <ResponsiveChart height={340}>
+                <LineChart data={pageViewTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={tooltipFormatter} />
+                  {PORTAL_PAGE_CATEGORIES.filter((page) => visiblePages.includes(page)).map((page) => (
+                    <Line key={page} type="monotone" dataKey={page} name={page} stroke={PORTAL_PAGE_COLORS[page]} strokeWidth={2} dot={false} />
+                  ))}
+                </LineChart>
+              </ResponsiveChart>
+            ) : (
+              <EmptyState title="No pages selected" description="Choose one or more page buttons above to display their traffic." />
+            )}
+          </div>
+        ) : (
+          <EmptyState title="No page views" description="No tracked page views match the current filters." />
+        )}
+      </Panel>
+
+      <Panel title="Member journeys" subtitle="Aggregate paths and session-level detail after a successful registration or sign-in">
+        <div className="mb-5 max-w-xs">
+          <FilterField label="Journey starts after">
+            <SelectInput value={journeyStart} onChange={(value) => setJourneyStart(value as "registration" | "sign_in")} options={[
+              { value: "sign_in", label: "Successful sign-in" },
+              { value: "registration", label: "Successful registration" },
+            ]} />
+          </FilterField>
+        </div>
+        {filteredJourneys.length ? (
+          <div className="space-y-6">
+            <div>
+              <p className="mb-1 text-sm font-semibold text-zinc-800">Aggregate journey flow</p>
+              <p className="mb-3 text-xs leading-5 text-zinc-500">
+                Each column is the next tracked page or action after {journeyStart === "registration" ? "registration" : "sign-in"}. Lane width represents sessions; each node shows its session count and share of the preceding step. Low-volume actions are grouped as Other.
+              </p>
+              <JourneyFlowChart key={journeyStart} journeys={filteredJourneys} />
+            </div>
+            <div>
+              <p className="mb-3 text-sm font-semibold text-zinc-800">Individual sessions</p>
+              <SimpleTable
+                columns={[
+                  { key: "member", label: "Member" },
+                  { key: "started", label: "Started" },
+                  { key: "duration", label: "Duration", align: "right" },
+                  { key: "steps", label: "Steps", align: "right" },
+                ]}
+                rows={filteredJourneys.slice(0, 20).map((journey) => ({
+                  member: (
+                    <button type="button" onClick={() => setSelectedJourney(journey)} className="text-left font-medium text-ipn hover:underline">
+                      {journey.memberName || journey.memberEmail || "Unknown member"}
+                    </button>
+                  ),
+                  started: formatDateTime(journey.startedAt),
+                  duration: formatTrackedDuration(journey.durationSeconds),
+                  steps: formatNumber(journey.steps.length),
+                }))}
+              />
+            </div>
+          </div>
+        ) : (
+          <EmptyState title="No matching journeys" description="No successful registration or sign-in sessions match the current filters." />
+        )}
+      </Panel>
+
+      <Panel
+        title="Member utilization directory"
+        subtitle={`${formatNumber(filteredMemberActivity.length)} Portal accounts. Member type and device filters apply; sign-in counts use a rolling 30-day window. Select a column header to sort.`}
+      >
+        <div className="mb-4 max-w-md">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Search members</span>
+            <input
+              type="search"
+              value={memberSearch}
+              onChange={(event) => {
+                setMemberSearch(event.target.value)
+                setMemberPage(0)
+              }}
+              placeholder="Name or email"
+              className={inputClassName}
             />
-          ) : (
-            <EmptyState title="No tracked errors yet" description="Registration and sign-in errors will appear here after the analytics migration is applied." />
-          )}
-        </Panel>
-        <Panel title="Top Portal pages" subtitle="Broad clicks per session include all tracked interactive elements on each page" className="lg:col-span-2">
-          {filteredTopPages.length ? (
-            <SimpleTable
-              columns={[
-                { key: "page", label: "Page" },
-                { key: "sessions", label: "Sessions", align: "right" },
-                { key: "users", label: "Members", align: "right" },
-                { key: "duration", label: "Avg time", align: "right" },
-                { key: "clicksPerSession", label: "Clicks/session", align: "right" },
-              ]}
-              rows={filteredTopPages.slice(0, 12).map((row) => ({
-                page: truncate(row.page || "Unknown", 72),
-                sessions: formatNumber(row.sessions),
-                users: formatNumber(row.users),
-                duration: formatSeconds(row.avgDurationSeconds),
-                clicksPerSession: formatNumber(row.clicksPerSession, 1),
-              }))}
+          </label>
+        </div>
+        {memberPageRows.length ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-[1120px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200">
+                    {["Name", "Email"].map((label) => (
+                      <th key={label} scope="col" className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                        {label}
+                      </th>
+                    ))}
+                    {MEMBER_UTILIZATION_SORT_COLUMNS.map((column) => {
+                      const isActive = memberSortKey === column.key
+                      const isNumeric = column.key === "signInsLast30Days" || column.key === "connectionCount"
+                      return (
+                        <th
+                          key={column.key}
+                          scope="col"
+                          aria-sort={isActive ? memberSortDirection === "asc" ? "ascending" : "descending" : "none"}
+                          className={`whitespace-nowrap px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${isNumeric ? "text-right" : "text-left"}`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => changeMemberSort(column.key, column.defaultDirection)}
+                            className={`inline-flex items-center gap-1 rounded-sm hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ipn/30 ${isNumeric ? "justify-end" : "justify-start"}`}
+                          >
+                            <span>{column.label}</span>
+                            <span aria-hidden="true" className={isActive ? "text-ipn" : "text-zinc-300"}>
+                              {isActive ? memberSortDirection === "asc" ? "↑" : "↓" : "↕"}
+                            </span>
+                          </button>
+                        </th>
+                      )
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {memberPageRows.map((member) => {
+                    const signInActivity = member.signInActivity[device]
+                    const badge = mailchimpBadge(member.mailchimpStatus as MailchimpStatus | null)
+                    return (
+                      <tr key={member.userId} className="hover:bg-zinc-50">
+                        <td className="max-w-[14rem] px-3 py-3 font-medium text-zinc-800">{member.fullName}</td>
+                        <td className="max-w-[17rem] truncate px-3 py-3 text-zinc-500">{member.email || "-"}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-zinc-500">{formatDate(member.firstRegisteredAt)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-zinc-500">{formatDateTime(signInActivity.lastSignedInAt)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(signInActivity.signInsLast30Days)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{formatNumber(member.connectionCount)}</td>
+                        <td className="px-3 py-3">
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                            member.whatsappConnected
+                              ? "border-green-200 bg-green-50 text-green-700"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-500"
+                          }`}>
+                            {member.whatsappConnected ? "Connected" : "No"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <PaginationControls
+              page={currentMemberPage}
+              totalPages={memberTotalPages}
+              onPageChange={setMemberPage}
             />
-          ) : (
-            <EmptyState title="No page utilization yet" description="Page duration, click totals, and session activity will populate after members use the instrumented Portal." />
-          )}
-        </Panel>
-        <Panel title="Top clicks" subtitle="Named clicks only: buttons and links with explicit Portal analytics labels" className="lg:col-span-2">
-          {filteredTopClicks.length ? (
-            <SimpleTable
-              columns={[
-                { key: "clickName", label: "Click name" },
-                { key: "page", label: "Page" },
-                { key: "clicks", label: "Clicks", align: "right" },
-                { key: "users", label: "Members", align: "right" },
-              ]}
-              rows={filteredTopClicks.slice(0, 12).map((row) => ({
-                clickName: truncate(row.clickName || "Unknown click", 72),
-                page: truncate(row.page || "Unknown", 56),
-                clicks: formatNumber(row.clicks),
-                users: formatNumber(row.users),
-              }))}
-            />
-          ) : (
-            <EmptyState title="No named clicks yet" description="Named click rows will appear after members interact with tracked Portal buttons and links." />
-          )}
-        </Panel>
-        <Panel title="Recent RSVPs" subtitle="Who RSVPed and when" className="lg:col-span-2">
-          <SimpleTable
-            columns={[
-              { key: "member", label: "Member" },
-              { key: "email", label: "Email" },
-              { key: "event", label: "Event" },
-              { key: "created", label: "RSVP date" },
-            ]}
-            rows={data.recentRsvps.slice(0, 20).map((row) => ({
-              member: row.memberName,
-              email: row.memberEmail || "-",
-              event: truncate(row.eventTitle, 60),
-              created: formatDate(row.createdAt),
-            }))}
-          />
-        </Panel>
-        <Panel title="Recent session samples" subtitle="Retained for short-term admin investigation" className="lg:col-span-2">
-          {data.recentSessions.length ? (
-            <SimpleTable
-              columns={[
-                { key: "member", label: "Member" },
-                { key: "started", label: "Started" },
-                { key: "pages", label: "Pages", align: "right" },
-                { key: "duration", label: "Duration", align: "right" },
-                { key: "clicks", label: "Clicks", align: "right" },
-                { key: "lastPage", label: "Last page" },
-              ]}
-              rows={data.recentSessions.slice(0, 20).map((row) => ({
-                member: row.memberName || row.memberEmail || "Anonymous",
-                started: formatDate(row.startedAt),
-                pages: formatNumber(row.pages),
-                duration: formatSeconds(row.durationSeconds),
-                clicks: formatNumber(row.clicks),
-                lastPage: truncate(row.lastPage || "-", 48),
-              }))}
-            />
-          ) : (
-            <EmptyState title="No session samples yet" description="Recent member/session samples will appear after the tracking endpoint receives usage events." />
-          )}
-        </Panel>
-      </div>
+          </>
+        ) : (
+          <EmptyState title="No matching members" description="Try a different member type, device, name, or email." />
+        )}
+      </Panel>
+
+      {selectedErrorDate && (
+        <ErrorDetailsModal date={selectedErrorDate} rows={selectedErrors} onClose={() => setSelectedErrorDate(null)} />
+      )}
+      {selectedMauRow && <MauDetailsModal row={selectedMauRow} onClose={() => setSelectedMauDate(null)} />}
+      {selectedJourney && <JourneyDetailsModal journey={selectedJourney} onClose={() => setSelectedJourney(null)} />}
     </div>
   )
 }
@@ -2091,13 +3129,12 @@ function CampaignDetailTable({ campaigns }: { campaigns: LegacyAnalyticsSnapshot
   )
 }
 
-function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
+function MarketingPanel({ snapshot }: { snapshot: LegacyAnalyticsSnapshot }) {
   const marketing = snapshot.marketing
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
   const [granularity, setGranularity] = useState<Granularity>("monthly")
   const [listName, setListName] = useState("all")
-  const mailchimpSource = snapshot.dataSources.find((source) => source.id === "mailchimp")
   const lists = marketing.lists.map((list) => list.name).filter(Boolean).sort()
   const filteredCampaigns = marketing.campaigns.filter((campaign) => (
     isWithinDateRange(campaign.date, fromDate, toDate) &&
@@ -2122,18 +3159,6 @@ function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyt
   const opens = filteredCampaigns.reduce((sum, campaign) => sum + campaign.opens, 0)
   const clicks = filteredCampaigns.reduce((sum, campaign) => sum + campaign.clicks, 0)
   const unsubscribes = filteredCampaigns.reduce((sum, campaign) => sum + campaign.unsubscribes, 0)
-  const listPerformance = marketing.lists.map((list) => {
-    const listCampaigns = filteredCampaigns.filter((campaign) => campaign.listName === list.name)
-    const listSent = listCampaigns.reduce((sum, campaign) => sum + campaign.sent, 0)
-    const listOpens = listCampaigns.reduce((sum, campaign) => sum + campaign.opens, 0)
-    const listClicks = listCampaigns.reduce((sum, campaign) => sum + campaign.clicks, 0)
-    return {
-      ...list,
-      openRate: listSent ? listOpens / listSent * 100 : null,
-      clickRate: listSent ? listClicks / listSent * 100 : null,
-    }
-  })
-
   return (
     <div className="flex flex-col gap-6">
       <FilterBar>
@@ -2154,21 +3179,15 @@ function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyt
           <SelectInput value={listName} onChange={setListName} options={[{ value: "all", label: "All lists" }, ...lists.map((list) => ({ value: list, label: list }))]} />
         </FilterField>
       </FilterBar>
-      <SourceFreshnessNote
-        source={mailchimpSource}
-        analyticsRefresh={analyticsRefresh}
-        detail="Mailchimp analytics reflect the latest successful pull. The active audience list reflects the current Mailchimp setup; historical campaign rows may still retain deleted legacy audience names from their original sends."
-      />
-
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard label="Subscribers" value={formatNumber(marketing.summary.totalSubscribers)} helper={`${formatNumber(marketing.summary.totalLists)} lists`} />
+        <StatCard label="Subscribers" value={formatNumber(marketing.summary.totalSubscribers)} helper="Current active audience" />
         <StatCard label="Campaigns" value={formatNumber(filteredCampaigns.length)} helper={`${formatNumber(marketing.summary.totalCampaigns)} all pulled`} />
         <StatCard label="Open rate" value={formatPercent(sent ? opens / sent * 100 : 0)} helper={`${formatNumber(opens)} opens`} />
         <StatCard label="Click rate" value={formatPercent(sent ? clicks / sent * 100 : 0)} helper={`${formatNumber(unsubscribes)} unsubs`} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Campaign performance over time" subtitle="Open and click rate by month" className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-5">
+        <Panel title="Campaign performance over time" subtitle="Open and click rate by month">
           <ResponsiveChart height={320}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -2192,22 +3211,6 @@ function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyt
             </BarChart>
           </ResponsiveChart>
         </Panel>
-        <Panel title="Mailchimp lists">
-          <SimpleTable
-            columns={[
-              { key: "name", label: "List" },
-              { key: "members", label: "Members", align: "right" },
-              { key: "openRate", label: "Open", align: "right" },
-              { key: "clickRate", label: "Click", align: "right" },
-            ]}
-            rows={listPerformance.map((list) => ({
-              name: list.name,
-              members: formatNumber(list.members),
-              openRate: formatPercent(list.openRate),
-              clickRate: formatPercent(list.clickRate),
-            }))}
-          />
-        </Panel>
       </div>
 
       <Panel title="Campaign detail" subtitle="Click a campaign to expand URL-level click details">
@@ -2217,7 +3220,44 @@ function MarketingPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyt
   )
 }
 
-function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null }) {
+function LinkedInFollowerEntry() {
+  const router = useRouter()
+  const [snapshotDate, setSnapshotDate] = useState(new Date().toISOString().slice(0, 10))
+  const [followerCount, setFollowerCount] = useState("")
+  const [message, setMessage] = useState("")
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Panel title="LinkedIn followers" subtitle="Superadmin manual daily snapshot">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <FilterField label="Date">
+          <input type="date" value={snapshotDate} max={new Date().toISOString().slice(0, 10)}
+            onChange={(event) => setSnapshotDate(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <FilterField label="Followers">
+          <input type="number" min={0} step={1} value={followerCount}
+            onChange={(event) => setFollowerCount(event.target.value)} className={inputClassName} />
+        </FilterField>
+        <button type="button" disabled={isPending || !snapshotDate || followerCount === ""}
+          onClick={() => startTransition(async () => {
+            const result = await saveLinkedInFollowerSnapshot({ snapshotDate, followerCount: Number(followerCount) })
+            if (result.error) setMessage(result.error)
+            else {
+              setMessage("LinkedIn snapshot saved.")
+              setFollowerCount("")
+              router.refresh()
+            }
+          })}
+          className="min-h-10 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          {isPending ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {message && <p className="mt-3 text-xs text-zinc-500">{message}</p>}
+    </Panel>
+  )
+}
+
+function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapshot: LegacyAnalyticsSnapshot; analyticsRefresh: PortalAnalyticsRefreshRun | null; isSuperadmin: boolean }) {
   const social = snapshot.social
   const socialSource = snapshot.dataSources.find((source) => source.id === "instagram")
     ?? snapshot.dataSources.find((source) => source.id === "facebook")
@@ -2227,51 +3267,33 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
   const [platform, setPlatform] = useState("all")
   const [metric, setMetric] = useState<SocialMetric>("followers")
   const [granularity, setGranularity] = useState<Granularity>("monthly")
-  const platformOptions = social.platforms
-    .filter((item) => item.followers != null)
-    .map((item) => ({ value: item.id, label: item.label }))
-  const latestByPeriodChannel = new Map<string, LegacyAnalyticsSnapshot["social"]["history"][number] & { period: string; timestamp: number }>()
-  social.history
+  const platformOptions = social.platforms.map((item) => ({ value: item.id, label: item.label }))
+  const trendPoints = social.history
     .filter((row) => {
       const dateValue = row.date || `${row.month}-01`
       return isWithinDateRange(dateValue, fromDate, toDate) && (platform === "all" || row.channel === platform)
     })
-    .forEach((row) => {
+    .flatMap((row) => {
       const date = parseDateValue(row.date || `${row.month}-01`)
-      if (!date) return
+      if (!date) return []
       const period = granularityLabel(date, granularity)
-      const key = `${period}:${row.channel}`
-      const timestamp = date.getTime()
-      const existing = latestByPeriodChannel.get(key)
-      if (!existing || timestamp >= existing.timestamp) {
-        latestByPeriodChannel.set(key, { ...row, period, timestamp })
-      }
+      return [{ ...row, period, timestamp: date.getTime() }]
     })
-  const trendByPeriod = Array.from(latestByPeriodChannel.values()).reduce<Record<string, {
-    followers: number
-    posts: number
-    engagementTotal: number
-    engagementRows: number
-  }>>((acc, row) => {
-    const current = acc[row.period] ?? { followers: 0, posts: 0, engagementTotal: 0, engagementRows: 0 }
-    current.followers += row.followers
-    current.posts += row.posts
-    if (row.engagementRate > 0) {
-      current.engagementTotal += row.engagementRate
-      current.engagementRows += 1
-    }
-    acc[row.period] = current
-    return acc
-  }, {})
-  const trend = Object.entries(trendByPeriod)
-    .map(([period, row]) => ({
-      month: period,
-      followers: row.followers,
-      posts: row.posts,
-      engagementRate: row.engagementRows ? roundMetric(row.engagementTotal / row.engagementRows) : 0,
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month))
+  const displayedChannels = platform === "all"
+    ? social.platforms.map((item) => item.id)
+    : [platform]
+  const trend = buildCarriedSocialTrend({
+    points: trendPoints,
+    channels: displayedChannels,
+    metric,
+    includeTotal: platform === "all",
+  })
   const metricLabel = metric === "followers" ? "Followers" : metric === "posts" ? "Posts" : "Engagement rate"
+  const platformColors: Record<string, string> = {
+    instagram: "#db2777",
+    facebook: "#2563eb",
+    linkedin: "#0a66c2",
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -2303,9 +3325,10 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
       <SourceFreshnessNote
         source={socialSource}
         analyticsRefresh={analyticsRefresh}
-        detail="Social history uses the latest available platform pull in each selected day, week, or month. Any missing periods reflect gaps in the legacy social refresh history."
+        detail="Instagram and Facebook are persisted daily from the Meta API. LinkedIn is entered manually. Missing days carry the latest platform value forward."
       />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {isSuperadmin && <LinkedInFollowerEntry />}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {social.platforms.map((platform) => (
           <StatCard
             key={platform.id}
@@ -2317,7 +3340,7 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Follower trend" subtitle={`Tracked Instagram and Facebook history, bucketed ${granularity.replace("ly", "")}`} className="lg:col-span-2">
+        <Panel title="Follower trend" subtitle={`Instagram, Facebook, LinkedIn, and total, bucketed ${granularity.replace("ly", "")}`} className="lg:col-span-2">
           <ResponsiveChart height={320}>
             <LineChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -2325,7 +3348,15 @@ function SocialMediaPanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnal
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={tooltipFormatter} />
               <Legend />
-              <Line type="monotone" dataKey={metric} name={metricLabel} stroke="#2563eb" strokeWidth={2} dot />
+              {displayedChannels.map((channel) => (
+                <Line key={channel} type="monotone" connectNulls dataKey={channel}
+                  name={`${social.platforms.find((item) => item.id === channel)?.label ?? channel} ${metricLabel}`}
+                  stroke={platformColors[channel] ?? "#7c3aed"} strokeWidth={2} dot={granularity === "daily"} />
+              ))}
+              {platform === "all" && metric === "followers" && (
+                <Line type="monotone" connectNulls dataKey="total" name={`Total ${metricLabel}`}
+                  stroke="#111111" strokeWidth={3} dot={false} />
+              )}
             </LineChart>
           </ResponsiveChart>
         </Panel>
@@ -2440,8 +3471,10 @@ function WebsitePanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalytic
   const avgDuration = trend.length ? trend.reduce((sum, row) => sum + row.avgDuration, 0) / trend.length : (overview.avg_session_duration as number)
   const geoRows = geoView === "countries" ? website.countries : website.cities
   const hasWebsiteData = Boolean(website.trend.length || website.devices.length || website.channels.length)
-  const websiteFreshnessDetail = hasWebsiteData
-    ? "Server-only snapshot generated from the latest successful GA4 pull. Update the GA4 env var in Netlify before the scheduled refresh runs in production."
+  const websiteFreshnessDetail = websiteSource?.status === "error"
+    ? `The latest GA4 attempt failed validation (${websiteSource.note}). Displaying the last known good Website snapshot instead.`
+    : hasWebsiteData
+      ? "Server-only snapshot generated from the latest successful GA4 pull."
     : "The committed GA4 snapshot contains zero sessions and no trend/device/channel/page rows. This is a source refresh issue, not a Portal chart issue; the Website tab will populate after the GA4 refresh succeeds and the server snapshot is rebuilt."
 
   return (
@@ -2542,7 +3575,7 @@ function WebsitePanel({ snapshot, analyticsRefresh }: { snapshot: LegacyAnalytic
         </Panel>
         <Panel
           title="Conversion pages"
-          subtitle="GA4 page performance for key action paths tracked in the legacy dashboard, including membership, donation, PsychedelX, and contact pages."
+          subtitle="GA4 page performance for key action paths, including membership, PsychedelX, and contact pages."
         >
           <ResponsiveChart height={280}>
             <BarChart data={website.funnels}>
@@ -3417,32 +4450,32 @@ function DataSourcesPanel() {
         {
           term: "Membership geography",
           definition: "City and country distribution of members with usable location data.",
-          methodology: "Uses filtered merged rows with city and country values. City coordinates come from stored Portal coordinates when available; country view aggregates city rows and uses a member-count-weighted center point.",
+          methodology: "Uses filtered merged rows with country values. City view includes records with a city, while country view also includes country-only members. Stored Portal or cached city coordinates are preferred; explicit country centroids provide labeled fallbacks. Country markers use a stored country centroid when available, otherwise a member-count-weighted center of mapped cities. Bubble area scales with member count. City view reports mapped members and marker count; country view reports mapped members and listed countries.",
         },
         {
           term: "Registration conversion",
-          definition: "Percent of tracked registration visits that completed registration.",
-          methodology: "Calculated as registration_success events divided by registration_view events from retained first-party Portal analytics events.",
+          definition: "Percent of unique tracked registration sessions that completed registration.",
+          methodology: "Calculated over the rolling 30-day window as unique sessions with registration_success divided by unique sessions that viewed /register.",
         },
         {
           term: "Sign-in conversion",
-          definition: "Percent of tracked sign-in visits that completed sign-in.",
-          methodology: "Calculated as sign_in_success events divided by sign_in_view events from retained first-party Portal analytics events.",
+          definition: "Percent of unique tracked sign-in sessions that completed sign-in.",
+          methodology: "Calculated over the rolling 30-day window as unique sessions with sign_in_success divided by unique sessions that viewed /login.",
         },
         {
-          term: "Portal RSVPs",
-          definition: "Member Portal event registrations in the reporting window.",
-          methodology: "Counts event_registrations rows from Supabase. The recent rows table shows the latest retained registration details.",
+          term: "Monthly active users",
+          definition: "Unique members who signed in and engaged with another part of the Member Portal within the same rolling 30-day window.",
+          methodology: "A member must have a sign_in_success event plus a tracked dashboard click or interaction. The trend recalculates this rolling window for each date.",
         },
         {
-          term: "Raw retention",
-          definition: "How long raw first-party Portal analytics events are retained before deletion.",
-          methodology: "The daily maintenance job rolls raw events into daily rollups and deletes raw portal_analytics_events older than 90 days.",
+          term: "Utilization member type",
+          definition: "Current IPN leadership versus regular IPN members.",
+          methodology: "Leadership is defined by live Portal profiles with an admin or superadmin role. Sessions are attributed after an authenticated event identifies the member; unresolved anonymous sessions appear only in All.",
         },
         {
-          term: "Top Portal pages and clicks",
-          definition: "Portal pages and named interactions with the most tracked usage.",
-          methodology: "Top pages use retained page duration and session summary events. Top clicks count curated_click events with explicit labels; broad clicks per session include all tracked interactive elements on a page.",
+          term: "Page views and member journeys",
+          definition: "Portal page traffic plus aggregate and session-level paths after registration or sign-in.",
+          methodology: "Page views use retained first-party page_view events for Dashboard, Community, Events, Conferences, and Profile. Feedback counts tracked modal opens. Journey detail follows the session identifier for the 90-day raw-event retention window.",
         },
       ],
     },
@@ -3500,11 +4533,6 @@ function DataSourcesPanel() {
           term: "Unsubscribes per month",
           definition: "Mailchimp unsubscribes grouped by month.",
           methodology: "Sums campaign unsubscribe counts within each selected monthly bucket.",
-        },
-        {
-          term: "Mailchimp lists",
-          definition: "Pulled Mailchimp audience/list-level membership and engagement rows.",
-          methodology: "Displays list member counts, unsubscribes, open rate, and click rate from the Mailchimp list snapshot.",
         },
         {
           term: "Campaign detail",
@@ -3678,7 +4706,7 @@ function DataSourcesPanel() {
         {
           term: "Pending integrations",
           definition: "Known analytics sources or models not yet connected as live automated data feeds.",
-          methodology: "Currently includes WhatsApp community analytics, Search Console SEO analytics, donations reconciliation, and future external source ingestion.",
+          methodology: "Currently includes WhatsApp community analytics, Search Console SEO analytics, and future external source ingestion.",
         },
       ],
     },
@@ -3700,7 +4728,6 @@ function DataSourcesPanel() {
             items={[
               { label: "WhatsApp community analytics", value: 1 },
               { label: "Search Console SEO analytics", value: 1 },
-              { label: "Donations source reconciliation", value: 1 },
               { label: "External source ingestion", value: 1 },
             ]}
             valueLabel={() => "Pending"}
@@ -3774,8 +4801,8 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
           />
         )}
         {activeSection === "community" && <CommunityPanel />}
-        {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
-        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
+        {activeSection === "marketing" && <MarketingPanel snapshot={analyticsSnapshot} />}
+        {activeSection === "social-media" && <SocialMediaPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} isSuperadmin={isSuperadmin} />}
         {activeSection === "website" && <WebsitePanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
         {activeSection === "events" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
         {activeSection === "data-sources" && <DataSourcesPanel />}

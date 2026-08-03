@@ -2,6 +2,7 @@ import "server-only"
 
 import snapshot from "./legacy-snapshot.json"
 import type { LegacyAnalyticsSnapshot } from "./types"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 const CURATED_ZOOM_EVENT_IDS = new Set([
   "MEC+Fc0KR9qN8OCYHNGhSQ==",
@@ -158,7 +159,9 @@ function normalizeMembership(snapshotData: LegacyAnalyticsSnapshot) {
 }
 
 function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
-  snapshotData.dataSources = snapshotData.dataSources.map((source) => {
+  snapshotData.dataSources = snapshotData.dataSources
+    .filter((source) => source.id !== "donations")
+    .map((source) => {
     if (source.id === "zoom") {
       return {
         ...source,
@@ -173,7 +176,61 @@ function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
       }
     }
     return source
+    })
+}
+
+type SocialSnapshotRow = {
+  platform: "instagram" | "facebook" | "linkedin"
+  snapshot_date: string
+  follower_count: number
+  engagement_rate: number | null
+  posts_count: number | null
+  source: "api" | "manual" | "backfill"
+  captured_at: string
+}
+
+function applyPersistentSocialHistory(
+  snapshotData: LegacyAnalyticsSnapshot,
+  rows: SocialSnapshotRow[],
+) {
+  const supportedPlatforms = [
+    { id: "instagram", label: "Instagram" },
+    { id: "facebook", label: "Facebook" },
+    { id: "linkedin", label: "LinkedIn" },
+  ] as const
+  const latestByPlatform = new Map<string, SocialSnapshotRow>()
+  for (const row of rows) {
+    const current = latestByPlatform.get(row.platform)
+    if (!current || row.snapshot_date > current.snapshot_date) latestByPlatform.set(row.platform, row)
+  }
+  const baseByPlatform = new Map(snapshotData.social.platforms.map((platform) => [platform.id, platform]))
+  snapshotData.social.platforms = supportedPlatforms.map((platform) => {
+    const latest = latestByPlatform.get(platform.id)
+    const basePlatform = baseByPlatform.get(platform.id)
+    return {
+      id: platform.id,
+      label: platform.label,
+      followers: latest?.follower_count ?? basePlatform?.followers ?? null,
+      engagementRate: latest?.engagement_rate ?? basePlatform?.engagementRate ?? null,
+      postsThisMonth: latest?.posts_count ?? basePlatform?.postsThisMonth ?? null,
+      status: platform.id === "linkedin" ? "manual" : latest ? "live" : basePlatform?.status ?? "pending",
+      updatedAt: latest?.captured_at ?? basePlatform?.updatedAt ?? null,
+    }
   })
+  if (rows.length) {
+    snapshotData.social.history = rows.map((row) => ({
+      date: row.snapshot_date,
+      month: row.snapshot_date.slice(0, 7),
+      channel: row.platform,
+      followers: row.follower_count,
+      engagementRate: Number(row.engagement_rate ?? 0),
+      posts: Number(row.posts_count ?? 0),
+    }))
+  } else {
+    snapshotData.social.history = snapshotData.social.history.filter((row) => (
+      supportedPlatforms.some((platform) => platform.id === row.channel)
+    ))
+  }
 }
 
 export async function getLegacyAnalyticsSnapshot(): Promise<LegacyAnalyticsSnapshot> {
@@ -182,5 +239,17 @@ export async function getLegacyAnalyticsSnapshot(): Promise<LegacyAnalyticsSnaps
   normalizeZoom(snapshotData)
   normalizeEventbrite(snapshotData)
   normalizeSourceStatus(snapshotData)
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from("social_metric_snapshots")
+      .select("platform, snapshot_date, follower_count, engagement_rate, posts_count, source, captured_at")
+      .order("snapshot_date", { ascending: true })
+    if (error) throw error
+    applyPersistentSocialHistory(snapshotData, (data ?? []) as SocialSnapshotRow[])
+  } catch (error) {
+    console.warn("Unable to load persistent social history; using the committed snapshot.", error)
+    applyPersistentSocialHistory(snapshotData, [])
+  }
   return snapshotData
 }
