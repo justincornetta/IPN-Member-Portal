@@ -17,6 +17,8 @@ export type AnalyticsDataSource = {
   status: AnalyticsSourceStatus
   mode: string
   lastPull: string | null
+  lastAttemptedAt?: string | null
+  lastSuccessfulAt?: string | null
   note: string
 }
 

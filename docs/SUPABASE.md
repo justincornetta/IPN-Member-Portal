@@ -82,9 +82,9 @@ One row per user. Created automatically on signup via trigger.
 | `is_discoverable` | `boolean` | Default `true`; `false` hides the member from the directory |
 | `share_location` | `boolean` | Default `true`; controls location-based discovery |
 | `avatar_url` | `text` | Public URL of avatar in the `avatars` Storage bucket |
-| `role` | `text` | Portal access tier: `superadmin` (full admin access), `admin` (leadership/analytics access), `null` (regular member) |
-| `admin_role` | `text` | IPN leadership title (e.g. "Director of Strategy"); set by superadmins; displayed publicly in member profiles |
-| `team` | `text` | IPN team assignment: `Strategy`, `Media`, `PsychedelX`, or `Community`; check constraint enforced |
+| `role` | `text` | Portal access tier: `superadmin` (full admin access), `admin` (leadership and analytics access), `null` (regular member). Both admin tiers can manage the leadership roster. |
+| `admin_role` | `text` | IPN leadership title (e.g. "Director of Strategy"); set by admins or superadmins; displayed publicly in member profiles |
+| `team` | `text` | IPN team assignment: `Strategy and Operations`, `Media`, `PsychedelX`, `Community`, or `IPN Labs`; check constraint enforced |
 | `created_at` | `timestamptz` | Set on insert |
 | `updated_at` | `timestamptz` | Updated by `updateProfile` server action on every save |
 
@@ -97,7 +97,7 @@ One row per user. Created automatically on signup via trigger.
 > alter table public.profiles add column if not exists admin_role text;
 > alter table public.profiles add column if not exists support_needs text;
 > alter table public.profiles add column if not exists team text
->   check (team in ('Strategy', 'Media', 'PsychedelX', 'Community'));
+>   check (team in ('Strategy and Operations', 'Media', 'PsychedelX', 'Community', 'IPN Labs'));
 >
 > -- Backfill emails from auth.users
 > update public.profiles p set email = u.email from auth.users u where p.id = u.id and p.email is null;
@@ -200,6 +200,22 @@ Private contact details that are revealed only after an accepted connection.
 | `updated_at` | `timestamptz` | |
 
 RLS allows members to view, insert, and update their own contact row. Accepted connections can select the row, which lets the directory modal reveal email and WhatsApp after the connection is accepted.
+
+### Education and analytics tables
+
+- `member_education` stores ordered, repeatable institution, education-level,
+  credential, area-of-study, enrollment/completion status, and graduation-year
+  records. Authenticated members can read education for discoverable profiles
+  and manage only their own rows.
+- `social_metric_snapshots` stores service-managed Instagram/Facebook daily
+  totals and superadmin-entered LinkedIn totals by platform and date.
+- `analytics_location_geocodes` is the private persistent city/country geocode
+  cache used by membership geography.
+
+These tables use explicit Data API grants in addition to RLS. Apply
+`supabase/migrations/20260710152233_add_member_education_and_analytics_caches.sql`
+and `supabase/migrations/20260711002500_add_education_level_and_area_of_study.sql`
+before deploying application code that reads them.
 
 ---
 

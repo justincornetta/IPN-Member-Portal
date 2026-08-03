@@ -21,6 +21,7 @@ Output files (in ../data/):
     - social_stats.json (instagram/facebook sections are updated)
 """
 
+import argparse
 import json
 import os
 import sys
@@ -120,121 +121,48 @@ def discover_linked_accounts(token):
     return linked
 
 
-def resolve_meta_ids(token):
-    """
-    Resolve IG account + FB page IDs.
-
-    Priority:
-    1) INSTAGRAM_BUSINESS_ACCOUNT_ID / FACEBOOK_PAGE_ID
-    2) FACEBOOK_PAGE_ID -> linked IG account
-    3) /me/accounts auto-discovery, optionally filtered by INSTAGRAM_USERNAME
-    """
+def resolve_instagram_account(token):
+    """Resolve Instagram independently from the Facebook Page pull."""
     explicit_ig_id = os.environ.get("INSTAGRAM_BUSINESS_ACCOUNT_ID", "").strip()
-    explicit_page_id = os.environ.get("FACEBOOK_PAGE_ID", "").strip()
-
-    if explicit_ig_id and explicit_page_id:
-        page = api_get(
-            f"/{explicit_page_id}",
-            token,
-            params={"fields": "id,name,instagram_business_account{id,username}"},
-        )
-        page_ig = (page.get("instagram_business_account") or {}).get("id")
-        if page_ig and page_ig != explicit_ig_id:
-            raise RuntimeError(
-                "INSTAGRAM_BUSINESS_ACCOUNT_ID does not match the Instagram account linked to FACEBOOK_PAGE_ID."
-            )
+    if explicit_ig_id:
         return {
             "ig_id": explicit_ig_id,
             "ig_source": "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-            "page_id": explicit_page_id,
-            "page_name": page.get("name"),
-            "page_source": "FACEBOOK_PAGE_ID",
-        }
-
-    if explicit_page_id:
-        page = api_get(
-            f"/{explicit_page_id}",
-            token,
-            params={"fields": "id,name,instagram_business_account{id,username}"},
-        )
-        ig = page.get("instagram_business_account") or {}
-        if not ig.get("id") and not explicit_ig_id:
-            raise RuntimeError(
-                "FACEBOOK_PAGE_ID provided but no instagram_business_account is linked. "
-                "Set INSTAGRAM_BUSINESS_ACCOUNT_ID directly."
-            )
-        return {
-            "ig_id": explicit_ig_id or ig.get("id"),
-            "ig_source": "INSTAGRAM_BUSINESS_ACCOUNT_ID" if explicit_ig_id else f"FACEBOOK_PAGE_ID ({page.get('name', explicit_page_id)})",
-            "page_id": explicit_page_id,
-            "page_name": page.get("name"),
-            "page_source": "FACEBOOK_PAGE_ID",
         }
 
     linked = discover_linked_accounts(token)
     if not linked:
-        if explicit_ig_id:
-            return {
-                "ig_id": explicit_ig_id,
-                "ig_source": "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-                "page_id": None,
-                "page_name": None,
-                "page_source": None,
-            }
         raise RuntimeError(
-            "Could not find any linked Instagram account via /me/accounts. "
+            "Could not find a linked Instagram account via /me/accounts. "
             "Set INSTAGRAM_BUSINESS_ACCOUNT_ID directly."
         )
 
     username_hint = os.environ.get("INSTAGRAM_USERNAME", "").strip().lower()
     selected = None
-
-    if explicit_ig_id:
-        for candidate in linked:
-            if candidate.get("ig_id") == explicit_ig_id:
-                selected = candidate
-                break
-        if selected:
-            return {
-                "ig_id": explicit_ig_id,
-                "ig_source": "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-                "page_id": selected.get("page_id"),
-                "page_name": selected.get("page_name"),
-                "page_source": "auto-discovery via IG match",
-            }
-        return {
-            "ig_id": explicit_ig_id,
-            "ig_source": "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-            "page_id": None,
-            "page_name": None,
-            "page_source": None,
-        }
-
     if len(linked) == 1:
         selected = linked[0]
     elif username_hint:
-        for candidate in linked:
-            if (candidate.get("ig_username") or "").strip().lower() == username_hint:
-                selected = candidate
-                break
+        selected = next(
+            (
+                candidate
+                for candidate in linked
+                if (candidate.get("ig_username") or "").strip().lower() == username_hint
+            ),
+            None,
+        )
 
     if not selected:
-        lines = [
-            "Multiple linked Instagram accounts found. Set INSTAGRAM_BUSINESS_ACCOUNT_ID or INSTAGRAM_USERNAME.",
-            "Candidates:",
-        ]
-        for candidate in linked:
-            lines.append(
-                f"  - @{candidate.get('ig_username')} (IG ID: {candidate.get('ig_id')}, Page: {candidate.get('page_name')})"
-            )
-        raise RuntimeError("\n".join(lines))
+        raise RuntimeError(
+            "Multiple linked Instagram accounts found. Set "
+            "INSTAGRAM_BUSINESS_ACCOUNT_ID or INSTAGRAM_USERNAME."
+        )
 
     return {
         "ig_id": selected.get("ig_id"),
-        "ig_source": f"auto-discovery (@{selected.get('ig_username')} via page {selected.get('page_name')})",
-        "page_id": selected.get("page_id"),
-        "page_name": selected.get("page_name"),
-        "page_source": "auto-discovery",
+        "ig_source": (
+            f"auto-discovery (@{selected.get('ig_username')} via page "
+            f"{selected.get('page_name')})"
+        ),
     }
 
 
@@ -414,23 +342,43 @@ def build_empty_social_stats():
         "instagram": {},
         "facebook": {},
         "linkedin": {},
-        "x_twitter": {},
-        "youtube": {},
         "history": [],
     }
 
 
-def update_social_stats(ig_profile, ig_media, fb_profile, fb_posts, pulled_at):
-    """Patch instagram/facebook sections in social_stats.json while preserving other platforms."""
+def load_social_stats():
     social_path = DATA_DIR / "social_stats.json"
     if social_path.exists():
         with open(social_path) as f:
-            social = json.load(f)
-    else:
-        social = build_empty_social_stats()
+            return json.load(f)
+    return build_empty_social_stats()
 
-    if "facebook" not in social:
-        social["facebook"] = {}
+
+def upsert_daily_history(social, row):
+    """Keep one durable history point per platform and UTC calendar day."""
+    history = social.get("history")
+    if not isinstance(history, list):
+        history = []
+
+    row_date = str(row.get("updated_at") or "")[:10]
+    row_channel = row.get("channel")
+    history = [
+        existing
+        for existing in history
+        if not (
+            existing.get("channel") == row_channel
+            and str(existing.get("updated_at") or existing.get("date") or "")[:10] == row_date
+        )
+    ]
+    history.append(row)
+    history.sort(key=lambda item: str(item.get("updated_at") or item.get("date") or ""))
+    # Retain roughly three years of daily Instagram + Facebook snapshots.
+    social["history"] = history[-2200:]
+
+
+def update_instagram_social_stats(ig_profile, ig_media, pulled_at):
+    """Update only Instagram, preserving Facebook and other platforms."""
+    social = load_social_stats()
 
     ig_followers = ig_profile.get("followers_count")
     ig_engagement = average_engagement_rate(ig_media, ig_followers)
@@ -446,23 +394,32 @@ def update_social_stats(ig_profile, ig_media, fb_profile, fb_posts, pulled_at):
         "updated_at": pulled_at,
     }
 
-    history = social.get("history")
-    if not isinstance(history, list):
-        history = []
-
-    history.append(
+    upsert_daily_history(
+        social,
         {
-            "month": datetime.now(timezone.utc).strftime("%Y-%m"),
+            "date": pulled_at[:10],
+            "month": pulled_at[:7],
             "channel": "instagram",
             "followers": ig_followers,
             "avg_engagement_rate": ig_engagement,
             "posts_this_month": ig_month_posts,
             "updated_at": pulled_at,
-        }
+        },
     )
+    save_json("social_stats.json", social)
 
-    if fb_profile:
-        fb_followers = fb_profile.get("followers_count") or fb_profile.get("fan_count")
+
+def update_facebook_social_stats(fb_profile, fb_posts, pulled_at):
+    """Update only Facebook, preserving Instagram and other platforms."""
+    social = load_social_stats()
+    prior = social.get("facebook") if isinstance(social.get("facebook"), dict) else {}
+    fb_followers = fb_profile.get("followers_count") or fb_profile.get("fan_count")
+
+    if fb_posts is None:
+        fb_engagement = prior.get("avg_engagement_rate")
+        fb_month_posts = prior.get("posts_this_month")
+        recent_posts = prior.get("recent_posts_30d")
+    else:
         fb_engagement = average_engagement_rate(
             fb_posts,
             fb_followers,
@@ -471,66 +428,51 @@ def update_social_stats(ig_profile, ig_media, fb_profile, fb_posts, pulled_at):
             shares_key="shares_count",
         )
         fb_month_posts = count_posts_this_month(fb_posts, "created_time")
+        recent_posts = len(fb_posts)
 
-        social["facebook"] = {
-            "page_id": fb_profile.get("id"),
-            "page_name": fb_profile.get("name"),
-            "followers": fb_profile.get("followers_count"),
-            "fans": fb_profile.get("fan_count"),
+    social["facebook"] = {
+        "page_id": fb_profile.get("id"),
+        "page_name": fb_profile.get("name"),
+        "followers": fb_followers,
+        "fans": fb_profile.get("fan_count"),
+        "avg_engagement_rate": fb_engagement,
+        "posts_this_month": fb_month_posts,
+        "recent_posts_30d": recent_posts,
+        "updated_at": pulled_at,
+    }
+
+    upsert_daily_history(
+        social,
+        {
+            "date": pulled_at[:10],
+            "month": pulled_at[:7],
+            "channel": "facebook",
+            "followers": fb_followers,
             "avg_engagement_rate": fb_engagement,
             "posts_this_month": fb_month_posts,
-            "recent_posts_30d": len(fb_posts),
             "updated_at": pulled_at,
-        }
-
-        history.append(
-            {
-                "month": datetime.now(timezone.utc).strftime("%Y-%m"),
-                "channel": "facebook",
-                "followers": fb_followers,
-                "avg_engagement_rate": fb_engagement,
-                "posts_this_month": fb_month_posts,
-                "updated_at": pulled_at,
-            }
-        )
-
-    social["history"] = history[-72:]
+        },
+    )
     save_json("social_stats.json", social)
 
 
-def main():
-    print("=" * 60)
-    print("IPN Analytics Dashboard — Instagram + Facebook Data Pull")
-    print("=" * 60)
-
-    env_loaded_from = load_env()
-    if env_loaded_from:
-        print(f"Loaded env vars from: {env_loaded_from}")
-
-    token = os.environ.get("INSTAGRAM_ACCESS_TOKEN")
+def run_instagram():
+    token = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
     if not token:
-        print("ERROR: INSTAGRAM_ACCESS_TOKEN not found in .env")
-        print("Add: INSTAGRAM_ACCESS_TOKEN=your_long_lived_token")
-        sys.exit(1)
+        raise RuntimeError("INSTAGRAM_ACCESS_TOKEN is required for the Instagram pull.")
 
-    try:
-        resolved = resolve_meta_ids(token)
-        ig_account_id = resolved.get("ig_id")
-        page_id = resolved.get("page_id")
+    resolved = resolve_instagram_account(token)
+    ig_account_id = resolved.get("ig_id")
+    print(f"Using IG account ID: {ig_account_id} ({resolved.get('ig_source')})")
 
-        print(f"Using IG account ID: {ig_account_id} ({resolved.get('ig_source')})")
-        if page_id:
-            print(f"Using FB page ID: {page_id} ({resolved.get('page_source')})")
-        else:
-            print("Facebook page ID not resolved. Facebook metrics will be skipped.")
+    ig_profile = pull_instagram_profile(token, ig_account_id)
+    ig_media = pull_recent_instagram_media(token, ig_account_id)
+    pulled_at = datetime.now(timezone.utc).isoformat()
+    ig_avg_engagement = average_engagement_rate(ig_media, ig_profile.get("followers_count"))
 
-        ig_profile = pull_instagram_profile(token, ig_account_id)
-        ig_media = pull_recent_instagram_media(token, ig_account_id)
-        pulled_at = datetime.now(timezone.utc).isoformat()
-
-        ig_avg_engagement = average_engagement_rate(ig_media, ig_profile.get("followers_count"))
-
-        instagram_stats = {
+    save_json(
+        "instagram_stats.json",
+        {
             "account_id": ig_profile.get("id"),
             "username": ig_profile.get("username"),
             "name": ig_profile.get("name"),
@@ -540,116 +482,144 @@ def main():
             "avg_engagement_rate_30d": ig_avg_engagement,
             "recent_posts_30d": len(ig_media),
             "pulled_at": pulled_at,
-        }
-
-        instagram_media = {
+        },
+    )
+    save_json(
+        "instagram_media.json",
+        {
             "account_id": ig_profile.get("id"),
             "username": ig_profile.get("username"),
             "lookback_days": LOOKBACK_DAYS,
             "posts": ig_media,
             "pulled_at": pulled_at,
-        }
+        },
+    )
+    save_json(
+        "instagram_last_pull.json",
+        {
+            "last_pull": pulled_at,
+            "status": "success",
+            "account_id": ig_profile.get("id"),
+            "username": ig_profile.get("username"),
+            "posts_30d": len(ig_media),
+        },
+    )
+    update_instagram_social_stats(ig_profile, ig_media, pulled_at)
+    print(f"Instagram followers: {ig_profile.get('followers_count')}")
+    print(f"Instagram recent posts (30d): {len(ig_media)}")
+    return pulled_at
 
-        save_json("instagram_stats.json", instagram_stats)
-        save_json("instagram_media.json", instagram_media)
-        save_json(
-            "instagram_last_pull.json",
-            {
-                "last_pull": pulled_at,
-                "status": "success",
-                "account_id": ig_profile.get("id"),
-                "username": ig_profile.get("username"),
-                "posts_30d": len(ig_media),
-            },
+
+def run_facebook():
+    user_token = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
+    page_token = os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN", "").strip()
+    page_id = os.environ.get("FACEBOOK_PAGE_ID", "").strip()
+    if not page_id:
+        raise RuntimeError("FACEBOOK_PAGE_ID is required for the Facebook pull.")
+    if not page_token and not user_token:
+        raise RuntimeError(
+            "FACEBOOK_PAGE_ACCESS_TOKEN or INSTAGRAM_ACCESS_TOKEN is required "
+            "for the Facebook follower pull."
         )
 
-        fb_profile = None
-        fb_posts = []
-        facebook_status = {"status": "skipped", "reason": "facebook_page_id_not_resolved"}
+    profile_token = page_token or user_token
+    fb_profile = pull_facebook_page_profile(profile_token, page_id)
+    fb_posts = None
+    mode = "follower_only"
+    note = (
+        "Facebook Page access token is not configured; follower totals were refreshed "
+        "but post engagement was preserved from the previous successful snapshot."
+    )
+    if page_token:
+        fb_posts = pull_recent_facebook_posts(page_token, page_id)
+        mode = "page_api"
+        note = None
 
-        if page_id:
-            # Use a Page Access Token for Facebook endpoints (required for
-            # reactions/comments/shares summaries). Fall back to user token.
-            page_token = token
-            try:
-                accounts = api_get(
-                    "/me/accounts",
-                    token,
-                    params={"fields": "id,access_token", "limit": 50},
-                )
-                for acct in accounts.get("data", []):
-                    if acct.get("id") == page_id:
-                        page_token = acct.get("access_token", token)
-                        break
-            except Exception:
-                pass  # fall back to user token
-
-            fb_profile = pull_facebook_page_profile(page_token, page_id)
-            fb_posts = pull_recent_facebook_posts(page_token, page_id)
-            fb_followers = fb_profile.get("followers_count") or fb_profile.get("fan_count")
-            fb_avg_engagement = average_engagement_rate(
-                fb_posts,
-                fb_followers,
-                likes_key="reactions_count",
-                comments_key="comments_count",
-                shares_key="shares_count",
-            )
-
-            facebook_stats = {
-                "page_id": fb_profile.get("id"),
-                "page_name": fb_profile.get("name"),
-                "fan_count": fb_profile.get("fan_count"),
-                "followers_count": fb_profile.get("followers_count"),
-                "avg_engagement_rate_30d": fb_avg_engagement,
-                "recent_posts_30d": len(fb_posts),
-                "posts": fb_posts,
-                "pulled_at": pulled_at,
-            }
-            save_json("facebook_stats.json", facebook_stats)
-
-            facebook_status = {
-                "status": "success",
-                "page_id": fb_profile.get("id"),
-                "page_name": fb_profile.get("name"),
-                "posts_30d": len(fb_posts),
-            }
-
-        save_json(
-            "facebook_last_pull.json",
-            {
-                "last_pull": pulled_at,
-                **facebook_status,
-            },
+    pulled_at = datetime.now(timezone.utc).isoformat()
+    fb_followers = fb_profile.get("followers_count") or fb_profile.get("fan_count")
+    fb_avg_engagement = (
+        average_engagement_rate(
+            fb_posts,
+            fb_followers,
+            likes_key="reactions_count",
+            comments_key="comments_count",
+            shares_key="shares_count",
         )
+        if fb_posts is not None
+        else None
+    )
+    save_json(
+        "facebook_stats.json",
+        {
+            "page_id": fb_profile.get("id"),
+            "page_name": fb_profile.get("name"),
+            "fan_count": fb_profile.get("fan_count"),
+            "followers_count": fb_profile.get("followers_count"),
+            "avg_engagement_rate_30d": fb_avg_engagement,
+            "recent_posts_30d": len(fb_posts) if fb_posts is not None else None,
+            "posts": fb_posts if fb_posts is not None else [],
+            "mode": mode,
+            "pulled_at": pulled_at,
+        },
+    )
+    save_json(
+        "facebook_last_pull.json",
+        {
+            "last_pull": pulled_at,
+            "status": "success",
+            "page_id": fb_profile.get("id"),
+            "page_name": fb_profile.get("name"),
+            "posts_30d": len(fb_posts) if fb_posts is not None else None,
+            "mode": mode,
+            "note": note,
+        },
+    )
+    update_facebook_social_stats(fb_profile, fb_posts, pulled_at)
+    print(f"Facebook followers: {fb_followers}")
+    if note:
+        print(f"WARNING: {note}")
+    return pulled_at
 
-        update_social_stats(ig_profile, ig_media, fb_profile, fb_posts, pulled_at)
 
-        print("\nSummary")
-        print(f"  Instagram account: @{ig_profile.get('username')} ({ig_profile.get('name')})")
-        print(f"  Instagram followers: {ig_profile.get('followers_count')}")
-        print(f"  Instagram recent posts (30d): {len(ig_media)}")
-        print(f"  Instagram avg engagement rate (30d): {ig_avg_engagement}%")
+def record_pull_failure(platform, exc):
+    pulled_at = datetime.now(timezone.utc).isoformat()
+    save_json(
+        f"{platform}_last_pull.json",
+        {"last_pull": pulled_at, "status": "error", "error": str(exc)},
+    )
+    print(f"ERROR: {platform.capitalize()} refresh failed: {exc}")
 
-        if fb_profile:
-            print(f"  Facebook page: {fb_profile.get('name')} (ID: {fb_profile.get('id')})")
-            print(f"  Facebook followers: {fb_profile.get('followers_count') or fb_profile.get('fan_count')}")
-            print(f"  Facebook recent posts (30d): {len(fb_posts)}")
-        else:
-            print("  Facebook metrics: skipped (set FACEBOOK_PAGE_ID or ensure account auto-discovery)")
 
-        print(f"  Pulled at: {pulled_at}")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--platform",
+        choices=("instagram", "facebook", "all"),
+        default="all",
+    )
+    args = parser.parse_args()
 
-    except Exception as exc:
-        pulled_at = datetime.now(timezone.utc).isoformat()
-        save_json(
-            "instagram_last_pull.json",
-            {"last_pull": pulled_at, "status": "error", "error": str(exc)},
-        )
-        save_json(
-            "facebook_last_pull.json",
-            {"last_pull": pulled_at, "status": "error", "error": str(exc)},
-        )
-        print(f"\nERROR: {exc}")
+    print("=" * 60)
+    print(f"IPN Analytics Dashboard — {args.platform.capitalize()} Data Pull")
+    print("=" * 60)
+    env_loaded_from = load_env()
+    if env_loaded_from:
+        print(f"Loaded env vars from: {env_loaded_from}")
+
+    failures = []
+    runners = {
+        "instagram": run_instagram,
+        "facebook": run_facebook,
+    }
+    platforms = tuple(runners) if args.platform == "all" else (args.platform,)
+    for platform in platforms:
+        try:
+            runners[platform]()
+        except Exception as exc:
+            record_pull_failure(platform, exc)
+            failures.append(platform)
+
+    if failures:
         sys.exit(1)
 
 

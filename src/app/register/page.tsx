@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, Suspense } from "react"
+import { useEffect, useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -8,6 +8,7 @@ import icon from "../../../assets/purple_icon.png"
 import { signUp } from "@/lib/auth/actions"
 import { getPortalAnalyticsContext, trackPortalEvent } from "@/lib/portal-analytics/client"
 import NeuralBackground from "@/components/NeuralBackground"
+import SchoolCombobox from "@/components/SchoolCombobox"
 import CityVerificationField from "@/components/location/CityVerificationField"
 import type {
   LocationVerificationStatus,
@@ -52,6 +53,7 @@ type FormData = {
   inspiration: string
   support_needs: string
   referral_source: string
+  referral_source_other: string
 }
 
 type StringFormKey = {
@@ -65,6 +67,7 @@ const EMPTY: FormData = {
   field: "", field_status: "",
   barriers: [], barriers_other: "",
   role_and_goals: "", inspiration: "", support_needs: "", referral_source: "",
+  referral_source_other: "",
 }
 
 // ── Shared primitives ────────────────────────────────────────────────────────
@@ -110,61 +113,6 @@ function Select({
       {placeholder && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
-  )
-}
-
-function Combobox({
-  id, name, value, onChange, options, placeholder,
-}: {
-  id: string; name: string; value: string
-  onChange: (v: string) => void; options: string[]
-  placeholder?: string
-}) {
-  const [query, setQuery] = useState(value)
-  const [open, setOpen] = useState(false)
-
-  // Sync display text when value is cleared externally (e.g. country changes)
-  useEffect(() => {
-    if (!value) {
-      const timer = window.setTimeout(() => setQuery(""), 0)
-      return () => window.clearTimeout(timer)
-    }
-  }, [value])
-
-  const filtered = query.length >= 2
-    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())).slice(0, 60)
-    : []
-
-  function select(option: string) {
-    onChange(option)
-    setQuery(option)
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative">
-      <input
-        id={id} name={name} type="text" value={query}
-        placeholder={placeholder} autoComplete="off"
-        onChange={(e) => { setQuery(e.target.value); onChange(""); setOpen(true) }}
-        onFocus={() => { if (query.length >= 2) setOpen(true) }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 sm:text-sm"
-      />
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
-          {filtered.map((o) => (
-            <li
-              key={o}
-              onMouseDown={() => select(o)}
-              className="cursor-pointer px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-50"
-            >
-              {o}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   )
 }
 
@@ -312,7 +260,12 @@ function StepLocation({
           name="persona"
           value={data.persona}
           required
-          onChange={(e) => { update("persona", e.target.value); update("school", ""); update("affiliation", ""); setAtUniversity(false) }}
+          onChange={(e) => {
+            update("persona", e.target.value)
+            update("school", "")
+            update("affiliation", "")
+            setAtUniversity(false)
+          }}
           className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
         >
           <option value="">Select…</option>
@@ -328,9 +281,9 @@ function StepLocation({
           <input
             type="checkbox"
             checked={atUniversity}
-            onChange={(e) => {
-              setAtUniversity(e.target.checked)
-              if (e.target.checked) update("affiliation", "")
+            onChange={(event) => {
+              setAtUniversity(event.target.checked)
+              if (event.target.checked) update("affiliation", "")
               else update("school", "")
             }}
             className="h-4 w-4 rounded border-zinc-300 accent-[#664fa1]"
@@ -342,9 +295,10 @@ function StepLocation({
       {showSchool && (
         <div className="flex flex-col gap-1">
           <Label htmlFor="school">{schoolLabel}</Label>
-          <Combobox id="school" name="school" value={data.school}
-            onChange={(v) => update("school", v)}
+          <SchoolCombobox key={`${data.country}:${data.persona}`} id="school" name="school" value={data.school}
+            onChange={(value) => update("school", value)}
             options={schoolOptions}
+            inputClassName="w-full rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 sm:text-sm"
             placeholder={data.country ? "Type to search…" : "Select a country first"} />
           {data.country && <p className="text-xs text-zinc-400">Showing schools in {data.country}. Change your country selection above to search elsewhere.</p>}
           <FieldError msg={errors.school} />
@@ -355,7 +309,7 @@ function StepLocation({
         <div className="flex flex-col gap-1">
           <Label htmlFor="affiliation">Organization or affiliation</Label>
           <TextInput id="affiliation" name="affiliation" value={data.affiliation}
-            onChange={(v) => update("affiliation", v)}
+            onChange={(value) => update("affiliation", value)}
             placeholder="Company, organization, self-employed…" />
           <FieldError msg={errors.affiliation} />
         </div>
@@ -384,7 +338,6 @@ function StepBackground({
 
   return (
     <div className="flex flex-col gap-6">
-
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-zinc-700">Which field are you primarily in?</p>
         {FIELD_OPTIONS.map((opt) => (
@@ -480,11 +433,23 @@ function StepAbout({
           <label key={opt} className="flex items-center gap-2 cursor-pointer">
             <input type="radio" name="referral_source" value={opt}
               checked={data.referral_source === opt}
-              onChange={() => update("referral_source", opt)}
+              onChange={() => {
+                update("referral_source", opt)
+                if (opt !== "Other") update("referral_source_other", "")
+              }}
               className="accent-ipn" />
             <span className="text-sm text-zinc-700">{opt}</span>
           </label>
         ))}
+        {data.referral_source === "Other" && (
+          <div className="ml-6 flex flex-col gap-1">
+            <Label htmlFor="referral_source_other">Please tell us more</Label>
+            <TextInput id="referral_source_other" name="referral_source_other"
+              value={data.referral_source_other} onChange={(v) => update("referral_source_other", v)}
+              placeholder="How did you hear about IPN?" required />
+            <FieldError msg={errors.referral_source_other} />
+          </div>
+        )}
         <FieldError msg={errors.referral_source} />
       </div>
     </div>
@@ -502,6 +467,15 @@ function RegisterPageContent() {
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    trackPortalEvent("registration_step_view", {
+      metadata: {
+        step,
+        stepLabel: STEPS[step - 1],
+      },
+    })
+  }, [step])
 
   function update(key: StringFormKey, value: string) {
     setData((prev) => ({ ...prev, [key]: value }))
@@ -546,6 +520,8 @@ function RegisterPageContent() {
     }
     if (s === 4) {
       if (!data.referral_source) e.referral_source = "Please select one"
+      if (data.referral_source === "Other" && !data.referral_source_other.trim())
+        e.referral_source_other = "Please add a few details"
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -597,6 +573,7 @@ function RegisterPageContent() {
       inspiration: data.inspiration,
       support_needs: data.support_needs,
       referral_source: data.referral_source,
+      referral_source_other: data.referral_source === "Other" ? data.referral_source_other.trim() : null,
     }, redirectTo || undefined, analytics)
 
     if (result?.error) {

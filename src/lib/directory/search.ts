@@ -38,6 +38,14 @@ export function memberMatchesDirectorySearch(member: DirectoryMember, query: str
       fullName,
       reversedName,
       ...SEARCHABLE_PROFILE_FIELDS.map((field) => member[field] ?? ""),
+      ...(member.education ?? []).flatMap((entry) => [
+        entry.institution,
+        entry.education_level ?? "",
+        entry.degree_credential ?? "",
+        entry.area_of_study ?? "",
+        entry.status ?? "",
+        entry.graduation_year?.toString() ?? "",
+      ]),
       ...(member.interest_tags ?? []),
     ].join(" "),
   )

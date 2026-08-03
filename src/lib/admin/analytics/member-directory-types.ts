@@ -22,7 +22,15 @@ export type MemberDirectoryRow = {
   psychedelicFieldStatus: string
   psychedelicFieldBarriers: string[]
   referralSource: string
+  rawCategoryResponses: {
+    persona: string[]
+    primaryField: string[]
+    psychedelicFieldStatus: string[]
+    psychedelicFieldBarriers: string[]
+    referralSource: string[]
+  }
   school: string
+  schools: string[]
   interestTags: string[]
   firstSeenAt: string | null
   firstSeenSource: string
@@ -39,6 +47,7 @@ export type MemberDirectoryRow = {
 }
 
 export type MemberDirectoryDetail = MemberDirectoryRow & {
+  canViewSensitive: boolean
   portal: {
     id: string | null
     firstName: string
@@ -48,12 +57,22 @@ export type MemberDirectoryDetail = MemberDirectoryRow & {
     persona: string
     affiliation: string
     school: string
+    education: {
+      id: string
+      institution: string
+      educationLevel: string
+      degreeCredential: string
+      areaOfStudy: string
+      status: string
+      graduationYear: number | null
+    }[]
     field: string
     psychedelicFieldStatus: string
     psychedelicFieldBarriers: string[]
     roleAndGoals: string
     inspiration: string
     referralSource: string
+    referralSourceOther: string
     country: string
     state: string
     city: string
@@ -138,6 +157,9 @@ export type MemberDirectoryData = {
     country: string
     lat: number | null
     lng: number | null
+    countryLat: number | null
+    countryLng: number | null
+    coordinatePrecision: "city" | "country" | null
     memberCount: number
     identifiableCount: number
     sourceCounts: { id: keyof MemberDirectorySources; label: string; value: number }[]
@@ -148,6 +170,11 @@ export type MemberDirectoryData = {
       sources: MemberDirectorySources
     }[]
   }[]
+  geographyCoverage: {
+    resolvedMembers: number
+    totalMembers: number
+    percent: number
+  }
   whatsapp: {
     connected: number
     totalPortalMembers: number

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test": "node --test --experimental-strip-types tests/*.test.mjs",
     "start": "next start",
     "analytics:refresh-sources": "node scripts/run-analytics-source-refresh.mjs",
     "analytics:upload-source-details": "node scripts/upload-analytics-source-details.mjs",
@@ -12,6 +13,9 @@
     "analytics:import-legacy-sot": "node scripts/import-legacy-member-sot.mjs",
     "analytics:zoom-attendee-backfill": "node scripts/import-zoom-attendee-backfill.mjs",
     "analytics:zoom-registration-backfill": "node scripts/import-zoom-registration-backfill.mjs",
+    "analytics:import-geocodes": "node scripts/import-location-geocodes.mjs",
+    "analytics:prepare-social-backfill": "node scripts/prepare-social-history-backfill.mjs",
+    "analytics:validate-snapshot": "node scripts/validate-analytics-snapshot.mjs",
     "lint": "eslint"
   },
   "dependencies": {

@@ -3,6 +3,17 @@ export type DirectoryContact = {
   whatsapp_url: string | null
 }
 
+export type DirectoryEducation = {
+  id: string
+  institution: string
+  education_level: "high_school" | "undergraduate" | "graduate" | "professional_degree" | "certificate" | "other" | null
+  degree_credential: string | null
+  area_of_study: string | null
+  status: "currently_enrolled" | "completed" | null
+  graduation_year: number | null
+  sort_order: number
+}
+
 export type DirectoryMember = {
   id: string
   first_name: string | null
@@ -16,12 +27,14 @@ export type DirectoryMember = {
   state: string | null
   city_lat?: number | null
   city_lng?: number | null
+  share_location?: boolean | null
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
   avatar_url: string | null
   admin_role: string | null
   team: string | null
+  education?: DirectoryEducation[]
   contact?: DirectoryContact | null
 }
 

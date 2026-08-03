@@ -24,7 +24,7 @@ function loadEnvFile(path) {
 loadEnvFile(resolve(projectDir, ".env"))
 loadEnvFile(resolve(projectDir, ".env.local"))
 
-const sourceGroups = [
+export const sourceGroups = [
   {
     id: "mailchimp",
     label: "Mailchimp",
@@ -34,16 +34,20 @@ const sourceGroups = [
     lastPullFiles: ["mailchimp_last_pull.json", "mailchimp_campaigns.json", "mailchimp_lists.json", "mailchimp_account.json"],
   },
   {
-    id: "meta",
-    label: "Instagram / Facebook",
-    command: ["python3", "scripts/instagram_pull.py"],
+    id: "instagram",
+    label: "Instagram",
+    command: ["python3", "scripts/instagram_pull.py", "--platform", "instagram"],
     timeoutSeconds: 90,
-    requiredEnv: ["INSTAGRAM_ACCESS_TOKEN"],
-    lastPullFiles: ["instagram_last_pull.json", "facebook_last_pull.json", "social_stats.json"],
-    expandsTo: [
-      { id: "instagram", label: "Instagram", lastPullFiles: ["instagram_last_pull.json", "social_stats.json"] },
-      { id: "facebook", label: "Facebook", lastPullFiles: ["facebook_last_pull.json", "social_stats.json"] },
-    ],
+    requiredEnv: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_BUSINESS_ACCOUNT_ID"],
+    lastPullFiles: ["instagram_last_pull.json", "social_stats.json"],
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    command: ["python3", "scripts/instagram_pull.py", "--platform", "facebook"],
+    timeoutSeconds: 90,
+    requiredEnv: ["FACEBOOK_PAGE_ID"],
+    lastPullFiles: ["facebook_last_pull.json", "social_stats.json"],
   },
   {
     id: "website",
@@ -69,14 +73,6 @@ const sourceGroups = [
     requiredEnv: ["EVENTBRITE_API_TOKEN"],
     lastPullFiles: ["eventbrite_last_pull.json", "eventbrite_events.json"],
   },
-  {
-    id: "donations",
-    label: "Donations",
-    command: ["python3", "scripts/squarespace_pull.py"],
-    timeoutSeconds: 90,
-    requiredEnv: ["SQUARESPACE_API_KEY"],
-    lastPullFiles: ["donations_last_pull.json", "donations_stats.json"],
-  },
 ]
 
 function readJson(path) {
@@ -92,6 +88,14 @@ function firstLastPull(files) {
     const payload = readJson(resolve(dataDir, file))
     const value = payload?.last_pull ?? payload?.pulled_at ?? payload?.lastPull ?? payload?.timestamp ?? payload?.updated_at
     if (typeof value === "string" && value.trim()) return value
+  }
+  return null
+}
+
+function firstLastPullPayload(files) {
+  for (const file of files) {
+    const payload = readJson(resolve(dataDir, file))
+    if (payload && typeof payload === "object") return payload
   }
   return null
 }
@@ -146,20 +150,48 @@ function sourceStatus({ id, label, status, lastRefreshedAt, records = null, note
     label,
     status,
     lastRefreshedAt,
+    lastAttemptedAt: nowIso(),
+    lastSuccessfulAt: status === "success" ? lastRefreshedAt : null,
     records,
     note,
   }
 }
 
 function expandedStatuses(group, status, note) {
-  const targets = group.expandsTo ?? [group]
-  return targets.map((target) => sourceStatus({
-    id: target.id,
-    label: target.label,
+  return [sourceStatus({
+    id: group.id,
+    label: group.label,
     status,
-    lastRefreshedAt: status === "success" ? firstLastPull(target.lastPullFiles ?? group.lastPullFiles) ?? nowIso() : null,
+    lastRefreshedAt: status === "success" ? firstLastPull(group.lastPullFiles) ?? nowIso() : null,
     note,
-  }))
+  })]
+}
+
+export function summarizeCommandFailure(output, fallback) {
+  const lines = String(output || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const actionable = [...lines].reverse().find((line) => /(^|\b)(ERROR|Error):/i.test(line))
+  return (actionable || lines.at(-1) || fallback).slice(0, 600)
+}
+
+function validateGroupOutput(group) {
+  if (group.id === "website") {
+    const website = readJson(resolve(dataDir, "website_stats.json"))
+    const sessions = Number(website?.overview?.sessions_30d ?? 0)
+    const hasRows = [
+      website?.monthly_trend?.daily,
+      website?.monthly_trend?.monthly,
+      website?.devices,
+      website?.acquisition?.channels,
+      website?.pages,
+    ].some((rows) => Array.isArray(rows) && rows.length > 0)
+    if (sessions <= 0 || !hasRows) {
+      return "GA4 returned zero sessions or no report rows; the previous valid Website snapshot will be retained."
+    }
+  }
+  return null
 }
 
 async function runGroup(group) {
@@ -180,10 +212,21 @@ async function runGroup(group) {
     if (result.code === 124) {
       return expandedStatuses(group, "error", `${group.label} timed out after ${group.timeoutSeconds}s`)
     }
-    return expandedStatuses(group, "error", result.output || `Exited with status ${result.code}`)
+    return expandedStatuses(
+      group,
+      "error",
+      summarizeCommandFailure(result.output, `Exited with status ${result.code}`),
+    )
   }
 
-  return expandedStatuses(group, "success", `Pulled in ${result.durationSeconds}s`)
+  const validationError = validateGroupOutput(group)
+  if (validationError) return expandedStatuses(group, "error", validationError)
+
+  const pullPayload = firstLastPullPayload(group.lastPullFiles)
+  const successNote = typeof pullPayload?.note === "string" && pullPayload.note.trim()
+    ? `Pulled in ${result.durationSeconds}s. ${pullPayload.note.trim()}`
+    : `Pulled in ${result.durationSeconds}s`
+  return expandedStatuses(group, "success", successNote)
 }
 
 async function main() {
@@ -210,7 +253,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+}

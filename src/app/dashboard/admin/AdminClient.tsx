@@ -8,10 +8,13 @@ import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
 import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
+import {
+  LEADERSHIP_TEAMS,
+  roleAfterLeadershipAssignment,
+} from "@/lib/admin/leadership"
 import ContentIntakeForm from "./ContentIntakeForm"
 
-const TEAMS = ["Strategy and Operations", "Media", "PsychedelX", "Community", "IPN Labs"] as const
-type TeamName = typeof TEAMS[number]
+type TeamName = (typeof LEADERSHIP_TEAMS)[number]
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -50,19 +53,18 @@ function MemberAvatar({ member, size = "md" }: { member: AdminMemberProfile; siz
 
 function AdminMemberModal({
   member: initialMember,
-  isSuperadmin,
   onClose,
 }: {
   member: AdminMemberProfile
-  isSuperadmin: boolean
   onClose: () => void
 }) {
+  const router = useRouter()
   const [member, setMember] = useState(initialMember)
   const [adminRole, setAdminRole] = useState(member.admin_role ?? "")
   const [team, setTeam] = useState(member.team ?? "")
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -83,20 +85,32 @@ function AdminMemberModal({
       if (result.error) {
         setError(result.error)
       } else {
-        const newRole = member.role === "superadmin" ? "superadmin" : (adminRole || team) ? "admin" : null
+        const newRole = roleAfterLeadershipAssignment(
+          member.role,
+          adminRole.trim() || null,
+          team || null,
+        )
         setMember((m) => ({ ...m, admin_role: adminRole || null, team: team || null, role: newRole }))
         setSaved(true)
+        router.refresh()
       }
     })
   }
 
   function handleRemove() {
-    setAdminRole("")
-    setTeam("")
+    setSaved(false)
+    setError(null)
     startTransition(async () => {
-      await assignAdminAccess(member.id, null, null)
-      setMember((m) => ({ ...m, admin_role: null, team: null, role: null }))
-      setSaved(true)
+      const result = await assignAdminAccess(member.id, null, null)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setAdminRole("")
+        setTeam("")
+        setMember((m) => ({ ...m, admin_role: null, team: null, role: null }))
+        setSaved(true)
+        router.refresh()
+      }
     })
   }
 
@@ -159,9 +173,8 @@ function AdminMemberModal({
           )}
         </div>
 
-        {/* Edit form (superadmin only) */}
-        {isSuperadmin && (
-          <div className="border-t border-zinc-100 px-6 py-5 flex flex-col gap-3">
+        {/* Leadership assignment form (available to both admin tiers) */}
+        <div className="border-t border-zinc-100 px-6 py-5 flex flex-col gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
               {member.role ? "Edit role" : "Assign role"}
             </p>
@@ -183,27 +196,26 @@ function AdminMemberModal({
                 className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
               >
                 <option value="">No team</option>
-                {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {LEADERSHIP_TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             {error && <p className="text-xs text-red-600">{error}</p>}
             {saved && <p className="text-xs text-green-600">Saved</p>}
             <div className="flex gap-2">
-              <button type="button" onClick={handleSave}
-                className="flex-1 cursor-pointer rounded-lg bg-ipn py-2 text-sm font-medium text-white hover:bg-ipn/90 transition"
+              <button type="button" onClick={handleSave} disabled={isPending}
+                className="flex-1 cursor-pointer rounded-lg bg-ipn py-2 text-sm font-medium text-white hover:bg-ipn/90 transition disabled:cursor-wait disabled:opacity-60"
               >
-                Save
+                {isPending ? "Saving…" : "Save"}
               </button>
               {member.role && member.role !== "superadmin" && (
-                <button type="button" onClick={handleRemove}
-                  className="cursor-pointer rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-400 hover:border-red-200 hover:text-red-500 transition"
+                <button type="button" onClick={handleRemove} disabled={isPending}
+                  className="cursor-pointer rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-400 hover:border-red-200 hover:text-red-500 transition disabled:cursor-wait disabled:opacity-60"
                 >
-                  Remove access
+                  Remove from leadership
                 </button>
               )}
             </div>
           </div>
-        )}
 
       </div>
     </div>
@@ -212,7 +224,7 @@ function AdminMemberModal({
 
 // ── Member search (used inline in Leadership tab) ────────────────────────────
 
-function MemberSearch({ isSuperadmin }: { isSuperadmin: boolean }) {
+function MemberSearch() {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<AdminMemberProfile[]>([])
   const [searching, setSearching] = useState(false)
@@ -240,7 +252,7 @@ function MemberSearch({ isSuperadmin }: { isSuperadmin: boolean }) {
           type="text"
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search members by name…"
+          placeholder="Search members by name or email…"
           className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
         />
       </div>
@@ -261,6 +273,7 @@ function MemberSearch({ isSuperadmin }: { isSuperadmin: boolean }) {
                 <p className="text-sm font-medium text-zinc-900">{m.first_name} {m.last_name}</p>
                 <p className="truncate text-xs text-zinc-400">{m.email}</p>
                 {m.persona && <p className="text-xs text-zinc-400">{m.persona}</p>}
+                {m.admin_role && <p className="text-xs font-medium text-ipn">{m.admin_role}</p>}
               </div>
               <svg className="h-4 w-4 flex-shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -277,7 +290,6 @@ function MemberSearch({ isSuperadmin }: { isSuperadmin: boolean }) {
       {selectedMember && (
         <AdminMemberModal
           member={selectedMember}
-          isSuperadmin={isSuperadmin}
           onClose={() => setSelectedMember(null)}
         />
       )}
@@ -337,7 +349,7 @@ function TeamPermissionsMatrix({ initialPerms }: { initialPerms: TeamPermissions
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {TEAMS.map((team) => (
+            {LEADERSHIP_TEAMS.map((team) => (
               <tr key={team}>
                 <td className="py-2.5 pr-4 text-sm font-medium text-zinc-700 whitespace-nowrap">{team}</td>
                 {CONTENT_TYPES.map(({ id }) => {
@@ -366,7 +378,7 @@ function TeamPermissionsMatrix({ initialPerms }: { initialPerms: TeamPermissions
 
 // ── Main client component ────────────────────────────────────────────────────
 
-const TEAM_ORDER = ["Strategy and Operations", "Media", "PsychedelX", "Community", "IPN Labs"] as const
+const TEAM_ORDER = LEADERSHIP_TEAMS
 
 const CONTENT_TYPES: { id: AdminContentType; label: string }[] = [
   { id: "upcoming_event", label: "Events" },
@@ -750,12 +762,6 @@ function ModerationTab({
         )}
       </div>
 
-      {/* Assign roles */}
-      <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Assign roles</p>
-        <MemberSearch isSuperadmin={true} />
-      </div>
-
       {selectedMember && (
         <ModerationMemberModal
           member={selectedMember}
@@ -918,7 +924,7 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Admin</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          {isSuperadmin ? "Superadmin: full access" : "Leadership: analytics access"}
+          {isSuperadmin ? "Superadmin: full access" : "Admin: leadership and analytics access"}
         </p>
       </div>
 
@@ -964,8 +970,25 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
       {/* ── Leadership tab ── */}
       {tab === "leadership" && (
         <div className="flex flex-col gap-8">
+          <section className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Add or edit a leadership member
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Search for an existing portal member, then assign their leadership title and team.
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
+              <MemberSearch />
+            </div>
+          </section>
+
           {/* Roster */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 border-t border-zinc-200 pt-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Leadership roster
+            </p>
             {rosterByTeam.length === 0 && superadminsWithoutTeam.length === 0 && adminsWithoutTeam.length === 0 && (
               <p className="text-sm text-zinc-400">No team members assigned yet.</p>
             )}
@@ -1084,7 +1107,6 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
       {selectedMember && (
         <AdminMemberModal
           member={selectedMember}
-          isSuperadmin={isSuperadmin}
           onClose={() => setSelectedMember(null)}
         />
       )}

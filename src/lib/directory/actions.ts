@@ -1,7 +1,12 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { buildDirectoryProfilesQuery, attachContacts, DIRECTORY_PAGE_SIZE } from "./queries"
+import {
+  attachContacts,
+  attachEducation,
+  buildDirectoryProfilesQuery,
+  DIRECTORY_PAGE_SIZE,
+} from "./queries"
 import type { DirectoryMember } from "./types"
 
 export type LoadMoreDirectoryFilters = {
@@ -37,7 +42,8 @@ export async function loadMoreDirectoryMembers(
   // "Load more" only ever runs when there's no active free-text search (the
   // search box switches to a full server refetch instead), so no fuzzy match
   // is needed here — just the same server-side filters as the initial page.
-  const withContacts = await attachContacts(supabase, (members ?? []) as DirectoryMember[])
+  const withEducation = await attachEducation(supabase, (members ?? []) as DirectoryMember[])
+  const withContacts = await attachContacts(supabase, withEducation)
 
   return {
     members: withContacts,
