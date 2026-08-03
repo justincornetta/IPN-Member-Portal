@@ -166,7 +166,7 @@ function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
       return {
         ...source,
         status: "watch",
-        note: "Historical Zoom export is stale after May 31, 2026; curated events include historical Zoom attendance and one-time Zoom registrant backfill before July 1, 2026. Current and future registrants should come from Portal RSVPs.",
+        note: "Zoom attendee reports refresh from the API. Historical attendance is supplemented by reviewed backfills, and Portal RSVPs are the registrant source of truth beginning July 1, 2026.",
       }
     }
     if (source.id === "eventbrite") {

@@ -50,6 +50,7 @@ import {
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
 import {
   analyticsGranularityBucket,
+  analyticsSourceIsHealthy,
   resolveExternalSourceConnection,
   snapshotSupersedesRefresh,
 } from "../src/lib/admin/analytics/presentation.ts"
@@ -938,4 +939,11 @@ test("a newer failed refresh still overrides an older successful snapshot", () =
 
   assert.equal(connection.statusSource, "refresh")
   assert.equal(connection.healthy, false)
+})
+
+test("watch and basic source states are cautions rather than connection errors", () => {
+  const refreshedAt = "2026-08-03T23:15:16Z"
+  assert.equal(analyticsSourceIsHealthy("watch", refreshedAt), true)
+  assert.equal(analyticsSourceIsHealthy("basic", refreshedAt), true)
+  assert.equal(analyticsSourceIsHealthy("error", refreshedAt), false)
 })

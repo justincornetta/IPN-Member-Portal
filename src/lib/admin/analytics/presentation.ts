@@ -43,7 +43,13 @@ function timestamp(value: string | null | undefined) {
 export function analyticsSourceIsHealthy(status: string | null | undefined, refreshedAt: string | null | undefined) {
   if (!refreshedAt) return false
   const normalized = status?.toLowerCase() ?? ""
-  return normalized === "success" || normalized === "warning" || normalized === "live" || normalized === "active" || normalized === "snapshot"
+  return normalized === "success"
+    || normalized === "warning"
+    || normalized === "watch"
+    || normalized === "basic"
+    || normalized === "live"
+    || normalized === "active"
+    || normalized === "snapshot"
 }
 
 export function resolveExternalSourceConnection(
