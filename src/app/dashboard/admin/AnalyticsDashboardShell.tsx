@@ -43,6 +43,13 @@ import { educationLevelLabel } from "@/lib/members/education"
 import { buildCarriedSocialTrend } from "@/lib/admin/analytics/social-trend"
 import { buildOtherVariantItems } from "@/lib/admin/analytics/other-variants"
 import {
+  analyticsGranularityBucket,
+  analyticsSourceIsHealthy,
+  resolveExternalSourceConnection,
+  snapshotSupersedesRefresh,
+  type AnalyticsGranularity,
+} from "@/lib/admin/analytics/presentation"
+import {
   buildFocusedPortalJourneyFlow,
   buildPortalJourneyFlow,
   buildRegistrationStepFlow,
@@ -105,7 +112,7 @@ const MEMBER_UTILIZATION_SORT_COLUMNS: Array<{
   { key: "mailchimpStatus", label: "Mailchimp", defaultDirection: "asc" },
 ]
 type WebsiteGeoView = "countries" | "cities"
-type Granularity = "daily" | "weekly" | "monthly"
+type Granularity = AnalyticsGranularity
 type EventbriteMetric = "tickets" | "revenue"
 type SocialMetric = "followers" | "engagementRate" | "posts"
 type DeviceFilter = "all" | "desktop" | "mobile" | "tablet" | "unknown"
@@ -307,24 +314,16 @@ function aggregateByGranularity<T extends Record<string, number>>(
   for (const row of rows) {
     const date = parseDateValue(row.date)
     if (!date) continue
-    const label = granularityLabel(date, granularity)
-    const current = buckets.get(label) ?? { label, values: {} }
+    const bucket = analyticsGranularityBucket(date, granularity)
+    const current = buckets.get(bucket.key) ?? { label: bucket.label, values: {} }
     for (const [key, value] of Object.entries(row.values)) {
       current.values[key] = (current.values[key] ?? 0) + value
     }
-    buckets.set(label, current)
+    buckets.set(bucket.key, current)
   }
-  return Array.from(buckets.values())
-    .map((bucket) => ({ label: bucket.label, ...bucket.values }) as T & { label: string })
-    .sort((a, b) => a.label.localeCompare(b.label))
-}
-
-function granularityLabel(date: Date, granularity: Granularity) {
-  return granularity === "daily"
-    ? date.toISOString().slice(0, 10)
-    : granularity === "weekly"
-      ? `${date.getUTCFullYear()} W${String(Math.ceil((((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000) + 1) / 7)).padStart(2, "0")}`
-      : date.toISOString().slice(0, 7)
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, bucket]) => ({ label: bucket.label, ...bucket.values }) as T & { label: string })
 }
 
 function dateStep(granularity: Granularity) {
@@ -524,13 +523,19 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyticsRefreshRun | null; fallbackGeneratedAt: string }) {
+  const snapshotIsNewer = snapshotSupersedesRefresh(
+    fallbackGeneratedAt,
+    refresh?.finishedAt ?? refresh?.startedAt,
+  )
   const refreshedAt = refresh?.finishedAt ?? refresh?.startedAt ?? fallbackGeneratedAt
-  const label = refresh
+  const label = !refresh || snapshotIsNewer
+    ? `Snapshot generated ${formatDateTime(fallbackGeneratedAt)}`
+    : refresh
     ? refresh.status === "success"
       ? `Last refreshed ${formatDateTime(refreshedAt)}`
       : `${refresh.status.replace("_", " ")} attempted ${formatDateTime(refreshedAt)} · last successful ${formatDateTime(refresh.lastSuccessfulAt)}`
     : `Snapshot generated ${formatDateTime(fallbackGeneratedAt)}`
-  const status = refresh?.status ?? "snapshot"
+  const status = !refresh || snapshotIsNewer ? "snapshot" : refresh.status
   const className =
     status === "success"
       ? "border-blue-200 bg-blue-50 text-blue-700"
@@ -545,12 +550,6 @@ function RefreshBadge({ refresh, fallbackGeneratedAt }: { refresh: PortalAnalyti
       {label}
     </span>
   )
-}
-
-function sourceIsHealthy(status: string | null | undefined, refreshedAt: string | null | undefined) {
-  if (!refreshedAt) return false
-  const normalized = status?.toLowerCase() ?? ""
-  return normalized === "success" || normalized === "warning" || normalized === "live" || normalized === "active" || normalized === "snapshot"
 }
 
 function buildLiveConnectionStatuses(
@@ -570,11 +569,15 @@ function buildLiveConnectionStatuses(
   const connections = externalSources.map(({ id, label }) => {
     const refreshSource = refreshById.get(id)
     const snapshotSource = byId.get(id)
-    const refreshedAt = refreshSource?.lastRefreshedAt ?? snapshotSource?.lastPull ?? null
+    const effective = resolveExternalSourceConnection(
+      snapshotSource,
+      refreshSource,
+      analyticsRefresh?.finishedAt ?? analyticsRefresh?.startedAt,
+    )
     return {
       label: refreshSource?.label ?? label,
-      refreshedAt,
-      healthy: refreshSource ? sourceIsHealthy(refreshSource.status, refreshedAt) : sourceIsHealthy(snapshotSource?.status, refreshedAt),
+      refreshedAt: effective.refreshedAt,
+      healthy: effective.healthy,
     }
   })
 
@@ -591,7 +594,7 @@ function buildLiveConnectionStatuses(
       connections.push({
         label,
         refreshedAt: source?.lastRefreshedAt ?? analyticsRefresh.finishedAt ?? analyticsRefresh.startedAt,
-        healthy: sourceIsHealthy(source?.status, source?.lastRefreshedAt ?? analyticsRefresh.finishedAt ?? analyticsRefresh.startedAt),
+        healthy: analyticsSourceIsHealthy(source?.status, source?.lastRefreshedAt ?? analyticsRefresh.finishedAt ?? analyticsRefresh.startedAt),
       })
     }
   } else {
@@ -2488,9 +2491,11 @@ function PortalUtilizationPanel({ data }: { data: PortalUtilizationData }) {
   ))
   const mauByBucket = new Map<string, { label: string; date: string; users: number }>()
   for (const row of filteredMauRows) {
-    const label = granularityLabel(new Date(`${row.date}T00:00:00.000Z`), granularity)
-    const current = mauByBucket.get(label)
-    if (!current || row.date > current.date) mauByBucket.set(label, { label, date: row.date, users: row.users })
+    const bucket = analyticsGranularityBucket(new Date(`${row.date}T00:00:00.000Z`), granularity)
+    const current = mauByBucket.get(bucket.key)
+    if (!current || row.date > current.date) {
+      mauByBucket.set(bucket.key, { label: bucket.label, date: row.date, users: row.users })
+    }
   }
   const mauTrend = Array.from(mauByBucket.values()).sort((a, b) => a.date.localeCompare(b.date))
   const selectedMauRow = selectedMauDate
@@ -3276,7 +3281,7 @@ function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapsh
     .flatMap((row) => {
       const date = parseDateValue(row.date || `${row.month}-01`)
       if (!date) return []
-      const period = granularityLabel(date, granularity)
+      const period = analyticsGranularityBucket(date, granularity).label
       return [{ ...row, period, timestamp: date.getTime() }]
     })
   const displayedChannels = platform === "all"

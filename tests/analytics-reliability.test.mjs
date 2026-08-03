@@ -48,6 +48,11 @@ import {
   portalPageCategory,
 } from "../src/lib/admin/analytics/portal-utilization.ts"
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
+import {
+  analyticsGranularityBucket,
+  resolveExternalSourceConnection,
+  snapshotSupersedesRefresh,
+} from "../src/lib/admin/analytics/presentation.ts"
 
 const PERSONA_MIGRATION_SQL = readFileSync(
   new URL("../supabase/migrations/20260730195316_align_personas_with_registration_labels.sql", import.meta.url),
@@ -867,4 +872,70 @@ test("analytics maintenance workflow builds its request from validated JSON file
   assert.match(workflow, /data\/analytics-source-status\.json/)
   assert.doesNotMatch(workflow, /--argjson externalSources/)
   assert.doesNotMatch(workflow, /EXTERNAL_SOURCES: \$\{\{/)
+})
+
+test("weekly analytics labels show the Monday-through-Sunday date range", () => {
+  assert.deepEqual(
+    analyticsGranularityBucket(new Date("2026-06-17T12:00:00Z"), "weekly"),
+    { key: "2026-06-15", label: "6/15–6/21" },
+  )
+  assert.deepEqual(
+    analyticsGranularityBucket(new Date("2027-01-01T12:00:00Z"), "weekly"),
+    { key: "2026-12-28", label: "12/28–1/03" },
+  )
+})
+
+test("newer successful snapshots supersede stale failed connection records", () => {
+  const connection = resolveExternalSourceConnection(
+    {
+      id: "instagram",
+      label: "Instagram",
+      status: "success",
+      mode: "API snapshot",
+      lastPull: "2026-08-03T23:14:35Z",
+      lastAttemptedAt: "2026-08-03T23:16:26Z",
+      note: "4637 followers",
+    },
+    {
+      id: "instagram",
+      label: "Instagram",
+      status: "error",
+      lastRefreshedAt: null,
+      records: null,
+      note: "Old Meta token failure",
+    },
+    "2026-08-03T13:29:34Z",
+  )
+
+  assert.equal(connection.statusSource, "snapshot")
+  assert.equal(connection.refreshedAt, "2026-08-03T23:14:35Z")
+  assert.equal(connection.healthy, true)
+  assert.equal(snapshotSupersedesRefresh("2026-08-03T23:16:35Z", "2026-08-03T13:29:34Z"), true)
+})
+
+test("a newer failed refresh still overrides an older successful snapshot", () => {
+  const connection = resolveExternalSourceConnection(
+    {
+      id: "facebook",
+      label: "Facebook",
+      status: "success",
+      mode: "API snapshot",
+      lastPull: "2026-08-03T23:14:35Z",
+      lastAttemptedAt: "2026-08-03T23:16:26Z",
+      note: "3156 followers",
+    },
+    {
+      id: "facebook",
+      label: "Facebook",
+      status: "error",
+      lastRefreshedAt: null,
+      lastAttemptedAt: "2026-08-03T23:20:00Z",
+      records: null,
+      note: "Current Meta failure",
+    },
+    "2026-08-03T23:20:05Z",
+  )
+
+  assert.equal(connection.statusSource, "refresh")
+  assert.equal(connection.healthy, false)
 })
