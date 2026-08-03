@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T11:47:03.017Z",
+  "generatedAt": "2026-08-03T13:29:27.000Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -15,7 +15,7 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-02T11:45:19.267477+00:00",
+      "lastPull": "2026-08-03T13:27:40.825875+00:00",
       "note": "1880 subscribers"
     },
     {
@@ -23,7 +23,7 @@
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-02T11:45:22.332496+00:00",
+      "lastPull": "2026-08-03T13:27:44.430087+00:00",
       "note": "0 followers"
     },
     {
@@ -31,7 +31,7 @@
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-08-02T11:45:22.332496+00:00",
+      "lastPull": "2026-08-03T13:27:44.430087+00:00",
       "note": "0 followers"
     },
     {
@@ -39,7 +39,7 @@
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-02T11:45:32.013463+00:00",
+      "lastPull": "2026-08-03T13:27:53.895802+00:00",
       "note": "0 sessions in 30d"
     },
     {
@@ -47,7 +47,7 @@
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-02T11:45:48.031041+00:00",
+      "lastPull": "2026-08-03T13:28:03.488738+00:00",
       "note": "9 events"
     },
     {
@@ -55,7 +55,7 @@
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-02T11:46:57.983515+00:00",
+      "lastPull": "2026-08-03T13:29:23.921766+00:00",
       "note": "10 events"
     },
     {
@@ -63,7 +63,7 @@
       "label": "Donations",
       "status": "success",
       "mode": "Pending/manual",
-      "lastPull": "2026-08-02T11:46:58.389290+00:00",
+      "lastPull": "2026-08-03T13:29:24.194786+00:00",
       "note": "$0 recorded"
     },
     {
@@ -949,7 +949,7 @@
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 337,
-      "pulledAt": "2026-08-02T11:45:19.267477+00:00"
+      "pulledAt": "2026-08-03T13:27:40.825875+00:00"
     },
     "lists": [
       {
@@ -1526,11 +1526,11 @@
         "month": "2026-08",
         "campaigns": 1,
         "sent": 1593,
-        "opens": 389,
-        "clicks": 22,
+        "opens": 411,
+        "clicks": 26,
         "unsubscribes": 4,
-        "openRate": 24.4,
-        "clickRate": 1.4
+        "openRate": 25.8,
+        "clickRate": 1.6
       }
     ],
     "growth": [
@@ -1615,95 +1615,95 @@
         "date": "2026-08-01T15:28:01+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1593,
-        "opens": 389,
-        "openRate": 24.7,
-        "clicks": 22,
-        "clickRate": 1.4,
+        "opens": 411,
+        "openRate": 26.1,
+        "clicks": 26,
+        "clickRate": 1.7,
         "unsubscribes": 4,
         "clickDetail": [
           {
             "url": "https://ipn-member-portal.netlify.app/dashboard/events/Consciousness",
             "clicks": 14,
             "uniqueClicks": 10,
-            "percentOfClicks": 21.5
+            "percentOfClicks": 20.3
           },
           {
             "url": "https://intercollegiatepsychedelics.net",
             "clicks": 9,
             "uniqueClicks": 5,
-            "percentOfClicks": 13.8
+            "percentOfClicks": 13
+          },
+          {
+            "url": "https://members.intercollegiatepsychedelics.net/",
+            "clicks": 9,
+            "uniqueClicks": 9,
+            "percentOfClicks": 13
           },
           {
             "url": "https://members.intercollegiatepsychedelics.net/",
             "clicks": 8,
             "uniqueClicks": 8,
-            "percentOfClicks": 12.3
+            "percentOfClicks": 11.6
           },
           {
             "url": "https://members.intercollegiatepsychedelics.net/",
             "clicks": 6,
             "uniqueClicks": 6,
-            "percentOfClicks": 9.2
+            "percentOfClicks": 8.7
           },
           {
-            "url": "https://members.intercollegiatepsychedelics.net/",
-            "clicks": 6,
-            "uniqueClicks": 6,
-            "percentOfClicks": 9.2
+            "url": "https://psychedelicscience.org/get-involved/#ps27-gi-volunteer",
+            "clicks": 4,
+            "uniqueClicks": 4,
+            "percentOfClicks": 5.8
           },
           {
             "url": "https://substack.com/home/post/p-204282593",
             "clicks": 4,
             "uniqueClicks": 4,
-            "percentOfClicks": 6.2
+            "percentOfClicks": 5.8
           },
           {
             "url": "https://psychedelicscience.org/registration-options/#group-scholarship",
             "clicks": 3,
             "uniqueClicks": 3,
-            "percentOfClicks": 4.6
-          },
-          {
-            "url": "https://psychedelicscience.org/get-involved/#ps27-gi-volunteer",
-            "clicks": 3,
-            "uniqueClicks": 3,
-            "percentOfClicks": 4.6
+            "percentOfClicks": 4.3
           },
           {
             "url": "https://www.instagram.com/intercollegiatepsychedelics/",
             "clicks": 3,
             "uniqueClicks": 3,
-            "percentOfClicks": 4.6
+            "percentOfClicks": 4.3
           },
           {
             "url": "https://intercollegiatepsychedelics.net/",
             "clicks": 3,
             "uniqueClicks": 3,
-            "percentOfClicks": 4.6
+            "percentOfClicks": 4.3
           },
           {
             "url": "https://psychedelicscience.org/registration-options/",
             "clicks": 2,
             "uniqueClicks": 2,
-            "percentOfClicks": 3.1
+            "percentOfClicks": 2.9
           },
           {
             "url": "https://www.linkedin.com/company/intercollegiate-psychedelics-network",
             "clicks": 2,
             "uniqueClicks": 1,
-            "percentOfClicks": 3.1
+            "percentOfClicks": 2.9
           },
           {
             "url": "https://horizonsconference.org/scholarship/",
             "clicks": 1,
             "uniqueClicks": 1,
-            "percentOfClicks": 1.5
+            "percentOfClicks": 1.4
           },
           {
             "url": "https://docs.google.com/forms/d/e/1FAIpQLSdp2VmQ9wWNFQLfeOTnK4WTBbWBHq2rmBhoDaGRehfrenedgQ/viewform?usp=sharing&ouid=104462990920310936696",
             "clicks": 1,
             "uniqueClicks": 1,
-            "percentOfClicks": 1.5
+            "percentOfClicks": 1.4
           },
           {
             "url": "https://na-admin.eventscloud.com/eSites/psychedelicscience/Homepage",
@@ -15023,9 +15023,9 @@
         "date": "2026-07-31T03:09:59+0000",
         "type": "CAROUSEL_ALBUM",
         "caption": "🏆 ANNOUNCING\nPsychedelX 2026: People’s Choice Award\n\n🎉Congratulations to Mirko Vercelli & Alexandra Carelli for winning the People’s Choice Award at PsychedelX 2026! \n\n➡️You can now watch their presentations and PsychedelX 2026 recordings on IPN’s YouTube channel (link in bio)💜\n\n",
-        "likes": 26,
+        "likes": 27,
         "comments": 9,
-        "engagement": 35,
+        "engagement": 36,
         "permalink": "https://www.instagram.com/p/DbcRCr-FGah/"
       }
     ]
@@ -15084,7 +15084,7 @@
     ],
     "outboundClicks": [],
     "blog": [],
-    "pulledAt": "2026-08-02T11:45:32.013463+00:00"
+    "pulledAt": "2026-08-03T13:27:53.895802+00:00"
   },
   "events": {
     "zoom": {
@@ -15097,7 +15097,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-08-02T11:45:48.031041+00:00"
+        "pulledAt": "2026-08-03T13:28:03.488738+00:00"
       },
       "byMonth": [
         {
@@ -15777,6 +15777,22 @@
           "participantEmails": [],
           "participants": [],
           "registrations": []
+        },
+        {
+          "id": "DKZtJAPSQ8mlkVAMfJJgUg==",
+          "topic": "IPN Labs TF Meeting ",
+          "date": "2026-08-02T17:58:37Z",
+          "program": "IPN Labs",
+          "type": "internal",
+          "attendees": 3,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 69.6,
+          "retentionPct": 59,
+          "repeatPct": 33.33333333333333,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
         }
       ],
       "upcomingEvents": [
@@ -15834,7 +15850,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-08-02T11:46:57.983515+00:00"
+        "pulledAt": "2026-08-03T13:29:23.921766+00:00"
       },
       "events": [
         {
