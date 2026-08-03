@@ -855,3 +855,16 @@ test("snapshot builder restores a backfill-only PsychedelX webinar omitted by th
     rmSync(fixtureDir, { recursive: true, force: true })
   }
 })
+
+test("analytics maintenance workflow builds its request from validated JSON files", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/portal-analytics-refresh.yml", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(workflow, /REQUEST_BODY=\$\(jq --arg trigger "github_actions"/)
+  assert.match(workflow, /data\/analytics-validation-report\.json/)
+  assert.match(workflow, /data\/analytics-source-status\.json/)
+  assert.doesNotMatch(workflow, /--argjson externalSources/)
+  assert.doesNotMatch(workflow, /EXTERNAL_SOURCES: \$\{\{/)
+})

@@ -171,8 +171,6 @@ jobs:
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           REFRESH_SECRET: ${{ secrets.PORTAL_ANALYTICS_MAINTENANCE_SECRET || secrets.CONTENT_SYNC_SECRET }}
-          EXTERNAL_SOURCES: ${{ steps.validation.outputs.sources || steps.sources.outputs.sources }}
-          VALIDATION_SUMMARY: ${{ steps.validation.outputs.summary || '{}' }}
         run: |
           set -euo pipefail
 
@@ -186,11 +184,33 @@ jobs:
             exit 1
           fi
 
-          REQUEST_BODY=$(jq -n \
-            --arg trigger "github_actions" \
-            --argjson externalSources "${EXTERNAL_SOURCES:-[]}" \
-            --argjson validationSummary "${VALIDATION_SUMMARY:-{}}" \
-            '{ trigger: $trigger, externalSources: $externalSources, validationSummary: $validationSummary }')
+          if [ -f data/analytics-validation-report.json ]; then
+            REQUEST_BODY=$(jq --arg trigger "github_actions" '
+              {
+                trigger: $trigger,
+                externalSources: (.sources // []),
+                validationSummary: .
+              }
+            ' data/analytics-validation-report.json)
+          elif [ -f data/analytics-source-status.json ]; then
+            REQUEST_BODY=$(jq --arg trigger "github_actions" '
+              {
+                trigger: $trigger,
+                externalSources: (.sources // []),
+                validationSummary: {}
+              }
+            ' data/analytics-source-status.json)
+          else
+            REQUEST_BODY=$(jq -n --arg trigger "github_actions" '
+              { trigger: $trigger, externalSources: [], validationSummary: {} }
+            ')
+          fi
+
+          jq -e '
+            .trigger == "github_actions"
+            and (.externalSources | type == "array")
+            and (.validationSummary | type == "object")
+          ' <<< "$REQUEST_BODY" > /dev/null
 
           set +e
           RESPONSE=$(curl -sS -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/.netlify/functions/portal-analytics-maintenance" \
