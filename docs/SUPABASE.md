@@ -301,6 +301,28 @@ Internal ledger for transactional event emails sent through Resend.
 
 Unique constraint is `(event_id, user_id, registration_created_at, kind)` to prevent duplicate sends. RLS is enabled with no member-facing policies; service-role server code writes and reads this table.
 
+### `public.member_notification_deliveries`
+
+Private queue and delivery ledger for portal-engagement emails sent through
+Resend.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` | Primary key |
+| `kind` | `text` | `new_event`, `connection_request_received`, or `connection_request_accepted` |
+| `recipient_user_id` / `actor_user_id` | `uuid` | Recipient and, for connection emails, the member whose action caused the message |
+| `event_id` / `connection_id` | `uuid` | Exactly one source is present according to the notification kind |
+| `dedupe_key` | `text` | Unique business key that prevents duplicate queue rows |
+| `to_email` | `text` | Normalized recipient address captured when queued |
+| `status` | `text` | `pending`, `processing`, `sent`, `failed`, or `skipped` |
+| `resend_email_id` | `text` | Resend message ID after a successful send |
+| `attempt_count` / `last_error` / `sent_at` | various | Retry and delivery observability |
+
+RLS is enabled, all `anon` and `authenticated` privileges are revoked, and no
+member-facing policies exist. Only service-role server code can access the
+queue. The migration is
+`supabase/migrations/20260731182209_member_email_notifications.sql`.
+
 ### `public.resources`
 
 | Column | Type | Notes |

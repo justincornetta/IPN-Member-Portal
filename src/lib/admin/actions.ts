@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { permanentlyDeleteMailchimpContact } from "@/lib/mailchimp/actions"
 import { clean, isValidTimeZone, slugify, toIso, toIsoInTimeZone } from "@/lib/admin/content-utils"
 import type { EventSpeakerResources } from "@/lib/events/types"
+import { queueNewEventAnnouncement } from "@/lib/member-notifications/email-service"
 import {
   mergeMemberDirectoryDetail,
   normalizeMemberEmail,
@@ -390,6 +391,12 @@ export async function publishAdminContent(
     if (!startsAt) return { error: "Start date is required" }
     if (payload.endsAt && !endsAt) return { error: "End date is invalid" }
 
+    const { data: existingEvent } = await admin
+      .from("events")
+      .select("id, status")
+      .eq("slug", slug)
+      .maybeSingle()
+
     const eventPayload = {
       slug,
       title,
@@ -423,10 +430,33 @@ export async function publishAdminContent(
       status: "published",
     }
 
-    const { error } = await admin
+    const { data: savedEvent, error } = await admin
       .from("events")
       .upsert(eventPayload, { onConflict: "slug" })
+      .select("id")
+      .single()
     if (error) return { error: error.message }
+
+    if (
+      !isRecording &&
+      savedEvent &&
+      (!existingEvent || existingEvent.status !== "published")
+    ) {
+      try {
+        const result = await queueNewEventAnnouncement(savedEvent.id)
+        console.log("[member-notification] queued new event announcement", {
+          eventId: savedEvent.id,
+          ...result,
+        })
+      } catch (notificationError) {
+        console.warn(
+          "[member-notification] could not queue new event announcement:",
+          notificationError instanceof Error
+            ? notificationError.message
+            : String(notificationError),
+        )
+      }
+    }
 
     revalidatePath("/dashboard")
     revalidatePath("/dashboard/events")

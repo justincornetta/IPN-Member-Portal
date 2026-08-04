@@ -112,7 +112,7 @@ function RequestCard({
   onDeclined: (id: string) => void
   onView: (member: DirectoryMember, entry: ConnectionEntry) => void
 }) {
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
   const requester = row.requester
   if (!requester) return null
   const initials = getInitials(requester.first_name, requester.last_name)
@@ -135,18 +135,24 @@ function RequestCard({
         </button>
         <button
           onClick={() => {
-            onAccepted(row.requester_id)
-            startTransition(() => { acceptConnection(row.requester_id) })
+            startTransition(async () => {
+              const result = await acceptConnection(row.requester_id)
+              if (!result.error) onAccepted(row.requester_id)
+            })
           }}
+          disabled={isPending}
           className="min-h-11 rounded-md bg-ipn px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ipn/90"
         >
-          Accept
+          {isPending ? "Accepting…" : "Accept"}
         </button>
         <button
           onClick={() => {
-            onDeclined(row.id)
-            startTransition(() => { declineConnection(row.requester_id) })
+            startTransition(async () => {
+              const result = await declineConnection(row.requester_id)
+              if (!result.error) onDeclined(row.id)
+            })
           }}
+          disabled={isPending}
           className="min-h-11 rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn/5"
         >
           Decline
