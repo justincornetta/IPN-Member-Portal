@@ -1,5 +1,8 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import test from "node:test"
 
 import {
@@ -45,6 +48,12 @@ import {
   portalPageCategory,
 } from "../src/lib/admin/analytics/portal-utilization.ts"
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
+import {
+  analyticsGranularityBucket,
+  analyticsSourceIsHealthy,
+  resolveExternalSourceConnection,
+  snapshotSupersedesRefresh,
+} from "../src/lib/admin/analytics/presentation.ts"
 
 const PERSONA_MIGRATION_SQL = readFileSync(
   new URL("../supabase/migrations/20260730195316_align_personas_with_registration_labels.sql", import.meta.url),
@@ -770,4 +779,205 @@ test("July 7 aggregate Zoom count is retained when private registrant rows are i
   })
   assert.equal(result.events.zoom.events[0].registrants, 22)
   assert.equal(result.events.zoom.events[0].attendees, 8)
+})
+
+test("historical Zoom-only events hydrate attendee and registrant details from Supabase rows", () => {
+  const snapshot = snapshotFixture()
+  snapshot.events.zoom.events = [{
+    id: "historical-event",
+    topic: "Historical IPN Labs Seminar",
+    date: "2026-04-22T21:00:00Z",
+    program: "IPN Labs",
+    type: "public",
+    attendees: 2,
+    registrants: 3,
+    registrationSource: "zoom_registration_csv",
+    avgDuration: 30,
+    retentionPct: 40,
+    repeatPct: 0,
+    participantEmails: [],
+    participants: [],
+    registrations: [],
+  }]
+  const sourceRecords = [
+    ...Array.from({ length: 2 }, (_, index) => ({
+      source: "zoom", record_type: "participant", source_record_id: `historical-participant-${index}`,
+      event_source_id: "historical-event", event_name: "Historical IPN Labs Seminar",
+      event_started_at: "2026-04-22T21:00:00Z", occurred_at: "2026-04-22T21:00:00Z", registered_at: null,
+      name: `Attendee ${index}`, email: `attendee${index}@example.com`, normalized_email: `attendee${index}@example.com`,
+      attended: true, duration_minutes: 45 + index, details: {},
+    })),
+    ...Array.from({ length: 3 }, (_, index) => ({
+      source: "zoom", record_type: "registrant", source_record_id: `historical-registrant-${index}`,
+      event_source_id: "historical-event", event_name: "Historical IPN Labs Seminar",
+      event_started_at: "2026-04-22T21:00:00Z", occurred_at: null, registered_at: "2026-04-01T00:00:00Z",
+      name: `Registrant ${index}`, email: `registrant${index}@example.com`, normalized_email: `registrant${index}@example.com`,
+      attended: null, duration_minutes: null, details: {},
+    })),
+  ]
+
+  const result = assembleServerEventAnalytics({ snapshot, portalEvents: [], sourceRecords })
+  const event = result.events.zoom.events[0]
+  assert.equal(event.attendees, 2)
+  assert.equal(event.registrants, 3)
+  assert.equal(event.participants.length, 2)
+  assert.equal(event.registrations.length, 3)
+  assert.equal(result.events.zoom.topAttendees.length, 2)
+})
+
+test("curated Zoom events missing from the snapshot are restored from Supabase rows", () => {
+  const snapshot = snapshotFixture()
+  snapshot.events.zoom.events = []
+  const eventId = "xImfgyAlRresYfbr1qlOiQ=="
+  const eventName = "PsychedelX 2026: The Premier Global Psychedelic Student Talk Conferences"
+  const sourceRecords = [
+    ...Array.from({ length: 2 }, (_, index) => ({
+      source: "zoom", record_type: "participant", source_record_id: `psychedelx-participant-${index}`,
+      event_source_id: eventId, event_name: eventName,
+      event_started_at: "2026-06-28T15:00:00Z", occurred_at: "2026-06-28T15:00:00Z", registered_at: null,
+      name: `Attendee ${index}`, email: `attendee${index}@example.com`, normalized_email: `attendee${index}@example.com`,
+      attended: true, duration_minutes: 180 + index * 40, details: { program: "PsychedelX", type: "public" },
+    })),
+    ...Array.from({ length: 3 }, (_, index) => ({
+      source: "zoom", record_type: "registrant", source_record_id: `psychedelx-registrant-${index}`,
+      event_source_id: eventId, event_name: eventName,
+      event_started_at: "2026-06-28T15:00:00Z", occurred_at: null, registered_at: "2026-06-25T00:00:00Z",
+      name: `Registrant ${index}`, email: `registrant${index}@example.com`, normalized_email: `registrant${index}@example.com`,
+      attended: null, duration_minutes: null, details: { program: "PsychedelX", type: "public" },
+    })),
+  ]
+
+  const result = assembleServerEventAnalytics({ snapshot, portalEvents: [], sourceRecords })
+  const event = result.events.zoom.events.find((item) => item.id === eventId)
+  assert.ok(event)
+  assert.equal(event.topic, eventName)
+  assert.equal(event.program, "PsychedelX")
+  assert.equal(event.attendees, 2)
+  assert.equal(event.registrants, 3)
+  assert.equal(event.avgDuration, 200)
+  assert.equal(event.participants.length, 2)
+  assert.equal(event.registrations.length, 3)
+})
+
+test("snapshot builder restores a backfill-only PsychedelX webinar omitted by the Zoom API", () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "ipn-analytics-backfill-"))
+  const dataDir = join(fixtureDir, "data")
+  const outputPath = join(fixtureDir, "snapshot.json")
+  mkdirSync(dataDir)
+  writeFileSync(join(dataDir, "zoom_events.json"), JSON.stringify({ events: [], pulled_at: "2026-08-03T12:00:00Z" }))
+  writeFileSync(join(dataDir, "zoom_stats.json"), JSON.stringify({ pulled_at: "2026-08-03T12:00:00Z" }))
+  writeFileSync(join(dataDir, "zoom_registration_backfill.json"), JSON.stringify({ events: [] }))
+  writeFileSync(join(dataDir, "zoom_attendee_backfill.json"), JSON.stringify({ events: [{
+    eventId: "xImfgyAlRresYfbr1qlOiQ==",
+    meetingId: "89543551090",
+    topic: "PsychedelX 2026: The Premier Global Psychedelic Student Talk Conferences",
+    date: "2026-06-28T15:00:00Z",
+    uniqueAttendees: 85,
+    avgDurationMin: 199.9,
+    retentionPct: 21.6,
+    daySummaries: [{ registrants: 79 }, { registrants: 95 }, { registrants: 100 }],
+    participants: [],
+  }] }))
+
+  try {
+    execFileSync(process.execPath, ["scripts/build-legacy-analytics-snapshot.mjs", fixtureDir, outputPath], {
+      cwd: new URL("..", import.meta.url),
+      stdio: "pipe",
+    })
+    const snapshot = JSON.parse(readFileSync(outputPath, "utf8"))
+    const event = snapshot.events.zoom.events.find((item) => item.id === "xImfgyAlRresYfbr1qlOiQ==")
+    assert.ok(event)
+    assert.equal(event.attendees, 85)
+    assert.equal(event.registrants, 100)
+    assert.equal(event.avgDuration, 199.9)
+    assert.equal(event.retentionPct, 21.6)
+  } finally {
+    rmSync(fixtureDir, { recursive: true, force: true })
+  }
+})
+
+test("analytics maintenance workflow builds its request from validated JSON files", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/portal-analytics-refresh.yml", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(workflow, /REQUEST_BODY=\$\(jq --arg trigger "github_actions"/)
+  assert.match(workflow, /data\/analytics-validation-report\.json/)
+  assert.match(workflow, /data\/analytics-source-status\.json/)
+  assert.doesNotMatch(workflow, /--argjson externalSources/)
+  assert.doesNotMatch(workflow, /EXTERNAL_SOURCES: \$\{\{/)
+})
+
+test("weekly analytics labels show the Monday-through-Sunday date range", () => {
+  assert.deepEqual(
+    analyticsGranularityBucket(new Date("2026-06-17T12:00:00Z"), "weekly"),
+    { key: "2026-06-15", label: "6/15–6/21" },
+  )
+  assert.deepEqual(
+    analyticsGranularityBucket(new Date("2027-01-01T12:00:00Z"), "weekly"),
+    { key: "2026-12-28", label: "12/28–1/03" },
+  )
+})
+
+test("newer successful snapshots supersede stale failed connection records", () => {
+  const connection = resolveExternalSourceConnection(
+    {
+      id: "instagram",
+      label: "Instagram",
+      status: "success",
+      mode: "API snapshot",
+      lastPull: "2026-08-03T23:14:35Z",
+      lastAttemptedAt: "2026-08-03T23:16:26Z",
+      note: "4637 followers",
+    },
+    {
+      id: "instagram",
+      label: "Instagram",
+      status: "error",
+      lastRefreshedAt: null,
+      records: null,
+      note: "Old Meta token failure",
+    },
+    "2026-08-03T13:29:34Z",
+  )
+
+  assert.equal(connection.statusSource, "snapshot")
+  assert.equal(connection.refreshedAt, "2026-08-03T23:14:35Z")
+  assert.equal(connection.healthy, true)
+  assert.equal(snapshotSupersedesRefresh("2026-08-03T23:16:35Z", "2026-08-03T13:29:34Z"), true)
+})
+
+test("a newer failed refresh still overrides an older successful snapshot", () => {
+  const connection = resolveExternalSourceConnection(
+    {
+      id: "facebook",
+      label: "Facebook",
+      status: "success",
+      mode: "API snapshot",
+      lastPull: "2026-08-03T23:14:35Z",
+      lastAttemptedAt: "2026-08-03T23:16:26Z",
+      note: "3156 followers",
+    },
+    {
+      id: "facebook",
+      label: "Facebook",
+      status: "error",
+      lastRefreshedAt: null,
+      lastAttemptedAt: "2026-08-03T23:20:00Z",
+      records: null,
+      note: "Current Meta failure",
+    },
+    "2026-08-03T23:20:05Z",
+  )
+
+  assert.equal(connection.statusSource, "refresh")
+  assert.equal(connection.healthy, false)
+})
+
+test("watch and basic source states are cautions rather than connection errors", () => {
+  const refreshedAt = "2026-08-03T23:15:16Z"
+  assert.equal(analyticsSourceIsHealthy("watch", refreshedAt), true)
+  assert.equal(analyticsSourceIsHealthy("basic", refreshedAt), true)
+  assert.equal(analyticsSourceIsHealthy("error", refreshedAt), false)
 })

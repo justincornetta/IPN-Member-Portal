@@ -2,22 +2,8 @@ import "server-only"
 
 import snapshot from "./legacy-snapshot.json"
 import type { LegacyAnalyticsSnapshot } from "./types"
+import { CURATED_ZOOM_EVENT_IDS } from "./zoom-curation.js"
 import { createAdminClient } from "@/lib/supabase/admin"
-
-const CURATED_ZOOM_EVENT_IDS = new Set([
-  "MEC+Fc0KR9qN8OCYHNGhSQ==",
-  "dHTIVmqoRTiLtisR9GZqGw==",
-  "XI9vLPeLSKOMx4VF7xZCiA==",
-  "D+TddOtUScuXI5ywbEPisQ==",
-  "FjFfAFbgRzSnpi4kB2vfyg==",
-  "oj7jfiSkSxmb1P5a6Wgacg==",
-  "Lq4FQ0dgS0ix5ARG+p/FwA==",
-  "2GRJYuBvShenai9jlupTLQ==",
-  "w5q9zBrtTxKq2s+Va2PLDQ==",
-  "rmbM8Hc4Snq7H6sSV3fQfA==",
-  "Rou4Q15dQcuKsSFxuC3TEg==",
-  "xImfgyAlRresYfbr1qlOiQ==",
-])
 
 const ZOOM_WORKSHOP_4: LegacyAnalyticsSnapshot["events"]["zoom"]["events"][number] = {
   id: "Rou4Q15dQcuKsSFxuC3TEg==",
@@ -166,7 +152,7 @@ function normalizeSourceStatus(snapshotData: LegacyAnalyticsSnapshot) {
       return {
         ...source,
         status: "watch",
-        note: "Historical Zoom export is stale after May 31, 2026; curated events include historical Zoom attendance and one-time Zoom registrant backfill before July 1, 2026. Current and future registrants should come from Portal RSVPs.",
+        note: "Zoom attendee reports refresh from the API. Historical attendance is supplemented by reviewed backfills, and Portal RSVPs are the registrant source of truth beginning July 1, 2026.",
       }
     }
     if (source.id === "eventbrite") {
