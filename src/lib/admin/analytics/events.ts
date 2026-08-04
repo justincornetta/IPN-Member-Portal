@@ -1,4 +1,5 @@
 import type { LegacyAnalyticsSnapshot } from "./types"
+import { CURATED_ZOOM_EVENT_IDS } from "./zoom-curation.js"
 
 export type PortalEventForAnalytics = {
   id: string
@@ -136,6 +137,42 @@ function hydrateHistoricalZoomEvent(event: ZoomEvent, records: AnalyticsSourceRe
   }
 }
 
+function syntheticHistoricalZoomEvent(group: {
+  id: string
+  records: AnalyticsSourceRecord[]
+  topic: string
+  date: string | null
+}): ZoomEvent {
+  const metadata = group.records
+    .map((record) => record.details)
+    .find((details) => details && (typeof details.program === "string" || typeof details.type === "string"))
+  const program = typeof metadata?.program === "string"
+    ? metadata.program
+    : portalProgram(group.topic)
+  const type = typeof metadata?.type === "string" ? metadata.type : "public"
+  const hasRegistrants = group.records.some((record) => record.record_type === "registrant")
+
+  return hydrateHistoricalZoomEvent({
+    id: group.id,
+    topic: group.topic,
+    date: group.date,
+    program,
+    type,
+    inclusionStatus: "included",
+    inclusionNote: "Approved external event restored from private Zoom source records.",
+    attendees: 0,
+    registrants: null,
+    registrationSource: hasRegistrants ? "zoom_registration_backfill" : null,
+    avgDuration: 0,
+    retentionPct: 0,
+    repeatPct: 0,
+    participantEmails: [],
+    participants: [],
+    registrations: [],
+    source: "zoom",
+  }, group.records)
+}
+
 export function assembleServerEventAnalytics({
   snapshot,
   portalEvents,
@@ -262,6 +299,12 @@ export function assembleServerEventAnalytics({
     if (consumedGroups.has(event.id)) continue
     const records = recordGroups.get(event.id)
     assembled.push(records?.length ? hydrateHistoricalZoomEvent(event, records) : event)
+  }
+
+  for (const group of groups) {
+    if (consumedGroups.has(group.id) || existingBySourceId.has(group.id)) continue
+    if (!CURATED_ZOOM_EVENT_IDS.has(group.id)) continue
+    assembled.push(syntheticHistoricalZoomEvent(group))
   }
 
   const attendanceByPerson = new Map<string, number>()

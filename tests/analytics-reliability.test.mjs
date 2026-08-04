@@ -825,6 +825,40 @@ test("historical Zoom-only events hydrate attendee and registrant details from S
   assert.equal(result.events.zoom.topAttendees.length, 2)
 })
 
+test("curated Zoom events missing from the snapshot are restored from Supabase rows", () => {
+  const snapshot = snapshotFixture()
+  snapshot.events.zoom.events = []
+  const eventId = "xImfgyAlRresYfbr1qlOiQ=="
+  const eventName = "PsychedelX 2026: The Premier Global Psychedelic Student Talk Conferences"
+  const sourceRecords = [
+    ...Array.from({ length: 2 }, (_, index) => ({
+      source: "zoom", record_type: "participant", source_record_id: `psychedelx-participant-${index}`,
+      event_source_id: eventId, event_name: eventName,
+      event_started_at: "2026-06-28T15:00:00Z", occurred_at: "2026-06-28T15:00:00Z", registered_at: null,
+      name: `Attendee ${index}`, email: `attendee${index}@example.com`, normalized_email: `attendee${index}@example.com`,
+      attended: true, duration_minutes: 180 + index * 40, details: { program: "PsychedelX", type: "public" },
+    })),
+    ...Array.from({ length: 3 }, (_, index) => ({
+      source: "zoom", record_type: "registrant", source_record_id: `psychedelx-registrant-${index}`,
+      event_source_id: eventId, event_name: eventName,
+      event_started_at: "2026-06-28T15:00:00Z", occurred_at: null, registered_at: "2026-06-25T00:00:00Z",
+      name: `Registrant ${index}`, email: `registrant${index}@example.com`, normalized_email: `registrant${index}@example.com`,
+      attended: null, duration_minutes: null, details: { program: "PsychedelX", type: "public" },
+    })),
+  ]
+
+  const result = assembleServerEventAnalytics({ snapshot, portalEvents: [], sourceRecords })
+  const event = result.events.zoom.events.find((item) => item.id === eventId)
+  assert.ok(event)
+  assert.equal(event.topic, eventName)
+  assert.equal(event.program, "PsychedelX")
+  assert.equal(event.attendees, 2)
+  assert.equal(event.registrants, 3)
+  assert.equal(event.avgDuration, 200)
+  assert.equal(event.participants.length, 2)
+  assert.equal(event.registrations.length, 3)
+})
+
 test("snapshot builder restores a backfill-only PsychedelX webinar omitted by the Zoom API", () => {
   const fixtureDir = mkdtempSync(join(tmpdir(), "ipn-analytics-backfill-"))
   const dataDir = join(fixtureDir, "data")
