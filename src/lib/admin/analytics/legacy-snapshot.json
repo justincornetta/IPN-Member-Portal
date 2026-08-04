@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-03T23:16:35.017Z",
+  "generatedAt": "2026-08-04T03:11:26.704Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -9,7 +9,7 @@
       "mode": "Server snapshot",
       "lastPull": "2026-07-06T02:41:21.482864+00:00",
       "note": "2089 deduped records",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
       "lastSuccessfulAt": "2026-07-06T02:41:21.482864+00:00"
     },
     {
@@ -17,60 +17,60 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-03T23:14:33.924989+00:00",
+      "lastPull": "2026-08-04T03:09:16.230398+00:00",
       "note": "1880 subscribers",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:14:33.924989+00:00"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:09:16.230398+00:00"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-03T23:14:35.477248+00:00",
+      "lastPull": "2026-08-04T03:09:18.657840+00:00",
       "note": "4637 followers",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:14:35.477248+00:00"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:09:18.657840+00:00"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-08-03T23:14:35.853790+00:00",
+      "lastPull": "2026-08-04T03:09:19.211723+00:00",
       "note": "3156 followers",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:14:35.853790+00:00"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:09:19.211723+00:00"
     },
     {
       "id": "website",
       "label": "Website / GA4",
-      "status": "warning",
+      "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-03T23:14:50.372516+00:00",
-      "note": "485 sessions in 30d GA4 sessions changed by more than 25% (826 → 485).",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:14:50.372516+00:00"
+      "lastPull": "2026-08-04T03:09:37.486673+00:00",
+      "note": "485 sessions in 30d",
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:09:37.486673+00:00"
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-03T23:15:16.440540+00:00",
+      "lastPull": "2026-08-04T03:09:56.470600+00:00",
       "note": "9 events",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:15:16.440540+00:00"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:09:56.470600+00:00"
     },
     {
       "id": "eventbrite",
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-08-03T23:16:26.481750+00:00",
+      "lastPull": "2026-08-04T03:11:20.132978+00:00",
       "note": "10 events",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:16:26.481750+00:00"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:11:20.132978+00:00"
     },
     {
       "id": "webapp",
@@ -79,8 +79,8 @@
       "mode": "Manual/TBD",
       "lastPull": null,
       "note": "Live Supabase portal metrics shown separately",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:16:26.521Z"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:11:20.171Z"
     },
     {
       "id": "whatsapp",
@@ -89,8 +89,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "Community metrics data model pending",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:16:26.521Z"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:11:20.171Z"
     },
     {
       "id": "search-console",
@@ -99,8 +99,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "SEO query metrics pending",
-      "lastAttemptedAt": "2026-08-03T23:16:26.521Z",
-      "lastSuccessfulAt": "2026-08-03T23:16:26.521Z"
+      "lastAttemptedAt": "2026-08-04T03:11:20.171Z",
+      "lastSuccessfulAt": "2026-08-04T03:11:20.171Z"
     }
   ],
   "overview": {
@@ -955,19 +955,19 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1575,
+      "totalSubscribers": 1573,
       "totalLists": 1,
       "totalCampaigns": 189,
       "avgOpenRate": 23.8,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 339,
-      "pulledAt": "2026-08-03T23:14:33.924989+00:00"
+      "pulledAt": "2026-08-04T03:09:16.230398+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1575,
+        "members": 1573,
         "unsubscribeCount": 305,
         "openRate": 42.21005695112798,
         "clickRate": 4.33093461657322
@@ -1538,7 +1538,7 @@
         "month": "2026-08",
         "campaigns": 1,
         "sent": 1593,
-        "opens": 423,
+        "opens": 424,
         "clicks": 28,
         "unsubscribes": 6,
         "openRate": 26.6,
@@ -1627,7 +1627,7 @@
         "date": "2026-08-01T15:28:01+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1593,
-        "opens": 423,
+        "opens": 424,
         "openRate": 26.9,
         "clicks": 28,
         "clickRate": 1.8,
@@ -14989,7 +14989,7 @@
         "engagementRate": 78,
         "postsThisMonth": 0,
         "status": "live",
-        "updatedAt": "2026-08-03T23:14:35.477248+00:00"
+        "updatedAt": "2026-08-04T03:09:18.657840+00:00"
       },
       {
         "id": "facebook",
@@ -14998,7 +14998,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-08-03T23:14:35.853790+00:00"
+        "updatedAt": "2026-08-04T03:09:19.211723+00:00"
       },
       {
         "id": "linkedin",
@@ -15588,7 +15588,7 @@
         "posts": 0
       },
       {
-        "date": "2026-08-03T23:14:35.477248+00:00",
+        "date": "2026-08-04T03:09:18.657840+00:00",
         "month": "2026-08",
         "channel": "instagram",
         "followers": 4637,
@@ -15596,7 +15596,7 @@
         "posts": 0
       },
       {
-        "date": "2026-08-03T23:14:35.853790+00:00",
+        "date": "2026-08-04T03:09:19.211723+00:00",
         "month": "2026-08",
         "channel": "facebook",
         "followers": 3156,
@@ -17305,7 +17305,7 @@
         "bounceRate": 100
       }
     ],
-    "pulledAt": "2026-08-03T23:14:50.372516+00:00"
+    "pulledAt": "2026-08-04T03:09:37.486673+00:00"
   },
   "events": {
     "zoom": {
@@ -17318,7 +17318,7 @@
         "avgDurationMin": 27.9,
         "repeatRatePct": 11.9,
         "uniqueAttendees": 84,
-        "pulledAt": "2026-08-03T23:15:16.440540+00:00"
+        "pulledAt": "2026-08-04T03:09:56.470600+00:00"
       },
       "byMonth": [
         {
@@ -17359,6 +17359,54 @@
       ],
       "topAttendees": [],
       "events": [
+        {
+          "id": "MEC+Fc0KR9qN8OCYHNGhSQ==",
+          "topic": "IPN Labs Seminar with Rebekah Senanayake",
+          "date": "2025-10-21T21:55:35Z",
+          "program": "IPN Labs",
+          "type": "public",
+          "attendees": 0,
+          "registrants": 50,
+          "registrationSource": "zoom_registration_csv",
+          "avgDuration": 0,
+          "retentionPct": 0,
+          "repeatPct": 0,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
+        {
+          "id": "dHTIVmqoRTiLtisR9GZqGw==",
+          "topic": "IPN Labs Seminar: On Connectedness and Integration with Dr. Rosalind Watts",
+          "date": "2025-11-12T19:56:16Z",
+          "program": "IPN Labs",
+          "type": "public",
+          "attendees": 0,
+          "registrants": 46,
+          "registrationSource": "zoom_registration_csv",
+          "avgDuration": 0,
+          "retentionPct": 0,
+          "repeatPct": 0,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
+        {
+          "id": "XI9vLPeLSKOMx4VF7xZCiA==",
+          "topic": "IPN Labs Seminar: Integrating 5-MeO-DMT with Otto Maier",
+          "date": "2026-01-08T22:17:15Z",
+          "program": "IPN Labs",
+          "type": "public",
+          "attendees": 0,
+          "registrants": 59,
+          "registrationSource": "zoom_registration_csv",
+          "avgDuration": 0,
+          "retentionPct": 0,
+          "repeatPct": 0,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
         {
           "id": "GBJ6VtSMQVyLQQ4zSjKnRw==",
           "topic": "IPN PsychedelX Leadership Team Meeting #6",
@@ -17888,6 +17936,22 @@
           "registrations": []
         },
         {
+          "id": "xImfgyAlRresYfbr1qlOiQ==",
+          "topic": "PsychedelX 2026: The Premier Global Psychedelic Student Talk Conferences",
+          "date": "2026-06-28T15:00:00Z",
+          "program": "PsychedelX",
+          "type": "public",
+          "attendees": 85,
+          "registrants": 100,
+          "registrationSource": null,
+          "avgDuration": 199.9,
+          "retentionPct": 21.6,
+          "repeatPct": 15.294117647058824,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
+        },
+        {
           "id": "xuL3XkYlT5Gdo7bsOvVsdw==",
           "topic": "PsychedelX 2026: Celebration & Integration ",
           "date": "2026-07-05T17:59:38Z",
@@ -18071,7 +18135,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-08-03T23:16:26.481750+00:00"
+        "pulledAt": "2026-08-04T03:11:20.132978+00:00"
       },
       "events": [
         {
