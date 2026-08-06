@@ -136,7 +136,7 @@ function NavContent({
                   </span>
                 )}
               </Link>
-              {item.href === "/dashboard/events" && isAdmin && (() => {
+              {item.href === "/dashboard/events" && (() => {
                 const conferencesActive =
                   pathname === "/dashboard/conferences" || pathname.startsWith("/dashboard/conferences/")
                 return (
@@ -153,9 +153,6 @@ function NavContent({
                       {CONFERENCES_NAV_ITEM.icon}
                     </span>
                     <span className="flex-1">{CONFERENCES_NAV_ITEM.label}</span>
-                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700">
-                      Beta
-                    </span>
                   </Link>
                 )
               })()}

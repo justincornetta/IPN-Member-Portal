@@ -62,9 +62,6 @@ export default async function ConferenceDetailPage({ params }: Props) {
     .eq("id", user.id)
     .single()
 
-  const isAdmin = profile?.role === "superadmin" || profile?.role === "admin"
-  if (!isAdmin) redirect("/dashboard")
-
   const conference = await getConferenceBySlug(slug)
   if (!conference) notFound()
 
@@ -133,9 +130,6 @@ export default async function ConferenceDetailPage({ params }: Props) {
         <Link href="/dashboard/conferences" className="text-sm font-medium text-ipn hover:underline">
           Back to conferences
         </Link>
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-          Admin beta
-        </span>
       </div>
 
       <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
