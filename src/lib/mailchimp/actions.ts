@@ -155,7 +155,20 @@ export async function setMailchimpSubscription(
         { name: LEGACY_GOOGLE_FORM_TAG, status: "inactive" },
       ])
 
-      if (tagResult) return tagResult
+      // The subscribe call above already succeeded — a tag failure shouldn't
+      // overwrite that with "sync_failed", or admins will misdiagnose a
+      // working subscription as broken. Report the real status and surface
+      // the tag error as a secondary detail instead.
+      if (tagResult) {
+        return {
+          status: normalizeMailchimpStatus(data.status),
+          error: tagResult.error,
+          errorRaw: tagResult.errorRaw,
+          errorDescription: tagResult.errorDescription
+            ? `Subscribed, but tag update failed: ${tagResult.errorDescription}`
+            : "Subscribed, but the Mailchimp tag update failed.",
+        }
+      }
     }
 
     return { status: normalizeMailchimpStatus(data.status) }
@@ -203,21 +216,8 @@ export async function setCurrentUserMailchimpSubscription(
 export async function getMailchimpStatus(
   email: string,
 ): Promise<MailchimpStatus> {
-  try {
-    const { baseUrl, auth } = mailchimpAuth()
-    const res = await fetch(
-      `${baseUrl}/lists/${LIST_ID}/members/${subscriberHash(email)}`,
-      {
-        headers: { Authorization: auth },
-        signal: AbortSignal.timeout(MAILCHIMP_TIMEOUT_MS),
-      },
-    )
-    if (!res.ok) return "unknown"
-    const data = (await res.json()) as { status?: string }
-    return normalizeMailchimpStatus(data.status)
-  } catch {
-    return "unknown"
-  }
+  const result = await lookupMailchimpSubscription(email)
+  return result.status
 }
 
 export async function lookupMailchimpSubscription(

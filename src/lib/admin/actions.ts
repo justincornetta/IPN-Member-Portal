@@ -321,7 +321,7 @@ export async function assignAdminAccess(
   adminRole: string | null,
   team: string | null,
 ): Promise<{ error?: string }> {
-  const auth = await verifyAdmin()
+  const auth = await verifySuperadminUser()
   if ("error" in auth) return auth
 
   const normalizedAdminRole = clean(adminRole)?.slice(0, 120) ?? null
