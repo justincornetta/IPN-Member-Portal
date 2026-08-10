@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { isSafeRedirectPath } from "@/lib/auth/redirect"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { sendMemberRegistrationSlackNotification } from "@/lib/slack/member-registration"
@@ -91,7 +93,7 @@ function getSiteUrl(): string {
 
 function getPostRegistrationPath(next?: string): string {
   const fallback = "/dashboard"
-  let rawPath = next && next.startsWith("/") ? next : fallback
+  let rawPath = isSafeRedirectPath(next) ? next : fallback
 
   // External event pages (/events/slug) should land on the member portal event page
   if (rawPath.startsWith("/events/")) {
@@ -237,7 +239,10 @@ export async function signUp(
   }
 
   if (authData.user) {
-    await sendMemberRegistrationSlackNotification(data)
+    // Slack delivery never blocks registration on failure already — run it
+    // after the response is sent so a slow/unreachable webhook can't delay
+    // the redirect either.
+    after(() => sendMemberRegistrationSlackNotification(data))
     await recordAuthAnalyticsEvent("registration_success", analytics, authData.user.id)
   }
 
@@ -263,7 +268,7 @@ export async function signIn(
     await recordAuthAnalyticsEvent("sign_in_error", analytics, null, error.message)
     return { error: error.message }
   }
-  let destination = next && next.startsWith("/") ? next : "/dashboard"
+  let destination = isSafeRedirectPath(next) ? next : "/dashboard"
   if (destination.startsWith("/events/")) {
     destination = `/dashboard${destination}`
   }

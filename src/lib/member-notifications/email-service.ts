@@ -3,6 +3,7 @@ import { Resend } from "resend"
 import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { sendOpsAlert } from "@/lib/slack/ops-alert"
 
 type NetlifyRuntime = {
   env?: {
@@ -357,6 +358,35 @@ async function upsertDeliveries(rows: DeliveryRow[]) {
   if (error) throw new Error(error.message)
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function upsertDeliveriesWithRetry(rows: DeliveryRow[], attempts = 3) {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await upsertDeliveries(rows)
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt < attempts) await sleep(attempt * 300)
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+async function alertIfExhausted(rows: DeliveryRow[]) {
+  const exhausted = rows.filter((row) => row.attempt_count >= MAX_ATTEMPTS)
+  if (!exhausted.length) return
+  await sendOpsAlert("Member notification permanently failed", {
+    Count: String(exhausted.length),
+    Kinds: [...new Set(exhausted.map((row) => row.kind))].join(", "),
+    "Sample dedupe keys": exhausted.slice(0, 5).map((row) => row.dedupe_key).join(", "),
+    "Last error": exhausted[0]?.last_error ?? "unknown",
+  })
+}
+
 export async function queueNewEventAnnouncement(
   eventId: string,
 ): Promise<QueueResult> {
@@ -693,15 +723,15 @@ async function sendBatch(batch: BuiltNotification[]) {
   const now = new Date().toISOString()
   const apiKey = getEnv("RESEND_API_KEY")
   if (!apiKey) {
-    await upsertDeliveries(
-      batch.map(({ delivery }) => ({
-        ...delivery,
-        status: "failed",
-        attempt_count: delivery.attempt_count + 1,
-        last_error: "RESEND_API_KEY is not configured",
-        updated_at: now,
-      })),
-    )
+    const failedRows: DeliveryRow[] = batch.map(({ delivery }) => ({
+      ...delivery,
+      status: "failed",
+      attempt_count: delivery.attempt_count + 1,
+      last_error: "RESEND_API_KEY is not configured",
+      updated_at: now,
+    }))
+    await upsertDeliveries(failedRows)
+    await alertIfExhausted(failedRows)
     return { sent: 0, failed: batch.length }
   }
 
@@ -727,29 +757,46 @@ async function sendBatch(batch: BuiltNotification[]) {
   )
 
   if (error) {
-    await upsertDeliveries(
-      batch.map(({ delivery }) => ({
-        ...delivery,
-        status: "failed",
-        attempt_count: delivery.attempt_count + 1,
-        last_error: error.message,
-        updated_at: now,
-      })),
-    )
+    const failedRows: DeliveryRow[] = batch.map(({ delivery }) => ({
+      ...delivery,
+      status: "failed",
+      attempt_count: delivery.attempt_count + 1,
+      last_error: error.message,
+      updated_at: now,
+    }))
+    await upsertDeliveries(failedRows)
+    await alertIfExhausted(failedRows)
     return { sent: 0, failed: batch.length }
   }
 
-  await upsertDeliveries(
-    batch.map(({ delivery }, index) => ({
-      ...delivery,
-      status: "sent",
-      resend_email_id: data?.data[index]?.id ?? null,
-      attempt_count: delivery.attempt_count + 1,
-      last_error: null,
-      sent_at: now,
-      updated_at: now,
-    })),
-  )
+  const sentRows: DeliveryRow[] = batch.map(({ delivery }, index) => ({
+    ...delivery,
+    status: "sent",
+    resend_email_id: data?.data[index]?.id ?? null,
+    attempt_count: delivery.attempt_count + 1,
+    last_error: null,
+    sent_at: now,
+    updated_at: now,
+  }))
+
+  try {
+    await upsertDeliveriesWithRetry(sentRows)
+  } catch (writeError) {
+    // Resend already accepted and sent this batch — losing this write means
+    // the stale-lease sweep will eventually flip these rows back to
+    // "failed" and a later run could resend them under a different
+    // idempotency key (it's derived from the batch's dedupe keys, which can
+    // differ between runs). Alert with the resend_email_ids so someone can
+    // reconcile the rows by hand before that sweep fires.
+    const message = writeError instanceof Error ? writeError.message : String(writeError)
+    console.error("[member-notification] sent batch but failed to record delivery status:", message)
+    await sendOpsAlert("Member notification delivery status write failed after send", {
+      "Delivery IDs": sentRows.map((row) => row.id).join(", "),
+      "Resend email IDs": sentRows.map((row) => row.resend_email_id ?? "unknown").join(", "),
+      Error: message,
+    })
+  }
+
   return { sent: batch.length, failed: 0 }
 }
 

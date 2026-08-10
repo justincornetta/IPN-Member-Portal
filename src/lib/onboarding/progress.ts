@@ -47,11 +47,15 @@ export async function markOnboardingStepsComplete(
   if (uniqueSteps.length === 0) return
 
   const columns = uniqueSteps.map((step) => STEP_COLUMNS[step])
-  const { data: existing } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from("member_onboarding_progress")
     .select(["user_id", ...columns].join(", "))
     .eq("user_id", userId)
     .maybeSingle()
+  if (selectError) {
+    console.error("[onboarding] failed to read progress:", selectError.message)
+    return
+  }
   const existingProgress = existing as Partial<OnboardingProgress> | null
 
   const now = new Date().toISOString()
@@ -65,15 +69,16 @@ export async function markOnboardingStepsComplete(
 
   if (Object.keys(updates).length === 0) return
 
-  if (existingProgress) {
-    await supabase
-      .from("member_onboarding_progress")
-      .update({ ...updates, updated_at: now })
-      .eq("user_id", userId)
-    return
-  }
-
-  await supabase
+  // Upsert (rather than select-then-insert/update) so two steps completing
+  // concurrently for a brand-new user both land instead of the second one
+  // hitting a unique-constraint conflict on a plain insert and being lost.
+  const { error: upsertError } = await supabase
     .from("member_onboarding_progress")
-    .insert({ user_id: userId, ...updates })
+    .upsert(
+      { user_id: userId, ...updates, updated_at: now },
+      { onConflict: "user_id" },
+    )
+  if (upsertError) {
+    console.error("[onboarding] failed to save progress:", upsertError.message)
+  }
 }
