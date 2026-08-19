@@ -67,15 +67,17 @@ export default async function PublicEventPage({ params }: Props) {
   const e = event as EventRecord
 
   return (
-    <div className="flex min-h-full flex-col bg-zinc-50">
+    <div className="flex min-h-full shrink-0 flex-col bg-zinc-50 text-zinc-900">
       {/* Nav */}
-      <header className="border-b border-zinc-200 bg-white px-5 py-3">
+      <header className="border-b border-zinc-200 bg-white px-4 py-3 sm:px-5">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src={icon} alt="IPN" width={24} height={24} />
-            <span className="text-sm font-semibold text-zinc-800">IPN Member Portal</span>
+            <Image src={icon} alt="" width={24} height={24} />
+            <span className="text-sm font-semibold text-zinc-800">
+              IPN<span className="hidden min-[380px]:inline"> Member Portal</span>
+            </span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
               <Link
                 href={`/dashboard/events/${slug}`}
@@ -156,16 +158,16 @@ export default async function PublicEventPage({ params }: Props) {
                 <p className="text-sm font-medium text-zinc-900">IPN membership is free</p>
                 <p className="mt-0.5 text-sm text-zinc-500">Join to RSVP, get the join link, and access the full member portal.</p>
               </div>
-              <div className="flex flex-shrink-0 items-center gap-2">
+              <div className="flex flex-shrink-0 items-stretch gap-2 sm:items-center">
                 <Link
                   href={`/login?next=/events/${slug}`}
-                  className="rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-200 px-4 py-2.5 text-center text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 sm:flex-none"
                 >
                   Sign in
                 </Link>
                 <Link
                   href={`/register?next=/events/${slug}`}
-                  className="rounded-lg bg-ipn px-4 py-2.5 text-sm font-medium text-white transition hover:bg-ipn/90"
+                  className="inline-flex flex-1 items-center justify-center rounded-lg bg-ipn px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-ipn/90 sm:flex-none"
                 >
                   Join IPN (it&apos;s free)
                 </Link>
@@ -176,21 +178,21 @@ export default async function PublicEventPage({ params }: Props) {
 
         {/* Description */}
         {(e.description || e.summary) && (
-          <div className="mt-8">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">About this event</h2>
-            <div className="mt-3 space-y-4 text-sm leading-7 text-zinc-600">
+          <section className="mt-8 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-sm sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">About this event</h2>
+            <div className="mt-3 space-y-4 text-[15px] leading-7 text-zinc-600 sm:text-sm">
               {(e.description ?? e.summary ?? "").split("\n").map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {e.location_details && (
-          <div className="mt-8">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Location</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-600">{e.location_details}</p>
-          </div>
+          <section className="mt-8 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-sm sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Location</h2>
+            <p className="mt-2 text-[15px] leading-7 text-zinc-600 sm:text-sm sm:leading-6">{e.location_details}</p>
+          </section>
         )}
 
         {otherEvents && otherEvents.length > 0 && (
@@ -239,7 +241,7 @@ export default async function PublicEventPage({ params }: Props) {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200 bg-white px-5 py-5 text-center text-xs text-zinc-400">
+      <footer className="border-t border-zinc-200 bg-white px-5 py-5 text-center text-xs text-zinc-500">
         <Link href="/" className="hover:text-ipn transition">Intercollegiate Psychedelics Network</Link>
         {" · "}
         <Link href="/register" className="hover:text-ipn transition">Join IPN</Link>
