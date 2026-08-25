@@ -29,14 +29,15 @@ Raw permanent invites must be configured only in server environment variables:
 - `WHATSAPP_LABS_INVITE_URL`
 - `WHATSAPP_CONFERENCES_INVITE_URL`
 
-The authenticated first-party endpoint is:
+The authenticated handoff-issuance endpoint is:
 
-`POST /api/whatsapp/{permanent|event}/{slug}?source={source}&mode={redirect|qr}&sessionId={portalSessionId}`
+`POST /api/whatsapp/handoffs/{permanent|event}/{slug}?source={source}&surface={surface}&sessionId={portalSessionId}`
 
-- `mode=redirect` records intent, then responds with a `303` to the validated
-  WhatsApp invite.
-- `mode=qr` records intent, then returns a private, non-cacheable JSON response
-  containing the validated direct invite for client-side QR rendering.
+- The endpoint requires a valid portal session and rechecks channel access.
+- It returns `{ handoffPath, expiresAt, channel }`; it never returns a raw invite.
+- The handoff is an opaque 256-bit token, stored only as a SHA-256 hash, bound
+  to the member, channel, source, surface, analytics session, and optional event.
+- Handoffs expire after 10 minutes and can be consumed once.
 - Permanent slugs are strictly `general`, `labs`, or `conferences`.
 - Event slugs resolve only when the event is published, its WhatsApp chat is
   active, the invite uses `https://chat.whatsapp.com`, and the member has RSVP'd.
@@ -46,21 +47,57 @@ The authenticated first-party endpoint is:
   click stays in the current session journey. The route uses a server-generated
   fallback when the UI cannot provide one.
 
-The endpoint is intentionally POST-only so prefetching or merely rendering a link
-cannot mark completion. A direct-click UI can submit a same-origin POST form in a
-new tab. A QR UI should call `mode=qr` only after an explicit authenticated
-“continue/show QR” action.
+The definitive redirect endpoint is:
 
-The QR contains the direct WhatsApp invite, not a portal URL. This is necessary
-because the member's phone may not share the desktop browser session. The desktop
-action records join intent and completes the WhatsApp onboarding milestone before
-the QR is shown; it does not prove that the QR was scanned or that the member
-joined WhatsApp. UI copy must not claim either. The raw invite is disclosed only
-to the authenticated UI flow at that moment, though any recipient can naturally
-copy a WhatsApp invite after disclosure.
+`GET /go/whatsapp/{channel}?handoff={opaqueToken}`
+
+It validates the token and current server-only destination, atomically consumes
+the handoff, inserts `member_whatsapp_join_intents`, and then redirects. The
+intent insert trigger completes the member's WhatsApp milestone without
+replacing an earlier timestamp. A used, expired, invalid, or channel-mismatched
+token returns `410` and cannot mark intent.
+
+`GET /go/whatsapp/{permanentChannel}?source={source}` without a handoff remains
+a compatibility fallback for old/static QR assets. It logs only
+`whatsapp_anonymous_redirect`; it never records a member intent or milestone,
+even if the browser happens to carry a portal auth cookie. Tokenless event-chat
+redirects are not allowed.
+
+## UI adapter
+
+Import `issueWhatsAppHandoff()` from `src/lib/whatsapp/client.ts`. This is the
+definitive browser adapter; it validates the issuance response and exposes no raw
+invite URL.
+
+Same-device CTA:
+
+1. On the authenticated click, POST a handoff with `surface=desktop_direct` or
+   `surface=mobile_direct`.
+2. Navigate the current window to the returned `handoffPath`.
+3. `/go` consumes intent before redirecting to WhatsApp.
+
+Automatically displayed desktop QR:
+
+1. On initial desktop render and whenever channel selection changes, POST a
+   handoff with `surface=desktop_qr_scan`.
+2. Render a QR for `new URL(handoffPath, window.location.origin).toString()`.
+3. Refresh the QR shortly before `expiresAt` (recommended: 60 seconds early).
+4. Issuance and display are not join intent. Only a successful `/go` consume
+   records QR join intent and the milestone.
+
+The UI branch's temporary tokenless `/go` implementation must be deleted during
+integration. Do not retain static direct-invite QR assets or a second redirect
+route.
+
+The QR contains the opaque public handoff URL, not a direct WhatsApp invite and
+not an auth-gated portal destination. This works when the phone does not share
+the desktop session. Successful consumption records scan/redirect join intent;
+it does not prove WhatsApp membership. UI copy must not claim the QR was scanned
+before consumption or that the member joined WhatsApp.
 
 `member_whatsapp_join_intents` is the append-only authoritative record of channel
 kind/slug, source, user, optional event, and click timestamp. Its insert trigger
 atomically marks the WhatsApp onboarding milestone without replacing an earlier
 timestamp. The first-party analytics event is `whatsapp_join_intent`; it is
-behavioral analytics, not membership verification.
+behavioral analytics, not membership verification. Tokenless fallback traffic
+uses `whatsapp_anonymous_redirect` and is never attributed to a member.

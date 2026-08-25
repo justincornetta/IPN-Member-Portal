@@ -1,5 +1,6 @@
 import "server-only"
 
+import { createHash, randomBytes } from "node:crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   PERMANENT_WHATSAPP_CHANNELS,
@@ -81,4 +82,30 @@ export function permanentTarget(slug: PermanentWhatsAppChannelSlug): ResolvedWha
     inviteUrl: resolved.inviteUrl,
     featured: resolved.channel.featured,
   }
+}
+
+export function createWhatsAppHandoffToken() {
+  return randomBytes(32).toString("base64url")
+}
+
+export function hashWhatsAppHandoffToken(token: string) {
+  return createHash("sha256").update(token, "utf8").digest("hex")
+}
+
+export async function getEventWhatsAppInviteById(
+  admin: SupabaseClient,
+  eventId: string,
+  eventSlug: string,
+) {
+  const { data: event, error } = await admin
+    .from("events")
+    .select("id, slug, title, status, chat_platform, chat_status, chat_external_url")
+    .eq("id", eventId)
+    .eq("slug", eventSlug)
+    .maybeSingle()
+  if (error) throw new Error(`Could not read event chat: ${error.message}`)
+
+  const access = validateEventWhatsAppAccess(event, true)
+  if (!access.allowed) return { event, access }
+  return { event, access }
 }

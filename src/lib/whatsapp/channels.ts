@@ -27,7 +27,6 @@ export const PERMANENT_WHATSAPP_CHANNELS = {
 
 export type PermanentWhatsAppChannelSlug = keyof typeof PERMANENT_WHATSAPP_CHANNELS
 export type WhatsAppChannelKind = "permanent" | "event"
-export type WhatsAppDeliveryMode = "redirect" | "qr"
 
 export function isPermanentWhatsAppChannelSlug(
   value: string,
@@ -43,6 +42,15 @@ export function normalizeWhatsAppSource(value: string | null) {
 export function normalizeWhatsAppAnalyticsSessionId(value: string | null) {
   const normalized = value?.trim() ?? ""
   return /^[A-Za-z0-9_-]{1,120}$/.test(normalized) ? normalized : null
+}
+
+export function normalizeWhatsAppSurface(value: string | null) {
+  const normalized = value?.trim().toLowerCase() ?? ""
+  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalized) ? normalized : "unspecified"
+}
+
+export function isWhatsAppHandoffToken(value: string | null): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value)
 }
 
 export function validateWhatsAppInviteUrl(value: string | null | undefined): URL | null {

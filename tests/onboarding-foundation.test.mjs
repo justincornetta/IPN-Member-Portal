@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
+import { access, readFile } from "node:fs/promises"
 import test from "node:test"
 
 import {
@@ -11,11 +11,14 @@ import {
   PERMANENT_WHATSAPP_CHANNELS,
   WHATSAPP_ANNOUNCEMENTS_NOTE,
   isPermanentWhatsAppChannelSlug,
+  isWhatsAppHandoffToken,
   normalizeWhatsAppAnalyticsSessionId,
   normalizeWhatsAppSource,
+  normalizeWhatsAppSurface,
   validateEventWhatsAppAccess,
   validateWhatsAppInviteUrl,
 } from "../src/lib/whatsapp/channels.ts"
+import { issueWhatsAppHandoff } from "../src/lib/whatsapp/client.ts"
 
 test("profile completion requires all five approved semantic fields", () => {
   const complete = {
@@ -121,6 +124,10 @@ test("source normalization is bounded", () => {
   assert.equal(normalizeWhatsAppSource("../../unsafe"), "unspecified")
   assert.equal(normalizeWhatsAppAnalyticsSessionId("session_123"), "session_123")
   assert.equal(normalizeWhatsAppAnalyticsSessionId("session/unsafe"), null)
+  assert.equal(normalizeWhatsAppSurface(" desktop_qr_scan "), "desktop_qr_scan")
+  assert.equal(normalizeWhatsAppSurface("../../unsafe"), "unspecified")
+  assert.equal(isWhatsAppHandoffToken("a".repeat(43)), true)
+  assert.equal(isWhatsAppHandoffToken("a".repeat(42)), false)
 })
 
 test("migration preserves milestone timestamps and locks the intent ledger", async () => {
@@ -132,6 +139,10 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
     new URL("../supabase/migrations/20260825191317_whatsapp_join_intents.sql", import.meta.url),
     "utf8",
   )
+  const handoffSql = await readFile(
+    new URL("../supabase/migrations/20260825203017_whatsapp_qr_handoffs.sql", import.meta.url),
+    "utf8",
+  )
   assert.match(onboardingSql, /profile_completed_at = coalesce\(/)
   assert.match(onboardingSql, /whatsapp_started_at = coalesce\(whatsapp_started_at, whatsapp_completed_at\)/)
   assert.match(whatsappSql, /enable row level security/)
@@ -141,10 +152,73 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
   assert.match(whatsappSql, /after insert on public\.member_whatsapp_join_intents/)
   assert.match(whatsappSql, /whatsapp_completed_at = coalesce\(/)
   assert.match(whatsappSql, /'whatsapp_join_intent'/)
+  assert.match(handoffSql, /create table if not exists public\.member_whatsapp_handoffs/)
+  assert.match(handoffSql, /token_hash text not null unique/)
+  assert.match(handoffSql, /for update/)
+  assert.match(handoffSql, /create or replace function public\.consume_whatsapp_handoff/)
+  assert.match(handoffSql, /insert into public\.member_whatsapp_join_intents/)
+  assert.match(handoffSql, /'whatsapp_anonymous_redirect'/)
 
   const analyticsSource = await readFile(
     new URL("../src/lib/portal-analytics/events.ts", import.meta.url),
     "utf8",
   )
   assert.match(analyticsSource, /"whatsapp_join_intent"/)
+  assert.match(analyticsSource, /"whatsapp_anonymous_redirect"/)
+})
+
+test("one redirect authority separates tokenized member intent from anonymous fallback", async () => {
+  const goRoute = await readFile(
+    new URL("../src/app/go/whatsapp/[channel]/route.ts", import.meta.url),
+    "utf8",
+  )
+  const issuanceRoute = await readFile(
+    new URL("../src/app/api/whatsapp/handoffs/[kind]/[slug]/route.ts", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(goRoute, /consume_whatsapp_handoff/)
+  assert.match(goRoute, /whatsapp_anonymous_redirect/)
+  assert.match(goRoute, /Tokenless GETs are a compatibility fallback/)
+  assert.doesNotMatch(issuanceRoute, /member_whatsapp_join_intents/)
+  assert.match(issuanceRoute, /member_whatsapp_handoffs/)
+  assert.match(issuanceRoute, /handoffPath/)
+
+  await assert.rejects(
+    access(new URL("../src/app/api/whatsapp/[kind]/[slug]/route.ts", import.meta.url)),
+  )
+})
+
+test("browser adapter requests an authenticated handoff and returns a minimal DTO", async () => {
+  const originalFetch = globalThis.fetch
+  let requestedUrl = ""
+  let requestedInit
+  globalThis.fetch = async (url, init) => {
+    requestedUrl = String(url)
+    requestedInit = init
+    return new Response(JSON.stringify({
+      handoffPath: `/go/whatsapp/general?handoff=${"a".repeat(43)}`,
+      expiresAt: "2026-08-25T21:00:00.000Z",
+      channel: { kind: "permanent", slug: "general", label: "General", featured: true },
+      inviteUrl: "https://chat.whatsapp.com/should-not-pass-through",
+    }), { headers: { "Content-Type": "application/json" } })
+  }
+
+  try {
+    const result = await issueWhatsAppHandoff({
+      kind: "permanent",
+      slug: "general",
+      source: "onboarding",
+      surface: "desktop_qr_scan",
+      sessionId: "session_123",
+    })
+    assert.match(requestedUrl, /^\/api\/whatsapp\/handoffs\/permanent\/general\?/)
+    assert.match(requestedUrl, /surface=desktop_qr_scan/)
+    assert.equal(requestedInit.method, "POST")
+    assert.equal(requestedInit.credentials, "same-origin")
+    assert.equal("inviteUrl" in result, false)
+    assert.equal(result.channel.slug, "general")
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

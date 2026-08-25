@@ -19,6 +19,7 @@ export const PORTAL_ANALYTICS_EVENTS = [
   "whatsapp_profile_linked",
   "whatsapp_cta_clicked",
   "whatsapp_join_intent",
+  "whatsapp_anonymous_redirect",
 ] as const
 
 export type PortalAnalyticsEventName = (typeof PORTAL_ANALYTICS_EVENTS)[number]

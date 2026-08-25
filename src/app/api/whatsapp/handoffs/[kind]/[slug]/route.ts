@@ -1,21 +1,23 @@
-import { randomUUID } from "node:crypto"
 import { NextResponse } from "next/server"
-import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import {
   isPermanentWhatsAppChannelSlug,
   normalizeWhatsAppAnalyticsSessionId,
   normalizeWhatsAppSource,
-  type WhatsAppDeliveryMode,
+  normalizeWhatsAppSurface,
 } from "@/lib/whatsapp/channels"
 import {
+  createWhatsAppHandoffToken,
   getEventWhatsAppInvite,
+  hashWhatsAppHandoffToken,
   permanentTarget,
   type ResolvedWhatsAppTarget,
 } from "@/lib/whatsapp/server"
 
 export const runtime = "nodejs"
+
+const HANDOFF_TTL_MS = 10 * 60 * 1000
 
 function errorResponse(message: string, status: number) {
   return NextResponse.json(
@@ -81,14 +83,13 @@ export async function POST(
   if (!requestHasSameOrigin(request)) return errorResponse("Invalid request origin", 403)
 
   const requestUrl = new URL(request.url)
-  const mode = (requestUrl.searchParams.get("mode") ?? "redirect") as WhatsAppDeliveryMode
-  if (mode !== "redirect" && mode !== "qr") return errorResponse("Invalid delivery mode", 400)
-
   const source = normalizeWhatsAppSource(requestUrl.searchParams.get("source"))
-  const analyticsSessionId =
-    normalizeWhatsAppAnalyticsSessionId(requestUrl.searchParams.get("sessionId"))
-    ?? `server_${randomUUID()}`
+  const surface = normalizeWhatsAppSurface(requestUrl.searchParams.get("surface"))
+  const analyticsSessionId = normalizeWhatsAppAnalyticsSessionId(
+    requestUrl.searchParams.get("sessionId"),
+  )
   const { kind, slug } = await params
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -100,69 +101,46 @@ export async function POST(
     resolved = await resolveTarget(kind, slug, user.id, supabase)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error("[whatsapp] target resolution failed:", message)
+    console.error("[whatsapp] handoff target resolution failed:", message)
     return errorResponse("Could not verify WhatsApp channel access", 503)
   }
   if (resolved.error || !resolved.target) return resolved.error!
   const target = resolved.target
 
+  const token = createWhatsAppHandoffToken()
+  const expiresAt = new Date(Date.now() + HANDOFF_TTL_MS).toISOString()
   const admin = createAdminClient()
-  const { data: intent, error: intentError } = await admin
-    .from("member_whatsapp_join_intents")
+  const { error } = await admin
+    .from("member_whatsapp_handoffs")
     .insert({
+      token_hash: hashWhatsAppHandoffToken(token),
       user_id: user.id,
       channel_kind: target.kind,
       channel_slug: target.slug,
       source,
+      surface,
+      analytics_session_id: analyticsSessionId,
       event_id: target.eventId,
+      expires_at: expiresAt,
     })
-    .select("clicked_at")
-    .single()
 
-  if (intentError || !intent) {
-    console.error("[whatsapp] join intent insert failed:", intentError?.message ?? "missing row")
-    return errorResponse("Could not record WhatsApp join intent", 503)
+  if (error) {
+    console.error("[whatsapp] handoff insert failed:", error.message)
+    return errorResponse("Could not prepare WhatsApp handoff", 503)
   }
 
-  await recordPortalAnalyticsEvent({
-    eventName: "whatsapp_join_intent",
-    sessionId: analyticsSessionId,
-    userId: user.id,
-    pagePath: request.headers.get("referer"),
-    targetId: `${target.kind}:${target.slug}`,
-    targetLabel: target.label,
-    metadata: {
-      channelKind: target.kind,
-      channelSlug: target.slug,
-      source,
-      deliveryMode: mode,
-      eventId: target.eventId,
-    },
-  })
-
-  if (mode === "qr") {
-    return NextResponse.json(
-      {
-        inviteUrl: target.inviteUrl.toString(),
-        channel: {
-          kind: target.kind,
-          slug: target.slug,
-          label: target.label,
-          featured: target.featured,
-        },
-        joinIntentRecordedAt: intent.clicked_at,
-        whatsappMembershipVerified: false,
+  const handoffPath = `/go/whatsapp/${encodeURIComponent(target.slug)}?handoff=${encodeURIComponent(token)}`
+  return NextResponse.json(
+    {
+      handoffPath,
+      expiresAt,
+      channel: {
+        kind: target.kind,
+        slug: target.slug,
+        label: target.label,
+        featured: target.featured,
       },
-      { headers: { "Cache-Control": "no-store, private" } },
-    )
-  }
-
-  return new NextResponse(null, {
-    status: 303,
-    headers: {
-      Location: target.inviteUrl.toString(),
-      "Cache-Control": "no-store, private",
-      "Referrer-Policy": "no-referrer",
     },
-  })
+    { headers: { "Cache-Control": "no-store, private" } },
+  )
 }
