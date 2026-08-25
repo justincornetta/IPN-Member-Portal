@@ -16,6 +16,7 @@ export type ConferenceMeetup = {
 }
 
 export type ConferenceDiscount = {
+  id: string
   label: string
   code: string | null
   url: string | null

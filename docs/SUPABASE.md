@@ -309,9 +309,10 @@ Resend.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key |
-| `kind` | `text` | `new_event`, `connection_request_received`, or `connection_request_accepted` |
+| `kind` | `text` | `new_event`, `new_conference`, `conference_meetup_added`, `conference_discount_added`, `connection_request_received`, or `connection_request_accepted` |
 | `recipient_user_id` / `actor_user_id` | `uuid` | Recipient and, for connection emails, the member whose action caused the message |
-| `event_id` / `connection_id` | `uuid` | Exactly one source is present according to the notification kind |
+| `event_id` / `conference_id` / `connection_id` | `uuid` | Exactly one source is present according to the notification kind |
+| `source_key` | `text` | Stable meetup or discount id for conference follow-ups; otherwise null |
 | `dedupe_key` | `text` | Unique business key that prevents duplicate queue rows |
 | `to_email` | `text` | Normalized recipient address captured when queued |
 | `status` | `text` | `pending`, `processing`, `sent`, `failed`, or `skipped` |
@@ -320,8 +321,10 @@ Resend.
 
 RLS is enabled, all `anon` and `authenticated` privileges are revoked, and no
 member-facing policies exist. Only service-role server code can access the
-queue. The migration is
-`supabase/migrations/20260731182209_member_email_notifications.sql`.
+queue. The base migration is
+`supabase/migrations/20260731182209_member_email_notifications.sql`, extended
+for conference messages by
+`supabase/migrations/20260825120000_conference_email_notifications.sql`.
 
 ### `public.resources`
 

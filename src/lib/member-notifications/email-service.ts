@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto"
 import { Resend } from "resend"
+import { formatConferenceDateRange, formatMeetupDateTime } from "@/lib/conferences/format"
+import type {
+  ConferenceDiscount,
+  ConferenceMeetup,
+  ConferenceRecord,
+} from "@/lib/conferences/types"
 import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -15,8 +21,16 @@ declare const Netlify: NetlifyRuntime | undefined
 
 export type MemberNotificationKind =
   | "new_event"
+  | "new_conference"
+  | "conference_meetup_added"
+  | "conference_discount_added"
   | "connection_request_received"
   | "connection_request_accepted"
+
+type ConferenceNotificationKind = Extract<
+  MemberNotificationKind,
+  "new_conference" | "conference_meetup_added" | "conference_discount_added"
+>
 
 type NotificationMode = "off" | "test" | "live"
 type DeliveryStatus = "pending" | "processing" | "sent" | "failed" | "skipped"
@@ -43,7 +57,9 @@ type DeliveryRow = {
   recipient_user_id: string
   actor_user_id: string | null
   event_id: string | null
+  conference_id: string | null
   connection_id: string | null
+  source_key: string | null
   dedupe_key: string
   to_email: string
   status: DeliveryStatus
@@ -99,6 +115,9 @@ const DEFAULT_MEMBER_EMAIL_FROM =
   "IPN Member Portal <members@members.intercollegiatepsychedelics.net>"
 const DEFAULT_MEMBER_EMAIL_REPLY_TO = "info@intercollegiatepsychedelics.net"
 const NEW_EVENT_TEMPLATE_VERSION = "v2"
+const NEW_CONFERENCE_TEMPLATE_VERSION = "v1"
+const CONFERENCE_MEETUP_TEMPLATE_VERSION = "v1"
+const CONFERENCE_DISCOUNT_TEMPLATE_VERSION = "v1"
 const MAX_ATTEMPTS = 5
 const BATCH_SIZE = 100
 const RUN_LIMIT = 100
@@ -179,6 +198,10 @@ function tagValue(value: string) {
 
 function publicEventUrl(event: Pick<EventRecord, "slug">) {
   return `${siteUrl()}/events/${encodeURIComponent(event.slug)}`
+}
+
+function conferenceUrl(conference: Pick<ConferenceRecord, "slug">) {
+  return `${siteUrl()}/dashboard/conferences/${encodeURIComponent(conference.slug)}`
 }
 
 function connectionsUrl() {
@@ -296,6 +319,120 @@ function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
     buttonLabel: "View event and RSVP",
     buttonUrl: publicEventUrl(event),
     closing: ["We look forward to seeing you there!"],
+    receiptReason:
+      "You are receiving this because you have an IPN Member Portal account.",
+  }
+}
+
+function conferenceLocation(conference: ConferenceRecord) {
+  return [conference.venue, conference.city, conference.state, conference.country]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ") || "Location to be announced"
+}
+
+function newConferenceEmail(
+  conference: ConferenceRecord,
+  recipient: ProfileRow,
+): EmailContent {
+  return {
+    subject: `New conference opportunity: ${conference.name}`,
+    preview: `${conference.name} is now in the IPN Member Portal.`,
+    greeting: `Hi ${firstName(recipient)},`,
+    body: [
+      "We just added a new conference opportunity to the IPN Member Portal.",
+    ],
+    details: [
+      { label: "Conference", value: conference.name },
+      {
+        label: "When",
+        value: formatConferenceDateRange(
+          conference.starts_at,
+          conference.ends_at,
+          conference.timezone,
+        ),
+      },
+      { label: "Where", value: conferenceLocation(conference) },
+      ...(conference.organizer
+        ? [{ label: "Organizer", value: conference.organizer }]
+        : []),
+    ],
+    afterDetails: [
+      "Open the portal to learn why this conference may be worth attending, see available IPN member discounts and meetups, and find other members who plan to go.",
+    ],
+    buttonLabel: "View conference",
+    buttonUrl: conferenceUrl(conference),
+    receiptReason:
+      "You are receiving this because you have an IPN Member Portal account.",
+  }
+}
+
+function conferenceMeetupEmail(
+  conference: ConferenceRecord,
+  meetup: ConferenceMeetup,
+  recipient: ProfileRow,
+): EmailContent {
+  return {
+    subject: `New IPN meetup at ${conference.name}`,
+    preview: `${meetup.title} has been added to ${conference.name}.`,
+    greeting: `Hi ${firstName(recipient)},`,
+    body: [
+      `IPN just added a new member meetup during ${conference.name}.`,
+    ],
+    details: [
+      { label: "Meetup", value: meetup.title },
+      {
+        label: "When",
+        value: formatMeetupDateTime(meetup.startsAt, conference.timezone),
+      },
+      { label: "Where", value: meetup.location ?? "Location to be announced" },
+    ],
+    afterDetails: [
+      ...(meetup.description ? [meetup.description] : []),
+      "Open the conference page to learn more, tell other members you’re going, and RSVP to the meetup.",
+    ],
+    buttonLabel: "View meetup",
+    buttonUrl: conferenceUrl(conference),
+    receiptReason:
+      "You are receiving this because you have an IPN Member Portal account.",
+  }
+}
+
+function conferenceDiscountEmail(
+  conference: ConferenceRecord,
+  discount: ConferenceDiscount,
+  recipient: ProfileRow,
+): EmailContent {
+  const expires = discount.expiresAt
+    ? new Intl.DateTimeFormat("en", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: conference.timezone,
+      }).format(new Date(discount.expiresAt))
+    : null
+
+  return {
+    subject: `New IPN member discount for ${conference.name}`,
+    preview: `${discount.label} is now available to IPN members.`,
+    greeting: `Hi ${firstName(recipient)},`,
+    body: [
+      `A new member discount is now available for ${conference.name}.`,
+    ],
+    details: [
+      { label: "Discount", value: discount.label },
+      ...(discount.code ? [{ label: "Code", value: discount.code }] : []),
+      ...(expires ? [{ label: "Expires", value: expires }] : []),
+    ],
+    afterDetails: [
+      ...(discount.description ? [discount.description] : []),
+      ...(discount.howToApply
+        ? [`How to apply: ${discount.howToApply}`]
+        : []),
+      "Open the conference page to see the complete offer and registration details.",
+    ],
+    buttonLabel: "View member discount",
+    buttonUrl: conferenceUrl(conference),
     receiptReason:
       "You are receiving this because you have an IPN Member Portal account.",
   }
@@ -445,7 +582,9 @@ export async function queueNewEventAnnouncement(
           recipient_user_id: profile.id,
           actor_user_id: null,
           event_id: event.id,
+          conference_id: null,
           connection_id: null,
+          source_key: null,
           dedupe_key: `new-event/${NEW_EVENT_TEMPLATE_VERSION}/${event.id}/${profile.id}`,
           to_email: normalizeEmail(profile.email),
           status: "pending" as const,
@@ -475,6 +614,137 @@ export async function queueNewEventAnnouncementBySlug(eventSlug: string) {
     throw new Error(error?.message ?? `Event not found: ${eventSlug}`)
   }
   return queueNewEventAnnouncement(event.id)
+}
+
+async function queueConferenceAnnouncement(
+  kind: ConferenceNotificationKind,
+  conferenceId: string,
+  sourceKey: string | null,
+): Promise<QueueResult> {
+  const mode = memberNotificationMode()
+  if (mode === "off") {
+    return { mode, queued: 0, skipped: 0, reason: "notifications are disabled" }
+  }
+
+  const admin = createAdminClient()
+  const { data: conference, error: conferenceError } = await admin
+    .from("conferences")
+    .select("id, status, meetups, discounts")
+    .eq("id", conferenceId)
+    .eq("status", "published")
+    .single()
+
+  if (conferenceError || !conference) {
+    return { mode, queued: 0, skipped: 0, reason: "conference is not published" }
+  }
+
+  if (
+    kind === "conference_meetup_added" &&
+    !(conference.meetups as ConferenceMeetup[]).some((meetup) => meetup.id === sourceKey)
+  ) {
+    return { mode, queued: 0, skipped: 0, reason: "conference meetup is unavailable" }
+  }
+
+  if (
+    kind === "conference_discount_added" &&
+    !(conference.discounts as ConferenceDiscount[]).some(
+      (discount) => discount.id === sourceKey,
+    )
+  ) {
+    return { mode, queued: 0, skipped: 0, reason: "conference discount is unavailable" }
+  }
+
+  let profileQuery = admin
+    .from("profiles")
+    .select("id, email, first_name, last_name, is_banned")
+
+  if (mode === "test") {
+    const recipients = [...testRecipients()]
+    if (!recipients.length) {
+      return {
+        mode,
+        queued: 0,
+        skipped: 0,
+        reason: "MEMBER_NOTIFICATION_TEST_RECIPIENTS is empty",
+      }
+    }
+    profileQuery = profileQuery.in("email", recipients)
+  }
+
+  const { data: profileRows, error: profileError } = await profileQuery
+  if (profileError) throw new Error(profileError.message)
+
+  const profiles = (profileRows ?? []) as ProfileRow[]
+  const validProfiles = profiles.filter((profile) => {
+    const email = normalizeEmail(profile.email)
+    return !profile.is_banned && isValidEmail(email) && recipientIsEnabled(email)
+  })
+  const skipped = profiles.length - validProfiles.length
+  const templateVersion =
+    kind === "new_conference"
+      ? NEW_CONFERENCE_TEMPLATE_VERSION
+      : kind === "conference_meetup_added"
+        ? CONFERENCE_MEETUP_TEMPLATE_VERSION
+        : CONFERENCE_DISCOUNT_TEMPLATE_VERSION
+  let queued = 0
+
+  for (const profileChunk of chunks(validProfiles, 500)) {
+    const { data, error } = await admin
+      .from("member_notification_deliveries")
+      .upsert(
+        profileChunk.map((profile) => ({
+          kind,
+          recipient_user_id: profile.id,
+          actor_user_id: null,
+          event_id: null,
+          conference_id: conference.id,
+          connection_id: null,
+          source_key: sourceKey,
+          dedupe_key: [
+            kind,
+            templateVersion,
+            conference.id,
+            ...(sourceKey ? [sourceKey] : []),
+            profile.id,
+          ].join("/"),
+          to_email: normalizeEmail(profile.email),
+          status: "pending" as const,
+        })),
+        { onConflict: "dedupe_key", ignoreDuplicates: true },
+      )
+      .select("id")
+
+    if (error) throw new Error(error.message)
+    queued += data?.length ?? 0
+  }
+
+  return { mode, queued, skipped }
+}
+
+export function queueNewConferenceAnnouncement(conferenceId: string) {
+  return queueConferenceAnnouncement("new_conference", conferenceId, null)
+}
+
+export function queueConferenceMeetupAnnouncement(
+  conferenceId: string,
+  meetupId: string,
+) {
+  return queueConferenceAnnouncement(
+    "conference_meetup_added",
+    conferenceId,
+    meetupId,
+  )
+}
+
+export function queueConferenceDiscountAnnouncement(
+  conferenceId: string,
+  discountId: string,
+) {
+  return queueConferenceAnnouncement(
+    "conference_discount_added",
+    conferenceId,
+    discountId,
+  )
 }
 
 async function queueConnectionNotification({
@@ -521,7 +791,9 @@ async function queueConnectionNotification({
         recipient_user_id: recipientUserId,
         actor_user_id: actorUserId,
         event_id: null,
+        conference_id: null,
         connection_id: connectionId,
+        source_key: null,
         dedupe_key: dedupeKey,
         to_email: email,
         status: "pending",
@@ -605,6 +877,13 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
       ),
     ),
   ]
+  const conferenceIds = [
+    ...new Set(
+      deliveries.flatMap((delivery) =>
+        delivery.conference_id ? [delivery.conference_id] : [],
+      ),
+    ),
+  ]
   const connectionIds = [
     ...new Set(
       deliveries.flatMap((delivery) =>
@@ -613,7 +892,7 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
     ),
   ]
 
-  const [profilesResult, eventsResult, connectionsResult] = await Promise.all([
+  const [profilesResult, eventsResult, conferencesResult, connectionsResult] = await Promise.all([
     profileIds.length
       ? admin
           .from("profiles")
@@ -622,6 +901,9 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
       : Promise.resolve({ data: [], error: null }),
     eventIds.length
       ? admin.from("events").select("*").in("id", eventIds)
+      : Promise.resolve({ data: [], error: null }),
+    conferenceIds.length
+      ? admin.from("conferences").select("*").in("id", conferenceIds)
       : Promise.resolve({ data: [], error: null }),
     connectionIds.length
       ? admin
@@ -633,6 +915,7 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
 
   if (profilesResult.error) throw new Error(profilesResult.error.message)
   if (eventsResult.error) throw new Error(eventsResult.error.message)
+  if (conferencesResult.error) throw new Error(conferencesResult.error.message)
   if (connectionsResult.error) throw new Error(connectionsResult.error.message)
 
   const profileById = new Map(
@@ -640,6 +923,12 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
   )
   const eventById = new Map(
     ((eventsResult.data ?? []) as EventRecord[]).map((event) => [event.id, event]),
+  )
+  const conferenceById = new Map(
+    ((conferencesResult.data ?? []) as ConferenceRecord[]).map((conference) => [
+      conference.id,
+      conference,
+    ]),
   )
   const connectionById = new Map(
     ((connectionsResult.data ?? []) as ConnectionRow[]).map((connection) => [
@@ -687,6 +976,74 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
         delivery: { ...delivery, to_email: email },
         content: eventEmail(event, recipient),
         tagSource: event.slug,
+      })
+      continue
+    }
+
+    if (
+      delivery.kind === "new_conference" ||
+      delivery.kind === "conference_meetup_added" ||
+      delivery.kind === "conference_discount_added"
+    ) {
+      const conference = delivery.conference_id
+        ? conferenceById.get(delivery.conference_id)
+        : null
+      if (!conference || conference.status !== "published") {
+        skipped.push({
+          ...delivery,
+          status: "skipped",
+          last_error: "conference is unavailable",
+          updated_at: new Date().toISOString(),
+        })
+        continue
+      }
+
+      if (delivery.kind === "new_conference") {
+        built.push({
+          delivery: { ...delivery, to_email: email },
+          content: newConferenceEmail(conference, recipient),
+          tagSource: conference.slug,
+        })
+        continue
+      }
+
+      if (delivery.kind === "conference_meetup_added") {
+        const meetup = conference.meetups.find(
+          (candidate) => candidate.id === delivery.source_key,
+        )
+        if (!meetup) {
+          skipped.push({
+            ...delivery,
+            status: "skipped",
+            last_error: "conference meetup is unavailable",
+            updated_at: new Date().toISOString(),
+          })
+          continue
+        }
+        built.push({
+          delivery: { ...delivery, to_email: email },
+          content: conferenceMeetupEmail(conference, meetup, recipient),
+          tagSource: conference.slug,
+        })
+        continue
+      }
+
+      const discount = conference.discounts.find(
+        (candidate) => candidate.id === delivery.source_key,
+      )
+      if (!discount) {
+        skipped.push({
+          ...delivery,
+          status: "skipped",
+          last_error: "conference discount is unavailable",
+          updated_at: new Date().toISOString(),
+        })
+        continue
+      }
+      built.push({
+        delivery: { ...delivery, to_email: email },
+        content: conferenceDiscountEmail(conference, discount, recipient),
+        tagSource: conference.slug,
       })
       continue
     }

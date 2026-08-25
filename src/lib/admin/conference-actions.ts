@@ -1,9 +1,16 @@
 "use server"
 
+import { randomUUID } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { verifyAdmin } from "@/lib/admin/actions"
 import { clean, isValidTimeZone, slugify, toIsoInTimeZone } from "@/lib/admin/content-utils"
+import { conferenceNotificationChanges } from "@/lib/conferences/notification-diff"
+import {
+  queueConferenceDiscountAnnouncement,
+  queueConferenceMeetupAnnouncement,
+  queueNewConferenceAnnouncement,
+} from "@/lib/member-notifications/email-service"
 import type {
   ConferenceCategory,
   ConferenceDiscount,
@@ -23,6 +30,7 @@ export type AdminConferenceMeetupInput = {
 }
 
 export type AdminConferenceDiscountInput = {
+  id?: string
   label: string
   code?: string
   url?: string
@@ -91,10 +99,24 @@ export async function publishAdminConference(
   const admin = createAdminClient()
   const slug = clean(payload.slug) ?? slugify(name)
 
+  const { data: existingConference, error: existingConferenceError } = payload.id
+    ? await admin
+        .from("conferences")
+        .select("id, status, meetups, discounts")
+        .eq("id", payload.id)
+        .maybeSingle()
+    : await admin
+        .from("conferences")
+        .select("id, status, meetups, discounts")
+        .eq("slug", slug)
+        .maybeSingle()
+
+  if (existingConferenceError) return { error: existingConferenceError.message }
+
   const meetups: ConferenceMeetup[] = payload.meetups
     .filter((meetup) => clean(meetup.title))
-    .map((meetup, index) => ({
-      id: meetup.id ?? `${slug}-meetup-${index + 1}`,
+    .map((meetup) => ({
+      id: meetup.id ?? `${slug}-meetup-${randomUUID()}`,
       title: clean(meetup.title)!,
       type: clean(meetup.type) ?? "IPN Meetup",
       startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
@@ -105,6 +127,7 @@ export async function publishAdminConference(
   const discounts: ConferenceDiscount[] = payload.discounts
     .filter((discount) => clean(discount.label))
     .map((discount) => ({
+      id: discount.id ?? `${slug}-discount-${randomUUID()}`,
       label: clean(discount.label)!,
       code: clean(discount.code),
       url: clean(discount.url),
@@ -135,11 +158,72 @@ export async function publishAdminConference(
     status: payload.status,
   }
 
-  const { error } = payload.id
-    ? await admin.from("conferences").update(conferencePayload).eq("id", payload.id)
-    : await admin.from("conferences").upsert(conferencePayload, { onConflict: "slug" })
+  const { data: savedConference, error } = payload.id
+    ? await admin
+        .from("conferences")
+        .update(conferencePayload)
+        .eq("id", payload.id)
+        .select("id")
+        .single()
+    : await admin
+        .from("conferences")
+        .upsert(conferencePayload, { onConflict: "slug" })
+        .select("id")
+        .single()
 
   if (error) return { error: error.message }
+
+  const changes = conferenceNotificationChanges(
+    existingConference
+      ? {
+          status: existingConference.status,
+          meetups: (existingConference.meetups ?? []) as ConferenceMeetup[],
+          discounts: (existingConference.discounts ?? []) as ConferenceDiscount[],
+        }
+      : null,
+    { status: payload.status, meetups, discounts },
+  )
+
+  try {
+    if (changes.announceConference) {
+      const result = await queueNewConferenceAnnouncement(savedConference.id)
+      console.log("[member-notification] queued new conference announcement", {
+        conferenceId: savedConference.id,
+        ...result,
+      })
+    } else {
+      for (const meetup of changes.addedMeetups) {
+        const result = await queueConferenceMeetupAnnouncement(
+          savedConference.id,
+          meetup.id,
+        )
+        console.log("[member-notification] queued conference meetup announcement", {
+          conferenceId: savedConference.id,
+          meetupId: meetup.id,
+          ...result,
+        })
+      }
+
+      for (const discount of changes.addedDiscounts) {
+        const result = await queueConferenceDiscountAnnouncement(
+          savedConference.id,
+          discount.id,
+        )
+        console.log("[member-notification] queued conference discount announcement", {
+          conferenceId: savedConference.id,
+          discountId: discount.id,
+          ...result,
+        })
+      }
+    }
+  } catch (notificationError) {
+    console.warn(
+      "[member-notification] could not queue conference announcement:",
+      notificationError instanceof Error
+        ? notificationError.message
+        : String(notificationError),
+    )
+  }
 
   revalidatePath("/dashboard/conferences")
   revalidatePath(`/dashboard/conferences/${slug}`)

@@ -753,7 +753,7 @@ function ResourceForm({ initial, onSubmit, pending }: {
 // ─── Conference form (4 steps) ────────────────────────────────────────────────
 
 type ConferenceMeetupRow = { id?: string; title: string; type: string; startsAt: string; location: string; description: string }
-type ConferenceDiscountRow = { label: string; code: string; url: string; description: string; howToApply: string; expiresAt: string }
+type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; howToApply: string; expiresAt: string }
 
 type ConferenceFields = {
   name: string; organizer: string; category: ConferenceCategory
@@ -816,6 +816,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
     const discounts: AdminConferenceDiscountInput[] = f.discounts
       .filter((d) => d.label.trim())
       .map((d) => ({
+        id: d.id,
         label: d.label.trim(),
         code: d.code.trim() || undefined,
         url: d.url.trim() || undefined,
@@ -1203,7 +1204,7 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
       location: m.location ?? "", description: m.description ?? "",
     })),
     discounts: c.discounts.map((d) => ({
-      label: d.label, code: d.code ?? "", url: d.url ?? "",
+      id: d.id, label: d.label, code: d.code ?? "", url: d.url ?? "",
       description: d.description ?? "", howToApply: d.howToApply ?? "",
       expiresAt: d.expiresAt ? isoToLocal(d.expiresAt, timezone) : "",
     })),
