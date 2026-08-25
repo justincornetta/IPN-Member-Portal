@@ -44,14 +44,27 @@ test("conference cards and detail pages share a responsive 16:9 renderer", () =>
 
 test("conference admin previews reuse member portal cards and detail content", () => {
   const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+  const interactive = read("src/components/conferences/ConferenceInteractive.tsx")
 
   assert.match(form, /<ConferenceCard conference=\{conference\} preview/)
   assert.match(form, /<ConferenceDetailOverview conference=\{conference\} preview/)
+  assert.match(form, /<ConferenceInteractivePreview/)
   assert.match(form, /<PastConferenceCard conference=\{conference\} preview/)
+  assert.match(interactive, /preview \|\| meetupPendingId === meetup\.id/)
   assert.match(form, /label: "Member portal"/)
   assert.match(form, /label: "Member email"/)
   assert.match(form, /label: "Conference card"/)
   assert.match(form, /label: "Detail page"/)
   assert.match(form, /label: "Mobile"/)
   assert.match(form, /label: "Desktop"/)
+})
+
+test("saved meetup and discount messages remain visible without claiming they will resend", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+
+  assert.match(form, /function configuredConferenceEmailPreviews/)
+  assert.match(form, /configuredEmailPreviews\.filter/)
+  assert.match(form, /Configured message previews/)
+  assert.match(form, /Editing a saved item does not send its alert again/)
+  assert.match(form, /Saving these edits will not queue a new member email/)
 })

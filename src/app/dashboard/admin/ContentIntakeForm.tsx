@@ -41,6 +41,7 @@ import {
 import type { ConferenceEmailContent } from "@/lib/member-notifications/conference-email-content"
 import ConferenceCard from "@/components/conferences/ConferenceCard"
 import ConferenceDetailOverview from "@/components/conferences/ConferenceDetailOverview"
+import { ConferenceInteractivePreview } from "@/components/conferences/ConferenceInteractive"
 import PastConferenceCard from "@/components/conferences/PastConferenceCard"
 
 // ─── Speaker & materials form types ──────────────────────────────────────────
@@ -855,6 +856,7 @@ function conferenceEmailPreviews(
 
   if (initialStatus !== "published") {
     return [{
+      id: "conference-announcement",
       label: "New conference announcement",
       content: buildNewConferenceEmailContent(conference, "Member", buttonUrl),
     }]
@@ -864,15 +866,36 @@ function conferenceEmailPreviews(
     ...conference.meetups
       .filter((meetup) => meetup.id.startsWith("preview-meetup-"))
       .map((meetup) => ({
+        id: `meetup:${meetup.id}`,
         label: `Meetup alert · ${meetup.title}`,
         content: buildConferenceMeetupEmailContent(conference, meetup, "Member", buttonUrl),
       })),
     ...conference.discounts
       .filter((discount) => discount.id.startsWith("preview-discount-"))
       .map((discount) => ({
+        id: `discount:${discount.id}`,
         label: `Discount alert · ${discount.label}`,
         content: buildConferenceDiscountEmailContent(conference, discount, "Member", buttonUrl),
       })),
+  ]
+}
+
+function configuredConferenceEmailPreviews(fields: ConferenceFields) {
+  const conference = conferencePreviewRecord(fields)
+  if (!conference) return []
+  const buttonUrl = `https://members.intercollegiatepsychedelics.net/dashboard/conferences/${encodeURIComponent(conference.slug)}`
+
+  return [
+    ...conference.meetups.map((meetup) => ({
+      id: `meetup:${meetup.id}`,
+      label: `Meetup alert · ${meetup.title}`,
+      content: buildConferenceMeetupEmailContent(conference, meetup, "Member", buttonUrl),
+    })),
+    ...conference.discounts.map((discount) => ({
+      id: `discount:${discount.id}`,
+      label: `Discount alert · ${discount.label}`,
+      content: buildConferenceDiscountEmailContent(conference, discount, "Member", buttonUrl),
+    })),
   ]
 }
 
@@ -908,6 +931,30 @@ function ConferenceEmailPreview({ label, content }: { label: string; content: Co
         </div>
         <p className="border-t border-zinc-100 pt-4 text-xs leading-5 text-zinc-500">{content.receiptReason}</p>
       </div>
+    </section>
+  )
+}
+
+type ConferenceEmailPreviewEntry = ReturnType<typeof configuredConferenceEmailPreviews>[number]
+
+function ConferenceEmailPreviewGroup({
+  title,
+  description,
+  previews,
+}: {
+  title: string
+  description: string
+  previews: ConferenceEmailPreviewEntry[]
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <p className="text-xs font-semibold text-zinc-800">{title}</p>
+        <p className="mt-1 text-[11px] leading-5 text-zinc-500">{description}</p>
+      </div>
+      {previews.map((preview) => (
+        <ConferenceEmailPreview key={preview.id} label={preview.label} content={preview.content} />
+      ))}
     </section>
   )
 }
@@ -976,16 +1023,20 @@ function MemberPortalFrame({
 
 function ConferencePreviewWorkspace({
   conference,
-  emailPreviews,
+  queuedEmailPreviews,
+  configuredEmailPreviews,
   status,
 }: {
   conference: ConferenceRecord | null
-  emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  queuedEmailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  configuredEmailPreviews: ReturnType<typeof configuredConferenceEmailPreviews>
   status: ConferenceStatus
 }) {
   const [channel, setChannel] = useState<PreviewChannel>("portal")
   const [surface, setSurface] = useState<PortalPreviewSurface>("card")
   const [viewport, setViewport] = useState<PortalPreviewViewport>("desktop")
+  const queuedEmailIds = new Set(queuedEmailPreviews.map((preview) => preview.id))
+  const reviewOnlyEmailPreviews = configuredEmailPreviews.filter((preview) => !queuedEmailIds.has(preview.id))
 
   return (
     <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
@@ -1025,22 +1076,46 @@ function ConferencePreviewWorkspace({
                   <ConferenceCard conference={conference} preview compact={viewport === "mobile"} />
                 </div>
               ) : (
-                <ConferenceDetailOverview conference={conference} preview compact={viewport === "mobile"} />
+                <div className="flex flex-col gap-6">
+                  <ConferenceDetailOverview conference={conference} preview compact={viewport === "mobile"} />
+                  <ConferenceInteractivePreview
+                    meetups={conference.meetups}
+                    timezone={conference.timezone}
+                    compact={viewport === "mobile"}
+                  />
+                </div>
               )}
             </MemberPortalFrame>
           ) : (
             <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a conference name and valid dates to see the portal preview.</p>
           )}
-          <p className="text-[11px] leading-5 text-zinc-400">Preview links and member actions are inactive. RSVP and attendee controls appear beneath the published conference details.</p>
-        </div>
-      ) : status !== "published" ? (
-        <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">No member email will be queued while this conference is {status}.</p>
-      ) : emailPreviews.length ? (
-        <div className="flex flex-col gap-4">
-          {emailPreviews.map((preview) => <ConferenceEmailPreview key={preview.label} {...preview} />)}
+          <p className="text-[11px] leading-5 text-zinc-400">Preview links, RSVP buttons, and attendee controls are inactive.</p>
         </div>
       ) : (
-        <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">This update will not queue a new member email. Add a meetup or discount to preview its follow-up alert.</p>
+        <div className="flex flex-col gap-5">
+          {status !== "published" ? (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">No member email will be queued while this conference is {status}. You can still review configured meetup and discount messages below.</p>
+          ) : queuedEmailPreviews.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Saving these edits will not queue a new member email. Existing meetup and discount messages are previewed below for review.</p>
+          ) : null}
+          {queuedEmailPreviews.length > 0 && (
+            <ConferenceEmailPreviewGroup
+              title="Emails queued by this save"
+              description="These are the messages members will receive after you publish this change."
+              previews={queuedEmailPreviews}
+            />
+          )}
+          {reviewOnlyEmailPreviews.length > 0 && (
+            <ConferenceEmailPreviewGroup
+              title="Configured message previews"
+              description="These show the current copy for saved meetups and discounts. Editing a saved item does not send its alert again."
+              previews={reviewOnlyEmailPreviews}
+            />
+          )}
+          {queuedEmailPreviews.length === 0 && reviewOnlyEmailPreviews.length === 0 && (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a meetup or discount to preview its member alert.</p>
+          )}
+        </div>
       )}
     </section>
   )
@@ -1054,7 +1129,8 @@ function ConferenceForm({ initial, onSubmit, pending }: {
   const [step, setStep] = useState(1)
   const [f, setF] = useState<ConferenceFields>({ ...CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const emailPreviews = conferenceEmailPreviews(f, initial?.status)
+  const queuedEmailPreviews = conferenceEmailPreviews(f, initial?.status)
+  const configuredEmailPreviews = configuredConferenceEmailPreviews(f)
   const portalPreview = conferencePreviewRecord(f)
 
   function set<K extends keyof ConferenceFields>(key: K, value: ConferenceFields[K]) {
@@ -1279,7 +1355,12 @@ function ConferenceForm({ initial, onSubmit, pending }: {
               </button>
             </div>
 
-            <ConferencePreviewWorkspace conference={portalPreview} emailPreviews={emailPreviews} status={f.status} />
+            <ConferencePreviewWorkspace
+              conference={portalPreview}
+              queuedEmailPreviews={queuedEmailPreviews}
+              configuredEmailPreviews={configuredEmailPreviews}
+              status={f.status}
+            />
           </div>
           <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
         </>
