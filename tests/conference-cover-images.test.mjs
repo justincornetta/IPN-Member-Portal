@@ -91,11 +91,21 @@ test("publishing requires a final confirmation with exact queued-email previews"
   assert.match(form, /function ConferencePublishConfirmation/)
   assert.match(form, /role="dialog"/)
   assert.match(form, /aria-modal="true"/)
-  assert.match(form, /Review member email before publishing/)
+  assert.match(form, /Review member email before/)
   assert.match(form, /newly added IPN meetups or member discounts trigger these alerts/)
   assert.match(form, /This save will not queue a member email/)
   assert.match(form, /<ConferenceEmailPreview key=\{preview\.id\}/)
   assert.match(form, /Back to editing/)
   assert.match(form, /Confirm & publish/)
   assert.match(form, /setPublishConfirmation\(\{ payload, emailPreviews: queuedEmailPreviews \}\)/)
+})
+
+test("conference status is expressed through clear draft and publish actions", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+
+  assert.doesNotMatch(form, /<Field label="Status"/)
+  assert.match(form, /onClick=\{\(\) => handleSubmit\("draft"\)\}/)
+  assert.match(form, /onClick=\{\(\) => handleSubmit\("published"\)\}/)
+  assert.match(form, /Save draft/)
+  assert.match(form, /isPublishedConference \? "Save changes" : "Publish conference"/)
 })

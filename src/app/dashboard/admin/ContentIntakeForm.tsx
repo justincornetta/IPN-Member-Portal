@@ -790,7 +790,6 @@ const CONFERENCE_DEFAULTS: ConferenceFields = {
 }
 
 const CONFERENCE_CATEGORIES: ConferenceCategory[] = ["Academic", "Industry", "Community", "Harm Reduction"]
-const CONFERENCE_STATUSES: ConferenceStatus[] = ["draft", "published", "archived"]
 
 function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | null {
   const timezone = fields.timezone || "America/New_York"
@@ -1125,11 +1124,13 @@ function ConferencePreviewWorkspace({
 function ConferencePublishConfirmation({
   conferenceName,
   emailPreviews,
+  isUpdate,
   onBack,
   onConfirm,
 }: {
   conferenceName: string
   emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  isUpdate: boolean
   onBack: () => void
   onConfirm: () => void
 }) {
@@ -1187,12 +1188,18 @@ function ConferencePublishConfirmation({
             </span>
             <div>
               <h2 id="conference-publish-title" className="text-lg font-semibold text-zinc-900">
-                {sendsEmail ? "Review member email before publishing" : "Publish conference?"}
+                {sendsEmail
+                  ? `Review member email before ${isUpdate ? "saving" : "publishing"}`
+                  : isUpdate
+                    ? "Save conference changes?"
+                    : "Publish conference?"}
               </h2>
               <p id="conference-publish-description" className="mt-1 text-sm leading-6 text-zinc-600">
                 {sendsEmail
-                  ? `Publishing ${conferenceName} will queue ${emailPreviews.length} member email${emailPreviews.length === 1 ? "" : "s"}. New conferences and newly added IPN meetups or member discounts trigger these alerts. Review the complete content below before confirming.`
-                  : `Publishing ${conferenceName} will update the member portal. This save will not queue a member email.`}
+                  ? `${isUpdate ? "Saving" : "Publishing"} ${conferenceName} will queue ${emailPreviews.length} member email${emailPreviews.length === 1 ? "" : "s"}. New conferences and newly added IPN meetups or member discounts trigger these alerts. Review the complete content below before confirming.`
+                  : isUpdate
+                    ? `Saving ${conferenceName} will update the member portal. This save will not queue a member email.`
+                    : `Publishing ${conferenceName} will update the member portal. This save will not queue a member email.`}
               </p>
             </div>
           </div>
@@ -1220,7 +1227,7 @@ function ConferencePublishConfirmation({
             onClick={onConfirm}
             className="min-h-11 rounded-lg bg-ipn px-5 py-2 text-sm font-semibold text-white transition hover:bg-ipn/90 focus:outline-none focus:ring-2 focus:ring-ipn/30 focus:ring-offset-2"
           >
-            {sendsEmail ? "Confirm & publish" : "Publish conference"}
+            {isUpdate ? "Confirm & save changes" : sendsEmail ? "Confirm & publish" : "Publish conference"}
           </button>
         </div>
       </section>
@@ -1240,9 +1247,11 @@ function ConferenceForm({ initial, onSubmit, pending }: {
     payload: Omit<AdminConferencePayload, "id">
     emailPreviews: ReturnType<typeof conferenceEmailPreviews>
   } | null>(null)
-  const queuedEmailPreviews = conferenceEmailPreviews(f, initial?.status)
+  const publishFields = { ...f, status: "published" as const }
+  const queuedEmailPreviews = conferenceEmailPreviews(publishFields, initial?.status)
   const configuredEmailPreviews = configuredConferenceEmailPreviews(f)
   const portalPreview = conferencePreviewRecord(f)
+  const isPublishedConference = initial?.status === "published"
 
   function set<K extends keyof ConferenceFields>(key: K, value: ConferenceFields[K]) {
     setF((prev) => ({ ...prev, [key]: value }))
@@ -1258,7 +1267,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
     return Object.keys(e).length === 0
   }
 
-  function handleSubmit() {
+  function handleSubmit(status: Extract<ConferenceStatus, "draft" | "published">) {
     const incompleteMeetup = f.meetups.find((meetup) => meetup.title.trim() && (!meetup.startsAt || !meetup.endsAt))
     if (incompleteMeetup) {
       setErrors((current) => ({ ...current, meetups: "Every meetup needs a start and end date and time." }))
@@ -1312,9 +1321,13 @@ function ConferenceForm({ initial, onSubmit, pending }: {
       websiteUrl: f.websiteUrl || undefined,
       registrationUrl: f.registrationUrl || undefined,
       whatsappUrl: f.whatsappUrl || undefined,
-      status: f.status,
+      status,
       meetups,
       discounts,
+    }
+    if (status === "draft") {
+      onSubmit(payload)
+      return
     }
     setPublishConfirmation({ payload, emailPreviews: queuedEmailPreviews })
   }
@@ -1388,7 +1401,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
 
       {step === 2 && (
         <>
-          <StepBar step={2} total={4} title="Links & status" />
+          <StepBar step={2} total={4} title="Links" />
           <div className="flex flex-col gap-4">
             <Field label="Conference website" hint="Optional">
               <input value={f.websiteUrl} onChange={(e) => set("websiteUrl", e.target.value)} className={inputCls()} placeholder="https://..." />
@@ -1398,11 +1411,6 @@ function ConferenceForm({ initial, onSubmit, pending }: {
             </Field>
             <Field label="WhatsApp chat invite URL" hint="Optional — conference-specific member chat">
               <input value={f.whatsappUrl} onChange={(e) => set("whatsappUrl", e.target.value)} className={inputCls()} placeholder="https://chat.whatsapp.com/..." />
-            </Field>
-            <Field label="Status" hint="Draft is hidden from everyone; published shows on the admin-beta page; archived hides it again">
-              <select value={f.status} onChange={(e) => set("status", e.target.value as ConferenceStatus)} className={`cursor-pointer ${inputCls()}`}>
-                {CONFERENCE_STATUSES.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-              </select>
             </Field>
           </div>
           <NavRow step={2} total={4} onBack={() => setStep(1)} onNext={() => setStep(3)} onSubmit={() => {}} pending={pending} submitLabel="" />
@@ -1501,16 +1509,41 @@ function ConferenceForm({ initial, onSubmit, pending }: {
               conference={portalPreview}
               queuedEmailPreviews={queuedEmailPreviews}
               configuredEmailPreviews={configuredEmailPreviews}
-              status={f.status}
+              status="published"
             />
           </div>
-          <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
+          <div className="mt-7 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" onClick={() => setStep(3)} className="min-h-11 w-full cursor-pointer rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-800 sm:w-auto sm:border-transparent">
+              ← Back
+            </button>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              {!isPublishedConference && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit("draft")}
+                  disabled={pending}
+                  className="min-h-11 w-full cursor-pointer rounded-lg border border-ipn/30 bg-white px-5 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {pending ? "Saving…" : "Save draft"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleSubmit("published")}
+                disabled={pending}
+                className="min-h-11 w-full cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {pending ? "Saving…" : isPublishedConference ? "Save changes" : "Publish conference"}
+              </button>
+            </div>
+          </div>
         </>
       )}
       {publishConfirmation && (
         <ConferencePublishConfirmation
           conferenceName={f.name.trim() || "this conference"}
           emailPreviews={publishConfirmation.emailPreviews}
+          isUpdate={isPublishedConference}
           onBack={closePublishConfirmation}
           onConfirm={confirmPublish}
         />
@@ -2174,7 +2207,7 @@ export default function ContentIntakeForm() {
       if (result.error) {
         setErrorMsg(result.error)
       } else {
-        setSuccessMsg(`Published: ${result.slug}`)
+        setSuccessMsg(payload.status === "draft" ? `Draft saved: ${result.slug}` : `Saved: ${result.slug}`)
         await loadData()
         setView("list")
       }

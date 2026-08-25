@@ -60,6 +60,7 @@ export type ConferenceAttendee = DirectoryMember
 
 export type PastConferenceRecord = {
   id: string
+  slug?: string | null
   name: string
   organizer: string | null
   category: string | null

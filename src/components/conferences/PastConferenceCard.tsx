@@ -1,3 +1,4 @@
+import Link from "next/link"
 import ConferenceCover from "@/components/conferences/ConferenceCover"
 import type { PastConferenceRecord } from "@/lib/conferences/types"
 
@@ -69,6 +70,13 @@ export default function PastConferenceCard({
             View & share photos
             <ExternalLinkIcon />
           </a>
+        ) : conference.slug && !preview ? (
+          <Link
+            href={`/dashboard/conferences/${conference.slug}`}
+            className="inline-flex min-h-11 items-center rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-ipn/30 hover:text-ipn sm:min-h-0"
+          >
+            View conference details
+          </Link>
         ) : (
           <span className="inline-flex min-h-11 items-center rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-600 sm:min-h-0">
             Photos coming soon
