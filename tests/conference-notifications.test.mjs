@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { conferenceNotificationChanges } from "../src/lib/conferences/notification-diff.ts"
+import { conferenceNotificationMessage } from "../src/lib/conferences/notification-copy.ts"
 
 const meetup = (id, title = id) => ({ id, title })
 const discount = (id, label = id) => ({ id, label })
@@ -95,4 +96,22 @@ test("draft and archived saves never queue member announcements", () => {
     assert.deepEqual(changes.addedMeetups, [])
     assert.deepEqual(changes.addedDiscounts, [])
   }
+})
+
+test("custom alert copy overrides the portal description", () => {
+  assert.equal(
+    conferenceNotificationMessage(
+      "  Look for the purple lanyard.  ",
+      "Portal meetup description",
+    ),
+    "Look for the purple lanyard.",
+  )
+})
+
+test("the portal description is the fallback when custom alert copy is blank", () => {
+  assert.equal(
+    conferenceNotificationMessage("   ", "  Portal meetup description  "),
+    "Portal meetup description",
+  )
+  assert.equal(conferenceNotificationMessage(null, null), null)
 })

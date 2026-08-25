@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto"
 import { Resend } from "resend"
-import { formatConferenceDateRange, formatMeetupDateTime } from "@/lib/conferences/format"
-import type {
-  ConferenceDiscount,
-  ConferenceMeetup,
-  ConferenceRecord,
-} from "@/lib/conferences/types"
+import type { ConferenceDiscount, ConferenceMeetup, ConferenceRecord } from "@/lib/conferences/types"
 import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
+import {
+  buildConferenceDiscountEmailContent,
+  buildConferenceMeetupEmailContent,
+  buildNewConferenceEmailContent,
+} from "@/lib/member-notifications/conference-email-content"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { sendOpsAlert } from "@/lib/slack/ops-alert"
 
@@ -324,47 +324,15 @@ function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
   }
 }
 
-function conferenceLocation(conference: ConferenceRecord) {
-  return [conference.venue, conference.city, conference.state, conference.country]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(", ") || "Location to be announced"
-}
-
 function newConferenceEmail(
   conference: ConferenceRecord,
   recipient: ProfileRow,
 ): EmailContent {
-  return {
-    subject: `New conference opportunity: ${conference.name}`,
-    preview: `${conference.name} is now in the IPN Member Portal.`,
-    greeting: `Hi ${firstName(recipient)},`,
-    body: [
-      "We just added a new conference opportunity to the IPN Member Portal.",
-    ],
-    details: [
-      { label: "Conference", value: conference.name },
-      {
-        label: "When",
-        value: formatConferenceDateRange(
-          conference.starts_at,
-          conference.ends_at,
-          conference.timezone,
-        ),
-      },
-      { label: "Where", value: conferenceLocation(conference) },
-      ...(conference.organizer
-        ? [{ label: "Organizer", value: conference.organizer }]
-        : []),
-    ],
-    afterDetails: [
-      "Open the portal to learn why this conference may be worth attending, see available IPN member discounts and meetups, and find other members who plan to go.",
-    ],
-    buttonLabel: "View conference",
-    buttonUrl: conferenceUrl(conference),
-    receiptReason:
-      "You are receiving this because you have an IPN Member Portal account.",
-  }
+  return buildNewConferenceEmailContent(
+    conference,
+    firstName(recipient),
+    conferenceUrl(conference),
+  )
 }
 
 function conferenceMeetupEmail(
@@ -372,30 +340,12 @@ function conferenceMeetupEmail(
   meetup: ConferenceMeetup,
   recipient: ProfileRow,
 ): EmailContent {
-  return {
-    subject: `New IPN meetup at ${conference.name}`,
-    preview: `${meetup.title} has been added to ${conference.name}.`,
-    greeting: `Hi ${firstName(recipient)},`,
-    body: [
-      `IPN just added a new member meetup during ${conference.name}.`,
-    ],
-    details: [
-      { label: "Meetup", value: meetup.title },
-      {
-        label: "When",
-        value: formatMeetupDateTime(meetup.startsAt, conference.timezone),
-      },
-      { label: "Where", value: meetup.location ?? "Location to be announced" },
-    ],
-    afterDetails: [
-      ...(meetup.description ? [meetup.description] : []),
-      "Open the conference page to learn more, tell other members you’re going, and RSVP to the meetup.",
-    ],
-    buttonLabel: "View meetup",
-    buttonUrl: conferenceUrl(conference),
-    receiptReason:
-      "You are receiving this because you have an IPN Member Portal account.",
-  }
+  return buildConferenceMeetupEmailContent(
+    conference,
+    meetup,
+    firstName(recipient),
+    conferenceUrl(conference),
+  )
 }
 
 function conferenceDiscountEmail(
@@ -403,39 +353,12 @@ function conferenceDiscountEmail(
   discount: ConferenceDiscount,
   recipient: ProfileRow,
 ): EmailContent {
-  const expires = discount.expiresAt
-    ? new Intl.DateTimeFormat("en", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: conference.timezone,
-      }).format(new Date(discount.expiresAt))
-    : null
-
-  return {
-    subject: `New IPN member discount for ${conference.name}`,
-    preview: `${discount.label} is now available to IPN members.`,
-    greeting: `Hi ${firstName(recipient)},`,
-    body: [
-      `A new member discount is now available for ${conference.name}.`,
-    ],
-    details: [
-      { label: "Discount", value: discount.label },
-      ...(discount.code ? [{ label: "Code", value: discount.code }] : []),
-      ...(expires ? [{ label: "Expires", value: expires }] : []),
-    ],
-    afterDetails: [
-      ...(discount.description ? [discount.description] : []),
-      ...(discount.howToApply
-        ? [`How to apply: ${discount.howToApply}`]
-        : []),
-      "Open the conference page to see the complete offer and registration details.",
-    ],
-    buttonLabel: "View member discount",
-    buttonUrl: conferenceUrl(conference),
-    receiptReason:
-      "You are receiving this because you have an IPN Member Portal account.",
-  }
+  return buildConferenceDiscountEmailContent(
+    conference,
+    discount,
+    firstName(recipient),
+    conferenceUrl(conference),
+  )
 }
 
 function connectionRequestEmail(

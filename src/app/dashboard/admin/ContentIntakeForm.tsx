@@ -32,6 +32,13 @@ import type {
 } from "@/lib/admin/conference-actions"
 import type { EventSpeakerLinkType } from "@/lib/events/types"
 import type { ConferenceCategory, ConferenceRecord, ConferenceStatus, PastConferenceRecord } from "@/lib/conferences/types"
+import { toIsoInTimeZone } from "@/lib/admin/content-utils"
+import {
+  buildConferenceDiscountEmailContent,
+  buildConferenceMeetupEmailContent,
+  buildNewConferenceEmailContent,
+} from "@/lib/member-notifications/conference-email-content"
+import type { ConferenceEmailContent } from "@/lib/member-notifications/conference-email-content"
 
 // ─── Speaker & materials form types ──────────────────────────────────────────
 
@@ -752,8 +759,8 @@ function ResourceForm({ initial, onSubmit, pending }: {
 
 // ─── Conference form (4 steps) ────────────────────────────────────────────────
 
-type ConferenceMeetupRow = { id?: string; title: string; type: string; startsAt: string; location: string; description: string }
-type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; howToApply: string; expiresAt: string }
+type ConferenceMeetupRow = { id?: string; title: string; type: string; startsAt: string; location: string; description: string; notificationMessage: string }
+type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; notificationMessage: string; howToApply: string; expiresAt: string }
 
 type ConferenceFields = {
   name: string; organizer: string; category: ConferenceCategory
@@ -779,6 +786,126 @@ const CONFERENCE_DEFAULTS: ConferenceFields = {
 const CONFERENCE_CATEGORIES: ConferenceCategory[] = ["Academic", "Industry", "Community", "Harm Reduction"]
 const CONFERENCE_STATUSES: ConferenceStatus[] = ["draft", "published", "archived"]
 
+function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | null {
+  const timezone = fields.timezone || "America/New_York"
+  const startsAt = toIsoInTimeZone(fields.startsAt, timezone)
+  const endsAt = toIsoInTimeZone(fields.endsAt, timezone)
+  if (!startsAt || !endsAt || !fields.name.trim()) return null
+
+  return {
+    id: "preview",
+    slug: fields.slug.trim() || "conference-preview",
+    name: fields.name.trim(),
+    organizer: fields.organizer.trim() || null,
+    category: fields.category,
+    summary: fields.summary.trim() || null,
+    description: fields.description.trim() || null,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    timezone,
+    city: fields.city.trim() || null,
+    state: fields.state.trim() || null,
+    country: fields.country.trim() || null,
+    venue: fields.venue.trim() || null,
+    website_url: fields.websiteUrl.trim() || null,
+    registration_url: fields.registrationUrl.trim() || null,
+    whatsapp_url: fields.whatsappUrl.trim() || null,
+    meetups: fields.meetups
+      .filter((meetup) => meetup.title.trim())
+      .map((meetup, index) => ({
+        id: meetup.id ?? `preview-meetup-${index}`,
+        title: meetup.title.trim(),
+        type: meetup.type.trim() || "IPN Meetup",
+        startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
+        location: meetup.location.trim() || null,
+        description: meetup.description.trim() || null,
+        notificationMessage: meetup.notificationMessage.trim() || null,
+      })),
+    discounts: fields.discounts
+      .filter((discount) => discount.label.trim())
+      .map((discount, index) => ({
+        id: discount.id ?? `preview-discount-${index}`,
+        label: discount.label.trim(),
+        code: discount.code.trim() || null,
+        url: discount.url.trim() || null,
+        description: discount.description.trim() || null,
+        notificationMessage: discount.notificationMessage.trim() || null,
+        howToApply: discount.howToApply.trim() || null,
+        expiresAt: toIsoInTimeZone(discount.expiresAt, timezone),
+      })),
+    rsvp_count: 0,
+    status: fields.status,
+  }
+}
+
+function conferenceEmailPreviews(
+  fields: ConferenceFields,
+  initialStatus: ConferenceStatus | undefined,
+) {
+  if (fields.status !== "published") return []
+  const conference = conferencePreviewRecord(fields)
+  if (!conference) return []
+  const buttonUrl = `https://members.intercollegiatepsychedelics.net/dashboard/conferences/${encodeURIComponent(conference.slug)}`
+
+  if (initialStatus !== "published") {
+    return [{
+      label: "New conference announcement",
+      content: buildNewConferenceEmailContent(conference, "Member", buttonUrl),
+    }]
+  }
+
+  return [
+    ...conference.meetups
+      .filter((meetup) => meetup.id.startsWith("preview-meetup-"))
+      .map((meetup) => ({
+        label: `Meetup alert · ${meetup.title}`,
+        content: buildConferenceMeetupEmailContent(conference, meetup, "Member", buttonUrl),
+      })),
+    ...conference.discounts
+      .filter((discount) => discount.id.startsWith("preview-discount-"))
+      .map((discount) => ({
+        label: `Discount alert · ${discount.label}`,
+        content: buildConferenceDiscountEmailContent(conference, discount, "Member", buttonUrl),
+      })),
+  ]
+}
+
+function ConferenceEmailPreview({ label, content }: { label: string; content: ConferenceEmailContent }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#d9d0e8] bg-white shadow-sm">
+      <div className="border-b border-[#e8e2f0] bg-[#f7f4fb] px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7559a3]">{label}</p>
+        <p className="mt-1 text-sm font-semibold text-zinc-900">{content.subject}</p>
+        <p className="mt-0.5 text-xs text-zinc-500">Preview text: {content.preview}</p>
+      </div>
+      <div className="space-y-4 px-4 py-5 text-sm leading-6 text-zinc-700 sm:px-6">
+        <p>{content.greeting}</p>
+        {content.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        {content.details?.length ? (
+          <dl className="space-y-2 border-y border-zinc-100 py-4">
+            {content.details.map((detail) => (
+              <div key={detail.label} className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2">
+                <dt className="font-semibold text-zinc-800">{detail.label}:</dt>
+                <dd>{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {content.afterDetails?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        <span className="inline-flex min-h-11 items-center rounded-lg bg-[#5b3f8c] px-4 font-semibold text-white">
+          {content.buttonLabel}
+        </span>
+        {content.closing?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        <div>
+          <p>Sincerely,</p>
+          <p>The IPN Team</p>
+        </div>
+        <p className="border-t border-zinc-100 pt-4 text-xs leading-5 text-zinc-500">{content.receiptReason}</p>
+      </div>
+    </section>
+  )
+}
+
 function ConferenceForm({ initial, onSubmit, pending }: {
   initial?: Partial<ConferenceFields>
   onSubmit: (p: Omit<AdminConferencePayload, "id">) => void
@@ -787,6 +914,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
   const [step, setStep] = useState(1)
   const [f, setF] = useState<ConferenceFields>({ ...CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const emailPreviews = conferenceEmailPreviews(f, initial?.status)
 
   function set<K extends keyof ConferenceFields>(key: K, value: ConferenceFields[K]) {
     setF((prev) => ({ ...prev, [key]: value }))
@@ -812,6 +940,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
         startsAt: m.startsAt,
         location: m.location.trim() || undefined,
         description: m.description.trim() || undefined,
+        notificationMessage: m.notificationMessage.trim() || undefined,
       }))
     const discounts: AdminConferenceDiscountInput[] = f.discounts
       .filter((d) => d.label.trim())
@@ -821,6 +950,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
         code: d.code.trim() || undefined,
         url: d.url.trim() || undefined,
         description: d.description.trim() || undefined,
+        notificationMessage: d.notificationMessage.trim() || undefined,
         howToApply: d.howToApply.trim() || undefined,
         expiresAt: d.expiresAt || undefined,
       }))
@@ -967,10 +1097,13 @@ function ConferenceForm({ initial, onSubmit, pending }: {
                     <input value={meetup.location} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], location: e.target.value }; set("meetups", next) }} placeholder="Location (e.g. Hotel poolside bar)" className={inputCls()} />
                   </div>
                   <input value={meetup.description} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], description: e.target.value }; set("meetups", next) }} placeholder="Description (optional)" className={inputCls()} />
+                  <Field label="Email message" hint="Optional. Written only for the member alert; if blank, the description above is used.">
+                    <textarea value={meetup.notificationMessage} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], notificationMessage: e.target.value }; set("meetups", next) }} rows={3} placeholder="Join fellow IPN members for a casual meetup during the conference. Look for the purple lanyard." className={inputCls()} />
+                  </Field>
                 </div>
               ))}
               <p className="text-[11px] text-zinc-400">Members RSVP to meetups in-app — no registration link needed.</p>
-              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", type: "IPN Meetup", startsAt: "", location: "", description: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", type: "IPN Meetup", startsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add meetup
               </button>
             </div>
@@ -987,15 +1120,42 @@ function ConferenceForm({ initial, onSubmit, pending }: {
                   </div>
                   <input value={discount.url} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], url: e.target.value }; set("discounts", next) }} placeholder="URL (optional)" className={inputCls()} />
                   <input value={discount.description} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], description: e.target.value }; set("discounts", next) }} placeholder="Description (optional)" className={inputCls()} />
+                  <Field label="Email message" hint="Optional. Written only for the member alert; if blank, the description above is used.">
+                    <textarea value={discount.notificationMessage} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], notificationMessage: e.target.value }; set("discounts", next) }} rows={3} placeholder="IPN members can now save on conference registration. Use the member code before the deadline." className={inputCls()} />
+                  </Field>
                   <input value={discount.howToApply} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], howToApply: e.target.value }; set("discounts", next) }} placeholder="How to apply (e.g. 'Enter code at checkout')" className={inputCls()} />
                   <Field label="Expires" hint="Optional">
                     <input type="datetime-local" value={discount.expiresAt} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], expiresAt: e.target.value }; set("discounts", next) }} className={inputCls()} />
                   </Field>
                 </div>
               ))}
-              <button type="button" onClick={() => set("discounts", [...f.discounts, { label: "", code: "", url: "", description: "", howToApply: "", expiresAt: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <button type="button" onClick={() => set("discounts", [...f.discounts, { label: "", code: "", url: "", description: "", notificationMessage: "", howToApply: "", expiresAt: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add discount
               </button>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-zinc-200 pt-6">
+              <div>
+                <p className="text-xs font-semibold text-zinc-700">Member email preview</p>
+                <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                  This uses the same content builder as the delivered email. The greeting is personalized for each recipient.
+                </p>
+              </div>
+              {f.status !== "published" ? (
+                <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+                  No member email will be queued while this conference is {f.status}.
+                </p>
+              ) : emailPreviews.length ? (
+                <div className="flex flex-col gap-4">
+                  {emailPreviews.map((preview) => (
+                    <ConferenceEmailPreview key={preview.label} {...preview} />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+                  This update will not queue a new member email. Add a meetup or discount to preview its follow-up alert.
+                </p>
+              )}
             </div>
           </div>
           <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
@@ -1202,10 +1362,12 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
     meetups: c.meetups.map((m) => ({
       id: m.id, title: m.title, type: m.type, startsAt: isoToLocal(m.startsAt, timezone),
       location: m.location ?? "", description: m.description ?? "",
+      notificationMessage: m.notificationMessage ?? "",
     })),
     discounts: c.discounts.map((d) => ({
       id: d.id, label: d.label, code: d.code ?? "", url: d.url ?? "",
-      description: d.description ?? "", howToApply: d.howToApply ?? "",
+      description: d.description ?? "", notificationMessage: d.notificationMessage ?? "",
+      howToApply: d.howToApply ?? "",
       expiresAt: d.expiresAt ? isoToLocal(d.expiresAt, timezone) : "",
     })),
   }

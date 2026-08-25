@@ -27,6 +27,7 @@ export type AdminConferenceMeetupInput = {
   startsAt: string
   location?: string
   description?: string
+  notificationMessage?: string
 }
 
 export type AdminConferenceDiscountInput = {
@@ -35,6 +36,7 @@ export type AdminConferenceDiscountInput = {
   code?: string
   url?: string
   description?: string
+  notificationMessage?: string
   howToApply?: string
   expiresAt?: string
 }
@@ -122,6 +124,7 @@ export async function publishAdminConference(
       startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
       location: clean(meetup.location),
       description: clean(meetup.description),
+      notificationMessage: clean(meetup.notificationMessage),
     }))
 
   const discounts: ConferenceDiscount[] = payload.discounts
@@ -132,6 +135,7 @@ export async function publishAdminConference(
       code: clean(discount.code),
       url: clean(discount.url),
       description: clean(discount.description),
+      notificationMessage: clean(discount.notificationMessage),
       howToApply: clean(discount.howToApply),
       expiresAt: toIsoInTimeZone(discount.expiresAt, timezone),
     }))

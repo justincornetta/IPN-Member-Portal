@@ -13,6 +13,7 @@ export type ConferenceMeetup = {
   startsAt: string
   location: string | null
   description: string | null
+  notificationMessage?: string | null
 }
 
 export type ConferenceDiscount = {
@@ -21,6 +22,7 @@ export type ConferenceDiscount = {
   code: string | null
   url: string | null
   description: string | null
+  notificationMessage?: string | null
   howToApply: string | null
   expiresAt: string | null
 }
