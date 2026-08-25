@@ -1,13 +1,16 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { onboardingFoundationAdapter } from "./foundation-adapter"
 import { whatsappChannels } from "./channels"
 import type { WhatsAppChannelId } from "./types"
 import styles from "./onboarding.module.css"
 
-type RevealState = "idle" | "loading" | "revealed" | "error"
+type QrState =
+  | { status: "loading" }
+  | { status: "ready"; imageSrc: string }
+  | { status: "error" }
 
 function ChannelIcon({ id }: { id: WhatsAppChannelId }) {
   return (
@@ -21,16 +24,37 @@ function ChannelIcon({ id }: { id: WhatsAppChannelId }) {
 
 export function WhatsAppLanding() {
   const [selectedId, setSelectedId] = useState<WhatsAppChannelId>("general")
-  const [revealState, setRevealState] = useState<RevealState>("idle")
-  const [revealedChannelId, setRevealedChannelId] = useState<WhatsAppChannelId | null>(null)
-  const [mobileLoadingId, setMobileLoadingId] = useState<WhatsAppChannelId | null>(null)
-  const [mobileErrorId, setMobileErrorId] = useState<WhatsAppChannelId | null>(null)
+  const [joiningId, setJoiningId] = useState<WhatsAppChannelId | null>(null)
+  const [joinErrorId, setJoinErrorId] = useState<WhatsAppChannelId | null>(null)
+  const [qrState, setQrState] = useState<QrState>({ status: "loading" })
   const selected = whatsappChannels.find((channel) => channel.id === selectedId)!
 
+  useEffect(() => {
+    let active = true
+
+    onboardingFoundationAdapter
+      .resolveWhatsAppQrTarget({
+        kind: "permanent",
+        slug: selectedId,
+        source: "onboarding",
+        surface: "desktop_qr_scan",
+      })
+      .then((target) => {
+        if (active) setQrState({ status: "ready", imageSrc: target.imageSrc })
+      })
+      .catch(() => {
+        if (active) setQrState({ status: "error" })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedId])
+
   function selectChannel(id: WhatsAppChannelId) {
+    setQrState({ status: "loading" })
     setSelectedId(id)
-    setRevealState("idle")
-    setRevealedChannelId(null)
+    setJoinErrorId(null)
   }
 
   function handleChannelKeyDown(
@@ -46,45 +70,27 @@ export function WhatsAppLanding() {
     radios?.[nextIndex]?.focus()
   }
 
-  async function revealQr() {
-    const requestedChannelId = selected.id
-    setRevealState("loading")
-    setRevealedChannelId(null)
-    try {
-      const result = await onboardingFoundationAdapter.recordWhatsAppJoinIntent({
-        channel: requestedChannelId,
-        source: "onboarding",
-        surface: "desktop_qr",
-      })
-      if (!result.accepted) throw new Error("Intent was not accepted")
-      setRevealedChannelId(requestedChannelId)
-      setRevealState("revealed")
-    } catch {
-      setRevealState("error")
-    }
-  }
-
-  async function handleMobileJoin(
+  async function handleJoin(
     event: React.MouseEvent<HTMLAnchorElement>,
     id: WhatsAppChannelId,
-    redirectPath: string,
+    surface: "desktop_direct" | "mobile_direct",
   ) {
     event.preventDefault()
-    if (mobileLoadingId !== null) return
-    setMobileLoadingId(id)
-    setMobileErrorId(null)
+    if (joiningId !== null) return
+    setJoiningId(id)
+    setJoinErrorId(null)
 
     try {
-      const result = await onboardingFoundationAdapter.recordWhatsAppJoinIntent({
-        channel: id,
+      const result = await onboardingFoundationAdapter.issueWhatsAppHandoff({
+        kind: "permanent",
+        slug: id,
         source: "onboarding",
-        surface: "mobile_direct",
+        surface,
       })
-      if (!result.accepted) throw new Error("Intent was not accepted")
-      window.location.assign(redirectPath)
+      window.location.assign(result.handoffPath)
     } catch {
-      setMobileLoadingId(null)
-      setMobileErrorId(id)
+      setJoiningId(null)
+      setJoinErrorId(id)
     }
   }
 
@@ -95,7 +101,7 @@ export function WhatsAppLanding() {
         <h1>Connect with IPN on WhatsApp</h1>
         <p>
           IPN uses WhatsApp for everyday community conversation, ongoing
-          programs, conference coordination, and time-limited event chats.
+          programs, conference coordination, and event-specific chats.
         </p>
       </div>
 
@@ -122,7 +128,7 @@ export function WhatsAppLanding() {
                   role="radio"
                   aria-checked={isSelected}
                   tabIndex={isSelected ? 0 : -1}
-                  disabled={revealState === "loading"}
+                  disabled={joiningId !== null}
                   className={`${styles.channelChoice} ${isSelected ? styles.channelChoiceSelected : ""} ${channel.recommended ? styles.channelChoiceFeatured : ""}`}
                   onClick={() => selectChannel(channel.id)}
                   onKeyDown={(event) => handleChannelKeyDown(event, index)}
@@ -155,25 +161,27 @@ export function WhatsAppLanding() {
               <div><span>Selected channel</span><strong>{selected.name}</strong></div>
             </div>
 
-            {revealState === "revealed" && revealedChannelId === selected.id ? (
-              <>
-                <div className={styles.qrFrame}>
-                  <Image src={selected.qrAsset} alt={`QR code for the IPN ${selected.name} WhatsApp channel`} width={244} height={244} />
-                </div>
-                <p className={styles.qrHelp}>Scan with your phone. Portal login is not required on the scanning device.</p>
-                <a className={styles.primaryAction} href={selected.redirectPath}>Open {selected.shortName} on this device</a>
-              </>
-            ) : (
-              <div className={styles.qrPrompt}>
-                <div className={styles.qrPlaceholder} aria-hidden="true"><span /><span /><span /></div>
-                <p>Reveal a QR code to join <strong>{selected.name}</strong> from your phone.</p>
-                <button className={styles.primaryAction} type="button" onClick={revealQr} disabled={revealState === "loading"}>
-                  {revealState === "loading" ? "Recording your choice…" : `Show ${selected.shortName} QR`}
-                </button>
-                {revealState === "error" && (
-                  <p className={styles.errorMessage} role="alert">Your choice could not be recorded. Try again to reveal the QR.</p>
-                )}
-              </div>
+            <div className={styles.qrFrame}>
+              {qrState.status === "ready" ? (
+                <Image src={qrState.imageSrc} alt={`QR code for the IPN ${selected.name} WhatsApp channel`} width={244} height={244} loading="eager" />
+              ) : qrState.status === "error" ? (
+                <p className={styles.qrStatus} role="alert">The QR code could not be loaded.</p>
+              ) : (
+                <p className={styles.qrStatus}>Loading QR code…</p>
+              )}
+            </div>
+            <p className={styles.qrHelp}>Scan with your phone, or join from this device.</p>
+            <a
+              className={styles.primaryAction}
+              href={selected.redirectPath}
+              aria-label={`Join ${selected.name} channel on this device`}
+              aria-disabled={joiningId !== null}
+              onClick={(event) => handleJoin(event, selected.id, "desktop_direct")}
+            >
+              {joiningId === selected.id ? "Opening channel…" : "Join channel on this device"}
+            </a>
+            {joinErrorId === selected.id && (
+              <p className={styles.errorMessage} role="alert">The channel could not be opened. Try again.</p>
             )}
           </div>
         </div>
@@ -188,14 +196,15 @@ export function WhatsAppLanding() {
               <p>{channel.description}</p>
               <a
                 href={channel.redirectPath}
-                aria-disabled={mobileLoadingId !== null}
-                onClick={(event) => handleMobileJoin(event, channel.id, channel.redirectPath)}
+                aria-label={`Join ${channel.name} channel on this device`}
+                aria-disabled={joiningId !== null}
+                onClick={(event) => handleJoin(event, channel.id, "mobile_direct")}
               >
-                {mobileLoadingId === channel.id ? "Recording your choice…" : `Join ${channel.shortName}`}
-                {mobileLoadingId !== channel.id && <span aria-hidden="true"> →</span>}
+                {joiningId === channel.id ? "Opening channel…" : "Join channel on this device"}
+                {joiningId !== channel.id && <span aria-hidden="true"> →</span>}
               </a>
-              {mobileErrorId === channel.id && (
-                <p className={styles.mobileError} role="alert">Your choice could not be recorded. Try again.</p>
+              {joinErrorId === channel.id && (
+                <p className={styles.mobileError} role="alert">The channel could not be opened. Try again.</p>
               )}
             </article>
           ))}

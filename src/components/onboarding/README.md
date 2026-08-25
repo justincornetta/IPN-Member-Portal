@@ -6,35 +6,52 @@ analytics, Supabase, or Resend modules.
 
 ## Foundation adapter
 
-`foundation-adapter.ts` currently provides an asynchronous browser fixture. The
-foundation task should replace its body with an authenticated mutation matching
-`OnboardingFoundationAdapter` in `types.ts`:
+`foundation-adapter.ts` currently provides an asynchronous browser fixture. At
+integration, replace `issueWhatsAppHandoff()` with the definitive foundation
+client and keep the `OnboardingFoundationAdapter` seam in `types.ts`:
 
 ```ts
-recordWhatsAppJoinIntent({
-  channel: "general" | "labs" | "conferences",
+issueWhatsAppHandoff({
+  kind: "permanent",
+  slug: "general" | "labs" | "conferences",
   source: "onboarding",
-  surface: "desktop_qr" | "mobile_direct",
-}): Promise<{ accepted: boolean; intentId?: string }>
+  surface: "desktop_qr_scan" | "desktop_direct" | "mobile_direct",
+  sessionId,
+}): Promise<{ handoffPath: string; expiresAt: string; channel: object }>
+
+resolveWhatsAppQrTarget({
+  kind: "permanent",
+  slug: "general" | "labs" | "conferences",
+  source: "onboarding",
+  surface: "desktop_qr_scan",
+  sessionId,
+}): Promise<{ imageSrc: string; handoffPath: string; expiresAt: string }>
 ```
 
-Desktop must await `accepted: true` before revealing a QR. The event means that
-an authenticated member expressed join intent; it does not mean the QR was
-scanned or that WhatsApp membership was verified.
+By user direction, desktop shows the selected channel QR immediately. The
+authenticated adapter issues a short-lived handoff automatically for the QR or
+when a member chooses the same-device action. Issuance is not join intent. The
+public `/go` route records intent only when the handoff is consumed; neither
+that redirect nor a QR scan proves WhatsApp membership.
+
+`resolveWhatsAppQrTarget()` currently returns the deterministic local fixture
+for the selected channel. Integration should wrap the foundation client, turn
+the absolute one-time `handoffPath` into a replaceable QR image, and refresh it
+before `expiresAt`. The QR must remain scan-safe without portal auth, and the UI
+must continue to load it automatically without adding a reveal step.
 
 ## Redirect contract
 
-Presentational components use only these first-party paths:
+Channel metadata retains these tokenless paths only as compatibility hrefs:
 
 - `/go/whatsapp/general?source=onboarding`
 - `/go/whatsapp/labs?source=onboarding`
 - `/go/whatsapp/conferences?source=onboarding`
 
-The foundation task owns those redirects, their invite configuration, and
-redirect analytics. They must remain usable without portal authentication so a
-different phone can scan a desktop QR without receiving a surprise login page.
-Static QR assets encode the production origin plus these paths and therefore do
-not contain direct WhatsApp invite links.
+The interactive UI must navigate to the one-time `handoffPath` returned by the
+foundation client. This branch deliberately contains no `/go` implementation;
+the foundation owns the authenticated issuance endpoint, public scan-safe
+handoff, server-only invites, intent recording, and redirect analytics.
 
 Temporary event chats are supplied later through an RSVP-gated collection. The
 current UI renders the empty-state contract and makes no temporary chats
@@ -49,6 +66,7 @@ only, selective node/arc glow, and no text, logo, UI, people, mushrooms, green,
 teal, or watermark. The official, unmodified logo source is copied to
 `public/onboarding/ipn-logo.png`.
 
-The three deterministic SVG QR assets encode the production member-portal
-origin plus the corresponding first-party redirect path above. They are not
-generated from direct WhatsApp invite URLs.
+The three deterministic SVG QR assets are UI-only fixtures that encode the
+production member-portal tokenless compatibility paths. Integration replaces
+them through `resolveWhatsAppQrTarget()` with dynamic one-time handoff QR
+images. They do not contain direct WhatsApp invite URLs.

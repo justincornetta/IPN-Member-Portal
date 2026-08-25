@@ -6,21 +6,48 @@ export type WhatsAppChannel = {
   shortName: string
   description: string
   redirectPath: `/go/whatsapp/${WhatsAppChannelId}?source=onboarding`
-  qrAsset: `/onboarding/qr-${WhatsAppChannelId}.svg`
   recommended?: boolean
 }
 
-export type JoinIntentInput = {
-  channel: WhatsAppChannelId
+export type WhatsAppHandoffSurface =
+  | "desktop_qr_scan"
+  | "desktop_direct"
+  | "mobile_direct"
+
+export type WhatsAppHandoffInput = {
+  kind: "permanent"
+  slug: WhatsAppChannelId
   source: "onboarding"
-  surface: "desktop_qr" | "mobile_direct"
+  surface: WhatsAppHandoffSurface
+  sessionId?: string | null
 }
 
-export type JoinIntentResult = {
-  accepted: boolean
-  intentId?: string
+export type WhatsAppHandoffResult = {
+  handoffPath: string
+  expiresAt: string
+  channel: {
+    kind: "permanent"
+    slug: WhatsAppChannelId
+    label: string
+    featured: boolean
+  }
+}
+
+export type QrTargetInput = {
+  kind: "permanent"
+  slug: WhatsAppChannelId
+  source: "onboarding"
+  surface: "desktop_qr_scan"
+  sessionId?: string | null
+}
+
+export type QrTargetResult = {
+  imageSrc: string
+  handoffPath: string
+  expiresAt: string
 }
 
 export type OnboardingFoundationAdapter = {
-  recordWhatsAppJoinIntent(input: JoinIntentInput): Promise<JoinIntentResult>
+  issueWhatsAppHandoff(input: WhatsAppHandoffInput): Promise<WhatsAppHandoffResult>
+  resolveWhatsAppQrTarget(input: QrTargetInput): Promise<QrTargetResult>
 }

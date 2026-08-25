@@ -8,7 +8,6 @@ export const whatsappChannels: WhatsAppChannel[] = [
     description:
       "Introductions, questions, opportunities, and everyday community conversation.",
     redirectPath: "/go/whatsapp/general?source=onboarding",
-    qrAsset: "/onboarding/qr-general.svg",
     recommended: true,
   },
   {
@@ -18,7 +17,6 @@ export const whatsappChannels: WhatsAppChannel[] = [
     description:
       "A permanent, ongoing conversation for the IPN Labs seminar series.",
     redirectPath: "/go/whatsapp/labs?source=onboarding",
-    qrAsset: "/onboarding/qr-labs.svg",
   },
   {
     id: "conferences",
@@ -27,6 +25,5 @@ export const whatsappChannels: WhatsAppChannel[] = [
     description:
       "A permanent channel for conference planning, meetups, and connection.",
     redirectPath: "/go/whatsapp/conferences?source=onboarding",
-    qrAsset: "/onboarding/qr-conferences.svg",
   },
 ]

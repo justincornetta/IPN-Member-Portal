@@ -226,10 +226,10 @@
 .backLink { color: #d8cbed; font-size: 14px; text-decoration: none; }
 .backLink:hover { color: white; }
 .whatsappLayout { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); margin-top: clamp(8px, 1.5vh, 14px); }
-.whatsappIntro { display: grid; max-width: none; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); grid-template-rows: auto auto; align-items: end; gap: 2px 30px; }
-.whatsappIntro .eyebrow { grid-column: 1; }
-.whatsappIntro h1 { grid-column: 1; font-size: clamp(32px, 4.3vw, 48px); }
-.whatsappIntro > p:last-child { grid-column: 2; grid-row: 1 / span 2; max-width: 520px; margin: 0; color: #d8cbed; font-size: clamp(13px, 1.25vw, 16px); line-height: 1.45; }
+.whatsappIntro { max-width: 760px; }
+.whatsappIntro .eyebrow { margin-bottom: 6px; }
+.whatsappIntro h1 { font-size: clamp(32px, 4.3vw, 48px); }
+.whatsappIntro > p:last-child { max-width: 720px; margin: 10px 0 0; color: #d8cbed; font-size: clamp(13px, 1.25vw, 16px); line-height: 1.42; }
 
 .channelPanel {
   display: grid;
@@ -248,8 +248,8 @@
 .announcementNote { max-width: 380px; margin: 0; color: var(--muted); font-size: clamp(10px, 1vw, 12px); line-height: 1.4; }
 .announcementNote span { margin-right: 7px; color: var(--violet); }
 
-.desktopChannels { display: grid; min-height: 0; grid-template-columns: minmax(0, 1.32fr) minmax(260px, .78fr); gap: clamp(10px, 1.3vw, 16px); margin-top: clamp(8px, 1.3vh, 12px); }
-.channelList { display: grid; min-height: 0; grid-template-rows: repeat(3, minmax(0, 1fr)) auto; gap: 6px; }
+.desktopChannels { display: grid; min-height: 0; grid-template-columns: minmax(0, 1.32fr) minmax(260px, .78fr); align-items: stretch; gap: clamp(10px, 1.3vw, 16px); margin-top: clamp(8px, 1.3vh, 12px); }
+.channelList { display: grid; min-height: 0; grid-template-rows: repeat(3, auto) auto; align-content: start; gap: 7px; }
 .channelChoice {
   position: relative;
   display: flex;
@@ -257,7 +257,7 @@
   min-height: 0;
   align-items: center;
   gap: 11px;
-  padding: 9px 11px;
+  padding: 8px 11px;
   border: 1px solid var(--border);
   border-radius: 15px;
   background: white;
@@ -277,28 +277,23 @@
 .recommended { display: inline-flex; width: max-content; border-radius: 999px; background: var(--lavender); color: var(--purple); padding: 4px 8px; font-family: var(--font-geist-mono), monospace; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .selectionMark { color: var(--violet); font-size: 16px; }
 
-.eventEmptyState { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 7px 11px; border: 1px dashed #ccbce1; border-radius: 12px; background: var(--paper); color: var(--muted); }
+.eventEmptyState { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 11px; border: 1px dashed #ccbce1; border-radius: 12px; background: var(--paper); color: var(--muted); }
 .eventIcon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 11px; background: var(--lavender); color: var(--purple); }
 .eventEmptyState span:last-child { display: grid; gap: 3px; }
 .eventEmptyState strong { color: var(--ink); font-size: 13px; }
 .eventEmptyState small { font-size: 12px; }
 
-.qrStage { display: flex; min-height: 0; flex-direction: column; align-items: center; padding: clamp(10px, 1.5vh, 16px); border: 1px solid var(--border); border-radius: 15px; background: linear-gradient(180deg, #fff, var(--paper)); text-align: center; }
+.qrStage { display: flex; min-height: 0; flex-direction: column; align-items: center; justify-content: center; padding: clamp(10px, 1.5vh, 16px); border: 1px solid var(--border); border-radius: 15px; background: linear-gradient(180deg, #fff, var(--paper)); text-align: center; }
 .qrTitle { display: flex; width: 100%; align-items: center; gap: 12px; text-align: left; }
 .qrTitle > div { display: grid; gap: 3px; }
 .qrTitle span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 .qrTitle strong { font-size: 18px; }
-.qrFrame { display: grid; margin: clamp(8px, 1.4vh, 14px) 0 7px; padding: 8px; place-items: center; border: 1px solid #b796df; border-radius: 14px; background: white; box-shadow: 0 0 0 4px rgba(237, 229, 247, .82), 0 0 22px rgba(123, 79, 191, .22); }
+.qrFrame { display: grid; margin: clamp(8px, 1.2vh, 12px) 0 7px; padding: 8px; place-items: center; border: 1px solid #b796df; border-radius: 14px; background: white; box-shadow: 0 0 0 4px rgba(237, 229, 247, .82), 0 0 22px rgba(123, 79, 191, .22); }
 .qrFrame img { width: clamp(126px, 19vh, 168px); height: clamp(126px, 19vh, 168px); }
+.qrStatus { display: grid; width: clamp(126px, 19vh, 168px); height: clamp(126px, 19vh, 168px); margin: 0; place-items: center; color: var(--muted); font-size: 12px; }
 .qrHelp { max-width: 290px; margin: 0 0 8px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .primaryAction { width: 100%; padding-inline: 18px; font-size: 14px; }
 .primaryAction:disabled { opacity: .66; transform: none; }
-.qrPrompt { display: flex; width: 100%; flex: 1; flex-direction: column; align-items: center; justify-content: center; }
-.qrPrompt > p { max-width: 260px; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.qrPlaceholder { display: grid; width: clamp(76px, 12vh, 104px); height: clamp(76px, 12vh, 104px); grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 14px; border: 1px dashed #bfa5df; border-radius: 14px; background: var(--pale); }
-.qrPlaceholder span { border: 5px solid #b49bd2; border-radius: 4px; }
-.qrPlaceholder span:last-child { align-self: end; height: 16px; border-width: 3px; }
-.qrPrompt .primaryAction { min-height: 42px; margin-top: 10px; }
 .errorMessage { margin: 12px 0 0 !important; color: #8b244c !important; font-size: 12px !important; }
 .mobileChannels { display: none; }
 .mobileError { margin: 6px 0 0 !important; color: #8b244c !important; font-size: 12px !important; }
