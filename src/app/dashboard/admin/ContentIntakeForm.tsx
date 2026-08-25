@@ -763,7 +763,7 @@ function ResourceForm({ initial, onSubmit, pending }: {
 
 // ─── Conference form (4 steps) ────────────────────────────────────────────────
 
-type ConferenceMeetupRow = { id?: string; title: string; type: string; startsAt: string; location: string; description: string; notificationMessage: string }
+type ConferenceMeetupRow = { id?: string; title: string; startsAt: string; endsAt: string; location: string; description: string; notificationMessage: string }
 type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; notificationMessage: string; howToApply: string; expiresAt: string }
 
 type ConferenceFields = {
@@ -822,8 +822,9 @@ function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | n
       .map((meetup, index) => ({
         id: meetup.id ?? `preview-meetup-${index}`,
         title: meetup.title.trim(),
-        type: meetup.type.trim() || "IPN Meetup",
+        type: "IPN Meetup",
         startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
+        endsAt: toIsoInTimeZone(meetup.endsAt, timezone),
         location: meetup.location.trim() || null,
         description: meetup.description.trim() || null,
         notificationMessage: meetup.notificationMessage.trim() || null,
@@ -1148,13 +1149,24 @@ function ConferenceForm({ initial, onSubmit, pending }: {
   }
 
   function handleSubmit() {
+    const incompleteMeetup = f.meetups.find((meetup) => meetup.title.trim() && (!meetup.startsAt || !meetup.endsAt))
+    if (incompleteMeetup) {
+      setErrors((current) => ({ ...current, meetups: "Every meetup needs a start and end date and time." }))
+      return
+    }
+    const reversedMeetup = f.meetups.find((meetup) => meetup.title.trim() && meetup.endsAt <= meetup.startsAt)
+    if (reversedMeetup) {
+      setErrors((current) => ({ ...current, meetups: "Each meetup end time must be after its start time." }))
+      return
+    }
+
     const meetups: AdminConferenceMeetupInput[] = f.meetups
       .filter((m) => m.title.trim())
       .map((m) => ({
         id: m.id,
         title: m.title.trim(),
-        type: m.type.trim() || "IPN Meetup",
         startsAt: m.startsAt,
+        endsAt: m.endsAt || undefined,
         location: m.location.trim() || undefined,
         description: m.description.trim() || undefined,
         notificationMessage: m.notificationMessage.trim() || undefined,
@@ -1306,25 +1318,36 @@ function ConferenceForm({ initial, onSubmit, pending }: {
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium text-zinc-600">IPN meetups</p>
               <p className="text-[11px] text-zinc-400">On-site IPN gatherings during this conference</p>
+              {errors.meetups && <p className="text-xs text-red-600">{errors.meetups}</p>}
               {f.meetups.map((meetup, i) => (
                 <div key={i} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto]">
-                    <input value={meetup.title} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], title: e.target.value }; set("meetups", next) }} placeholder="Meetup title" className={inputCls()} />
-                    <input value={meetup.type} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], type: e.target.value }; set("meetups", next) }} placeholder="Type (e.g. IPN Meetup)" className={inputCls()} />
-                    <button type="button" onClick={() => set("meetups", f.meetups.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <Field label="Meetup title">
+                      <input value={meetup.title} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], title: e.target.value }; set("meetups", next) }} placeholder="e.g. IPN member happy hour" className={inputCls()} />
+                    </Field>
+                    <button type="button" onClick={() => set("meetups", f.meetups.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer self-end rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input type="datetime-local" value={meetup.startsAt} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], startsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
-                    <input value={meetup.location} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], location: e.target.value }; set("meetups", next) }} placeholder="Location (e.g. Hotel poolside bar)" className={inputCls()} />
+                    <Field label="Start date & time" required>
+                      <input type="datetime-local" required value={meetup.startsAt} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], startsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                    </Field>
+                    <Field label="End date & time" required>
+                      <input type="datetime-local" required value={meetup.endsAt} min={meetup.startsAt || undefined} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], endsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                    </Field>
                   </div>
-                  <input value={meetup.description} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], description: e.target.value }; set("meetups", next) }} placeholder="Description (optional)" className={inputCls()} />
+                  <Field label="Location" hint="Optional">
+                    <input value={meetup.location} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], location: e.target.value }; set("meetups", next) }} placeholder="e.g. Hotel poolside bar" className={inputCls()} />
+                  </Field>
+                  <Field label="Description" hint="Optional. Shown on the member portal.">
+                    <input value={meetup.description} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], description: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                  </Field>
                   <Field label="Email message" hint="Optional. Written only for the member alert; if blank, the description above is used.">
                     <textarea value={meetup.notificationMessage} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], notificationMessage: e.target.value }; set("meetups", next) }} rows={3} placeholder="Join fellow IPN members for a casual meetup during the conference. Look for the purple lanyard." className={inputCls()} />
                   </Field>
                 </div>
               ))}
               <p className="text-[11px] text-zinc-400">Members RSVP to meetups in-app — no registration link needed.</p>
-              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", type: "IPN Meetup", startsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", startsAt: "", endsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add meetup
               </button>
             </div>
@@ -1620,7 +1643,8 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
     status: c.status,
     summary: c.summary ?? "", description: c.description ?? "", slug: c.slug,
     meetups: c.meetups.map((m) => ({
-      id: m.id, title: m.title, type: m.type, startsAt: isoToLocal(m.startsAt, timezone),
+      id: m.id, title: m.title, startsAt: isoToLocal(m.startsAt, timezone),
+      endsAt: m.endsAt ? isoToLocal(m.endsAt, timezone) : "",
       location: m.location ?? "", description: m.description ?? "",
       notificationMessage: m.notificationMessage ?? "",
     })),

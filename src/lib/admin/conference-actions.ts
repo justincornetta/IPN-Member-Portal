@@ -23,8 +23,8 @@ import type {
 export type AdminConferenceMeetupInput = {
   id?: string
   title: string
-  type?: string
   startsAt: string
+  endsAt?: string
   location?: string
   description?: string
   notificationMessage?: string
@@ -116,17 +116,33 @@ export async function publishAdminConference(
 
   if (existingConferenceError) return { error: existingConferenceError.message }
 
-  const meetups: ConferenceMeetup[] = payload.meetups
-    .filter((meetup) => clean(meetup.title))
-    .map((meetup) => ({
-      id: meetup.id ?? `${slug}-meetup-${randomUUID()}`,
-      title: clean(meetup.title)!,
-      type: clean(meetup.type) ?? "IPN Meetup",
-      startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
-      location: clean(meetup.location),
-      description: clean(meetup.description),
-      notificationMessage: clean(meetup.notificationMessage),
-    }))
+  const meetupInputs = payload.meetups.filter((meetup) => clean(meetup.title))
+  for (const meetup of meetupInputs) {
+    const meetupTitle = clean(meetup.title)!
+    const meetupStartsAt = toIsoInTimeZone(meetup.startsAt, timezone)
+    const meetupEndsAt = toIsoInTimeZone(meetup.endsAt, timezone)
+    if (!meetupStartsAt) return { error: `Start date and time are required for ${meetupTitle}` }
+    if (!meetupEndsAt) return { error: `End date and time are required for ${meetupTitle}` }
+    if (new Date(meetupEndsAt) <= new Date(meetupStartsAt)) {
+      return { error: `End time must be after the start time for ${meetupTitle}` }
+    }
+  }
+
+  const meetups: ConferenceMeetup[] = meetupInputs
+    .map((meetup) => {
+      const meetupStartsAt = toIsoInTimeZone(meetup.startsAt, timezone)!
+      const meetupEndsAt = toIsoInTimeZone(meetup.endsAt, timezone)!
+      return {
+        id: meetup.id ?? `${slug}-meetup-${randomUUID()}`,
+        title: clean(meetup.title)!,
+        type: "IPN Meetup",
+        startsAt: meetupStartsAt,
+        endsAt: meetupEndsAt,
+        location: clean(meetup.location),
+        description: clean(meetup.description),
+        notificationMessage: clean(meetup.notificationMessage),
+      }
+    })
 
   const discounts: ConferenceDiscount[] = payload.discounts
     .filter((discount) => clean(discount.label))

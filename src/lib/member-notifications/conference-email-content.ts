@@ -94,7 +94,7 @@ export function buildConferenceMeetupEmailContent(
       { label: "Meetup", value: meetup.title },
       {
         label: "When",
-        value: formatMeetupDateTime(meetup.startsAt, conference.timezone),
+        value: formatMeetupDateTime(meetup.startsAt, conference.timezone, meetup.endsAt),
       },
       { label: "Where", value: meetup.location ?? "Location to be announced" },
     ],

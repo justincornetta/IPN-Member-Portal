@@ -11,6 +11,7 @@ export type ConferenceMeetup = {
   title: string
   type: string
   startsAt: string
+  endsAt?: string | null
   location: string | null
   description: string | null
   notificationMessage?: string | null

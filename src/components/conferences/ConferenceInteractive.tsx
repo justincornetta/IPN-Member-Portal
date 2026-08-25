@@ -224,10 +224,10 @@ export default function ConferenceInteractive({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
-                        {meetup.type}
+                        IPN Meetup
                       </span>
                       <span className="text-xs text-zinc-400">
-                        {formatMeetupDateTime(meetup.startsAt, timezone)}
+                        {formatMeetupDateTime(meetup.startsAt, timezone, meetup.endsAt)}
                       </span>
                     </div>
                     <button

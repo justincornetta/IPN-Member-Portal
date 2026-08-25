@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { conferenceNotificationChanges } from "../src/lib/conferences/notification-diff.ts"
 import { conferenceNotificationMessage } from "../src/lib/conferences/notification-copy.ts"
+import { formatMeetupDateTime } from "../src/lib/conferences/format.ts"
 
 const meetup = (id, title = id) => ({ id, title })
 const discount = (id, label = id) => ({ id, label })
@@ -114,4 +115,22 @@ test("the portal description is the fallback when custom alert copy is blank", (
     "Portal meetup description",
   )
   assert.equal(conferenceNotificationMessage(null, null), null)
+})
+
+test("meetup times show a same-day start and end range in the conference timezone", () => {
+  assert.equal(
+    formatMeetupDateTime(
+      "2026-10-23T23:00:00Z",
+      "America/New_York",
+      "2026-10-24T01:00:00Z",
+    ),
+    "Fri, Oct 23, 7:00 PM–9:00 PM",
+  )
+})
+
+test("legacy meetups without an end time retain their start-time display", () => {
+  assert.equal(
+    formatMeetupDateTime("2026-10-23T23:00:00Z", "America/New_York"),
+    "Fri, Oct 23, 7:00 PM",
+  )
 })

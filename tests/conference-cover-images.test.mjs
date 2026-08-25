@@ -68,3 +68,19 @@ test("saved meetup and discount messages remain visible without claiming they wi
   assert.match(form, /Editing a saved item does not send its alert again/)
   assert.match(form, /Saving these edits will not queue a new member email/)
 })
+
+test("meetup intake uses a fixed label and stores a required start/end range", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+  const actions = read("src/lib/admin/conference-actions.ts")
+  const portal = read("src/components/conferences/ConferenceInteractive.tsx")
+  const email = read("src/lib/member-notifications/conference-email-content.ts")
+
+  assert.doesNotMatch(form, /value=\{meetup\.type\}/)
+  assert.match(form, /label="Start date & time" required/)
+  assert.match(form, /label="End date & time" required/)
+  assert.match(form, /endsAt: m\.endsAt \|\| undefined/)
+  assert.match(actions, /type: "IPN Meetup"/)
+  assert.match(actions, /End time must be after the start time/)
+  assert.match(portal, /meetup\.endsAt/)
+  assert.match(email, /meetup\.endsAt/)
+})
