@@ -121,6 +121,7 @@ function NavContent({
             <Fragment key={item.href}>
               <Link
                 href={item.href}
+                data-tour-nav={item.href === "/dashboard/directory" ? "community" : item.label.toLowerCase()}
                 onClick={onClose}
                 className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                   active
@@ -142,6 +143,7 @@ function NavContent({
                 return (
                   <Link
                     href={CONFERENCES_NAV_ITEM.href}
+                    data-tour-nav="conferences"
                     onClick={onClose}
                     className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                       conferencesActive
@@ -164,6 +166,7 @@ function NavContent({
 
         <Link
           href="/dashboard/profile"
+          data-tour-nav="profile"
           onClick={onClose}
           className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
             profileActive
@@ -339,6 +342,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour-nav={item.href === "/dashboard/directory" ? "community" : item.label.toLowerCase()}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1.5 text-[10px] font-medium leading-none transition min-[380px]:text-[11px] ${
                   active

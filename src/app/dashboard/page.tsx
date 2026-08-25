@@ -1,15 +1,15 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
-import { FeedbackForm } from "@/components/FeedbackFooter"
 import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
-import WelcomeModal from "./WelcomeModal"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
+import ActivationChecklist from "./ActivationChecklist"
+import ProductTourLauncher from "@/components/product-tour/ProductTourLauncher"
 
 type MemberProfile = {
   first_name: string | null
@@ -20,19 +20,6 @@ type MemberProfile = {
   avatar_url: string | null
   bio: string | null
   interest_tags: string[] | null
-}
-
-type ChecklistItemProps = {
-  number: number
-  title: string
-  body: string
-  href: string
-  icon: ReactNode
-  completed?: boolean
-  external?: boolean
-  analyticsId?: string
-  analyticsLabel?: string
-  analyticsEvent?: "curated_click" | "whatsapp_cta_clicked"
 }
 
 type PortalFeature = {
@@ -80,25 +67,6 @@ function DirectoryIcon() {
   )
 }
 
-function ProfileIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-      />
-    </svg>
-  )
-}
-
 function CalendarIcon() {
   return (
     <svg
@@ -115,219 +83,6 @@ function CalendarIcon() {
         d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
       />
     </svg>
-  )
-}
-
-function WhatsAppIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M19.05 4.91A9.8 9.8 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.27-1.38a9.9 9.9 0 0 0 4.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91a9.86 9.86 0 0 0-2.9-7.01ZM12.04 20.15h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.39c0-4.54 3.69-8.23 8.24-8.23a8.2 8.2 0 0 1 5.82 2.41 8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.23 8.24Z" />
-    </svg>
-  )
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-      />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      className="h-3.5 w-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2.4}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-    </svg>
-  )
-}
-
-function ChecklistItem({
-  number,
-  title,
-  body,
-  href,
-  icon,
-  completed = false,
-  external = false,
-  analyticsId,
-  analyticsLabel,
-  analyticsEvent = "curated_click",
-}: ChecklistItemProps) {
-  const content = (
-    <>
-      <span
-        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-          completed ? "bg-emerald-100 text-emerald-700" : "bg-ipn-light text-ipn"
-        }`}
-        aria-label={completed ? "Completed" : `Step ${number}`}
-      >
-        {completed ? <CheckIcon /> : number}
-      </span>
-      <span className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 sm:inline-flex">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold leading-tight text-zinc-900">{title}</span>
-        </span>
-        <span className="mt-0.5 hidden line-clamp-2 text-xs leading-snug text-zinc-500 sm:block">{body}</span>
-      </span>
-      <ArrowIcon />
-    </>
-  )
-
-  const className =
-    "flex min-h-9 items-center gap-3 rounded-lg border border-transparent bg-white px-0 py-1 transition hover:border-ipn/30 hover:bg-zinc-50 sm:min-h-0 sm:border-zinc-200 sm:px-3 sm:py-2"
-
-  if (external) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        data-analytics-event={analyticsId ? analyticsEvent : undefined}
-        data-analytics-id={analyticsId}
-        data-analytics-label={analyticsLabel}
-        className={className}
-      >
-        {content}
-      </a>
-    )
-  }
-
-  return (
-    <Link
-      href={href}
-      data-analytics-event={analyticsId ? analyticsEvent : undefined}
-      data-analytics-id={analyticsId}
-      data-analytics-label={analyticsLabel}
-      className={className}
-    >
-      {content}
-    </Link>
-  )
-}
-
-function MemberOnboarding({ progress }: { progress: OnboardingProgress | null }) {
-  const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
-    || (process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
-      ? `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE!.trim().replace(/\D/g, "")}`
-      : undefined)
-  const completedCount = [
-    progress?.profile_completed_at,
-    progress?.whatsapp_completed_at,
-    progress?.event_rsvp_completed_at,
-    progress?.connection_request_completed_at,
-    progress?.invite_completed_at,
-  ].filter(Boolean).length
-  const totalCount = 5
-
-  if (completedCount === totalCount) {
-    return (
-      <section className="h-full rounded-lg border border-ipn/20 bg-white p-4 shadow-sm sm:rounded-xl sm:p-5">
-        <p className="text-sm font-medium text-ipn">Questions or feedback?</p>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-900">Share it with IPN Leadership</h2>
-        <p className="mt-1 text-xs leading-5 text-zinc-500">
-          Tell us what is working, what needs attention, or what would make the member portal more useful.
-        </p>
-        <div className="mt-4 border-t border-zinc-100 pt-4">
-          <FeedbackForm embedded />
-        </div>
-      </section>
-    )
-  }
-
-  return (
-    <section className="h-full rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:rounded-xl">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="hidden text-sm font-medium text-ipn sm:block">Get involved</p>
-          <h2 className="text-base font-semibold text-zinc-900 sm:mt-1 sm:text-lg">
-          Make the most of your membership
-          </h2>
-        </div>
-        <p className="text-xs font-medium text-zinc-500 sm:hidden">
-          {completedCount} of {totalCount} completed
-        </p>
-      </div>
-
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 sm:hidden">
-        <div
-          className="h-full rounded-full bg-ipn"
-          style={{ width: `${(completedCount / totalCount) * 100}%` }}
-        />
-      </div>
-
-      <div className="mt-3 flex flex-col gap-1.5 sm:mt-4 sm:gap-2">
-        <ChecklistItem
-          number={1}
-          title="Complete your profile"
-          body="Add profile picture, bio, and interests."
-          href="/dashboard/profile"
-          icon={<ProfileIcon />}
-          completed={Boolean(progress?.profile_completed_at)}
-          analyticsId="dashboard-onboarding-complete-profile"
-          analyticsLabel="Complete your profile"
-        />
-        <ChecklistItem
-          number={2}
-          title="Join WhatsApp Community"
-          body="Stay updated and connect with members."
-          href={whatsappUrl || "/dashboard/directory?tab=connections"}
-          icon={<WhatsAppIcon />}
-          completed={Boolean(progress?.whatsapp_completed_at)}
-          external={Boolean(whatsappUrl)}
-          analyticsId={whatsappUrl ? "dashboard-onboarding-whatsapp" : undefined}
-          analyticsLabel="Join WhatsApp Community"
-          analyticsEvent="whatsapp_cta_clicked"
-        />
-        <ChecklistItem
-          number={3}
-          title="Register for an event"
-          body="Join the next IPN gathering or webinar."
-          href="/dashboard/events"
-          icon={<CalendarIcon />}
-          completed={Boolean(progress?.event_rsvp_completed_at)}
-          analyticsId="dashboard-onboarding-register-event"
-          analyticsLabel="Register for an event"
-        />
-        <ChecklistItem
-          number={4}
-          title="Connect with a member"
-          body="Send a request to start a connection."
-          href="/dashboard/directory"
-          icon={<DirectoryIcon />}
-          completed={Boolean(progress?.connection_request_completed_at)}
-          analyticsId="dashboard-onboarding-connect-member"
-          analyticsLabel="Connect with a member"
-        />
-        <InviteFriendsCard
-          variant="checklist"
-          checklistNumber={5}
-          checklistCompleted={Boolean(progress?.invite_completed_at)}
-          trackOnboardingInvite
-        />
-      </div>
-    </section>
   )
 }
 
@@ -686,13 +441,7 @@ function ExplorePortal() {
   )
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
-  const params = await searchParams
-  const showOnboarding = params.onboarding === "1"
+export default async function DashboardPage() {
   const supabase = await createClient()
   const {
     data: { user },
@@ -786,11 +535,9 @@ export default async function DashboardPage({
     .join(" · ")
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-6">
-      <WelcomeModal userId={user!.id} show={showOnboarding} />
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">
+          <h1 data-tour-page="dashboard" className="text-2xl font-semibold text-zinc-900">
             Welcome, {firstName}
           </h1>
           {subtitle ? (
@@ -801,8 +548,11 @@ export default async function DashboardPage({
             </p>
           )}
         </div>
-        <div className="hidden sm:block">
-          <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
+        <div className="flex flex-wrap items-center gap-2">
+          <ProductTourLauncher />
+          <div className="hidden sm:block">
+            <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
+          </div>
         </div>
       </div>
 
@@ -813,7 +563,7 @@ export default async function DashboardPage({
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
         <div className="order-2 h-full">
-          <MemberOnboarding progress={onboardingProgress} />
+          <ActivationChecklist progress={onboardingProgress} />
         </div>
       </div>
 
