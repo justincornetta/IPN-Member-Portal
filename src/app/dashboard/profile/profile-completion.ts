@@ -1,4 +1,4 @@
-export const PROFILE_COMPLETION_TOTAL = 5
+export const PROFILE_COMPLETION_TOTAL = 7
 
 export type ProfileCompletionField =
   | "avatar"
@@ -6,6 +6,8 @@ export type ProfileCompletionField =
   | "role"
   | "organization"
   | "interests"
+  | "about"
+  | "linkedin"
 
 export type ProfileCompletionInput = {
   avatarUrl: string | null
@@ -15,6 +17,11 @@ export type ProfileCompletionInput = {
   legacySchool: string
   educationInstitutions: string[]
   interests: string[]
+  roleAndGoals: string
+  inspiration: string
+  supportNeeds: string
+  linkedinUrl: string
+  linkedinOptOut: boolean
 }
 
 export type ProfileCompletionItem = {
@@ -22,6 +29,8 @@ export type ProfileCompletionItem = {
   label: string
   actionLabel: string
   complete: boolean
+  detailLabel?: string
+  completedLabel?: string
 }
 
 function hasText(value: string | null | undefined) {
@@ -29,6 +38,12 @@ function hasText(value: string | null | undefined) {
 }
 
 export function getProfileCompletion(input: ProfileCompletionInput) {
+  const aboutYouAnsweredCount = [
+    input.roleAndGoals,
+    input.inspiration,
+    input.supportNeeds,
+  ].filter(hasText).length
+
   const items: ProfileCompletionItem[] = [
     {
       field: "avatar",
@@ -63,6 +78,20 @@ export function getProfileCompletion(input: ProfileCompletionInput) {
       label: "Interests",
       actionLabel: "Add interests",
       complete: input.interests.some(hasText),
+    },
+    {
+      field: "about",
+      label: "About you",
+      actionLabel: "Continue",
+      complete: aboutYouAnsweredCount === 3,
+      detailLabel: `${aboutYouAnsweredCount} of 3 answered`,
+    },
+    {
+      field: "linkedin",
+      label: "LinkedIn",
+      actionLabel: "Add or opt out",
+      complete: hasText(input.linkedinUrl) || input.linkedinOptOut,
+      completedLabel: input.linkedinOptOut && !hasText(input.linkedinUrl) ? "Not used" : "Complete",
     },
   ]
 

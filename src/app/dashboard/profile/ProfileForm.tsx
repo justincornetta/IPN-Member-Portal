@@ -34,6 +34,7 @@ import {
   type MemberEducationInput,
 } from "@/lib/members/education"
 import ProfileCompletionStatus from "./ProfileCompletionStatus"
+import { updateProfileCompletionDetails } from "./actions"
 import {
   getProfileCompletion,
   type ProfileCompletionField,
@@ -55,6 +56,8 @@ type Profile = {
   field: string | null
   psychedelic_field_status: string | null
   role_and_goals: string | null
+  inspiration: string | null
+  support_needs: string | null
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
@@ -96,9 +99,12 @@ type FormState = {
   field: string
   psychedelic_field_status: string
   role_and_goals: string
+  inspiration: string
+  support_needs: string
   bio: string
   interest_tags: string[]
   linkedin_url: string
+  linkedin_opt_out: boolean
   whatsapp_country_code: string
   whatsapp_country_iso: string
   whatsapp_number: string
@@ -411,6 +417,7 @@ function toFormState(
   profile: Profile | null,
   contact: Contact | null,
   education: EducationRecord[],
+  linkedinOptOut: boolean,
 ): FormState {
   const { countryCode, number } = parseWhatsappUrl(
     contact?.whatsapp_url ?? null,
@@ -433,9 +440,12 @@ function toFormState(
     field: profile?.field ?? "",
     psychedelic_field_status: profile?.psychedelic_field_status ?? "",
     role_and_goals: profile?.role_and_goals ?? "",
+    inspiration: profile?.inspiration ?? "",
+    support_needs: profile?.support_needs ?? "",
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
+    linkedin_opt_out: linkedinOptOut && !profile?.linkedin_url?.trim(),
     whatsapp_country_code: countryCode,
     whatsapp_country_iso: countryIso,
     whatsapp_number: number,
@@ -891,6 +901,7 @@ export default function ProfileForm({
   userId,
   userEmail,
   mailchimpStatus,
+  linkedinOptOut,
 }: {
   profile: Profile | null
   contact: Contact | null
@@ -898,9 +909,12 @@ export default function ProfileForm({
   userId: string
   userEmail: string
   mailchimpStatus: MailchimpStatus
+  linkedinOptOut: boolean
 }) {
   const router = useRouter()
-  const [data, setData] = useState<FormState>(() => toFormState(profile, contact, education))
+  const [data, setData] = useState<FormState>(() => (
+    toFormState(profile, contact, education, linkedinOptOut)
+  ))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
@@ -925,6 +939,11 @@ export default function ProfileForm({
     legacySchool: data.school,
     educationInstitutions: data.education.map((entry) => entry.institution),
     interests: data.interest_tags,
+    roleAndGoals: data.role_and_goals,
+    inspiration: data.inspiration,
+    supportNeeds: data.support_needs,
+    linkedinUrl: data.linkedin_url,
+    linkedinOptOut: data.linkedin_opt_out,
   })
 
   useEffect(() => {
@@ -1011,6 +1030,19 @@ export default function ProfileForm({
     }
     if (field === "interests") {
       setTagPickerOpen(true)
+      return
+    }
+    if (field === "about") {
+      const id = !data.role_and_goals.trim()
+        ? "role_and_goals"
+        : !data.inspiration.trim()
+          ? "inspiration"
+          : "support_needs"
+      document.getElementById(id)?.focus({ preventScroll: false })
+      return
+    }
+    if (field === "linkedin") {
+      document.getElementById("linkedin_url")?.focus({ preventScroll: false })
       return
     }
     if (field === "organization" && !isProfessional && data.education.length === 0) {
@@ -1125,14 +1157,27 @@ export default function ProfileForm({
       education: data.education,
     })
 
-    setSaving(false)
     if (result?.error) {
+      setSaving(false)
       setError(result.error)
-    } else {
-      setSaved(true)
-      setIsDirty(false)
-      topRef.current?.scrollIntoView({ behavior: "smooth" })
+      return
     }
+
+    const completionDetailsResult = await updateProfileCompletionDetails({
+      inspiration: data.inspiration,
+      supportNeeds: data.support_needs,
+      linkedinOptOut: data.linkedin_opt_out,
+    })
+
+    setSaving(false)
+    if (completionDetailsResult?.error) {
+      setError(completionDetailsResult.error)
+      return
+    }
+
+    setSaved(true)
+    setIsDirty(false)
+    topRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -1267,9 +1312,48 @@ export default function ProfileForm({
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="linkedin_url">LinkedIn</Label>
-            <TextInput id="linkedin_url" name="linkedin_url" value={data.linkedin_url}
-              onChange={(v) => update("linkedin_url", v)}
-              placeholder="https://linkedin.com/in/yourname" />
+            <input
+              id="linkedin_url"
+              name="linkedin_url"
+              type="url"
+              value={data.linkedin_url}
+              disabled={data.linkedin_opt_out}
+              onChange={(event) => {
+                setData((previous) => ({
+                  ...previous,
+                  linkedin_url: event.target.value,
+                  linkedin_opt_out: event.target.value.trim()
+                    ? false
+                    : previous.linkedin_opt_out,
+                }))
+                setSaved(false)
+                setIsDirty(true)
+              }}
+              placeholder="https://linkedin.com/in/yourname"
+              aria-describedby="linkedin-help"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+            />
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-zinc-600">
+              <input
+                type="checkbox"
+                checked={data.linkedin_opt_out}
+                onChange={(event) => {
+                  const checked = event.target.checked
+                  setData((previous) => ({
+                    ...previous,
+                    linkedin_opt_out: checked,
+                    linkedin_url: checked ? "" : previous.linkedin_url,
+                  }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
+                className="h-4 w-4 rounded border-zinc-300 accent-ipn"
+              />
+              I don&apos;t use LinkedIn
+            </label>
+            <p id="linkedin-help" className="text-xs text-zinc-400">
+              Add a profile link or let us know you don&apos;t use LinkedIn. Either choice completes this item.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1519,11 +1603,31 @@ export default function ProfileForm({
       {/* ── About You ── */}
       <section>
         <SectionHeading>About You</SectionHeading>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="role_and_goals">Current role and professional goals</Label>
-          <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
-            onChange={(v) => update("role_and_goals", v)} rows={4}
-            placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
+        <div className="mb-4 rounded-xl border border-[#E0D4F0] bg-[#FAF7FF] px-4 py-3">
+          <p className="text-sm font-medium text-[#1A1034]">Private to the IPN team</p>
+          <p className="mt-1 text-xs leading-5 text-[#6E6287]">
+            These answers help us understand and support members. They are not shown on your public profile.
+          </p>
+        </div>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="role_and_goals">Your direction and professional goals</Label>
+            <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
+              onChange={(v) => update("role_and_goals", v)} rows={4}
+              placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="inspiration">What inspired you to get involved with IPN?</Label>
+            <Textarea id="inspiration" name="inspiration" value={data.inspiration}
+              onChange={(v) => update("inspiration", v)} rows={3}
+              placeholder="Share what drew you to the community…" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="support_needs">What resource or support would help you most right now?</Label>
+            <Textarea id="support_needs" name="support_needs" value={data.support_needs}
+              onChange={(v) => update("support_needs", v)} rows={3}
+              placeholder="For example: mentorship, collaborators, career guidance, research opportunities…" />
+          </div>
         </div>
       </section>
 

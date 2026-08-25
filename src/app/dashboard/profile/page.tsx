@@ -38,6 +38,7 @@ export default async function ProfilePage() {
         userId={user.id}
         userEmail={user.email ?? ""}
         mailchimpStatus={mailchimpStatus}
+        linkedinOptOut={user.user_metadata?.linkedin_opt_out === true}
       />
     </div>
   )

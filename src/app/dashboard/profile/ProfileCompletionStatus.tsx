@@ -27,9 +27,7 @@ export default function ProfileCompletionStatus({
             {isComplete ? "Your profile is complete" : "Complete your profile"}
           </h2>
           <p className="mt-1 max-w-md text-sm leading-6 text-[#6E6287]">
-            {isComplete
-              ? "These essentials help members recognize you and find common ground."
-              : "Add the essentials that help other members recognize you and connect."}
+            These details help members recognize you and help IPN understand how to support you.
           </p>
         </div>
         <div
@@ -84,9 +82,16 @@ export default function ProfileCompletionStatus({
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
               )}
             </span>
-            <p className="min-w-0 text-sm font-medium text-[#1A1034]">{item.label}</p>
+            <div className="min-w-0 py-2">
+              <p className="text-sm font-medium text-[#1A1034]">{item.label}</p>
+              {item.detailLabel && (
+                <p className="mt-0.5 text-xs text-[#6E6287]">{item.detailLabel}</p>
+              )}
+            </div>
             {item.complete ? (
-              <span className="text-xs font-medium text-[#6E6287]">Complete</span>
+              <span className="text-xs font-medium text-[#6E6287]">
+                {item.completedLabel ?? "Complete"}
+              </span>
             ) : (
               <button
                 type="button"
