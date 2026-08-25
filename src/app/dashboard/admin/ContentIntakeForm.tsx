@@ -800,6 +800,7 @@ function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | n
     name: fields.name.trim(),
     organizer: fields.organizer.trim() || null,
     category: fields.category,
+    cover_image_url: fields.coverImageUrl.trim() || null,
     summary: fields.summary.trim() || null,
     description: fields.description.trim() || null,
     starts_at: startsAt,
