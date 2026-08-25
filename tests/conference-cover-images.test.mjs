@@ -7,7 +7,7 @@ function read(path) {
 }
 
 test("conference cover images are persisted for upcoming and past conferences", () => {
-  const migration = read("supabase/migrations/20260825190351_add_conference_cover_images.sql")
+  const migration = read("supabase/migrations/20260825195019_add_conference_cover_images.sql")
   const actions = read("src/lib/admin/conference-actions.ts")
   const queries = read("src/lib/conferences/queries.ts")
 

@@ -324,7 +324,7 @@ member-facing policies exist. Only service-role server code can access the
 queue. The base migration is
 `supabase/migrations/20260731182209_member_email_notifications.sql`, extended
 for conference messages by
-`supabase/migrations/20260825120000_conference_email_notifications.sql`.
+`supabase/migrations/20260825204123_conference_email_notifications.sql`.
 
 ### `public.resources`
 
