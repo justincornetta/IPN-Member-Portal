@@ -32,10 +32,26 @@ test("conference cards and detail pages share a responsive 16:9 renderer", () =>
   const upcomingCard = read("src/components/conferences/ConferenceCard.tsx")
   const pastCard = read("src/components/conferences/PastConferenceCard.tsx")
   const detailPage = read("src/app/dashboard/conferences/[slug]/page.tsx")
+  const detailOverview = read("src/components/conferences/ConferenceDetailOverview.tsx")
 
   assert.match(cover, /aspect-video/)
   assert.match(cover, /className="object-cover"/)
   assert.match(upcomingCard, /conference\.cover_image_url/)
   assert.match(pastCard, /conference\.cover_image_url/)
-  assert.match(detailPage, /conference\.cover_image_url/)
+  assert.match(detailPage, /<ConferenceDetailOverview conference=\{conference\}/)
+  assert.match(detailOverview, /conference\.cover_image_url/)
+})
+
+test("conference admin previews reuse member portal cards and detail content", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+
+  assert.match(form, /<ConferenceCard conference=\{conference\} preview/)
+  assert.match(form, /<ConferenceDetailOverview conference=\{conference\} preview/)
+  assert.match(form, /<PastConferenceCard conference=\{conference\} preview/)
+  assert.match(form, /label: "Member portal"/)
+  assert.match(form, /label: "Member email"/)
+  assert.match(form, /label: "Conference card"/)
+  assert.match(form, /label: "Detail page"/)
+  assert.match(form, /label: "Mobile"/)
+  assert.match(form, /label: "Desktop"/)
 })

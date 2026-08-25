@@ -39,6 +39,9 @@ import {
   buildNewConferenceEmailContent,
 } from "@/lib/member-notifications/conference-email-content"
 import type { ConferenceEmailContent } from "@/lib/member-notifications/conference-email-content"
+import ConferenceCard from "@/components/conferences/ConferenceCard"
+import ConferenceDetailOverview from "@/components/conferences/ConferenceDetailOverview"
+import PastConferenceCard from "@/components/conferences/PastConferenceCard"
 
 // ─── Speaker & materials form types ──────────────────────────────────────────
 
@@ -909,6 +912,140 @@ function ConferenceEmailPreview({ label, content }: { label: string; content: Co
   )
 }
 
+type PreviewChannel = "portal" | "email"
+type PortalPreviewSurface = "card" | "details"
+type PortalPreviewViewport = "mobile" | "desktop"
+
+function PreviewToggle<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (value: T) => void
+  label: string
+}) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`min-h-9 rounded-md px-3 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-ipn/25 ${
+            value === option.value ? "bg-ipn text-white shadow-sm" : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function MemberPortalFrame({
+  path,
+  viewport,
+  children,
+}: {
+  path: string
+  viewport: PortalPreviewViewport
+  children: React.ReactNode
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-zinc-300/40">
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 text-white">
+        <span className="flex gap-1.5" aria-hidden="true">
+          <span className="h-2 w-2 rounded-full bg-rose-400" />
+          <span className="h-2 w-2 rounded-full bg-amber-300" />
+          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+        </span>
+        <span className="min-w-0 truncate rounded-md bg-white/10 px-3 py-1 font-mono text-[10px] text-zinc-300">{path}</span>
+      </div>
+      <div className="overflow-x-auto bg-zinc-100 p-3 sm:p-5">
+        <div className={`mx-auto transition-[max-width] duration-200 ${viewport === "mobile" ? "max-w-[22rem]" : "max-w-4xl"}`}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConferencePreviewWorkspace({
+  conference,
+  emailPreviews,
+  status,
+}: {
+  conference: ConferenceRecord | null
+  emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  status: ConferenceStatus
+}) {
+  const [channel, setChannel] = useState<PreviewChannel>("portal")
+  const [surface, setSurface] = useState<PortalPreviewSurface>("card")
+  const [viewport, setViewport] = useState<PortalPreviewViewport>("desktop")
+
+  return (
+    <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-zinc-800">Preview</p>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-500">Review the member-facing portal and email experience before publishing.</p>
+        </div>
+        <PreviewToggle
+          value={channel}
+          onChange={setChannel}
+          label="Preview channel"
+          options={[{ value: "portal", label: "Member portal" }, { value: "email", label: "Member email" }]}
+        />
+      </div>
+
+      {channel === "portal" ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <PreviewToggle
+              value={surface}
+              onChange={setSurface}
+              label="Portal preview surface"
+              options={[{ value: "card", label: "Conference card" }, { value: "details", label: "Detail page" }]}
+            />
+            <PreviewToggle
+              value={viewport}
+              onChange={setViewport}
+              label="Portal preview viewport"
+              options={[{ value: "mobile", label: "Mobile" }, { value: "desktop", label: "Desktop" }]}
+            />
+          </div>
+          {conference ? (
+            <MemberPortalFrame path={`/dashboard/conferences/${conference.slug}`} viewport={viewport}>
+              {surface === "card" ? (
+                <div className={viewport === "mobile" ? "mx-auto" : "mx-auto max-w-md"}>
+                  <ConferenceCard conference={conference} preview compact={viewport === "mobile"} />
+                </div>
+              ) : (
+                <ConferenceDetailOverview conference={conference} preview compact={viewport === "mobile"} />
+              )}
+            </MemberPortalFrame>
+          ) : (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a conference name and valid dates to see the portal preview.</p>
+          )}
+          <p className="text-[11px] leading-5 text-zinc-400">Preview links and member actions are inactive. RSVP and attendee controls appear beneath the published conference details.</p>
+        </div>
+      ) : status !== "published" ? (
+        <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">No member email will be queued while this conference is {status}.</p>
+      ) : emailPreviews.length ? (
+        <div className="flex flex-col gap-4">
+          {emailPreviews.map((preview) => <ConferenceEmailPreview key={preview.label} {...preview} />)}
+        </div>
+      ) : (
+        <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">This update will not queue a new member email. Add a meetup or discount to preview its follow-up alert.</p>
+      )}
+    </section>
+  )
+}
+
 function ConferenceForm({ initial, onSubmit, pending }: {
   initial?: Partial<ConferenceFields>
   onSubmit: (p: Omit<AdminConferencePayload, "id">) => void
@@ -918,6 +1055,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
   const [f, setF] = useState<ConferenceFields>({ ...CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const emailPreviews = conferenceEmailPreviews(f, initial?.status)
+  const portalPreview = conferencePreviewRecord(f)
 
   function set<K extends keyof ConferenceFields>(key: K, value: ConferenceFields[K]) {
     setF((prev) => ({ ...prev, [key]: value }))
@@ -1141,29 +1279,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-zinc-200 pt-6">
-              <div>
-                <p className="text-xs font-semibold text-zinc-700">Member email preview</p>
-                <p className="mt-1 text-[11px] leading-5 text-zinc-500">
-                  This uses the same content builder as the delivered email. The greeting is personalized for each recipient.
-                </p>
-              </div>
-              {f.status !== "published" ? (
-                <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
-                  No member email will be queued while this conference is {f.status}.
-                </p>
-              ) : emailPreviews.length ? (
-                <div className="flex flex-col gap-4">
-                  {emailPreviews.map((preview) => (
-                    <ConferenceEmailPreview key={preview.label} {...preview} />
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
-                  This update will not queue a new member email. Add a meetup or discount to preview its follow-up alert.
-                </p>
-              )}
-            </div>
+            <ConferencePreviewWorkspace conference={portalPreview} emailPreviews={emailPreviews} status={f.status} />
           </div>
           <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
         </>
@@ -1195,6 +1311,53 @@ const PAST_CONFERENCE_DEFAULTS: PastConferenceFields = {
   summary: "", driveFolderUrl: "",
 }
 
+function pastConferencePreviewRecord(fields: PastConferenceFields): PastConferenceRecord | null {
+  if (!fields.name.trim()) return null
+  return {
+    id: "preview",
+    name: fields.name.trim(),
+    organizer: fields.organizer.trim() || null,
+    category: fields.category.trim() || null,
+    cover_image_url: fields.coverImageUrl.trim() || null,
+    starts_at: fields.startsAt || null,
+    ends_at: fields.endsAt || null,
+    city: fields.city.trim() || null,
+    state: fields.state.trim() || null,
+    country: fields.country.trim() || null,
+    summary: fields.summary.trim() || null,
+    drive_folder_url: fields.driveFolderUrl.trim() || null,
+  }
+}
+
+function PastConferencePreview({ conference }: { conference: PastConferenceRecord | null }) {
+  const [viewport, setViewport] = useState<PortalPreviewViewport>("desktop")
+  return (
+    <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-zinc-800">Member portal preview</p>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-500">This is the past-conference card members will see.</p>
+        </div>
+        <PreviewToggle
+          value={viewport}
+          onChange={setViewport}
+          label="Past conference preview viewport"
+          options={[{ value: "mobile", label: "Mobile" }, { value: "desktop", label: "Desktop" }]}
+        />
+      </div>
+      {conference ? (
+        <MemberPortalFrame path="/dashboard/conferences?tab=past" viewport={viewport}>
+          <div className={viewport === "mobile" ? "mx-auto" : "mx-auto max-w-md"}>
+            <PastConferenceCard conference={conference} preview compact={viewport === "mobile"} />
+          </div>
+        </MemberPortalFrame>
+      ) : (
+        <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a conference name to see the member portal preview.</p>
+      )}
+    </section>
+  )
+}
+
 function PastConferenceForm({ initial, onSubmit, pending }: {
   initial?: Partial<PastConferenceFields>
   onSubmit: (p: Omit<AdminPastConferencePayload, "id">) => void
@@ -1202,6 +1365,7 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
 }) {
   const [f, setF] = useState<PastConferenceFields>({ ...PAST_CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const portalPreview = pastConferencePreviewRecord(f)
 
   function set<K extends keyof PastConferenceFields>(key: K, value: PastConferenceFields[K]) {
     setF((prev) => ({ ...prev, [key]: value }))
@@ -1273,6 +1437,7 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
         <Field label="Google Drive folder URL" hint="Shown as a &quot;View & share photos&quot; button — leave blank to show &quot;Photos coming soon&quot;">
           <input value={f.driveFolderUrl} onChange={(e) => set("driveFolderUrl", e.target.value)} className={inputCls()} placeholder="https://drive.google.com/..." />
         </Field>
+        <PastConferencePreview conference={portalPreview} />
       </div>
       <NavRow step={1} total={1} onBack={() => {}} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Save past conference" />
     </>
