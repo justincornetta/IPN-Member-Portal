@@ -6,7 +6,7 @@ export const whatsappChannels: WhatsAppChannel[] = [
     name: "General",
     shortName: "General",
     description:
-      "Introductions, questions, opportunities, and everyday community conversation.",
+      "Introduce yourself, ask questions in everyday community conversation.",
     redirectPath: "/go/whatsapp/general?source=onboarding",
     recommended: true,
   },

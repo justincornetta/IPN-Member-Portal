@@ -9,9 +9,16 @@ export const metadata: Metadata = {
   description: "Meet the IPN Member Portal and continue to community onboarding.",
 }
 
-export default function WelcomePage() {
+export default async function WelcomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ motion?: string | string[] }>
+}) {
+  const motion = (await searchParams).motion
+  const editorialMotion = motion === "editorial"
+
   return (
-    <main className={styles.onboardingShell}>
+    <main className={`${styles.onboardingShell} ${editorialMotion ? styles.motionEditorial : ""}`}>
       <section className={styles.welcomeFrame}>
         <div className={styles.welcomeHero}>
           <div className={styles.welcomeMap} aria-hidden="true" />
@@ -34,7 +41,10 @@ export default function WelcomePage() {
             <p>Find events, useful resources, and the people who make this community move.</p>
           </div>
           <PortalFeatureGrid />
-          <Link className={styles.continueButton} href="/onboarding/whatsapp">
+          <Link
+            className={styles.continueButton}
+            href={editorialMotion ? "/onboarding/whatsapp?motion=editorial" : "/onboarding/whatsapp"}
+          >
             Continue <span aria-hidden="true">→</span>
           </Link>
         </div>
