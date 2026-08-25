@@ -1,0 +1,72 @@
+# Onboarding UI integration contract
+
+This directory owns the UI-only Welcome and WhatsApp onboarding experience.
+It intentionally does not import or modify the production onboarding,
+analytics, Supabase, or Resend modules.
+
+## Foundation adapter
+
+`foundation-adapter.ts` currently provides an asynchronous browser fixture. At
+integration, replace `issueWhatsAppHandoff()` with the definitive foundation
+client and keep the `OnboardingFoundationAdapter` seam in `types.ts`:
+
+```ts
+issueWhatsAppHandoff({
+  kind: "permanent",
+  slug: "general" | "labs" | "conferences",
+  source: "onboarding",
+  surface: "desktop_qr_scan" | "desktop_direct" | "mobile_direct",
+  sessionId,
+}): Promise<{ handoffPath: string; expiresAt: string; channel: object }>
+
+resolveWhatsAppQrTarget({
+  kind: "permanent",
+  slug: "general" | "labs" | "conferences",
+  source: "onboarding",
+  surface: "desktop_qr_scan",
+  sessionId,
+}): Promise<{ imageSrc: string; handoffPath: string; expiresAt: string }>
+```
+
+By user direction, desktop shows the selected channel QR immediately. The
+authenticated adapter issues a short-lived handoff automatically for the QR or
+when a member chooses the same-device action. Issuance is not join intent. The
+public `/go` route records intent only when the handoff is consumed; neither
+that redirect nor a QR scan proves WhatsApp membership.
+
+`resolveWhatsAppQrTarget()` currently returns the deterministic local fixture
+for the selected channel. Integration should wrap the foundation client, turn
+the absolute one-time `handoffPath` into a replaceable QR image, and refresh it
+before `expiresAt`. The QR must remain scan-safe without portal auth, and the UI
+must continue to load it automatically without adding a reveal step.
+
+## Redirect contract
+
+Channel metadata retains these tokenless paths only as compatibility hrefs:
+
+- `/go/whatsapp/general?source=onboarding`
+- `/go/whatsapp/labs?source=onboarding`
+- `/go/whatsapp/conferences?source=onboarding`
+
+The interactive UI must navigate to the one-time `handoffPath` returned by the
+foundation client. This branch deliberately contains no `/go` implementation;
+the foundation owns the authenticated issuance endpoint, public scan-safe
+handoff, server-only invites, intent recording, and redirect analytics.
+
+Temporary event chats are supplied later through an RSVP-gated collection. The
+current UI renders the empty-state contract and makes no temporary chats
+available.
+
+## Image and QR asset record
+
+`public/onboarding/global-network.png` was created with the built-in imagegen
+tool from the approved Option C mockup. The prompt requested a wide, decorative
+connected-world-map background with left-side copy space, deep plum and violet
+only, selective node/arc glow, and no text, logo, UI, people, mushrooms, green,
+teal, or watermark. The official, unmodified logo source is copied to
+`public/onboarding/ipn-logo.png`.
+
+The three deterministic SVG QR assets are UI-only fixtures that encode the
+production member-portal tokenless compatibility paths. Integration replaces
+them through `resolveWhatsAppQrTarget()` with dynamic one-time handoff QR
+images. They do not contain direct WhatsApp invite URLs.
