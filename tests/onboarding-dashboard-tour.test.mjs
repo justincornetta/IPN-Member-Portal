@@ -55,6 +55,19 @@ test("activation summary uses authoritative profile progress and advances to eve
   assert.equal(summary.nextMilestone, "event")
 })
 
+test("continuing past optional WhatsApp keeps profile as the foreground priority", () => {
+  const summary = activationSummary({
+    whatsapp_current_step: "continued",
+    whatsapp_completed_at: null,
+    profile_completed_at: null,
+    event_rsvp_completed_at: null,
+    connection_request_completed_at: null,
+    invite_completed_at: null,
+  })
+  assert.equal(summary.completedCount, 0)
+  assert.equal(summary.nextMilestone, "profile")
+})
+
 test("product tour visits only active portal routes in the required sequence", () => {
   assert.deepEqual(
     PRODUCT_TOUR_STEPS.map((step) => step.route),

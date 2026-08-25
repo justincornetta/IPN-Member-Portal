@@ -92,9 +92,38 @@ export function nextTourProgress(
   }
 }
 
-// Integration adapter: replace these browser-storage functions with the shared,
-// durable onboarding/tour adapter when that foundation lands. No onboarding
-// checklist milestone reads from this state.
+export function productTourProgressFromServer(input: {
+  startedAt: string | null
+  currentStep: string | null
+  completedAt: string | null
+}): ProductTourProgress | null {
+  if (input.completedAt) {
+    return {
+      version: PRODUCT_TOUR_VERSION,
+      status: "completed",
+      stepIndex: PRODUCT_TOUR_STEPS.length - 1,
+    }
+  }
+  if (!input.startedAt) return null
+
+  const match = input.currentStep?.match(/^(active|paused)_(.+)$/)
+  const stepIndex = match
+    ? PRODUCT_TOUR_STEPS.findIndex((step) => step.id === match[2])
+    : 0
+  return {
+    version: PRODUCT_TOUR_VERSION,
+    status: match?.[1] === "active" ? "active" : "paused",
+    stepIndex: stepIndex >= 0 ? stepIndex : 0,
+  }
+}
+
+export function productTourServerStep(progress: ProductTourProgress): string {
+  if (progress.status === "completed") return "complete"
+  return `${progress.status}_${PRODUCT_TOUR_STEPS[progress.stepIndex].id}`
+}
+
+// Browser storage is a resilience fallback only when durable server progress
+// cannot be read or written. It is never the primary product-tour truth.
 export function productTourStorageKey(userId: string): string {
   return `ipn_product_tour_v${PRODUCT_TOUR_VERSION}_${userId}`
 }

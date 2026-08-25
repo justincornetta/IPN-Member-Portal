@@ -7,8 +7,8 @@ analytics, Supabase, or Resend modules.
 ## Foundation adapter
 
 `foundation-adapter.ts` currently provides an asynchronous browser fixture. At
-integration, replace `issueWhatsAppHandoff()` with the definitive foundation
-client and keep the `OnboardingFoundationAdapter` seam in `types.ts`:
+integration, `issueWhatsAppHandoff()` uses the definitive foundation client
+while keeping the `OnboardingFoundationAdapter` seam in `types.ts`:
 
 ```ts
 issueWhatsAppHandoff({
@@ -34,11 +34,10 @@ when a member chooses the same-device action. Issuance is not join intent. The
 public `/go` route records intent only when the handoff is consumed; neither
 that redirect nor a QR scan proves WhatsApp membership.
 
-`resolveWhatsAppQrTarget()` currently returns the deterministic local fixture
-for the selected channel. Integration should wrap the foundation client, turn
-the absolute one-time `handoffPath` into a replaceable QR image, and refresh it
-before `expiresAt`. The QR must remain scan-safe without portal auth, and the UI
-must continue to load it automatically without adding a reveal step.
+`resolveWhatsAppQrTarget()` turns the absolute one-time `handoffPath` into a
+replaceable in-memory QR data URL. The landing screen refreshes it about one
+minute before `expiresAt`. The QR remains scan-safe without portal auth and is
+loaded automatically without a reveal step.
 
 ## Redirect contract
 
@@ -66,7 +65,5 @@ only, selective node/arc glow, and no text, logo, UI, people, mushrooms, green,
 teal, or watermark. The official, unmodified logo source is copied to
 `public/onboarding/ipn-logo.png`.
 
-The three deterministic SVG QR assets are UI-only fixtures that encode the
-production member-portal tokenless compatibility paths. Integration replaces
-them through `resolveWhatsAppQrTarget()` with dynamic one-time handoff QR
-images. They do not contain direct WhatsApp invite URLs.
+No tracked QR asset contains a channel destination. QR images are generated
+dynamically from short-lived first-party handoff URLs.

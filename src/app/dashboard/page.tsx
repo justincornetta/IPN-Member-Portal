@@ -481,7 +481,7 @@ export default async function DashboardPage() {
     supabase
       .from("member_onboarding_progress")
       .select(
-        "profile_completed_at, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
+        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
       )
       .eq("user_id", user!.id)
       .maybeSingle(),
@@ -521,13 +521,22 @@ export default async function DashboardPage() {
     registrations.map((registration) => registration.event_id),
   )
   const ticketIds = new Set(tickets.map((ticket) => ticket.event_id))
-  const upcomingEvents: EventWithRegistration[] = rawUpcomingEvents.map((event) =>
-    withTicketRegistrationState(
+  const upcomingEvents: EventWithRegistration[] = rawUpcomingEvents.map((event) => {
+    const withRegistration = withTicketRegistrationState(
       event,
       registeredIds.has(event.id),
       ticketIds.has(event.id),
-    ),
-  )
+    )
+    return {
+      ...withRegistration,
+      chat_external_url:
+        withRegistration.chat_platform === "whatsapp"
+        && withRegistration.chat_status === "active"
+        && withRegistration.chat_external_url
+          ? "available"
+          : null,
+    }
+  })
 
   const firstName = profile?.first_name ?? user!.email?.split("@")[0] ?? "there"
   const subtitle = [profile?.persona, profile?.affiliation ?? profile?.school]

@@ -261,6 +261,48 @@ export async function advanceOnboardingFlow(
   if (upsertError) throw new Error(`Could not save onboarding progress: ${upsertError.message}`)
 }
 
+export async function syncProfileOnboardingCompletion(
+  supabase: SupabaseClient,
+  userId: string,
+  compatibility: { supportNeeds?: string | null; linkedInOptOut?: boolean } = {},
+) {
+  const [profileResult, educationResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("avatar_url, bio, persona, affiliation, school, interest_tags, role_and_goals, inspiration, support_needs, linkedin_url")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("member_education")
+      .select("institution")
+      .eq("user_id", userId),
+  ])
+
+  if (profileResult.error) throw new Error(`Could not read profile completion: ${profileResult.error.message}`)
+  if (educationResult.error) throw new Error(`Could not read profile education: ${educationResult.error.message}`)
+  if (!profileResult.data) return false
+
+  const profile = profileResult.data as ProfileCompletionRecord
+  const fields = profileCompletionFieldsFromRecord(
+    {
+      ...profile,
+      support_needs: profile.support_needs?.trim() || compatibility.supportNeeds?.trim() || null,
+    },
+    {
+      education: (educationResult.data ?? []) as ProfileCompletionEducationRecord[],
+      linkedInOptOut: compatibility.linkedInOptOut === true,
+    },
+  )
+
+  if (!isProfileOnboardingComplete(fields)) return false
+  await advanceOnboardingFlow(supabase, userId, {
+    flow: "profile",
+    currentStep: "complete",
+    complete: true,
+  })
+  return true
+}
+
 export async function markOnboardingStepsComplete(
   supabase: SupabaseClient,
   userId: string,

@@ -6,8 +6,6 @@ import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
 import { updateProfile } from "@/lib/auth/actions"
-import { completeOnboardingStep } from "@/lib/onboarding/actions"
-import { isProfileOnboardingComplete } from "@/lib/onboarding/progress"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import CityVerificationField from "@/components/location/CityVerificationField"
@@ -34,7 +32,7 @@ import {
   type MemberEducationInput,
 } from "@/lib/members/education"
 import ProfileCompletionStatus from "./ProfileCompletionStatus"
-import { updateProfileCompletionDetails } from "./actions"
+import { refreshProfileOnboardingCompletion, updateProfileCompletionDetails } from "./actions"
 import {
   getProfileCompletion,
   type ProfileCompletionField,
@@ -1110,14 +1108,9 @@ export default function ProfileForm({
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
       await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
-      if (isProfileOnboardingComplete({
-        avatar_url: publicUrl,
-        bio: data.bio,
-        interest_tags: data.interest_tags,
-      })) {
-        await completeOnboardingStep("profile")
-      }
       update("avatar_url", publicUrl)
+      const completionResult = await refreshProfileOnboardingCompletion()
+      if (completionResult.error) setError(completionResult.error)
       router.refresh()
     } finally {
       setAvatarUploading(false)

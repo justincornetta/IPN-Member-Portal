@@ -1,8 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { BrandLockup } from "@/components/onboarding/BrandLockup"
-import { WhatsAppLanding } from "@/components/onboarding/WhatsAppLanding"
-import styles from "@/components/onboarding/onboarding.module.css"
+import { redirect } from "next/navigation"
 
 export const metadata: Metadata = {
   title: "Connect on WhatsApp | IPN Member Portal",
@@ -10,15 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function WhatsAppPage() {
-  return (
-    <main className={`${styles.onboardingShell} ${styles.whatsappShell}`}>
-      <div className={styles.whatsappFrame}>
-        <header className={styles.whatsappHeader}>
-          <BrandLockup />
-          <Link href="/onboarding/welcome" className={styles.backLink}>← Back</Link>
-        </header>
-        <WhatsAppLanding />
-      </div>
-    </main>
-  )
+  redirect("/dashboard/whatsapp")
 }

@@ -16,7 +16,7 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login")
 
-  const [profileResult, pendingResult] = await Promise.all([
+  const [profileResult, pendingResult, tourProgressResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, last_name, avatar_url, role, is_banned")
@@ -27,6 +27,11 @@ export default async function DashboardLayout({
       .select("id", { count: "exact", head: true })
       .eq("addressee_id", user.id)
       .eq("status", "pending"),
+    supabase
+      .from("member_onboarding_progress")
+      .select("product_tour_started_at, product_tour_current_step, product_tour_completed_at")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ])
 
   const profile = profileResult.data
@@ -36,7 +41,15 @@ export default async function DashboardLayout({
   const isAdmin = profile?.role === "superadmin" || profile?.role === "admin"
 
   return (
-    <ProductTourProvider userId={user.id}>
+    <ProductTourProvider
+      userId={user.id}
+      serverStateAvailable={!tourProgressResult.error}
+      serverProgress={{
+        startedAt: tourProgressResult.data?.product_tour_started_at ?? null,
+        currentStep: tourProgressResult.data?.product_tour_current_step ?? null,
+        completedAt: tourProgressResult.data?.product_tour_completed_at ?? null,
+      }}
+    >
       <div className="flex h-full flex-col overflow-hidden md:flex-row">
         <Sidebar
           firstName={profile?.first_name ?? null}

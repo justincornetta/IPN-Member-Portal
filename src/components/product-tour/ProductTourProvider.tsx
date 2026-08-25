@@ -12,11 +12,14 @@ import {
   type ReactNode,
 } from "react"
 import { usePathname, useRouter } from "next/navigation"
+import { saveOnboardingFlowProgress } from "@/lib/onboarding/actions"
 import {
   PRODUCT_TOUR_STEPS,
   PRODUCT_TOUR_VERSION,
   nextTourProgress,
   parseProductTourProgress,
+  productTourProgressFromServer,
+  productTourServerStep,
   productTourStorageKey,
   type ProductTourProgress,
 } from "./tour-state"
@@ -48,9 +51,13 @@ function findTarget(stepId: string): HTMLElement | null {
 
 export function ProductTourProvider({
   userId,
+  serverProgress,
+  serverStateAvailable,
   children,
 }: {
   userId: string
+  serverProgress: { startedAt: string | null; currentStep: string | null; completedAt: string | null }
+  serverStateAvailable: boolean
   children: ReactNode
 }) {
   const pathname = usePathname()
@@ -62,16 +69,30 @@ export function ProductTourProvider({
 
   const persist = useCallback((next: ProductTourProgress) => {
     setProgress(next)
-    window.localStorage.setItem(productTourStorageKey(userId), JSON.stringify(next))
+    void saveOnboardingFlowProgress({
+      flow: "product_tour",
+      currentStep: productTourServerStep(next),
+      complete: next.status === "completed",
+    }).then((result) => {
+      if (result.error) {
+        window.localStorage.setItem(productTourStorageKey(userId), JSON.stringify(next))
+      } else {
+        window.localStorage.removeItem(productTourStorageKey(userId))
+      }
+    }).catch(() => {
+      window.localStorage.setItem(productTourStorageKey(userId), JSON.stringify(next))
+    })
   }, [userId])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setProgress(parseProductTourProgress(window.localStorage.getItem(productTourStorageKey(userId))))
+      const durable = productTourProgressFromServer(serverProgress)
+      const fallback = parseProductTourProgress(window.localStorage.getItem(productTourStorageKey(userId)))
+      setProgress(fallback ?? (serverStateAvailable ? durable : null))
       setReady(true)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [userId])
+  }, [serverProgress, serverStateAvailable, userId])
 
   const step = progress ? PRODUCT_TOUR_STEPS[progress.stepIndex] : null
   const isActive = progress?.status === "active"

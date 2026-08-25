@@ -5,7 +5,6 @@ export type WhatsAppChannel = {
   name: string
   shortName: string
   description: string
-  redirectPath: `/go/whatsapp/${WhatsAppChannelId}?source=onboarding`
   recommended?: boolean
 }
 

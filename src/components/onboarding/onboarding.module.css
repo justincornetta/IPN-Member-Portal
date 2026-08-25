@@ -218,7 +218,7 @@
 .primaryAction:focus-visible,
 .backLink:focus-visible,
 .channelChoice:focus-visible,
-.mobileChannelCard a:focus-visible { outline: 3px solid #cfb3ff; outline-offset: 4px; }
+.mobileChannelCard button:focus-visible { outline: 3px solid #cfb3ff; outline-offset: 4px; }
 
 .whatsappShell { padding-block: clamp(14px, 2.3vw, 34px); }
 .whatsappFrame { display: grid; height: 100%; grid-template-rows: auto minmax(0, 1fr); padding: clamp(14px, 2vh, 22px) clamp(18px, 2.5vw, 32px); background: linear-gradient(145deg, rgba(26, 16, 52, .94), rgba(17, 8, 39, .98)); }
@@ -358,9 +358,9 @@
   .mobileChannelHeading h3 { margin: 0; font-size: 13px; }
   .mobileChannelHeading .recommended { padding: 3px 5px; font-size: 8.5px; }
   .mobileChannelCard > p { grid-column: 1; margin: 3px 0 0; overflow-wrap: anywhere; color: var(--muted); font-size: 11px; line-height: 1.18; }
-  .mobileChannelCard a { display: inline-flex; min-height: 40px; grid-column: 2; grid-row: 1 / span 2; align-items: center; padding-left: 6px; color: var(--purple); font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
-  .mobileChannelCard a span { margin-left: 8px; }
-  .mobileChannelCard a[aria-disabled="true"] { cursor: wait; opacity: .5; }
+  .mobileChannelCard button { display: inline-flex; min-height: 40px; grid-column: 2; grid-row: 1 / span 2; align-items: center; border: 0; background: transparent; padding-left: 6px; color: var(--purple); font: inherit; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+  .mobileChannelCard button span { margin-left: 8px; }
+  .mobileChannelCard button:disabled { cursor: wait; opacity: .5; }
   .mobileChannels .eventEmptyState { min-height: 38px; padding: 5px 8px; }
   .mobileChannels .eventIcon { width: 28px; height: 28px; border-radius: 8px; }
   .mobileChannels .eventEmptyState strong { font-size: 11px; }
@@ -398,7 +398,7 @@
   .mobileChannelHeading .channelIcon { width: 28px; height: 28px; }
   .mobileChannelHeading h3 { font-size: 12px; }
   .mobileChannelCard > p { margin-top: 2px; font-size: 11px; }
-  .mobileChannelCard a { min-height: 34px; font-size: 12px; }
+  .mobileChannelCard button { min-height: 34px; font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -406,4 +406,17 @@
   .continueButton,
   .primaryAction,
   .channelChoice { transition: none; }
+}
+.whatsappContinue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.whatsappContinue p {
+  margin: 0;
+  color: #7b6e9a;
+  font-size: 0.82rem;
 }

@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { syncProfileOnboardingCompletion } from "@/lib/onboarding/progress"
 
 export type ProfileCompletionDetails = {
   inspiration: string
@@ -34,4 +35,31 @@ export async function updateProfileCompletionDetails(
   })
 
   if (metadataError) return { error: metadataError.message }
+
+  try {
+    await syncProfileOnboardingCompletion(supabase, user.id, {
+      supportNeeds: details.supportNeeds,
+      linkedInOptOut: details.linkedinOptOut,
+    })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not update profile completion" }
+  }
+}
+
+export async function refreshProfileOnboardingCompletion(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  try {
+    await syncProfileOnboardingCompletion(supabase, user.id, {
+      supportNeeds: typeof user.user_metadata?.support_needs === "string"
+        ? user.user_metadata.support_needs
+        : null,
+      linkedInOptOut: user.user_metadata?.linkedin_opt_out === true,
+    })
+    return {}
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not update profile completion" }
+  }
 }

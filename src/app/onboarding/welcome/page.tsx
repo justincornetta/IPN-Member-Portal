@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import { redirect } from "next/navigation"
 import { BrandLockup } from "@/components/onboarding/BrandLockup"
 import { PortalFeatureGrid } from "@/components/onboarding/PortalFeatureGrid"
+import { WelcomeContinue } from "@/components/onboarding/WelcomeContinue"
+import { createClient } from "@/lib/supabase/server"
 import styles from "@/components/onboarding/onboarding.module.css"
 
 export const metadata: Metadata = {
@@ -9,7 +11,18 @@ export const metadata: Metadata = {
   description: "Meet the IPN Member Portal and continue to community onboarding.",
 }
 
-export default function WelcomePage() {
+export default async function WelcomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const { data: progress } = await supabase
+    .from("member_onboarding_progress")
+    .select("welcome_completed_at")
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (progress?.welcome_completed_at) redirect("/dashboard")
+
   return (
     <main className={styles.onboardingShell}>
       <section className={styles.welcomeFrame}>
@@ -34,9 +47,7 @@ export default function WelcomePage() {
             <p>Find events, useful resources, and the people who make this community move.</p>
           </div>
           <PortalFeatureGrid />
-          <Link className={styles.continueButton} href="/onboarding/whatsapp">
-            Continue <span aria-hidden="true">→</span>
-          </Link>
+          <WelcomeContinue />
         </div>
       </section>
     </main>
