@@ -11,6 +11,7 @@ import {
   PERMANENT_WHATSAPP_CHANNELS,
   WHATSAPP_ANNOUNCEMENTS_NOTE,
   isPermanentWhatsAppChannelSlug,
+  normalizeWhatsAppAnalyticsSessionId,
   normalizeWhatsAppSource,
   validateEventWhatsAppAccess,
   validateWhatsAppInviteUrl,
@@ -118,6 +119,8 @@ test("event chats require publication, active WhatsApp configuration, and RSVP",
 test("source normalization is bounded", () => {
   assert.equal(normalizeWhatsAppSource(" Welcome-Modal "), "welcome-modal")
   assert.equal(normalizeWhatsAppSource("../../unsafe"), "unspecified")
+  assert.equal(normalizeWhatsAppAnalyticsSessionId("session_123"), "session_123")
+  assert.equal(normalizeWhatsAppAnalyticsSessionId("session/unsafe"), null)
 })
 
 test("migration preserves milestone timestamps and locks the intent ledger", async () => {

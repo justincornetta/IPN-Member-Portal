@@ -31,7 +31,7 @@ Raw permanent invites must be configured only in server environment variables:
 
 The authenticated first-party endpoint is:
 
-`POST /api/whatsapp/{permanent|event}/{slug}?source={source}&mode={redirect|qr}`
+`POST /api/whatsapp/{permanent|event}/{slug}?source={source}&mode={redirect|qr}&sessionId={portalSessionId}`
 
 - `mode=redirect` records intent, then responds with a `303` to the validated
   WhatsApp invite.
@@ -42,6 +42,9 @@ The authenticated first-party endpoint is:
   active, the invite uses `https://chat.whatsapp.com`, and the member has RSVP'd.
 - The `source` is normalized to a safe analytics identifier; invalid or missing
   values become `unspecified`.
+- Authenticated UI should pass the existing Portal analytics `sessionId` so the
+  click stays in the current session journey. The route uses a server-generated
+  fallback when the UI cannot provide one.
 
 The endpoint is intentionally POST-only so prefetching or merely rendering a link
 cannot mark completion. A direct-click UI can submit a same-origin POST form in a

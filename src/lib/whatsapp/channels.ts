@@ -40,6 +40,11 @@ export function normalizeWhatsAppSource(value: string | null) {
   return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalized) ? normalized : "unspecified"
 }
 
+export function normalizeWhatsAppAnalyticsSessionId(value: string | null) {
+  const normalized = value?.trim() ?? ""
+  return /^[A-Za-z0-9_-]{1,120}$/.test(normalized) ? normalized : null
+}
+
 export function validateWhatsAppInviteUrl(value: string | null | undefined): URL | null {
   if (!value) return null
 

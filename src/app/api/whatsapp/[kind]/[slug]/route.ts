@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import {
   isPermanentWhatsAppChannelSlug,
+  normalizeWhatsAppAnalyticsSessionId,
   normalizeWhatsAppSource,
   type WhatsAppDeliveryMode,
 } from "@/lib/whatsapp/channels"
@@ -84,6 +85,9 @@ export async function POST(
   if (mode !== "redirect" && mode !== "qr") return errorResponse("Invalid delivery mode", 400)
 
   const source = normalizeWhatsAppSource(requestUrl.searchParams.get("source"))
+  const analyticsSessionId =
+    normalizeWhatsAppAnalyticsSessionId(requestUrl.searchParams.get("sessionId"))
+    ?? `server_${randomUUID()}`
   const { kind, slug } = await params
   const supabase = await createClient()
   const {
@@ -122,7 +126,7 @@ export async function POST(
 
   await recordPortalAnalyticsEvent({
     eventName: "whatsapp_join_intent",
-    sessionId: `server_${randomUUID()}`,
+    sessionId: analyticsSessionId,
     userId: user.id,
     pagePath: request.headers.get("referer"),
     targetId: `${target.kind}:${target.slug}`,
