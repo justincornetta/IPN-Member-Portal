@@ -217,7 +217,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
       {cropSrc && (
         <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/95">
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-            <p className="text-sm font-medium text-white">Crop to 16:9 thumbnail</p>
+            <p className="text-sm font-medium text-white">Crop to 16:9</p>
             <button type="button" onClick={() => setCropSrc(null)} className="cursor-pointer text-sm text-zinc-400 transition hover:text-white">
               Cancel
             </button>
@@ -764,6 +764,7 @@ type ConferenceDiscountRow = { id?: string; label: string; code: string; url: st
 
 type ConferenceFields = {
   name: string; organizer: string; category: ConferenceCategory
+  coverImageUrl: string
   city: string; state: string; country: string; venue: string
   startsAt: string; endsAt: string; timezone: string
   websiteUrl: string; registrationUrl: string; whatsappUrl: string
@@ -775,6 +776,7 @@ type ConferenceFields = {
 
 const CONFERENCE_DEFAULTS: ConferenceFields = {
   name: "", organizer: "", category: "Community",
+  coverImageUrl: "",
   city: "", state: "", country: "", venue: "",
   startsAt: "", endsAt: "", timezone: "America/New_York",
   websiteUrl: "", registrationUrl: "", whatsappUrl: "",
@@ -960,6 +962,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
       name: f.name,
       organizer: f.organizer || undefined,
       category: f.category,
+      coverImageUrl: f.coverImageUrl || undefined,
       summary: f.summary || undefined,
       description: f.description || undefined,
       startsAt: f.startsAt,
@@ -1064,6 +1067,9 @@ function ConferenceForm({ initial, onSubmit, pending }: {
         <>
           <StepBar step={3} total={4} title="Details" sub="Shown on the conference detail page" />
           <div className="flex flex-col gap-4">
+            <Field label="Cover photo" hint="16:9 landscape image. 1280 × 720 px recommended; keep important content away from the edges.">
+              <ImageUploadField value={f.coverImageUrl} onChange={(url) => set("coverImageUrl", url)} />
+            </Field>
             <Field label="Summary" hint="1–2 sentences shown on the conference card">
               <textarea value={f.summary} onChange={(e) => set("summary", e.target.value)} rows={2} className={inputCls()} />
             </Field>
@@ -1171,6 +1177,7 @@ type PastConferenceFields = {
   name: string
   organizer: string
   category: string
+  coverImageUrl: string
   startsAt: string
   endsAt: string
   city: string
@@ -1182,6 +1189,7 @@ type PastConferenceFields = {
 
 const PAST_CONFERENCE_DEFAULTS: PastConferenceFields = {
   name: "", organizer: "", category: "",
+  coverImageUrl: "",
   startsAt: "", endsAt: "", city: "", state: "", country: "",
   summary: "", driveFolderUrl: "",
 }
@@ -1209,6 +1217,7 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
       name: f.name,
       organizer: f.organizer || undefined,
       category: f.category || undefined,
+      coverImageUrl: f.coverImageUrl || undefined,
       startsAt: f.startsAt || undefined,
       endsAt: f.endsAt || undefined,
       city: f.city || undefined,
@@ -1235,6 +1244,9 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
             <input value={f.category} onChange={(e) => set("category", e.target.value)} className={inputCls()} />
           </Field>
         </div>
+        <Field label="Cover photo" hint="16:9 landscape image. 1280 × 720 px recommended; keep important content away from the edges.">
+          <ImageUploadField value={f.coverImageUrl} onChange={(url) => set("coverImageUrl", url)} />
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Start date" hint="Optional">
             <input type="date" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inputCls()} />
@@ -1354,6 +1366,7 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
   const timezone = c.timezone ?? "America/New_York"
   return {
     name: c.name, organizer: c.organizer ?? "", category: c.category,
+    coverImageUrl: c.cover_image_url ?? "",
     city: c.city ?? "", state: c.state ?? "", country: c.country ?? "", venue: c.venue ?? "",
     startsAt: isoToLocal(c.starts_at, timezone), endsAt: isoToLocal(c.ends_at, timezone), timezone,
     websiteUrl: c.website_url ?? "", registrationUrl: c.registration_url ?? "", whatsappUrl: c.whatsapp_url ?? "",
@@ -1376,6 +1389,7 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
 function pastConferenceToFields(c: PastConferenceRecord): PastConferenceFields {
   return {
     name: c.name, organizer: c.organizer ?? "", category: c.category ?? "",
+    coverImageUrl: c.cover_image_url ?? "",
     startsAt: c.starts_at ?? "", endsAt: c.ends_at ?? "",
     city: c.city ?? "", state: c.state ?? "", country: c.country ?? "",
     summary: c.summary ?? "", driveFolderUrl: c.drive_folder_url ?? "",

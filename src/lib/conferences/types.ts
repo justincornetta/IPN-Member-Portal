@@ -33,6 +33,7 @@ export type ConferenceRecord = {
   name: string
   organizer: string | null
   category: ConferenceCategory
+  cover_image_url: string | null
   summary: string | null
   description: string | null
   starts_at: string
@@ -61,6 +62,7 @@ export type PastConferenceRecord = {
   name: string
   organizer: string | null
   category: string | null
+  cover_image_url: string | null
   starts_at: string | null
   ends_at: string | null
   city: string | null

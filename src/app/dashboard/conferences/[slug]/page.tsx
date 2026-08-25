@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getConferenceBySlug, getConferenceAttendeeState, getMeetupRsvpIds } from "@/lib/conferences/queries"
 import { formatConferenceDateRange } from "@/lib/conferences/format"
 import ConferenceInteractive from "@/components/conferences/ConferenceInteractive"
+import ConferenceCover from "@/components/conferences/ConferenceCover"
 import CopyCodeButton from "@/components/conferences/CopyCodeButton"
 import type { ConferenceAttendee } from "@/lib/conferences/types"
 import type { ConnectionEntry } from "@/lib/directory/types"
@@ -13,13 +14,6 @@ const PROFILE_SELECT =
 
 type Props = {
   params: Promise<{ slug: string }>
-}
-
-const CATEGORY_GRADIENTS: Record<string, string> = {
-  Academic: "bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_30%,#18181b_75%)]",
-  Industry: "bg-[radial-gradient(circle_at_20%_20%,#fbbf24_0,#b45309_30%,#18181b_75%)]",
-  Community: "bg-[radial-gradient(circle_at_20%_20%,#5eead4_0,#0f766e_30%,#18181b_75%)]",
-  "Harm Reduction": "bg-[radial-gradient(circle_at_20%_20%,#f9a8d4_0,#9d174d_30%,#18181b_75%)]",
 }
 
 function ExternalLinkIcon() {
@@ -133,11 +127,12 @@ export default async function ConferenceDetailPage({ params }: Props) {
       </div>
 
       <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <div className={`relative h-40 sm:h-48 ${CATEGORY_GRADIENTS[conference.category] ?? CATEGORY_GRADIENTS.Community}`}>
-          <span className="absolute left-4 top-4 rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-zinc-800">
-            {conference.category}
-          </span>
-        </div>
+        <ConferenceCover
+          imageUrl={conference.cover_image_url}
+          category={conference.category}
+          sizes="(max-width: 639px) calc(100vw - 32px), 896px"
+          priority
+        />
 
         <div className="p-5 sm:p-7">
           <p className="text-sm font-medium text-ipn">

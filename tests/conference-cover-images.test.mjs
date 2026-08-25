@@ -1,0 +1,41 @@
+import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import test from "node:test"
+
+function read(path) {
+  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
+}
+
+test("conference cover images are persisted for upcoming and past conferences", () => {
+  const migration = read("supabase/migrations/20260825190351_add_conference_cover_images.sql")
+  const actions = read("src/lib/admin/conference-actions.ts")
+  const queries = read("src/lib/conferences/queries.ts")
+
+  assert.match(migration, /alter table public\.conferences[\s\S]*cover_image_url text/)
+  assert.match(migration, /alter table public\.past_conferences[\s\S]*cover_image_url text/)
+  assert.equal((actions.match(/cover_image_url/g) ?? []).length >= 4, true)
+  assert.equal((queries.match(/cover_image_url/g) ?? []).length >= 2, true)
+})
+
+test("both admin conference forms expose the shared 16:9 cover-photo control", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+
+  assert.equal((form.match(/label="Cover photo"/g) ?? []).length, 2)
+  assert.equal((form.match(/value=\{f\.coverImageUrl\}/g) ?? []).length, 2)
+  assert.match(form, /aspect=\{16 \/ 9\}/)
+  assert.match(form, /canvas\.width = 1280/)
+  assert.match(form, /canvas\.height = 720/)
+})
+
+test("conference cards and detail pages share a responsive 16:9 renderer", () => {
+  const cover = read("src/components/conferences/ConferenceCover.tsx")
+  const upcomingCard = read("src/components/conferences/ConferenceCard.tsx")
+  const pastCard = read("src/components/conferences/PastConferenceCard.tsx")
+  const detailPage = read("src/app/dashboard/conferences/[slug]/page.tsx")
+
+  assert.match(cover, /aspect-video/)
+  assert.match(cover, /className="object-cover"/)
+  assert.match(upcomingCard, /conference\.cover_image_url/)
+  assert.match(pastCard, /conference\.cover_image_url/)
+  assert.match(detailPage, /conference\.cover_image_url/)
+})

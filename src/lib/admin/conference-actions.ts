@@ -47,6 +47,7 @@ export type AdminConferencePayload = {
   name: string
   organizer?: string
   category: ConferenceCategory
+  coverImageUrl?: string
   summary?: string
   description?: string
   startsAt: string
@@ -65,7 +66,7 @@ export type AdminConferencePayload = {
 }
 
 const CONFERENCE_ADMIN_SELECT =
-  "id, slug, name, organizer, category, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status"
+  "id, slug, name, organizer, category, cover_image_url, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status"
 
 export async function listAdminConferences(): Promise<ConferenceRecord[]> {
   const auth = await verifyAdmin()
@@ -145,6 +146,7 @@ export async function publishAdminConference(
     name,
     organizer: clean(payload.organizer),
     category: payload.category,
+    cover_image_url: clean(payload.coverImageUrl),
     summary: clean(payload.summary),
     description: clean(payload.description),
     starts_at: startsAt,
@@ -251,6 +253,7 @@ export type AdminPastConferencePayload = {
   name: string
   organizer?: string
   category?: string
+  coverImageUrl?: string
   startsAt?: string
   endsAt?: string
   city?: string
@@ -261,7 +264,7 @@ export type AdminPastConferencePayload = {
 }
 
 const PAST_CONFERENCE_ADMIN_SELECT =
-  "id, name, organizer, category, starts_at, ends_at, city, state, country, summary, drive_folder_url"
+  "id, name, organizer, category, cover_image_url, starts_at, ends_at, city, state, country, summary, drive_folder_url"
 
 export async function listAdminPastConferences(): Promise<PastConferenceRecord[]> {
   const auth = await verifyAdmin()
@@ -291,6 +294,7 @@ export async function publishAdminPastConference(
     name,
     organizer: clean(payload.organizer),
     category: clean(payload.category),
+    cover_image_url: clean(payload.coverImageUrl),
     starts_at: clean(payload.startsAt),
     ends_at: clean(payload.endsAt),
     city: clean(payload.city),
