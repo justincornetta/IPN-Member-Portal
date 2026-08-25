@@ -33,6 +33,11 @@ import {
   validateEducationEntries,
   type MemberEducationInput,
 } from "@/lib/members/education"
+import ProfileCompletionStatus from "./ProfileCompletionStatus"
+import {
+  getProfileCompletion,
+  type ProfileCompletionField,
+} from "./profile-completion"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -912,6 +917,16 @@ export default function ProfileForm({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
 
+  const profileCompletion = getProfileCompletion({
+    avatarUrl: data.avatar_url,
+    bio: data.bio,
+    role: data.persona,
+    affiliation: data.affiliation,
+    legacySchool: data.school,
+    educationInstitutions: data.education.map((entry) => entry.institution),
+    interests: data.interest_tags,
+  })
+
   useEffect(() => {
     if (!isDirty) return
 
@@ -987,6 +1002,44 @@ export default function ProfileForm({
     const [entry] = next.splice(index, 1)
     next.splice(nextIndex, 0, entry)
     update("education", next)
+  }
+
+  function focusProfileField(field: ProfileCompletionField) {
+    if (field === "avatar") {
+      fileInputRef.current?.click()
+      return
+    }
+    if (field === "interests") {
+      setTagPickerOpen(true)
+      return
+    }
+    if (field === "organization" && !isProfessional && data.education.length === 0) {
+      update("education", [{
+        id: crypto.randomUUID(),
+        institution: "",
+        education_level: "",
+        degree_credential: "",
+        area_of_study: "",
+        status: "",
+        graduation_year: null,
+      }])
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          document.getElementById("education_institution_0")?.focus({ preventScroll: false })
+        })
+      })
+      return
+    }
+
+    const id = field === "bio"
+      ? "bio"
+      : field === "role"
+        ? "persona"
+        : isProfessional
+          ? "affiliation"
+          : "education_institution_0"
+
+    document.getElementById(id)?.focus({ preventScroll: false })
   }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1092,6 +1145,13 @@ export default function ProfileForm({
 
   return (
     <div ref={topRef} className="flex flex-col gap-10">
+
+      <ProfileCompletionStatus
+        completedCount={profileCompletion.completedCount}
+        totalCount={profileCompletion.totalCount}
+        items={profileCompletion.items}
+        onFocusField={focusProfileField}
+      />
 
       {saved && (
         <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
@@ -1247,7 +1307,7 @@ export default function ProfileForm({
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="persona">What best describes you?</Label>
+            <Label htmlFor="persona">Current role</Label>
             <select
               id="persona"
               name="persona"
@@ -1341,7 +1401,7 @@ export default function ProfileForm({
               </div>
             </div>
           ))}
-          <button type="button" onClick={() => update("education", [...data.education, {
+          <button id="add_education" type="button" onClick={() => update("education", [...data.education, {
             id: crypto.randomUUID(),
             institution: "",
             education_level: "",
@@ -1445,7 +1505,7 @@ export default function ProfileForm({
           <div className="mt-1 rounded-lg border border-zinc-100 bg-zinc-50 p-4 flex flex-col gap-3 text-xs">
             <div className="flex flex-col gap-0.5">
               <p className="font-semibold text-zinc-500">Directory members see</p>
-              <p className="text-zinc-400">Bio, interests, LinkedIn, stage, school or affiliation</p>
+              <p className="text-zinc-400">Bio, interests, LinkedIn, current role, school or affiliation</p>
             </div>
             <div className="h-px bg-zinc-200" />
             <div className="flex flex-col gap-0.5">
