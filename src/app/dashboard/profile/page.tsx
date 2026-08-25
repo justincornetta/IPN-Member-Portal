@@ -38,6 +38,12 @@ export default async function ProfilePage() {
         userId={user.id}
         userEmail={user.email ?? ""}
         mailchimpStatus={mailchimpStatus}
+        linkedinOptOut={user.user_metadata?.linkedin_opt_out === true}
+        supportNeedsFallback={
+          typeof user.user_metadata?.support_needs === "string"
+            ? user.user_metadata.support_needs
+            : ""
+        }
       />
     </div>
   )
