@@ -225,7 +225,7 @@
 .whatsappHeader { display: flex; align-items: center; justify-content: space-between; }
 .backLink { color: #d8cbed; font-size: 14px; text-decoration: none; }
 .backLink:hover { color: white; }
-.whatsappLayout { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); margin-top: clamp(8px, 1.5vh, 14px); }
+.whatsappLayout { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; margin-top: clamp(8px, 1.5vh, 14px); }
 .whatsappIntro { max-width: 760px; }
 .whatsappIntro .eyebrow { margin-bottom: 6px; }
 .whatsappIntro h1 { font-size: clamp(32px, 4.3vw, 48px); }
@@ -417,6 +417,6 @@
 
 .whatsappContinue p {
   margin: 0;
-  color: #7b6e9a;
+  color: #d8cbed;
   font-size: 0.82rem;
 }

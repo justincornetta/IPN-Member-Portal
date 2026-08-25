@@ -447,12 +447,19 @@ export async function updateProfile(
     if (educationDeleteError) return { error: educationDeleteError.message }
   }
 
-  await syncProfileOnboardingCompletion(supabase, user.id, {
-    supportNeeds: typeof user.user_metadata?.support_needs === "string"
-      ? user.user_metadata.support_needs
-      : null,
-    linkedInOptOut: user.user_metadata?.linkedin_opt_out === true,
-  })
+  try {
+    await syncProfileOnboardingCompletion(supabase, user.id, {
+      supportNeeds: typeof user.user_metadata?.support_needs === "string"
+        ? user.user_metadata.support_needs
+        : null,
+      linkedInOptOut: user.user_metadata?.linkedin_opt_out === true,
+    })
+  } catch (completionError) {
+    // The profile and education writes above are authoritative even if a newly
+    // deployed onboarding table is temporarily unavailable. A later profile or
+    // avatar update will retry synchronization without rolling back user data.
+    console.error("[profile] onboarding completion sync failed:", completionError)
+  }
   revalidatePath("/dashboard")
 
   if (updatedProfile?.mailchimp_status === "subscribed" && updatedProfile.email) {

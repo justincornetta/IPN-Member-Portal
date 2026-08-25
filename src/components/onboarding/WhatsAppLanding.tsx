@@ -33,6 +33,7 @@ export function WhatsAppLanding() {
   const [qrState, setQrState] = useState<QrState>({ status: "loading" })
   const [qrAttempt, setQrAttempt] = useState(0)
   const [continuing, setContinuing] = useState(false)
+  const [continueError, setContinueError] = useState<string | null>(null)
   const requestSequence = useRef(0)
   const selected = whatsappChannels.find((channel) => channel.id === selectedId)!
 
@@ -115,8 +116,19 @@ export function WhatsAppLanding() {
   const continueToDashboard = useCallback(async () => {
     if (continuing) return
     setContinuing(true)
-    await saveOnboardingFlowProgress({ flow: "whatsapp", currentStep: "continued" })
-    router.push("/dashboard")
+    setContinueError(null)
+    try {
+      const result = await saveOnboardingFlowProgress({ flow: "whatsapp", currentStep: "continued" })
+      if (result.error) {
+        setContinueError("We could not save your progress. Please try again.")
+        return
+      }
+      router.push("/dashboard")
+    } catch {
+      setContinueError("We could not save your progress. Please try again.")
+    } finally {
+      setContinuing(false)
+    }
   }, [continuing, router])
 
   return (
@@ -250,6 +262,7 @@ export function WhatsAppLanding() {
         <button type="button" className={styles.continueButton} disabled={continuing} onClick={continueToDashboard}>
           {continuing ? "Opening dashboard…" : "Continue to dashboard"} <span aria-hidden="true">→</span>
         </button>
+        {continueError && <p className={styles.errorMessage} role="alert">{continueError}</p>}
         <p>You can continue without choosing a channel and return here anytime.</p>
       </div>
     </div>

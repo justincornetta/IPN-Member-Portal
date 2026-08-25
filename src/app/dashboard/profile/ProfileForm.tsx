@@ -613,6 +613,61 @@ function Select({
   )
 }
 
+function useModalFocus(active: boolean, onClose: () => void) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!active) return
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const dialog = dialogRef.current
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    const focusInitial = window.requestAnimationFrame(() => {
+      const initial = dialog?.querySelector<HTMLElement>("[data-dialog-initial-focus]")
+        ?? dialog?.querySelector<HTMLElement>(focusableSelector)
+      initial?.focus({ preventScroll: true })
+    })
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        closeRef.current()
+        return
+      }
+      if (event.key !== "Tab" || !dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
+      if (!focusable.length) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusInitial)
+      document.removeEventListener("keydown", handleKeyDown)
+      previouslyFocused?.focus({ preventScroll: true })
+    }
+  }, [active])
+
+  return dialogRef
+}
+
 function TagPickerModal({
   selected,
   onChange,
@@ -624,17 +679,12 @@ function TagPickerModal({
 }) {
   const [local, setLocal] = useState<string[]>(selected)
   const [search, setSearch] = useState("")
+  const dialogRef = useModalFocus(true, onClose)
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
     return () => { document.body.style.overflow = "" }
   }, [])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onClose])
 
   function toggle(tag: string) {
     setLocal((prev) =>
@@ -659,16 +709,21 @@ function TagPickerModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="interest-picker-title"
+        tabIndex={-1}
         className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <div>
-            <p className="text-sm font-semibold text-zinc-900">Pick your interests</p>
+            <p id="interest-picker-title" className="text-sm font-semibold text-zinc-900">Pick your interests</p>
             <p className="mt-0.5 text-xs text-zinc-400">{local.length} / 3 selected</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600">
+          <button type="button" onClick={onClose} aria-label="Close interest picker" className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
@@ -679,11 +734,12 @@ function TagPickerModal({
         <div className="border-b border-zinc-100 px-5 py-3">
           <input
             type="text"
+            aria-label="Search interests"
+            data-dialog-initial-focus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search interests…"
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
-            autoFocus
           />
         </div>
 
@@ -931,6 +987,7 @@ export default function ProfileForm({
   const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
+  const cropDialogRef = useModalFocus(Boolean(cropSrc), () => setCropSrc(null))
 
   const profileCompletion = getProfileCompletion({
     avatarUrl: data.avatar_url,
@@ -1107,11 +1164,20 @@ export default function ProfileForm({
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(userId)
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId)
+      if (profileUpdateError) {
+        setError(profileUpdateError.message)
+        return
+      }
       update("avatar_url", publicUrl)
       const completionResult = await refreshProfileOnboardingCompletion()
       if (completionResult.error) setError(completionResult.error)
       router.refresh()
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "The photo could not be saved. Please try again.")
     } finally {
       setAvatarUploading(false)
     }
@@ -1129,7 +1195,8 @@ export default function ProfileForm({
     setError(null)
     setSaved(false)
 
-    const result = await updateProfile({
+    try {
+      const result = await updateProfile({
       first_name: data.first_name,
       last_name: data.last_name,
       country: data.country,
@@ -1151,29 +1218,32 @@ export default function ProfileForm({
       share_location: data.share_location,
       avatar_url: data.avatar_url,
       education: data.education,
-    })
+      })
 
-    if (result?.error) {
+      if (result?.error) {
+        setError(result.error)
+        return
+      }
+
+      const completionDetailsResult = await updateProfileCompletionDetails({
+        inspiration: data.inspiration,
+        supportNeeds: data.support_needs,
+        linkedinOptOut: data.linkedin_opt_out,
+      })
+
+      if (completionDetailsResult?.error) {
+        setError(completionDetailsResult.error)
+        return
+      }
+
+      setSaved(true)
+      setIsDirty(false)
+      topRef.current?.scrollIntoView({ behavior: "smooth" })
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Your profile could not be saved. Please try again.")
+    } finally {
       setSaving(false)
-      setError(result.error)
-      return
     }
-
-    const completionDetailsResult = await updateProfileCompletionDetails({
-      inspiration: data.inspiration,
-      supportNeeds: data.support_needs,
-      linkedinOptOut: data.linkedin_opt_out,
-    })
-
-    setSaving(false)
-    if (completionDetailsResult?.error) {
-      setError(completionDetailsResult.error)
-      return
-    }
-
-    setSaved(true)
-    setIsDirty(false)
-    topRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -1195,7 +1265,7 @@ export default function ProfileForm({
       />
 
       {saved && (
-        <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div role="status" aria-live="polite" className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <svg className="h-4 w-4 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
           </svg>
@@ -1720,12 +1790,20 @@ export default function ProfileForm({
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        {error && <span className="text-sm text-red-600">{error}</span>}
+        {error && <span className="text-sm text-red-600" role="alert">{error}</span>}
       </div>
 
       {/* ── Crop modal ── */}
       {cropSrc && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/80">
+        <div
+          ref={cropDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="crop-dialog-title"
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex flex-col bg-zinc-950/80"
+        >
+          <h2 id="crop-dialog-title" className="sr-only">Crop profile photo</h2>
           <div className="relative flex-1">
             <Cropper
               image={cropSrc}
@@ -1746,6 +1824,8 @@ export default function ProfileForm({
               </svg>
               <input
                 type="range"
+                aria-label="Photo zoom"
+                data-dialog-initial-focus
                 min={1}
                 max={3}
                 step={0.01}

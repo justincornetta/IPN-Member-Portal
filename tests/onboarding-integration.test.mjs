@@ -15,6 +15,8 @@ test("WhatsApp UI uses the foundation handoff and no tracked QR fixtures", async
   assert.match(adapter, /QRCode\.toDataURL/)
   assert.match(landing, /desktop_qr_scan/)
   assert.match(landing, /Date\.parse\(target\.expiresAt\) - Date\.now\(\) - 60_000/)
+  assert.match(landing, /if \(result\.error\)/)
+  assert.match(landing, /finally \{\s+setContinuing\(false\)/)
   assert.doesNotMatch(landing, /redirectPath/)
 
   for (const slug of ["general", "labs", "conferences"]) {
@@ -49,4 +51,18 @@ test("durable product tour state round-trips status and active step", () => {
     completedAt: "2026-08-25T12:05:00.000Z",
   })
   assert.equal(completed?.status, "completed")
+})
+
+test("durable tour state wins over local fallback and core profile actions recover from failures", async () => {
+  const tourProvider = await readFile(new URL("../src/components/product-tour/ProductTourProvider.tsx", import.meta.url), "utf8")
+  const profileForm = await readFile(new URL("../src/app/dashboard/profile/ProfileForm.tsx", import.meta.url), "utf8")
+
+  assert.match(tourProvider, /if \(serverStateAvailable\) \{\s+window\.localStorage\.removeItem\(storageKey\)\s+setProgress\(durable\)/)
+  assert.match(tourProvider, /if \(isEditable\) return/)
+  assert.match(tourProvider, /if \(!isActive && tourWasActiveRef\.current\) restoreTourFocus\(\)/)
+  assert.match(tourProvider, /target\?\.focus/)
+  assert.match(profileForm, /role="dialog"/)
+  assert.match(profileForm, /aria-label="Photo zoom"/)
+  assert.match(profileForm, /if \(profileUpdateError\)/)
+  assert.match(profileForm, /finally \{\s+setSaving\(false\)/)
 })

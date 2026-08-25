@@ -63,6 +63,8 @@ export function ProductTourProvider({
   const pathname = usePathname()
   const router = useRouter()
   const cardRef = useRef<HTMLDivElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+  const tourWasActiveRef = useRef(false)
   const [ready, setReady] = useState(false)
   const [progress, setProgress] = useState<ProductTourProgress | null>(null)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
@@ -87,8 +89,13 @@ export function ProductTourProvider({
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const durable = productTourProgressFromServer(serverProgress)
-      const fallback = parseProductTourProgress(window.localStorage.getItem(productTourStorageKey(userId)))
-      setProgress(fallback ?? (serverStateAvailable ? durable : null))
+      const storageKey = productTourStorageKey(userId)
+      if (serverStateAvailable) {
+        window.localStorage.removeItem(storageKey)
+        setProgress(durable)
+      } else {
+        setProgress(parseProductTourProgress(window.localStorage.getItem(storageKey)))
+      }
       setReady(true)
     }, 0)
     return () => window.clearTimeout(timer)
@@ -149,17 +156,50 @@ export function ProductTourProvider({
     }
   }, [isActive, isOnStepRoute, pathname, step])
 
+  const restoreTourFocus = useCallback(() => {
+    const original = returnFocusRef.current
+    const fallback = document.querySelector<HTMLElement>("[data-tour-launcher]")
+      ?? document.querySelector<HTMLElement>("h1")
+    const target = original?.isConnected ? original : fallback
+    if (target && !target.matches("button, [href], input, select, textarea, [tabindex]")) {
+      target.tabIndex = -1
+    }
+    target?.focus({ preventScroll: true })
+    returnFocusRef.current = null
+  }, [])
+
   useEffect(() => {
-    if (!isActive || !isOnStepRoute) return
-    cardRef.current?.focus({ preventScroll: true })
+    if (isActive && !tourWasActiveRef.current) {
+      returnFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+    }
+    if (!isActive && tourWasActiveRef.current) restoreTourFocus()
+    tourWasActiveRef.current = isActive
+  }, [isActive, restoreTourFocus])
+
+  useEffect(() => {
+    if (isActive && isOnStepRoute) cardRef.current?.focus({ preventScroll: true })
   }, [isActive, isOnStepRoute, progress?.stepIndex])
+
+  useEffect(() => () => {
+    if (tourWasActiveRef.current) restoreTourFocus()
+  }, [restoreTourFocus])
 
   useEffect(() => {
     if (!isActive || !isOnStepRoute) return
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
-      if (!target || !cardRef.current?.contains(target)) return
-      if (event.key === "Escape") pause()
+      const isEditable = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target?.isContentEditable
+      if (event.key === "Escape") {
+        event.preventDefault()
+        pause()
+        return
+      }
+      if (isEditable) return
       if (event.key === "ArrowRight") {
         event.preventDefault()
         if (progress.stepIndex === PRODUCT_TOUR_STEPS.length - 1) complete()
@@ -196,6 +236,7 @@ export function ProductTourProvider({
       {isActive && !isOnStepRoute && (
         <button
           type="button"
+          data-tour-launcher
           onClick={startOrResume}
           className="fixed bottom-24 right-4 z-[60] rounded-full border border-ipn/25 bg-white px-4 py-2 text-sm font-semibold text-ipn shadow-lg transition hover:bg-ipn-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn md:bottom-6"
         >

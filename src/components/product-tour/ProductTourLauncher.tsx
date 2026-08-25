@@ -15,6 +15,7 @@ export default function ProductTourLauncher() {
   return (
     <button
       type="button"
+      data-tour-launcher
       onClick={startOrResume}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ipn/20 bg-white px-3 py-2 text-sm font-semibold text-ipn transition hover:border-ipn/35 hover:bg-ipn-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
     >
