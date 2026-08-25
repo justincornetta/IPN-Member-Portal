@@ -4,7 +4,7 @@
 }
 
 :global(body):has(.onboardingShell) {
-  overflow-y: visible;
+  overflow-y: auto;
 }
 
 .onboardingShell {
@@ -18,7 +18,8 @@
   --paper: #faf7ff;
   --border: #e0d4f0;
   --muted: #6e6189;
-  min-height: 100%;
+  height: 100svh;
+  min-height: 0;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -27,7 +28,7 @@
     radial-gradient(circle at 50% 0%, rgba(123, 79, 191, .18), transparent 34rem),
     var(--midnight);
   color: white;
-  padding: clamp(14px, 2.6vw, 40px);
+  padding: clamp(10px, 1.7vh, 20px) clamp(10px, 1.7vw, 24px);
 }
 
 .welcomeFrame,
@@ -39,15 +40,22 @@
   margin: 0 auto;
   border: 1px solid rgba(224, 212, 240, .42);
   border-radius: 28px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: 0 28px 80px rgba(7, 3, 20, .42);
+}
+
+.welcomeFrame {
+  display: grid;
+  height: 100%;
+  grid-template-rows: minmax(0, 56%) minmax(0, 44%);
 }
 
 .welcomeHero {
   position: relative;
-  min-height: 480px;
+  min-height: 0;
   overflow: hidden;
-  padding: clamp(24px, 4vw, 56px);
+  padding: clamp(20px, 3vh, 34px) clamp(24px, 3.4vw, 46px);
   isolation: isolate;
 }
 
@@ -79,8 +87,8 @@
 
 .logoHalo {
   display: grid;
-  width: 64px;
-  height: 64px;
+  width: clamp(46px, 5vh, 56px);
+  height: clamp(46px, 5vh, 56px);
   place-items: center;
   overflow: hidden;
   border-radius: 999px;
@@ -88,13 +96,13 @@
 }
 
 .logoHalo img { width: 100%; height: 100%; object-fit: cover; }
-.brandName { font-size: 16px; font-weight: 680; line-height: 1.12; letter-spacing: -.02em; }
+.brandName { font-size: clamp(13px, 1.7vh, 16px); font-weight: 680; line-height: 1.12; letter-spacing: -.02em; }
 
 .welcomeCopy {
   position: relative;
   z-index: 1;
   width: min(600px, 57%);
-  margin-top: clamp(78px, 10vw, 116px);
+  margin-top: clamp(28px, 5.4vh, 54px);
 }
 
 .eyebrow,
@@ -112,7 +120,7 @@
 .whatsappIntro h1 {
   max-width: 660px;
   margin: 0;
-  font-size: clamp(40px, 6vw, 74px);
+  font-size: clamp(38px, 5.2vw, 62px);
   font-weight: 720;
   letter-spacing: -.055em;
   line-height: .96;
@@ -121,17 +129,20 @@
 
 .welcomeCopy > p:last-child {
   max-width: 570px;
-  margin: 26px 0 0;
+  margin: clamp(12px, 2vh, 20px) 0 0;
   color: #f5f0fb;
-  font-size: clamp(17px, 1.7vw, 21px);
-  line-height: 1.58;
+  font-size: clamp(14px, 1.35vw, 18px);
+  line-height: 1.45;
 }
 
 .portalPanel {
   position: relative;
   z-index: 2;
-  margin: -22px 18px 18px;
-  padding: clamp(28px, 4vw, 48px);
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  margin: -14px 14px 14px;
+  padding: clamp(14px, 2vh, 20px) clamp(18px, 2.5vw, 30px);
   border: 1px solid white;
   border-radius: 22px;
   background: rgba(255, 255, 255, .98);
@@ -140,13 +151,14 @@
 
 .portalIntro { text-align: center; }
 .portalIntro .stepLabel { color: var(--purple); }
-.portalIntro h2 { margin: 0; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.035em; }
-.portalIntro > p:last-child { margin: 10px auto 0; color: var(--muted); font-size: 16px; line-height: 1.55; }
+.portalIntro h2 { margin: 0; font-size: clamp(23px, 2.4vw, 31px); letter-spacing: -.035em; }
+.portalIntro > p:last-child { margin: 5px auto 0; color: var(--muted); font-size: clamp(12px, 1.2vw, 14px); line-height: 1.4; }
 
 .featureGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  margin: 34px 0 0;
+  min-height: 0;
+  margin: clamp(9px, 1.4vh, 14px) 0 0;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -156,23 +168,23 @@
 
 .featureItem {
   display: grid;
-  min-height: 160px;
+  min-height: 0;
   place-items: center;
   align-content: center;
-  gap: 14px;
-  padding: 20px 14px;
+  gap: 7px;
+  padding: 8px 10px;
   border-right: 1px solid var(--border);
   color: var(--ink);
   text-align: center;
-  font-size: 14px;
+  font-size: clamp(11px, 1.15vw, 13px);
   font-weight: 650;
 }
 .featureItem:last-child { border-right: 0; }
 .featureIcon,
 .channelIcon {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: clamp(34px, 4.3vh, 42px);
+  height: clamp(34px, 4.3vh, 42px);
   flex: 0 0 auto;
   place-items: center;
   border-radius: 14px;
@@ -199,7 +211,7 @@
   box-shadow: 0 8px 24px rgba(92, 45, 145, .28), 0 0 24px rgba(123, 79, 191, .22);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
-.continueButton { width: min(360px, 100%); margin: 34px auto 0; }
+.continueButton { width: min(320px, 100%); min-height: 44px; margin: clamp(9px, 1.4vh, 14px) auto 0; }
 .continueButton:hover,
 .primaryAction:hover { transform: translateY(-1px); box-shadow: 0 11px 28px rgba(92, 45, 145, .34), 0 0 30px rgba(123, 79, 191, .27); }
 .continueButton:focus-visible,
@@ -209,18 +221,22 @@
 .mobileChannelCard a:focus-visible { outline: 3px solid #cfb3ff; outline-offset: 4px; }
 
 .whatsappShell { padding-block: clamp(14px, 2.3vw, 34px); }
-.whatsappFrame { padding: clamp(22px, 3.5vw, 48px); background: linear-gradient(145deg, rgba(26, 16, 52, .94), rgba(17, 8, 39, .98)); }
+.whatsappFrame { display: grid; height: 100%; grid-template-rows: auto minmax(0, 1fr); padding: clamp(14px, 2vh, 22px) clamp(18px, 2.5vw, 32px); background: linear-gradient(145deg, rgba(26, 16, 52, .94), rgba(17, 8, 39, .98)); }
 .whatsappHeader { display: flex; align-items: center; justify-content: space-between; }
 .backLink { color: #d8cbed; font-size: 14px; text-decoration: none; }
 .backLink:hover { color: white; }
-.whatsappLayout { margin-top: clamp(44px, 6vw, 78px); }
-.whatsappIntro { max-width: 780px; }
-.whatsappIntro h1 { font-size: clamp(38px, 5vw, 62px); }
-.whatsappIntro > p:last-child { max-width: 680px; margin: 18px 0 0; color: #d8cbed; font-size: 18px; line-height: 1.6; }
+.whatsappLayout { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); margin-top: clamp(8px, 1.5vh, 14px); }
+.whatsappIntro { display: grid; max-width: none; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); grid-template-rows: auto auto; align-items: end; gap: 2px 30px; }
+.whatsappIntro .eyebrow { grid-column: 1; }
+.whatsappIntro h1 { grid-column: 1; font-size: clamp(32px, 4.3vw, 48px); }
+.whatsappIntro > p:last-child { grid-column: 2; grid-row: 1 / span 2; max-width: 520px; margin: 0; color: #d8cbed; font-size: clamp(13px, 1.25vw, 16px); line-height: 1.45; }
 
 .channelPanel {
-  margin-top: clamp(32px, 4vw, 52px);
-  padding: clamp(20px, 3vw, 36px);
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  margin-top: clamp(8px, 1.5vh, 14px);
+  padding: clamp(12px, 1.7vh, 18px);
   border: 1px solid rgba(255, 255, 255, .8);
   border-radius: 22px;
   background: #fff;
@@ -228,20 +244,20 @@
 }
 .channelPanelHeader { display: flex; align-items: end; justify-content: space-between; gap: 28px; }
 .channelPanelHeader .stepLabel { color: var(--purple); }
-.channelPanelHeader h2 { margin: 0; font-size: clamp(25px, 3vw, 34px); letter-spacing: -.035em; }
-.announcementNote { max-width: 360px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.channelPanelHeader h2 { margin: 0; font-size: clamp(21px, 2.4vw, 28px); letter-spacing: -.035em; }
+.announcementNote { max-width: 380px; margin: 0; color: var(--muted); font-size: clamp(10px, 1vw, 12px); line-height: 1.4; }
 .announcementNote span { margin-right: 7px; color: var(--violet); }
 
-.desktopChannels { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(300px, .78fr); gap: 22px; margin-top: 28px; }
-.channelList { display: grid; gap: 10px; }
+.desktopChannels { display: grid; min-height: 0; grid-template-columns: minmax(0, 1.32fr) minmax(260px, .78fr); gap: clamp(10px, 1.3vw, 16px); margin-top: clamp(8px, 1.3vh, 12px); }
+.channelList { display: grid; min-height: 0; grid-template-rows: repeat(3, minmax(0, 1fr)) auto; gap: 6px; }
 .channelChoice {
   position: relative;
   display: flex;
   width: 100%;
-  min-height: 102px;
+  min-height: 0;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+  gap: 11px;
+  padding: 9px 11px;
   border: 1px solid var(--border);
   border-radius: 15px;
   background: white;
@@ -255,34 +271,34 @@
 .channelChoiceFeatured { box-shadow: 0 0 0 1px rgba(123, 79, 191, .16), 0 8px 28px rgba(92, 45, 145, .08); }
 .channelChoiceFeatured.channelChoiceSelected { box-shadow: inset 3px 0 var(--violet), 0 0 24px rgba(123, 79, 191, .14); }
 .channelChoiceSelected .channelIcon { color: white; background: var(--purple); box-shadow: 0 0 18px rgba(123, 79, 191, .34); }
-.channelCopy { display: grid; flex: 1; gap: 6px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.channelCopy { display: grid; flex: 1; gap: 3px; color: var(--muted); font-size: clamp(10px, 1vw, 12px); line-height: 1.3; }
 .channelNameRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink); }
-.channelNameRow strong { font-size: 16px; }
+.channelNameRow strong { font-size: clamp(13px, 1.25vw, 15px); }
 .recommended { display: inline-flex; width: max-content; border-radius: 999px; background: var(--lavender); color: var(--purple); padding: 4px 8px; font-family: var(--font-geist-mono), monospace; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .selectionMark { color: var(--violet); font-size: 16px; }
 
-.eventEmptyState { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 14px 16px; border: 1px dashed #ccbce1; border-radius: 14px; background: var(--paper); color: var(--muted); }
+.eventEmptyState { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 7px 11px; border: 1px dashed #ccbce1; border-radius: 12px; background: var(--paper); color: var(--muted); }
 .eventIcon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 11px; background: var(--lavender); color: var(--purple); }
 .eventEmptyState span:last-child { display: grid; gap: 3px; }
 .eventEmptyState strong { color: var(--ink); font-size: 13px; }
 .eventEmptyState small { font-size: 12px; }
 
-.qrStage { display: flex; min-height: 438px; flex-direction: column; align-items: center; padding: 24px; border: 1px solid var(--border); border-radius: 17px; background: linear-gradient(180deg, #fff, var(--paper)); text-align: center; }
+.qrStage { display: flex; min-height: 0; flex-direction: column; align-items: center; padding: clamp(10px, 1.5vh, 16px); border: 1px solid var(--border); border-radius: 15px; background: linear-gradient(180deg, #fff, var(--paper)); text-align: center; }
 .qrTitle { display: flex; width: 100%; align-items: center; gap: 12px; text-align: left; }
 .qrTitle > div { display: grid; gap: 3px; }
 .qrTitle span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 .qrTitle strong { font-size: 18px; }
-.qrFrame { display: grid; margin: 28px 0 14px; padding: 13px; place-items: center; border: 1px solid #b796df; border-radius: 18px; background: white; box-shadow: 0 0 0 5px rgba(237, 229, 247, .82), 0 0 26px rgba(123, 79, 191, .25); }
-.qrFrame img { width: 218px; height: 218px; }
-.qrHelp { max-width: 290px; margin: 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.qrFrame { display: grid; margin: clamp(8px, 1.4vh, 14px) 0 7px; padding: 8px; place-items: center; border: 1px solid #b796df; border-radius: 14px; background: white; box-shadow: 0 0 0 4px rgba(237, 229, 247, .82), 0 0 22px rgba(123, 79, 191, .22); }
+.qrFrame img { width: clamp(126px, 19vh, 168px); height: clamp(126px, 19vh, 168px); }
+.qrHelp { max-width: 290px; margin: 0 0 8px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .primaryAction { width: 100%; padding-inline: 18px; font-size: 14px; }
 .primaryAction:disabled { opacity: .66; transform: none; }
 .qrPrompt { display: flex; width: 100%; flex: 1; flex-direction: column; align-items: center; justify-content: center; }
 .qrPrompt > p { max-width: 260px; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.qrPlaceholder { display: grid; width: 124px; height: 124px; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 20px; border: 1px dashed #bfa5df; border-radius: 18px; background: var(--pale); }
+.qrPlaceholder { display: grid; width: clamp(76px, 12vh, 104px); height: clamp(76px, 12vh, 104px); grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 14px; border: 1px dashed #bfa5df; border-radius: 14px; background: var(--pale); }
 .qrPlaceholder span { border: 5px solid #b49bd2; border-radius: 4px; }
 .qrPlaceholder span:last-child { align-self: end; height: 16px; border-width: 3px; }
-.qrPrompt .primaryAction { margin-top: 22px; }
+.qrPrompt .primaryAction { min-height: 42px; margin-top: 10px; }
 .errorMessage { margin: 12px 0 0 !important; color: #8b244c !important; font-size: 12px !important; }
 .mobileChannels { display: none; }
 .mobileError { margin: 6px 0 0 !important; color: #8b244c !important; font-size: 12px !important; }
@@ -290,50 +306,104 @@
 @keyframes mapArrival { from { opacity: .35; transform: scale(1.025); } to { opacity: 1; transform: scale(1); } }
 
 @media (max-width: 760px) {
-  .onboardingShell { padding: 0; }
+  .onboardingShell { height: 100svh; padding: 0; }
   .welcomeFrame,
   .whatsappFrame { border: 0; border-radius: 0; }
-  .welcomeHero { min-height: 540px; padding: 22px 20px 34px; }
-  .welcomeHero::after { background: linear-gradient(180deg, rgba(17, 8, 39, .94) 0%, rgba(17, 8, 39, .36) 31%, rgba(17, 8, 39, .88) 63%, var(--midnight) 100%); }
-  .welcomeMap { background-size: auto 64%; background-position: 58% 10%; background-repeat: no-repeat; }
-  .logoHalo { width: 50px; height: 50px; }
-  .brandName { font-size: 13px; }
-  .welcomeCopy { width: 100%; margin-top: 205px; }
-  .welcomeCopy h1 { font-size: clamp(38px, 11vw, 48px); }
+  .welcomeFrame { height: 100svh; grid-template-rows: minmax(0, 49%) minmax(0, 51%); }
+  .welcomeHero { height: 100%; min-height: 0; padding: 12px 16px; }
+  .welcomeHero::after { background: linear-gradient(180deg, rgba(17, 8, 39, .92) 0%, rgba(17, 8, 39, .3) 31%, rgba(17, 8, 39, .86) 59%, var(--midnight) 100%); }
+  .welcomeMap { background-size: auto 62%; background-position: 58% 4%; background-repeat: no-repeat; }
+  .logoHalo { width: 42px; height: 42px; }
+  .brandName { font-size: 11px; }
+  .welcomeCopy { position: absolute; right: 16px; bottom: 16px; left: 16px; width: auto; margin: 0; }
+  .welcomeCopy .eyebrow { margin-bottom: 5px; font-size: 9px; }
+  .welcomeCopy h1 { max-width: 360px; font-size: clamp(29px, 9.5vw, 38px); line-height: .98; }
   .welcomeCopy h1,
   .welcomeCopy > p:last-child,
   .portalIntro h2,
   .portalIntro > p:last-child,
   .whatsappIntro h1,
   .whatsappIntro > p:last-child { overflow-wrap: anywhere; }
-  .welcomeCopy > p:last-child { margin-top: 20px; font-size: 16px; line-height: 1.55; }
-  .portalPanel { margin: -16px 10px 10px; padding: 26px 18px; border-radius: 20px; }
-  .featureGrid { grid-template-columns: repeat(2, 1fr); }
-  .featureItem { min-height: 104px; gap: 9px; padding: 14px 10px; border-bottom: 1px solid var(--border); }
-  .featureItem:nth-child(2n) { border-right: 0; }
-  .featureItem:last-child { grid-column: 1 / -1; border-bottom: 0; }
-  .continueButton { margin-top: 22px; }
+  .welcomeCopy > p:last-child { max-width: 350px; margin-top: 10px; font-size: clamp(11px, 3.25vw, 13px); line-height: 1.35; }
+  .portalPanel { height: calc(100% + 8px); min-height: 0; margin: -8px 8px 8px; padding: 12px; border-radius: 16px; }
+  .portalIntro .stepLabel { margin-bottom: 3px; font-size: 10px; }
+  .portalIntro h2 { font-size: clamp(19px, 5.8vw, 23px); }
+  .portalIntro > p:last-child { margin-top: 3px; font-size: 11px; line-height: 1.25; }
+  .featureGrid { height: clamp(96px, 16vh, 125px); align-self: center; grid-template-columns: repeat(5, 1fr); margin-top: 8px; border-radius: 13px; }
+  .featureItem { min-height: 0; gap: 5px; padding: 7px 2px; border-right: 1px solid var(--border); border-bottom: 0; font-size: clamp(10.5px, 2.7vw, 12px); line-height: 1.14; }
+  .featureItem:nth-child(2n) { border-right: 1px solid var(--border); }
+  .featureItem:last-child { grid-column: auto; border-right: 0; }
+  .featureIcon { width: 32px; height: 32px; border-radius: 10px; }
+  .featureIcon svg { width: 19px; height: 19px; }
+  .continueButton { min-height: 42px; margin-top: 8px; font-size: 13px; }
 
-  .whatsappFrame { min-height: 100vh; padding: 20px 16px 24px; }
+  .whatsappFrame { height: 100svh; min-height: 0; padding: 10px; }
   .whatsappHeader .brandName { display: none; }
-  .whatsappLayout { margin-top: 44px; }
-  .whatsappIntro h1 { font-size: 42px; }
-  .whatsappIntro > p:last-child { font-size: 16px; }
-  .channelPanel { margin: 30px -4px 0; padding: 22px 14px; }
+  .whatsappHeader .logoHalo { width: 40px; height: 40px; }
+  .backLink { font-size: 12px; }
+  .whatsappLayout { min-height: 0; margin-top: 7px; }
+  .whatsappIntro { display: block; }
+  .whatsappIntro .eyebrow { margin-bottom: 4px; font-size: 10px; }
+  .whatsappIntro h1 { max-width: 340px; font-size: clamp(27px, 8.2vw, 34px); line-height: .98; }
+  .whatsappIntro > p:last-child { margin-top: 7px; font-size: clamp(11.5px, 3vw, 13px); line-height: 1.28; }
+  .channelPanel { min-height: 0; margin-top: 8px; padding: 10px; border-radius: 16px; }
   .channelPanelHeader { display: block; }
-  .announcementNote { margin-top: 16px; padding: 12px; border-radius: 10px; background: var(--paper); }
+  .channelPanelHeader .stepLabel { margin-bottom: 3px; font-size: 10px; }
+  .channelPanelHeader h2 { font-size: clamp(18px, 5.2vw, 21px); }
+  .announcementNote { max-width: none; margin-top: 5px; padding: 5px 8px; border-radius: 8px; background: var(--paper); font-size: 11px; line-height: 1.22; }
   .desktopChannels { display: none; }
-  .mobileChannels { display: grid; gap: 12px; margin-top: 24px; }
-  .mobileChannelCard { min-width: 0; padding: 18px; border: 1px solid var(--border); border-radius: 15px; background: white; }
+  .mobileChannels { display: grid; min-height: 0; grid-template-rows: repeat(3, minmax(0, 1fr)) auto; gap: 6px; margin-top: 7px; }
+  .mobileChannelCard { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-content: center; align-items: center; gap: 5px 8px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 11px; background: white; }
   .mobileFeatured { border-color: #a77ad7; background: #fcf9ff; box-shadow: 0 0 0 1px rgba(123, 79, 191, .08), 0 0 24px rgba(123, 79, 191, .2); }
   .mobileFeatured .channelIcon { background: var(--purple); color: white; box-shadow: 0 0 18px rgba(123, 79, 191, .28); }
-  .mobileChannelHeading { display: flex; align-items: center; gap: 12px; }
-  .mobileChannelHeading > div { display: grid; gap: 5px; }
-  .mobileChannelHeading h3 { margin: 0; font-size: 17px; }
-  .mobileChannelCard > p { margin: 14px 0 18px; overflow-wrap: anywhere; color: var(--muted); font-size: 13px; line-height: 1.5; }
-  .mobileChannelCard a { display: inline-flex; min-height: 44px; align-items: center; color: var(--purple); font-size: 14px; font-weight: 700; text-decoration: none; }
+  .mobileChannelHeading { display: flex; grid-column: 1; align-items: center; gap: 8px; }
+  .mobileChannelHeading .channelIcon { width: 32px; height: 32px; border-radius: 10px; }
+  .mobileChannelHeading .channelIcon svg { width: 18px; height: 18px; }
+  .mobileChannelHeading > div { display: flex; align-items: center; gap: 6px; }
+  .mobileChannelHeading h3 { margin: 0; font-size: 13px; }
+  .mobileChannelHeading .recommended { padding: 3px 5px; font-size: 8.5px; }
+  .mobileChannelCard > p { grid-column: 1; margin: 3px 0 0; overflow-wrap: anywhere; color: var(--muted); font-size: 11px; line-height: 1.18; }
+  .mobileChannelCard a { display: inline-flex; min-height: 40px; grid-column: 2; grid-row: 1 / span 2; align-items: center; padding-left: 6px; color: var(--purple); font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
   .mobileChannelCard a span { margin-left: 8px; }
   .mobileChannelCard a[aria-disabled="true"] { cursor: wait; opacity: .5; }
+  .mobileChannels .eventEmptyState { min-height: 38px; padding: 5px 8px; }
+  .mobileChannels .eventIcon { width: 28px; height: 28px; border-radius: 8px; }
+  .mobileChannels .eventEmptyState strong { font-size: 11px; }
+  .mobileChannels .eventEmptyState small { font-size: 10.5px; }
+}
+
+@media (max-width: 760px) and (max-height: 720px) {
+  .welcomeFrame { grid-template-rows: minmax(0, 48%) minmax(0, 52%); }
+  .welcomeHero { padding-block: 8px; }
+  .welcomeMap { background-size: auto 55%; }
+  .logoHalo { width: 36px; height: 36px; }
+  .brandName { font-size: 10px; }
+  .welcomeCopy { bottom: 11px; }
+  .welcomeCopy h1 { max-width: 330px; font-size: clamp(27px, 8.8vw, 33px); }
+  .welcomeCopy > p:last-child { margin-top: 6px; font-size: 11px; }
+  .portalPanel { padding: 9px 10px; }
+  .portalIntro h2 { font-size: 18px; }
+  .portalIntro > p:last-child { font-size: 11px; }
+  .featureGrid { height: clamp(88px, 15vh, 104px); margin-top: 5px; }
+  .featureItem { padding-block: 3px; font-size: 10.5px; }
+  .featureIcon { width: 27px; height: 27px; }
+  .featureIcon svg { width: 16px; height: 16px; }
+  .continueButton { min-height: 36px; margin-top: 5px; }
+
+  .whatsappFrame { padding: 7px 9px; }
+  .whatsappHeader .logoHalo { width: 34px; height: 34px; }
+  .whatsappLayout { margin-top: 4px; }
+  .whatsappIntro h1 { font-size: 25px; }
+  .whatsappIntro > p:last-child { margin-top: 4px; font-size: 11.5px; }
+  .channelPanel { margin-top: 5px; padding: 7px 8px; }
+  .channelPanelHeader h2 { font-size: 17px; }
+  .announcementNote { margin-top: 3px; padding-block: 3px; font-size: 11px; }
+  .mobileChannels { gap: 4px; margin-top: 4px; }
+  .mobileChannelCard { padding: 4px 7px; }
+  .mobileChannelHeading .channelIcon { width: 28px; height: 28px; }
+  .mobileChannelHeading h3 { font-size: 12px; }
+  .mobileChannelCard > p { margin-top: 2px; font-size: 11px; }
+  .mobileChannelCard a { min-height: 34px; font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
