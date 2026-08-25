@@ -8,21 +8,17 @@ import { registerForEvent, unregisterFromEvent } from "@/lib/events/actions"
 import { canJoinEvent, registrationBand } from "@/lib/events/calendar"
 import { getPortalAnalyticsContext } from "@/lib/portal-analytics/client"
 import type { EventWithRegistration } from "@/lib/events/types"
+import WhatsAppHandoffAction from "@/components/whatsapp/WhatsAppHandoffAction"
 
 type Props = {
   event: EventWithRegistration
   variant?: "compact" | "full"
 }
 
-type EventChatState = Pick<
-  EventWithRegistration,
-  "chat_platform" | "chat_external_url" | "chat_status"
->
-
-function getEventChatUrl(event: EventChatState) {
-  if (!event.chat_external_url) return null
-  if (event.chat_status === "archived") return null
-  return event.chat_external_url
+function hasEventChat(event: EventWithRegistration) {
+  return event.chat_platform === "whatsapp"
+    && event.chat_status === "active"
+    && Boolean(event.chat_external_url)
 }
 
 function DateBadge({ startsAt }: { startsAt: string }) {
@@ -87,7 +83,7 @@ function ConfirmationModal({
   event: EventWithRegistration
   onClose: () => void
 }) {
-  const eventChatUrl = getEventChatUrl(event)
+  const eventChatAvailable = hasEventChat(event)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 px-3 sm:items-center sm:px-4">
@@ -129,22 +125,19 @@ function ConfirmationModal({
                 IPN Event-Specific WhatsApp Chat
               </p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
-                {eventChatUrl
+                {eventChatAvailable
                   ? "Use this chat to ask questions, connect, and share thoughts with other registered members before and after the event."
                   : "This chat will give registered members a place to ask questions, connect, and share thoughts before and after the event."}
               </p>
             </div>
-            {eventChatUrl ? (
-              <a
-                href={eventChatUrl}
-                target="_blank"
-                rel="noreferrer"
-                data-analytics-event="whatsapp_cta_clicked"
-                data-analytics-id={`event-chat-confirmation-${event.slug}`}
+            {eventChatAvailable ? (
+              <WhatsAppHandoffAction
+                kind="event"
+                slug={event.slug}
+                source="event-rsvp-confirmation"
+                label="Join event chat"
                 className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-md border border-ipn/20 bg-white px-3 py-2 text-xs font-medium text-ipn transition hover:bg-white/80 sm:min-h-0 sm:px-2 sm:py-1 sm:text-[11px]"
-              >
-                Join event chat
-              </a>
+              />
             ) : (
               <span className="inline-flex min-h-11 flex-shrink-0 items-center justify-center rounded-md border border-ipn/20 bg-white px-3 py-2 text-xs font-medium text-ipn sm:min-h-0 sm:px-2 sm:py-1 sm:text-[11px]">
                 Coming soon
@@ -177,11 +170,7 @@ function ConfirmationModal({
 export default function EventCard({ event, variant = "full" }: Props) {
   const [registered, setRegistered] = useState(event.is_registered)
   const [count, setCount] = useState(event.registration_count)
-  const [chat, setChat] = useState<EventChatState>({
-    chat_platform: event.chat_platform,
-    chat_external_url: event.chat_external_url,
-    chat_status: event.chat_status,
-  })
+  const [eventChatAvailable, setEventChatAvailable] = useState(hasEventChat(event))
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [unrsvpConfirming, setUnrsvpConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -189,7 +178,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
   const countLabel = registrationBand(count)
   const isCompact = variant === "compact"
-  const eventChatUrl = registered ? getEventChatUrl(chat) : null
+  const showEventChat = registered && eventChatAvailable
   const isExternalRegistration = Boolean(event.registration_url)
   const isLockedTicketedEvent =
     event.requires_verified_ticket && !event.has_verified_ticket
@@ -205,7 +194,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
       }
 
       if (!registered) setCount((current) => current + 1)
-      if (result.event) setChat(result.event)
+      if (result.eventChatAvailable !== undefined) setEventChatAvailable(result.eventChatAvailable)
       setRegistered(true)
       setConfirmOpen(true)
     })
@@ -345,18 +334,14 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       {countLabel}
                     </span>
                   )}
-                  {eventChatUrl ? (
-                    <a
-                      href={eventChatUrl}
-                      target="_blank"
-                      rel="noreferrer"
-	                      data-analytics-event="whatsapp_cta_clicked"
-	                      data-analytics-id={`event-chat-${event.slug}`}
-	                      data-analytics-label="Join event chat"
-	                      className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
-	                    >
-                      Join chat
-                    </a>
+                  {showEventChat ? (
+                    <WhatsAppHandoffAction
+                      kind="event"
+                      slug={event.slug}
+                      source="event-card"
+                      label="Join chat"
+                      className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
+                    />
                   ) : (
                     <button
                       type="button"
@@ -438,7 +423,12 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
       {confirmOpen && (
         <ConfirmationModal
-          event={{ ...event, ...chat }}
+          event={{
+            ...event,
+            chat_platform: eventChatAvailable ? "whatsapp" : null,
+            chat_status: eventChatAvailable ? "active" : null,
+            chat_external_url: eventChatAvailable ? "available" : null,
+          }}
           onClose={() => setConfirmOpen(false)}
         />
       )}

@@ -96,16 +96,25 @@ export async function getEventWhatsAppInviteById(
   admin: SupabaseClient,
   eventId: string,
   eventSlug: string,
+  userId: string,
 ) {
-  const { data: event, error } = await admin
-    .from("events")
-    .select("id, slug, title, status, chat_platform, chat_status, chat_external_url")
-    .eq("id", eventId)
-    .eq("slug", eventSlug)
-    .maybeSingle()
-  if (error) throw new Error(`Could not read event chat: ${error.message}`)
+  const [eventResult, registrationResult] = await Promise.all([
+    admin
+      .from("events")
+      .select("id, slug, title, status, chat_platform, chat_status, chat_external_url")
+      .eq("id", eventId)
+      .eq("slug", eventSlug)
+      .maybeSingle(),
+    admin
+      .from("event_registrations")
+      .select("event_id")
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ])
+  if (eventResult.error) throw new Error(`Could not read event chat: ${eventResult.error.message}`)
+  if (registrationResult.error) throw new Error(`Could not verify event RSVP: ${registrationResult.error.message}`)
 
-  const access = validateEventWhatsAppAccess(event, true)
-  if (!access.allowed) return { event, access }
-  return { event, access }
+  const access = validateEventWhatsAppAccess(eventResult.data, Boolean(registrationResult.data))
+  return { event: eventResult.data, access }
 }

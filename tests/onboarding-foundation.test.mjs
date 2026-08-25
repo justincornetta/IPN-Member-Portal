@@ -196,6 +196,7 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
   assert.match(handoffSql, /token_hash text not null unique/)
   assert.match(handoffSql, /for update/)
   assert.match(handoffSql, /create or replace function public\.consume_whatsapp_handoff/)
+  assert.match(handoffSql, /from public\.event_registrations as registrations/)
   assert.match(handoffSql, /insert into public\.member_whatsapp_join_intents/)
   assert.match(handoffSql, /'whatsapp_anonymous_redirect'/)
 

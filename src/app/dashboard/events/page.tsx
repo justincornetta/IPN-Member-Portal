@@ -59,13 +59,22 @@ export default async function EventsPage() {
   )
   const ticketIds = new Set(tickets.map((ticket) => ticket.event_id))
 
-  const upcomingEvents: EventWithRegistration[] = upcomingRecords.map((event) =>
-    withTicketRegistrationState(
+  const upcomingEvents: EventWithRegistration[] = upcomingRecords.map((event) => {
+    const withRegistration = withTicketRegistrationState(
       event,
       registeredIds.has(event.id),
       ticketIds.has(event.id),
-    ),
-  )
+    )
+    return {
+      ...withRegistration,
+      chat_external_url:
+        withRegistration.chat_platform === "whatsapp"
+        && withRegistration.chat_status === "active"
+        && withRegistration.chat_external_url
+          ? "available"
+          : null,
+    }
+  })
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">
@@ -82,7 +91,10 @@ export default async function EventsPage() {
 
       <EventsHub
         upcomingEvents={upcomingEvents}
-        recordings={(recordings ?? []) as EventRecord[]}
+        recordings={((recordings ?? []) as EventRecord[]).map((event) => ({
+          ...event,
+          chat_external_url: null,
+        }))}
       />
     </div>
   )

@@ -8,11 +8,7 @@ import { sendEventRegistrationConfirmation } from "./email-service"
 
 type EventRegistrationResult = {
   error?: string
-  event?: {
-    chat_platform: string | null
-    chat_external_url: string | null
-    chat_status: string | null
-  }
+  eventChatAvailable?: boolean
 }
 
 type AnalyticsContext = {
@@ -72,11 +68,9 @@ export async function registerForEvent(
   revalidatePath(`/dashboard/events/${eventSlug}`)
 
   return {
-    event: {
-      chat_platform: event.chat_platform,
-      chat_external_url: event.chat_external_url,
-      chat_status: event.chat_status,
-    },
+    eventChatAvailable: event.chat_platform === "whatsapp"
+      && event.chat_status === "active"
+      && Boolean(event.chat_external_url),
   }
 }
 

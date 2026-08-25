@@ -60,6 +60,7 @@ async function resolveHandoffTarget(
     admin,
     handoff.event_id,
     handoff.channel_slug,
+    handoff.user_id,
   )
   if (!event || !access.allowed) return null
   return {

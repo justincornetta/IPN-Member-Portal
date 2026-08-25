@@ -1,19 +1,12 @@
 "use client"
 
+import Link from "next/link"
+
 type WhatsAppCommunityCardProps = {
   className?: string
   compact?: boolean
   onJoin?: () => void
 }
-
-// Resolve URL from explicit link or generate from phone number
-const WHATSAPP_URL: string | null = (() => {
-  const url = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
-  if (url) return url
-  const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
-  if (phone) return `https://wa.me/${phone.replace(/\D/g, "")}`
-  return null
-})()
 
 export const WHATSAPP_COMMUNITY_COPY =
   "Join the IPN WhatsApp Community to connect with other members and stay up to date on the latest IPN events and news."
@@ -39,7 +32,7 @@ export default function WhatsAppCommunityCard({
   return (
     <div className={`rounded-xl border border-zinc-200 bg-white ${compact ? "p-4" : "p-5"} shadow-sm ${className}`}>
       <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+        <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">
           <WhatsAppIcon />
         </span>
         <span className="min-w-0 flex-1">
@@ -55,31 +48,15 @@ export default function WhatsAppCommunityCard({
       </div>
 
       <div className="mt-4">
-        {WHATSAPP_URL ? (
-          <a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/dashboard/whatsapp"
             onClick={onJoin}
-            data-analytics-event="whatsapp_cta_clicked"
-            data-analytics-id="community-card"
-            className={`inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 ${
+            className={`inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ipn text-sm font-medium text-white transition hover:bg-ipn-dark ${
               compact ? "px-3 py-2" : "px-4 py-2"
             }`}
           >
             Join WhatsApp Community
-          </a>
-        ) : (
-          <button
-            type="button"
-            disabled
-            className={`inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center rounded-lg bg-zinc-100 text-sm font-medium text-zinc-400 ${
-              compact ? "px-3 py-2" : "px-4 py-2"
-            }`}
-          >
-            WhatsApp invite coming soon
-          </button>
-        )}
+          </Link>
       </div>
     </div>
   )

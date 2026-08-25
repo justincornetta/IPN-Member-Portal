@@ -90,6 +90,15 @@ begin
     return;
   end if;
 
+  if claimed.channel_kind = 'event' and not exists (
+    select 1
+    from public.event_registrations as registrations
+    where registrations.event_id = claimed.event_id
+      and registrations.user_id = claimed.user_id
+  ) then
+    return;
+  end if;
+
   insert into public.member_whatsapp_join_intents (
     user_id,
     channel_kind,
