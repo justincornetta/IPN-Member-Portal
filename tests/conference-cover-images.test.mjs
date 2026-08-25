@@ -84,3 +84,18 @@ test("meetup intake uses a fixed label and stores a required start/end range", (
   assert.match(portal, /meetup\.endsAt/)
   assert.match(email, /meetup\.endsAt/)
 })
+
+test("publishing requires a final confirmation with exact queued-email previews", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+
+  assert.match(form, /function ConferencePublishConfirmation/)
+  assert.match(form, /role="dialog"/)
+  assert.match(form, /aria-modal="true"/)
+  assert.match(form, /Review member email before publishing/)
+  assert.match(form, /newly added IPN meetups or member discounts trigger these alerts/)
+  assert.match(form, /This save will not queue a member email/)
+  assert.match(form, /<ConferenceEmailPreview key=\{preview\.id\}/)
+  assert.match(form, /Back to editing/)
+  assert.match(form, /Confirm & publish/)
+  assert.match(form, /setPublishConfirmation\(\{ payload, emailPreviews: queuedEmailPreviews \}\)/)
+})

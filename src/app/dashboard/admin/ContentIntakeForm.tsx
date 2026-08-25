@@ -1122,6 +1122,112 @@ function ConferencePreviewWorkspace({
   )
 }
 
+function ConferencePublishConfirmation({
+  conferenceName,
+  emailPreviews,
+  onBack,
+  onConfirm,
+}: {
+  conferenceName: string
+  emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  onBack: () => void
+  onConfirm: () => void
+}) {
+  const backButtonRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLElement>(null)
+  const sendsEmail = emailPreviews.length > 0
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    backButtonRef.current?.focus()
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onBack()
+      if (event.key !== "Tab") return
+      const buttons = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])
+      const first = buttons[0]
+      const last = buttons.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape)
+      document.body.style.overflow = previousOverflow
+      previouslyFocused?.focus()
+    }
+  }, [onBack])
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-zinc-950/55 px-0 sm:items-center sm:px-4"
+      onClick={onBack}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="conference-publish-title"
+        aria-describedby="conference-publish-description"
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className={`border-b px-5 py-5 sm:px-6 ${sendsEmail ? "border-amber-200 bg-amber-50" : "border-zinc-200 bg-zinc-50"}`}>
+          <div className="flex items-start gap-3">
+            <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${sendsEmail ? "bg-amber-100 text-amber-700" : "bg-ipn/10 text-ipn"}`} aria-hidden="true">
+              {sendsEmail ? "!" : "✓"}
+            </span>
+            <div>
+              <h2 id="conference-publish-title" className="text-lg font-semibold text-zinc-900">
+                {sendsEmail ? "Review member email before publishing" : "Publish conference?"}
+              </h2>
+              <p id="conference-publish-description" className="mt-1 text-sm leading-6 text-zinc-600">
+                {sendsEmail
+                  ? `Publishing ${conferenceName} will queue ${emailPreviews.length} member email${emailPreviews.length === 1 ? "" : "s"}. New conferences and newly added IPN meetups or member discounts trigger these alerts. Review the complete content below before confirming.`
+                  : `Publishing ${conferenceName} will update the member portal. This save will not queue a member email.`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {sendsEmail && (
+          <div className="flex-1 space-y-4 overflow-y-auto bg-zinc-50 px-4 py-5 sm:px-6">
+            {emailPreviews.map((preview) => (
+              <ConferenceEmailPreview key={preview.id} label={preview.label} content={preview.content} />
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 bg-white px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <button
+            ref={backButtonRef}
+            type="button"
+            onClick={onBack}
+            className="min-h-11 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-ipn/25"
+          >
+            Back to editing
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="min-h-11 rounded-lg bg-ipn px-5 py-2 text-sm font-semibold text-white transition hover:bg-ipn/90 focus:outline-none focus:ring-2 focus:ring-ipn/30 focus:ring-offset-2"
+          >
+            {sendsEmail ? "Confirm & publish" : "Publish conference"}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function ConferenceForm({ initial, onSubmit, pending }: {
   initial?: Partial<ConferenceFields>
   onSubmit: (p: Omit<AdminConferencePayload, "id">) => void
@@ -1130,6 +1236,10 @@ function ConferenceForm({ initial, onSubmit, pending }: {
   const [step, setStep] = useState(1)
   const [f, setF] = useState<ConferenceFields>({ ...CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [publishConfirmation, setPublishConfirmation] = useState<{
+    payload: Omit<AdminConferencePayload, "id">
+    emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  } | null>(null)
   const queuedEmailPreviews = conferenceEmailPreviews(f, initial?.status)
   const configuredEmailPreviews = configuredConferenceEmailPreviews(f)
   const portalPreview = conferencePreviewRecord(f)
@@ -1184,7 +1294,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
         expiresAt: d.expiresAt || undefined,
       }))
 
-    onSubmit({
+    const payload: Omit<AdminConferencePayload, "id"> = {
       slug: f.slug || undefined,
       name: f.name,
       organizer: f.organizer || undefined,
@@ -1205,7 +1315,16 @@ function ConferenceForm({ initial, onSubmit, pending }: {
       status: f.status,
       meetups,
       discounts,
-    })
+    }
+    setPublishConfirmation({ payload, emailPreviews: queuedEmailPreviews })
+  }
+
+  const closePublishConfirmation = useCallback(() => setPublishConfirmation(null), [])
+
+  function confirmPublish() {
+    if (!publishConfirmation) return
+    onSubmit(publishConfirmation.payload)
+    setPublishConfirmation(null)
   }
 
   return (
@@ -1387,6 +1506,14 @@ function ConferenceForm({ initial, onSubmit, pending }: {
           </div>
           <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
         </>
+      )}
+      {publishConfirmation && (
+        <ConferencePublishConfirmation
+          conferenceName={f.name.trim() || "this conference"}
+          emailPreviews={publishConfirmation.emailPreviews}
+          onBack={closePublishConfirmation}
+          onConfirm={confirmPublish}
+        />
       )}
     </>
   )
