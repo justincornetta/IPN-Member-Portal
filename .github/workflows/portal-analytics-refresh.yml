@@ -247,7 +247,7 @@ jobs:
       - name: Send Slack notification
         if: always()
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ANALYTICS_WEBHOOK_URL }}
           SOURCE_STATUS: ${{ steps.validation.outputs.status || steps.sources.outputs.status }}
           SOURCE_SUMMARY: ${{ steps.sources.outputs.summary }}
           SOURCE_DETAILS: ${{ steps.validation.outputs.sources || steps.sources.outputs.sources }}
@@ -261,7 +261,7 @@ jobs:
           set -euo pipefail
 
           if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
-            echo "SLACK_WEBHOOK_URL secret is not set."
+            echo "SLACK_ANALYTICS_WEBHOOK_URL secret is not set."
             exit 1
           fi
 
