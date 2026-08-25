@@ -52,6 +52,15 @@ export type ProfileCompletionFields = {
   currentRole?: string | null
   schoolOrOrganization?: string | null
   interests?: string[] | null
+  aboutYou?: {
+    roleAndGoals?: string | null
+    inspiration?: string | null
+    supportNeeds?: string | null
+  } | null
+  linkedIn?: {
+    url?: string | null
+    optedOut?: boolean
+  } | null
   /** @deprecated UI compatibility only; migrate callers to photoUrl. */
   avatar_url?: string | null
   /** @deprecated UI compatibility only; migrate callers to shortBio. */
@@ -63,11 +72,28 @@ export type ProfileCompletionFields = {
 export type ProfileCompletionRecord = {
   avatar_url: string | null
   bio: string | null
-  role_and_goals: string | null
-  school: string | null
+  persona: string | null
   affiliation: string | null
+  school: string | null
   interest_tags: string[] | null
+  role_and_goals: string | null
+  inspiration: string | null
+  support_needs: string | null
+  linkedin_url: string | null
 }
+
+export type ProfileCompletionEducationRecord = {
+  institution: string | null
+}
+
+export type ProfileCompletionField =
+  | "photo"
+  | "shortBio"
+  | "currentRole"
+  | "schoolOrOrganization"
+  | "interests"
+  | "aboutYou"
+  | "linkedIn"
 
 const STEP_COLUMNS: Record<OnboardingStep, keyof OnboardingProgress> = {
   welcome: "welcome_completed_at",
@@ -79,28 +105,65 @@ const STEP_COLUMNS: Record<OnboardingStep, keyof OnboardingProgress> = {
   event_rsvp: "event_rsvp_completed_at",
 }
 
-export function isProfileOnboardingComplete(profile: ProfileCompletionFields): boolean {
+export function missingProfileOnboardingFields(
+  profile: ProfileCompletionFields,
+): ProfileCompletionField[] {
   const photoUrl = profile.photoUrl ?? profile.avatar_url
   const shortBio = profile.shortBio ?? profile.bio
   const interests = profile.interests ?? profile.interest_tags
-  return Boolean(
-    photoUrl?.trim() &&
-      shortBio?.trim() &&
-      profile.currentRole?.trim() &&
-      profile.schoolOrOrganization?.trim() &&
-      interests?.some((interest) => interest.trim()),
-  )
+  const missing: ProfileCompletionField[] = []
+
+  if (!photoUrl?.trim()) missing.push("photo")
+  if (!shortBio?.trim()) missing.push("shortBio")
+  if (!profile.currentRole?.trim()) missing.push("currentRole")
+  if (!profile.schoolOrOrganization?.trim()) missing.push("schoolOrOrganization")
+  if (!interests?.some((interest) => interest.trim())) missing.push("interests")
+  if (!(
+    profile.aboutYou?.roleAndGoals?.trim() &&
+    profile.aboutYou.inspiration?.trim() &&
+    profile.aboutYou.supportNeeds?.trim()
+  )) missing.push("aboutYou")
+  if (!(profile.linkedIn?.url?.trim() || profile.linkedIn?.optedOut === true)) {
+    missing.push("linkedIn")
+  }
+
+  return missing
+}
+
+export function isProfileOnboardingComplete(profile: ProfileCompletionFields): boolean {
+  return missingProfileOnboardingFields(profile).length === 0
 }
 
 export function profileCompletionFieldsFromRecord(
   profile: ProfileCompletionRecord,
+  options: {
+    education?: readonly ProfileCompletionEducationRecord[]
+    linkedInOptOut?: boolean
+  } = {},
 ): ProfileCompletionFields {
+  const educationInstitution = options.education?.find(
+    (record) => record.institution?.trim(),
+  )?.institution
+
   return {
     photoUrl: profile.avatar_url,
     shortBio: profile.bio,
-    currentRole: profile.role_and_goals,
-    schoolOrOrganization: profile.school?.trim() || profile.affiliation,
+    currentRole: profile.persona,
+    schoolOrOrganization:
+      profile.affiliation?.trim() ||
+      profile.school?.trim() ||
+      educationInstitution?.trim() ||
+      null,
     interests: profile.interest_tags,
+    aboutYou: {
+      roleAndGoals: profile.role_and_goals,
+      inspiration: profile.inspiration,
+      supportNeeds: profile.support_needs,
+    },
+    linkedIn: {
+      url: profile.linkedin_url,
+      optedOut: options.linkedInOptOut === true,
+    },
   }
 }
 

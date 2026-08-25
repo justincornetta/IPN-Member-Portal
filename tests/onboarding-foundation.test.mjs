@@ -5,6 +5,7 @@ import test from "node:test"
 import {
   getOnboardingFlowState,
   isProfileOnboardingComplete,
+  missingProfileOnboardingFields,
   profileCompletionFieldsFromRecord,
 } from "../src/lib/onboarding/progress.ts"
 import {
@@ -20,13 +21,19 @@ import {
 } from "../src/lib/whatsapp/channels.ts"
 import { issueWhatsAppHandoff } from "../src/lib/whatsapp/client.ts"
 
-test("profile completion requires all five approved semantic fields", () => {
+test("profile completion requires all seven approved semantic items", () => {
   const complete = {
     photoUrl: "https://example.test/photo.jpg",
     shortBio: "Short bio",
     currentRole: "Graduate researcher",
     schoolOrOrganization: "Example University",
     interests: ["Harm reduction"],
+    aboutYou: {
+      roleAndGoals: "Build community programs",
+      inspiration: "Peer support",
+      supportNeeds: "Mentorship",
+    },
+    linkedIn: { url: "https://linkedin.com/in/member", optedOut: false },
   }
 
   assert.equal(isProfileOnboardingComplete(complete), true)
@@ -34,26 +41,55 @@ test("profile completion requires all five approved semantic fields", () => {
     const incomplete = { ...complete, [key]: key === "interests" ? [] : "" }
     assert.equal(isProfileOnboardingComplete(incomplete), false, `${key} must be required`)
   }
+
+  for (const key of Object.keys(complete.aboutYou)) {
+    const incomplete = {
+      ...complete,
+      aboutYou: { ...complete.aboutYou, [key]: "" },
+    }
+    assert.equal(isProfileOnboardingComplete(incomplete), false, `aboutYou.${key} must be answered`)
+  }
+
+  assert.equal(isProfileOnboardingComplete({
+    ...complete,
+    linkedIn: { url: null, optedOut: true },
+  }), true)
 })
 
 test("legacy three-field profile calls cannot mark the stricter milestone", () => {
-  assert.equal(isProfileOnboardingComplete({
+  const legacy = {
     avatar_url: "https://example.test/photo.jpg",
     bio: "Short bio",
     interest_tags: ["Policy"],
-  }), false)
+  }
+  assert.equal(isProfileOnboardingComplete(legacy), false)
+  assert.deepEqual(missingProfileOnboardingFields(legacy), [
+    "currentRole",
+    "schoolOrOrganization",
+    "aboutYou",
+    "linkedIn",
+  ])
 })
 
 test("profile records map onto the semantic completion contract", () => {
   const fields = profileCompletionFieldsFromRecord({
     avatar_url: "https://example.test/photo.jpg",
     bio: "Short bio",
-    role_and_goals: "Research coordinator",
+    persona: "Research coordinator",
+    affiliation: null,
     school: null,
-    affiliation: "Example Institute",
     interest_tags: ["Research"],
+    role_and_goals: "Research coordinator",
+    inspiration: "Community research",
+    support_needs: "Collaborators",
+    linkedin_url: null,
+  }, {
+    education: [{ institution: "Example Institute" }],
+    linkedInOptOut: true,
   })
   assert.equal(fields.schoolOrOrganization, "Example Institute")
+  assert.equal(fields.currentRole, "Research coordinator")
+  assert.equal(fields.linkedIn.optedOut, true)
   assert.equal(isProfileOnboardingComplete(fields), true)
 })
 
@@ -144,6 +180,10 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
     "utf8",
   )
   assert.match(onboardingSql, /profile_completed_at = coalesce\(/)
+  assert.match(onboardingSql, /btrim\(profiles\.persona\)/)
+  assert.match(onboardingSql, /from public\.member_education/)
+  assert.match(onboardingSql, /btrim\(profiles\.support_needs\)/)
+  assert.match(onboardingSql, /btrim\(profiles\.linkedin_url\)/)
   assert.match(onboardingSql, /whatsapp_started_at = coalesce\(whatsapp_started_at, whatsapp_completed_at\)/)
   assert.match(whatsappSql, /enable row level security/)
   assert.match(whatsappSql, /revoke all on table public\.member_whatsapp_join_intents from anon, authenticated, public/)

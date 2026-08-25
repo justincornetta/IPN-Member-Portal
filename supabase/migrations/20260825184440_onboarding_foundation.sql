@@ -33,9 +33,10 @@ where (profile_completed_at is not null and profile_started_at is null)
    or (whatsapp_completed_at is not null and whatsapp_started_at is null);
 
 -- Backfill only members who have not already reached the profile milestone.
--- The approved definition is photo + short bio + current role + school or
--- organization + at least one interest. role_and_goals is the current schema's
--- canonical current-role response.
+-- The approved definition has seven items: photo; short bio; current role
+-- (persona); school/organization; interests; the grouped About you answers;
+-- and LinkedIn URL or an explicit opt-out. This safe backfill covers the URL
+-- branch only because the explicit opt-out is owned by the profile integration.
 insert into public.member_onboarding_progress (
   user_id,
   profile_started_at,
@@ -48,12 +49,26 @@ select
 from public.profiles
 where nullif(btrim(profiles.avatar_url), '') is not null
   and nullif(btrim(profiles.bio), '') is not null
-  and nullif(btrim(profiles.role_and_goals), '') is not null
+  and nullif(btrim(profiles.persona), '') is not null
   and (
-    nullif(btrim(profiles.school), '') is not null
-    or nullif(btrim(profiles.affiliation), '') is not null
+    nullif(btrim(profiles.affiliation), '') is not null
+    or nullif(btrim(profiles.school), '') is not null
+    or exists (
+      select 1
+      from public.member_education
+      where member_education.user_id = profiles.id
+        and nullif(btrim(member_education.institution), '') is not null
+    )
   )
-  and cardinality(coalesce(profiles.interest_tags, '{}'::text[])) > 0
+  and exists (
+    select 1
+    from unnest(coalesce(profiles.interest_tags, '{}'::text[])) as interest(value)
+    where nullif(btrim(interest.value), '') is not null
+  )
+  and nullif(btrim(profiles.role_and_goals), '') is not null
+  and nullif(btrim(profiles.inspiration), '') is not null
+  and nullif(btrim(profiles.support_needs), '') is not null
+  and nullif(btrim(profiles.linkedin_url), '') is not null
 on conflict (user_id) do update
 set profile_started_at = coalesce(
       public.member_onboarding_progress.profile_started_at,

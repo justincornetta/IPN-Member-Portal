@@ -10,11 +10,35 @@ resetting another flow or replacing a previously recorded completion timestamp.
 The legacy connection-request, invite, and event-RSVP milestone timestamps remain
 unchanged. Existing profile and WhatsApp timestamps are also preserved.
 
-Profile onboarding is complete only when all five semantic fields are present:
-photo, short bio, current role, school/organization, and at least one interest.
-UI code should call `isProfileOnboardingComplete()` with those semantic fields;
-the current database adapter maps current role to `profiles.role_and_goals` and
-school/organization to `profiles.school ?? profiles.affiliation`.
+Profile onboarding uses the approved seven-item denominator:
+
+1. profile photo;
+2. short bio;
+3. current role (`profiles.persona`, renamed in the UI);
+4. school or organization (nonblank `profiles.affiliation`, legacy
+   `profiles.school`, or any nonblank `member_education.institution`);
+5. at least one interest;
+6. grouped About you (`role_and_goals`, `inspiration`, and `support_needs` must
+   all be answered); and
+7. LinkedIn (`linkedin_url` is present or the member explicitly selects “I
+   don't use LinkedIn”).
+
+WhatsApp is not part of profile completion. UI code may call
+`profileCompletionFieldsFromRecord()` and `isProfileOnboardingComplete()`, or
+use the profile branch's equivalent authoritative seven-item helper. The record
+adapter deliberately maps current role to `profiles.persona`; `role_and_goals`
+belongs only to grouped About you. Pass loaded `member_education` rows and the
+explicit LinkedIn opt-out state through the adapter options.
+
+Integration requirement: existing auth/ProfileForm completion callers pass
+only the legacy photo, bio, and interests fields. Those callers must be rewired
+to supply all seven semantic items before they call the milestone writer; the
+legacy three-field shape remains accepted only so integration does not break at
+compile time, and `missingProfileOnboardingFields()` makes its four missing
+items explicit. Until rewired, those saves cannot newly complete the profile
+milestone. Already populated `profile_completed_at` values remain authoritative
+and are never cleared or replaced. The SQL backfill safely handles members with
+a LinkedIn URL; the profile integration must handle the explicit-opt-out branch.
 
 ## WhatsApp channels and join intent
 
