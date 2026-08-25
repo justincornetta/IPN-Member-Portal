@@ -418,6 +418,7 @@ function toFormState(
   contact: Contact | null,
   education: EducationRecord[],
   linkedinOptOut: boolean,
+  supportNeedsFallback: string,
 ): FormState {
   const { countryCode, number } = parseWhatsappUrl(
     contact?.whatsapp_url ?? null,
@@ -441,7 +442,7 @@ function toFormState(
     psychedelic_field_status: profile?.psychedelic_field_status ?? "",
     role_and_goals: profile?.role_and_goals ?? "",
     inspiration: profile?.inspiration ?? "",
-    support_needs: profile?.support_needs ?? "",
+    support_needs: profile?.support_needs ?? supportNeedsFallback,
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
@@ -902,6 +903,7 @@ export default function ProfileForm({
   userEmail,
   mailchimpStatus,
   linkedinOptOut,
+  supportNeedsFallback,
 }: {
   profile: Profile | null
   contact: Contact | null
@@ -910,10 +912,11 @@ export default function ProfileForm({
   userEmail: string
   mailchimpStatus: MailchimpStatus
   linkedinOptOut: boolean
+  supportNeedsFallback: string
 }) {
   const router = useRouter()
   const [data, setData] = useState<FormState>(() => (
-    toFormState(profile, contact, education, linkedinOptOut)
+    toFormState(profile, contact, education, linkedinOptOut, supportNeedsFallback)
   ))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

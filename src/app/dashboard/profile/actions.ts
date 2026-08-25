@@ -21,14 +21,16 @@ export async function updateProfileCompletionDetails(
     .from("profiles")
     .update({
       inspiration: details.inspiration.trim(),
-      support_needs: details.supportNeeds.trim(),
     })
     .eq("id", user.id)
 
   if (profileError) return { error: profileError.message }
 
   const { error: metadataError } = await supabase.auth.updateUser({
-    data: { linkedin_opt_out: details.linkedinOptOut },
+    data: {
+      linkedin_opt_out: details.linkedinOptOut,
+      support_needs: details.supportNeeds.trim(),
+    },
   })
 
   if (metadataError) return { error: metadataError.message }
