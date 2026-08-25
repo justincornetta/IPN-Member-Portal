@@ -24,6 +24,7 @@ import {
   REFERRAL_OPTIONS,
   STEPS,
 } from "@/lib/constants/registration"
+import { registrationDestination } from "./registration-destination"
 import {
   COUNTRIES,
   US_STATES,
@@ -574,7 +575,7 @@ function RegisterPageContent() {
       support_needs: data.support_needs,
       referral_source: data.referral_source,
       referral_source_other: data.referral_source === "Other" ? data.referral_source_other.trim() : null,
-    }, redirectTo || undefined, analytics)
+    }, registrationDestination(redirectTo), analytics)
 
     if (result?.error) {
       setGlobalError(result.error)

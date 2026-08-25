@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import Sidebar from "@/components/Sidebar"
 import FeedbackFooter from "@/components/FeedbackFooter"
+import { ProductTourProvider } from "@/components/product-tour/ProductTourProvider"
 
 export default async function DashboardLayout({
   children,
@@ -35,19 +36,21 @@ export default async function DashboardLayout({
   const isAdmin = profile?.role === "superadmin" || profile?.role === "admin"
 
   return (
-    <div className="flex h-full flex-col overflow-hidden md:flex-row">
-      <Sidebar
-        firstName={profile?.first_name ?? null}
-        lastName={profile?.last_name ?? null}
-        email={user.email ?? ""}
-        avatarUrl={profile?.avatar_url ?? null}
-        pendingRequestCount={pendingRequestCount}
-        isAdmin={isAdmin}
-      />
-      <div className="flex flex-1 flex-col overflow-y-auto bg-zinc-50 pb-[calc(12rem+env(safe-area-inset-bottom))] md:pb-0">
-        {children}
-        <FeedbackFooter />
+    <ProductTourProvider userId={user.id}>
+      <div className="flex h-full flex-col overflow-hidden md:flex-row">
+        <Sidebar
+          firstName={profile?.first_name ?? null}
+          lastName={profile?.last_name ?? null}
+          email={user.email ?? ""}
+          avatarUrl={profile?.avatar_url ?? null}
+          pendingRequestCount={pendingRequestCount}
+          isAdmin={isAdmin}
+        />
+        <div className="flex flex-1 flex-col overflow-y-auto bg-zinc-50 pb-[calc(12rem+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+          <FeedbackFooter />
+        </div>
       </div>
-    </div>
+    </ProductTourProvider>
   )
 }
