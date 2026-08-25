@@ -1,3 +1,12 @@
+.onboardingShell,
+:global(body):has(.onboardingShell) {
+  overflow-x: clip;
+}
+
+:global(body):has(.onboardingShell) {
+  overflow-y: visible;
+}
+
 .onboardingShell {
   --ink: #1a1034;
   --midnight: #110827;
@@ -14,7 +23,6 @@
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
   background:
     radial-gradient(circle at 50% 0%, rgba(123, 79, 191, .18), transparent 34rem),
     var(--midnight);
