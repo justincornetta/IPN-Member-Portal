@@ -32,15 +32,15 @@ test("activation summary follows durable milestone priority without counting exp
   const summary = activationSummary({
     whatsapp_completed_at: "2026-08-25T12:00:00.000Z",
     profile_completed_at: null,
+    product_tour_completed_at: null,
     event_rsvp_completed_at: null,
     connection_request_completed_at: null,
-    invite_completed_at: null,
   })
 
-  assert.deepEqual(ACTIVATION_MILESTONE_ORDER, ["whatsapp", "profile", "event", "community", "invite"])
+  assert.deepEqual(ACTIVATION_MILESTONE_ORDER, ["whatsapp", "profile", "tour", "participate"])
   assert.deepEqual(summary, {
     completedCount: 1,
-    totalCount: 5,
+    totalCount: 4,
     nextMilestone: "profile",
   })
 })
@@ -49,12 +49,12 @@ test("activation summary uses authoritative profile progress and advances to eve
   const summary = activationSummary({
     whatsapp_completed_at: "done",
     profile_completed_at: "done",
+    product_tour_completed_at: null,
     event_rsvp_completed_at: null,
     connection_request_completed_at: null,
-    invite_completed_at: null,
   })
 
-  assert.equal(summary.nextMilestone, "event")
+  assert.equal(summary.nextMilestone, "tour")
 })
 
 test("continuing past optional WhatsApp keeps profile as the foreground priority", () => {
@@ -62,9 +62,9 @@ test("continuing past optional WhatsApp keeps profile as the foreground priority
     whatsapp_current_step: "continued",
     whatsapp_completed_at: null,
     profile_completed_at: null,
+    product_tour_completed_at: null,
     event_rsvp_completed_at: null,
     connection_request_completed_at: null,
-    invite_completed_at: null,
   })
   assert.equal(summary.completedCount, 0)
   assert.equal(summary.nextMilestone, "profile")
@@ -92,6 +92,11 @@ test("activation checklist uses one getting-started heading and green completion
   assert.doesNotMatch(checklist, /Steps to get started/i)
   assert.match(checklist, /bg-emerald-100 text-emerald-700/)
   assert.match(checklist, /item\.completed \? <CheckIcon \/> : index \+ 1/)
+  assert.match(checklist, /Complete the portal tour/)
+  assert.match(checklist, /Participate in IPN/)
+  assert.match(checklist, /RSVP for an event/)
+  assert.match(checklist, /Connect with a member/)
+  assert.doesNotMatch(checklist, /Invite a friend/)
 })
 
 test("a semantically complete profile satisfies the activation milestone", () => {
@@ -118,6 +123,19 @@ test("dashboard upcoming activity preserves 16:9 event covers and surfaces confe
   assert.match(upcoming, /No IPN meetup announced yet/)
   assert.match(dashboard, /from\("conferences"\)/)
   assert.match(dashboard, /conferences=\{/)
+})
+
+test("events hub provides a scrollable agenda with selected-event details", async () => {
+  const agenda = await readFile(
+    new URL("../src/app/dashboard/events/UpcomingAgenda.tsx", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(agenda, /max-h-\[34rem\] overflow-y-auto/)
+  assert.match(agenda, /Upcoming events agenda/)
+  assert.doesNotMatch(agenda, /MonthCalendar/)
+  assert.doesNotMatch(agenda, /calendar/i)
+  assert.match(agenda, /variant="featured"/)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {

@@ -497,7 +497,7 @@ export default async function DashboardPage() {
     supabase
       .from("member_onboarding_progress")
       .select(
-        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
+        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, product_tour_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
       )
       .eq("user_id", user!.id)
       .maybeSingle(),

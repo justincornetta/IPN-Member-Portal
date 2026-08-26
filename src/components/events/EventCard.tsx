@@ -12,7 +12,7 @@ import WhatsAppHandoffAction from "@/components/whatsapp/WhatsAppHandoffAction"
 
 type Props = {
   event: EventWithRegistration
-  variant?: "compact" | "full"
+  variant?: "compact" | "full" | "featured"
 }
 
 function hasEventChat(event: EventWithRegistration) {
@@ -178,6 +178,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
   const countLabel = registrationBand(count)
   const isCompact = variant === "compact"
+  const isFeatured = variant === "featured"
   const showEventChat = registered && eventChatAvailable
   const isExternalRegistration = Boolean(event.registration_url)
   const isLockedTicketedEvent =
@@ -221,7 +222,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
 
   return (
     <article className={`rounded-lg border border-zinc-200 bg-white p-3 shadow-sm ${isCompact ? "" : "sm:p-4"}`}>
-      <div className={`grid gap-4 ${isCompact ? "" : "sm:grid-cols-[220px_1fr]"}`}>
+      <div className={`grid gap-4 ${isFeatured ? "xl:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1.15fr)]" : isCompact ? "" : "sm:grid-cols-[220px_1fr]"}`}>
         <Link
           href={`/dashboard/events/${event.slug}`}
           data-analytics-event="curated_click"
@@ -229,7 +230,9 @@ export default function EventCard({ event, variant = "full" }: Props) {
           data-analytics-label="Event detail artwork"
           className="block"
         >
-          <EventArtwork event={event} compact={isCompact} />
+          <div className={isFeatured ? "aspect-video" : "h-full"}>
+            <EventArtwork event={event} compact={isCompact} />
+          </div>
         </Link>
 
         <div className="flex min-w-0 flex-col">

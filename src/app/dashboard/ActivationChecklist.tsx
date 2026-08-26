@@ -3,17 +3,15 @@
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import {
-  completeOnboardingStep,
-  saveOnboardingFlowProgress,
-} from "@/lib/onboarding/actions"
+import { saveOnboardingFlowProgress } from "@/lib/onboarding/actions"
+import { useProductTour } from "@/components/product-tour/ProductTourProvider"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
 import {
   activationSummary,
   isProfileMilestoneComplete,
 } from "./activation-model"
 
-type MilestoneId = "whatsapp" | "profile" | "event" | "community" | "invite"
+type MilestoneId = "whatsapp" | "profile" | "tour" | "participate"
 
 type ActivationItem = {
   id: MilestoneId
@@ -21,8 +19,6 @@ type ActivationItem = {
   href?: string
   completed: boolean
 }
-
-const INVITE_URL = "https://members.intercollegiatepsychedelics.net/register?utm_source=member_portal&utm_medium=member_invite&utm_campaign=member_referral"
 
 function CheckIcon() {
   return (
@@ -50,7 +46,8 @@ export default function ActivationChecklist({
   profileTotalCount: number
 }) {
   const router = useRouter()
-  const [inviteCopied, setInviteCopied] = useState(false)
+  const { startOrResume } = useProductTour()
+  const [participationOpen, setParticipationOpen] = useState(false)
   const [whatsappConfirmed, setWhatsappConfirmed] = useState(false)
   const [whatsappConfirmationError, setWhatsappConfirmationError] = useState(false)
   const [isConfirmingWhatsApp, startWhatsAppConfirmation] = useTransition()
@@ -75,21 +72,14 @@ export default function ActivationChecklist({
       completed: profileCompleted,
     },
     {
-      id: "event",
-      title: "RSVP for an event",
-      href: "/dashboard/events",
-      completed: Boolean(progress?.event_rsvp_completed_at),
+      id: "tour",
+      title: "Complete the portal tour",
+      completed: Boolean(progress?.product_tour_completed_at),
     },
     {
-      id: "community",
-      title: "Discover and connect with members",
-      href: "/dashboard/directory",
-      completed: Boolean(progress?.connection_request_completed_at),
-    },
-    {
-      id: "invite",
-      title: "Invite a friend",
-      completed: Boolean(progress?.invite_completed_at),
+      id: "participate",
+      title: "Participate in IPN",
+      completed: Boolean(progress?.event_rsvp_completed_at || progress?.connection_request_completed_at),
     },
   ]
 
@@ -97,9 +87,9 @@ export default function ActivationChecklist({
     whatsapp_completed_at: whatsappCompleted ? "complete" : null,
     whatsapp_current_step: progress?.whatsapp_current_step ?? null,
     profile_completed_at: profileCompleted ? "complete" : null,
+    product_tour_completed_at: progress?.product_tour_completed_at ?? null,
     event_rsvp_completed_at: progress?.event_rsvp_completed_at ?? null,
     connection_request_completed_at: progress?.connection_request_completed_at ?? null,
-    invite_completed_at: progress?.invite_completed_at ?? null,
   })
   const completedCount = summary.completedCount
 
@@ -122,29 +112,6 @@ export default function ActivationChecklist({
       setWhatsappConfirmed(true)
       router.refresh()
     })
-  }
-
-  async function copyInvite() {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Join the IPN Member Portal",
-          text: "Join me in the Intercollegiate Psychedelics Network member portal.",
-          url: INVITE_URL,
-        })
-      } catch {
-        return
-      }
-    } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(INVITE_URL)
-      setInviteCopied(true)
-      window.setTimeout(() => setInviteCopied(false), 1800)
-    } else {
-      return
-    }
-
-    await completeOnboardingStep("invite")
-    router.refresh()
   }
 
   return (
@@ -230,20 +197,33 @@ export default function ActivationChecklist({
                     </p>
                   )}
                 </>
-              ) : item.id === "invite" ? (
+              ) : item.id === "tour" ? (
                 <button
                   type="button"
-                  onClick={copyInvite}
+                  onClick={startOrResume}
                   className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
                 >
                   {lead}
-                  {inviteCopied && (
-                    <span className="shrink-0 text-xs font-semibold text-ipn" role="status">
-                      Copied
-                    </span>
-                  )}
                   <ArrowIcon />
                 </button>
+              ) : item.id === "participate" ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setParticipationOpen((open) => !open)}
+                    aria-expanded={participationOpen}
+                    className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
+                  >
+                    {lead}
+                    <ArrowIcon />
+                  </button>
+                  {participationOpen && (
+                    <div className="grid grid-cols-2 gap-2 border-t border-[#EEE9F3] bg-[#FAF7FF] p-3">
+                      <Link href="/dashboard/events" className="rounded-lg border border-ipn/20 bg-white px-3 py-2 text-center text-xs font-semibold text-ipn hover:bg-ipn-light">RSVP for an event</Link>
+                      <Link href="/dashboard/directory" className="rounded-lg border border-ipn/20 bg-white px-3 py-2 text-center text-xs font-semibold text-ipn hover:bg-ipn-light">Connect with a member</Link>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <Link
                   href={item.href!}

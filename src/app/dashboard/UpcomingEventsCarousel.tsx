@@ -257,6 +257,7 @@ function ConferencePreview({ conference }: { conference: ConferenceRecord | unde
   }
 
   const meetupCount = conference.meetups.length
+  const featuredConferenceMeetup = conference.meetups[0]
   const location = [conference.city, conference.state ?? conference.country].filter(Boolean).join(", ")
 
   return (
@@ -275,6 +276,14 @@ function ConferencePreview({ conference }: { conference: ConferenceRecord | unde
         {location ? ` · ${location}` : ""}
       </p>
       {conference.summary && <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-500">{conference.summary}</p>}
+      {featuredConferenceMeetup && (
+        <div className="mt-3 rounded-lg border border-[#BFE8DE] bg-[#F1FBF8] p-3">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-[#176B5B]"><span>IPN Meetup</span><span>·</span><span><EventDateTime startsAt={featuredConferenceMeetup.startsAt} endsAt={null} timezone={conference.timezone} /></span></div>
+          <p className="mt-1 text-sm font-semibold text-zinc-900">{featuredConferenceMeetup.title}</p>
+          {featuredConferenceMeetup.location && <p className="mt-1 text-xs text-zinc-500">{featuredConferenceMeetup.location}</p>}
+          <Link href={`/dashboard/conferences/${conference.slug}`} className="mt-2 inline-flex text-xs font-semibold text-[#176B5B] hover:underline">RSVP to meetup</Link>
+        </div>
+      )}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
         <Link
           href={`/dashboard/conferences/${conference.slug}`}
@@ -293,10 +302,9 @@ function ConferencePreview({ conference }: { conference: ConferenceRecord | unde
 export default function UpcomingEventsCarousel({ events, conferences = [], totalCount, className = "" }: Props) {
   const [activeTab, setActiveTab] = useState<HomepageTab>("events")
   const [activeIndex, setActiveIndex] = useState(0)
-  const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState<string | null>(events[0] ? `event:${events[0].id}` : null)
+  const [activeConferenceIndex, setActiveConferenceIndex] = useState(0)
   const activeEvent = events[activeIndex]
-  const hasMultiple = events.length > 1
-  const countLabel = `${totalCount} upcoming event${totalCount === 1 ? "" : "s"}`
   const meetupItems = useMemo<MeetupWithConference[]>(
     () => conferences
       .flatMap((conference) => conference.meetups.map((meetup) => ({ conference, meetup })))
@@ -304,21 +312,7 @@ export default function UpcomingEventsCarousel({ events, conferences = [], total
     [conferences],
   )
   const featuredMeetup = meetupItems[0] ?? null
-
-  function goTo(index: number) {
-    if (!events.length) return
-    setActiveIndex((index + events.length) % events.length)
-  }
-
-  function handleTouchEnd(x: number) {
-    if (touchStartX === null || !hasMultiple) return
-
-    const distance = touchStartX - x
-    if (Math.abs(distance) > 40) {
-      goTo(activeIndex + (distance > 0 ? 1 : -1))
-    }
-    setTouchStartX(null)
-  }
+  const activityCountLabel = `${totalCount + meetupItems.length} upcoming`
 
   return (
     <section className={`flex flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:rounded-xl sm:p-4 ${className}`}>
@@ -347,7 +341,7 @@ export default function UpcomingEventsCarousel({ events, conferences = [], total
           onClick={() => setActiveTab("events")}
           className={`min-h-10 rounded-md px-3 py-2 text-sm font-medium transition ${activeTab === "events" ? "bg-white text-ipn shadow-sm ring-1 ring-ipn/20" : "text-zinc-500 hover:text-zinc-900"}`}
         >
-          IPN Events <span className="ml-1 text-xs text-zinc-400">{countLabel}</span>
+          IPN Events <span className="ml-1 text-xs text-zinc-400">{activityCountLabel}</span>
         </button>
         <button
           type="button"
@@ -366,22 +360,27 @@ export default function UpcomingEventsCarousel({ events, conferences = [], total
       </div>
 
       {activeTab === "events" && activeEvent ? (
-        <>
-          <div
-            className="mt-3 flex flex-1 flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 sm:mt-4"
-            onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
-            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
-          >
-            <CompactEventCard
-              key={activeEvent.id}
-              event={activeEvent}
-              hasMultiple={hasMultiple}
-              onPrevious={() => goTo(activeIndex - 1)}
-              onNext={() => goTo(activeIndex + 1)}
-            />
-            <MeetupStrip item={featuredMeetup} />
+        <div className="mt-3 grid flex-1 gap-3 sm:mt-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-1" aria-label="IPN events agenda">
+            {events.map((event, index) => (
+              <button key={event.id} type="button" aria-pressed={selectedActivity === `event:${event.id}`} onClick={() => { setActiveIndex(index); setSelectedActivity(`event:${event.id}`) }} className={`w-full rounded-md px-3 py-3 text-left ${selectedActivity === `event:${event.id}` ? "bg-white shadow-sm ring-1 ring-ipn/20" : "hover:bg-white"}`}>
+                <span className="block text-[10px] font-semibold uppercase text-ipn">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(event.starts_at))} · {event.event_type}</span>
+                <span className="mt-1 block line-clamp-2 text-xs font-semibold leading-4 text-zinc-800">{event.title}</span>
+              </button>
+            ))}
+            {featuredMeetup && (
+              <button type="button" aria-pressed={selectedActivity === `meetup:${featuredMeetup.meetup.id}`} onClick={() => setSelectedActivity(`meetup:${featuredMeetup.meetup.id}`)} className={`w-full rounded-md px-3 py-3 text-left ${selectedActivity === `meetup:${featuredMeetup.meetup.id}` ? "bg-white shadow-sm ring-1 ring-[#9DDCCE]" : "hover:bg-white"}`}>
+                <span className="block text-[10px] font-semibold uppercase text-[#176B5B]">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(featuredMeetup.meetup.startsAt))} · IPN Meetup</span>
+                <span className="mt-1 block line-clamp-2 text-xs font-semibold leading-4 text-zinc-800">{featuredMeetup.meetup.title}</span>
+              </button>
+            )}
           </div>
-        </>
+          <div className="rounded-lg border border-zinc-200 bg-white p-3">
+            {selectedActivity?.startsWith("meetup:") ? <MeetupStrip item={featuredMeetup} /> : (
+              <CompactEventCard key={activeEvent.id} event={activeEvent} hasMultiple={false} onPrevious={() => {}} onNext={() => {}} />
+            )}
+          </div>
+        </div>
       ) : activeTab === "events" ? (
         <div className="mt-4 flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center">
           <h3 className="text-base font-semibold text-zinc-900">
@@ -393,8 +392,17 @@ export default function UpcomingEventsCarousel({ events, conferences = [], total
           </p>
         </div>
       ) : (
-        <div className="mt-3 flex flex-1 sm:mt-4">
-          <ConferencePreview conference={conferences[0]} />
+        <div className="mt-3 grid flex-1 gap-3 sm:mt-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-1" aria-label="Upcoming conferences agenda">
+            {conferences.map((conference, index) => (
+              <button key={conference.id} type="button" aria-pressed={activeConferenceIndex === index} onClick={() => setActiveConferenceIndex(index)} className={`w-full rounded-md px-3 py-3 text-left ${activeConferenceIndex === index ? "bg-white shadow-sm ring-1 ring-ipn/20" : "hover:bg-white"}`}>
+                <span className="block text-[10px] font-semibold uppercase text-ipn">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(conference.starts_at))} · {conference.category}</span>
+                <span className="mt-1 block line-clamp-2 text-xs font-semibold leading-4 text-zinc-800">{conference.name}</span>
+                <span className={`mt-1 block text-[10px] ${conference.meetups.length ? "text-[#176B5B]" : "text-zinc-400"}`}>{conference.meetups.length ? `${conference.meetups.length} IPN meetup${conference.meetups.length === 1 ? "" : "s"}` : "No meetup announced"}</span>
+              </button>
+            ))}
+          </div>
+          <ConferencePreview conference={conferences[activeConferenceIndex]} />
         </div>
       )}
     </section>

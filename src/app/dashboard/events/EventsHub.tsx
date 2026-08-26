@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import EventCard from "@/components/events/EventCard"
 import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
+import UpcomingAgenda from "./UpcomingAgenda"
 
 type Props = {
   upcomingEvents: EventWithRegistration[]
@@ -174,38 +174,6 @@ function EmptyPanel({ title, body }: { title: string; body: string }) {
   )
 }
 
-function EventPreviewRow({ event }: { event: EventWithRegistration }) {
-  return (
-    <Link
-      href={`/dashboard/events/${event.slug}`}
-      data-analytics-event="curated_click"
-      data-analytics-id={`event-detail-preview-${event.slug}`}
-      data-analytics-label="Event detail preview"
-      className="grid min-h-24 grid-cols-[6rem_1fr] gap-3 rounded-lg border border-zinc-200 bg-white p-2 shadow-sm"
-    >
-      <div className="relative overflow-hidden rounded-md bg-zinc-900">
-        {event.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={event.thumbnail_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
-        )}
-      </div>
-      <div className="min-w-0 py-1">
-        <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-zinc-900">
-          {event.title}
-        </h3>
-        <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
-          <EventDateTime startsAt={event.starts_at} endsAt={event.ends_at} timezone={event.timezone} />
-        </p>
-        {event.location_label && (
-          <p className="mt-1 line-clamp-1 text-xs text-zinc-400">{event.location_label}</p>
-        )}
-      </div>
-    </Link>
-  )
-}
-
 export default function EventsHub({ upcomingEvents, recordings }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -307,51 +275,10 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <section className="hidden rounded-lg border border-ipn/20 bg-ipn/5 p-5 sm:block">
-        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <p className="text-sm font-medium text-ipn">What is included</p>
-            <h2 className="mt-1 text-xl font-semibold text-zinc-900">
-              Register for upcoming events and revisit past IPN programming.
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600">
-              Upcoming events stay easy to RSVP for, while past recordings are
-              organized by IPN Labs and PsychedelX for browsing after the fact.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setEventTab("upcoming")}
-              className="rounded-lg border border-white bg-white px-3 py-3 text-left shadow-sm transition hover:border-ipn/20"
-            >
-              <span className="block text-sm font-semibold text-zinc-900">
-                Upcoming
-              </span>
-              <span className="mt-1 block text-xs text-zinc-400">
-                {upcomingEvents.length} scheduled
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setEventTab("recordings")}
-              className="rounded-lg border border-white bg-white px-3 py-3 text-left shadow-sm transition hover:border-ipn/20"
-            >
-              <span className="block text-sm font-semibold text-zinc-900">
-                Past Recordings
-              </span>
-              <span className="mt-1 block text-xs text-zinc-400">
-                {recordings.length} available
-              </span>
-            </button>
-          </div>
-        </div>
-      </section>
-
       <div className="grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
         {[
           ["upcoming", "Upcoming"],
-          ["recordings", "Recordings"],
+          ["recordings", `Recordings · ${recordings.length}`],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -370,48 +297,8 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
 
       {activeTab === "upcoming" && (
         <section className="flex flex-col gap-3 sm:gap-4">
-          <div className="hidden sm:block">
-            <p className="text-sm font-medium text-ipn">Upcoming</p>
-            <h2 className="mt-1 text-xl font-semibold text-zinc-900">
-              Upcoming IPN events
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-              Register for IPN Lab seminars, PsychedelX programming, and future
-              member meetups from one place.
-            </p>
-          </div>
-
           {upcomingEvents.length ? (
-            <div className="flex flex-col gap-3 sm:gap-4">
-              <div className="sm:hidden">
-                <p className="mb-2 text-sm font-semibold text-zinc-900">Next Event</p>
-                <EventCard event={upcomingEvents[0]} variant="compact" />
-              </div>
-              {upcomingEvents.length > 1 && (
-                <div className="flex flex-col gap-2 sm:hidden">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-zinc-900">Upcoming Events</p>
-                    <Link
-                      href="/dashboard/events"
-                      data-analytics-event="curated_click"
-                      data-analytics-id="events-hub-view-all-mobile"
-                      data-analytics-label="View all events"
-                      className="inline-flex min-h-11 items-center text-sm font-medium text-ipn"
-                    >
-                      View all
-                    </Link>
-                  </div>
-                  {upcomingEvents.slice(1, 3).map((event) => (
-                    <EventPreviewRow key={event.id} event={event} />
-                  ))}
-                </div>
-              )}
-              <div className="hidden flex-col gap-4 sm:flex">
-                {upcomingEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            </div>
+            <UpcomingAgenda events={upcomingEvents} />
           ) : (
             <EmptyPanel
               title="No upcoming events yet"
