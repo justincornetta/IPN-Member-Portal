@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
   const expectedSecret = process.env.EVENT_RSVP_TEST_SECRET
   const suppliedSecret = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "")
   if (
-    process.env.CONTEXT !== "deploy-preview" ||
     !expectedSecret ||
     suppliedSecret !== expectedSecret
   ) {
