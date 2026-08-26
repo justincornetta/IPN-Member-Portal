@@ -1,9 +1,11 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
+import { sendEventRsvpSlackNotification } from "@/lib/slack/event-rsvp"
 import { sendEventRegistrationConfirmation } from "./email-service"
 
 type EventRegistrationResult = {
@@ -46,15 +48,20 @@ export async function registerForEvent(
 
   const { error } = await supabase
     .from("event_registrations")
-    .upsert(
-      { event_id: eventId, user_id: user.id },
-      { onConflict: "event_id,user_id", ignoreDuplicates: true },
-    )
+    .insert({ event_id: eventId, user_id: user.id })
 
-  if (error) return { error: error.message }
+  const isNewRsvp = !error
+  if (error && error.code !== "23505") return { error: error.message }
 
   await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
   await sendEventRegistrationConfirmation(eventId, user.id)
+  if (isNewRsvp) {
+    after(() => sendEventRsvpSlackNotification({
+      kind: "event",
+      eventId,
+      userId: user.id,
+    }))
+  }
   if (analytics?.sessionId) {
     await recordPortalAnalyticsEvent({
       eventName: "event_rsvp_created",
