@@ -57,6 +57,11 @@ export function WhatsAppLanding() {
   }, [selectedId])
 
   function selectChannel(id: WhatsAppChannelId) {
+    if (id === selectedId) {
+      setJoinError(null)
+      return
+    }
+
     setQrState({ status: "loading" })
     setSelectedId(id)
     setJoinError(null)
