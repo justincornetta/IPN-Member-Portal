@@ -8,7 +8,10 @@ import {
   saveOnboardingFlowProgress,
 } from "@/lib/onboarding/actions"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
-import { activationSummary } from "./activation-model"
+import {
+  activationSummary,
+  isProfileMilestoneComplete,
+} from "./activation-model"
 
 type MilestoneId = "whatsapp" | "profile" | "event" | "community" | "invite"
 
@@ -52,6 +55,11 @@ export default function ActivationChecklist({
   const [whatsappConfirmationError, setWhatsappConfirmationError] = useState(false)
   const [isConfirmingWhatsApp, startWhatsAppConfirmation] = useTransition()
   const whatsappCompleted = Boolean(progress?.whatsapp_completed_at) || whatsappConfirmed
+  const profileCompleted = isProfileMilestoneComplete(
+    progress?.profile_completed_at,
+    profileCompletedCount,
+    profileTotalCount,
+  )
 
   const items: ActivationItem[] = [
     {
@@ -64,7 +72,7 @@ export default function ActivationChecklist({
       id: "profile",
       title: "Complete your profile",
       href: "/dashboard/profile",
-      completed: Boolean(progress?.profile_completed_at),
+      completed: profileCompleted,
     },
     {
       id: "event",
@@ -88,7 +96,7 @@ export default function ActivationChecklist({
   const summary = activationSummary({
     whatsapp_completed_at: whatsappCompleted ? "complete" : null,
     whatsapp_current_step: progress?.whatsapp_current_step ?? null,
-    profile_completed_at: progress?.profile_completed_at ?? null,
+    profile_completed_at: profileCompleted ? "complete" : null,
     event_rsvp_completed_at: progress?.event_rsvp_completed_at ?? null,
     connection_request_completed_at: progress?.connection_request_completed_at ?? null,
     invite_completed_at: progress?.invite_completed_at ?? null,
@@ -142,12 +150,9 @@ export default function ActivationChecklist({
   return (
     <section className="h-full rounded-xl border border-ipn/15 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="activation-heading">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ipn">Getting Started</p>
-          <h2 id="activation-heading" className="mt-1 text-lg font-semibold text-[#1A1034]">
-            Steps to get started
-          </h2>
-        </div>
+        <h2 id="activation-heading" className="text-xs font-semibold uppercase tracking-[0.14em] text-ipn">
+          Getting Started
+        </h2>
         <p className="whitespace-nowrap rounded-full bg-ipn-light px-2.5 py-1 text-xs font-semibold text-ipn">
           {completedCount} of {items.length} complete
         </p>

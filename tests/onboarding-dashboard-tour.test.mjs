@@ -9,6 +9,7 @@ import {
 import {
   ACTIVATION_MILESTONE_ORDER,
   activationSummary,
+  isProfileMilestoneComplete,
 } from "../src/app/dashboard/activation-model.ts"
 import {
   PRODUCT_TOUR_STEPS,
@@ -81,16 +82,23 @@ test("activation checklist supports explicit WhatsApp self-attestation", async (
   assert.match(checklist, /We couldn’t save that confirmation\. Try again\./)
 })
 
-test("activation checklist uses getting-started language and green completion markers", async () => {
+test("activation checklist uses one getting-started heading and green completion markers", async () => {
   const checklist = await readFile(
     new URL("../src/app/dashboard/ActivationChecklist.tsx", import.meta.url),
     "utf8",
   )
 
-  assert.match(checklist, />Getting Started</)
-  assert.match(checklist, />\s*Steps to get started\s*</)
+  assert.equal(checklist.match(/Getting Started/g)?.length, 1)
+  assert.doesNotMatch(checklist, /Steps to get started/i)
   assert.match(checklist, /bg-emerald-100 text-emerald-700/)
   assert.match(checklist, /item\.completed \? <CheckIcon \/> : index \+ 1/)
+})
+
+test("a semantically complete profile satisfies the activation milestone", () => {
+  assert.equal(isProfileMilestoneComplete(null, 7, 7), true)
+  assert.equal(isProfileMilestoneComplete(null, 6, 7), false)
+  assert.equal(isProfileMilestoneComplete("2026-08-26T12:00:00.000Z", 6, 7), true)
+  assert.equal(isProfileMilestoneComplete(null, 0, 0), false)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {

@@ -17,6 +17,14 @@ export const ACTIVATION_MILESTONE_ORDER = [
 
 export type ActivationMilestoneId = (typeof ACTIVATION_MILESTONE_ORDER)[number]
 
+export function isProfileMilestoneComplete(
+  completedAt: string | null | undefined,
+  completedCount: number,
+  totalCount: number,
+) {
+  return Boolean(completedAt) || (totalCount > 0 && completedCount >= totalCount)
+}
+
 export function activationSummary(progress: ActivationProgressInput | null): {
   completedCount: number
   totalCount: number
