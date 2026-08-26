@@ -18,7 +18,7 @@ import {
 
 test("standard registration starts the progressive onboarding route", () => {
   assert.equal(registrationDestination(""), STANDARD_REGISTRATION_DESTINATION)
-  assert.equal(STANDARD_REGISTRATION_DESTINATION, "/dashboard/welcome")
+  assert.equal(STANDARD_REGISTRATION_DESTINATION, "/onboarding/welcome?motion=editorial")
 })
 
 test("event-first registration preserves the complete next destination", () => {

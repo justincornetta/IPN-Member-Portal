@@ -56,7 +56,7 @@ export default function ActivationChecklist({
       id: "whatsapp",
       title: "Join IPN on WhatsApp",
       description: "Choose the IPN groups that fit how you want to participate.",
-      href: "/dashboard/whatsapp",
+      href: "/onboarding/whatsapp?motion=editorial",
       kind: "milestone",
       completed: Boolean(progress?.whatsapp_completed_at),
     },

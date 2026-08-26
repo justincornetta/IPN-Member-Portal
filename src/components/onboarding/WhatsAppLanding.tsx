@@ -15,6 +15,11 @@ type QrState =
   | { status: "ready"; imageSrc: string; expiresAt: string }
   | { status: "error" }
 
+type JoinErrorState = {
+  id: WhatsAppChannelId
+  reason: "handoff" | "popup"
+}
+
 function ChannelIcon({ id }: { id: WhatsAppChannelId }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -29,16 +34,15 @@ export function WhatsAppLanding() {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<WhatsAppChannelId>("general")
   const [joiningId, setJoiningId] = useState<WhatsAppChannelId | null>(null)
-  const [joinErrorId, setJoinErrorId] = useState<WhatsAppChannelId | null>(null)
+  const [joinError, setJoinError] = useState<JoinErrorState | null>(null)
   const [qrState, setQrState] = useState<QrState>({ status: "loading" })
   const [qrAttempt, setQrAttempt] = useState(0)
   const [continuing, setContinuing] = useState(false)
-  const [continueError, setContinueError] = useState<string | null>(null)
   const requestSequence = useRef(0)
   const selected = whatsappChannels.find((channel) => channel.id === selectedId)!
 
   useEffect(() => {
-    if (window.matchMedia("(max-width: 767px)").matches) return
+    if (window.matchMedia("(max-width: 760px)").matches) return
     const sequence = ++requestSequence.current
     let refreshTimer: number | undefined
     onboardingFoundationAdapter
@@ -72,9 +76,14 @@ export function WhatsAppLanding() {
   }, [])
 
   function selectChannel(id: WhatsAppChannelId) {
+    if (id === selectedId) {
+      setJoinError(null)
+      return
+    }
+
     setQrState({ status: "loading" })
     setSelectedId(id)
-    setJoinErrorId(null)
+    setJoinError(null)
   }
 
   function handleChannelKeyDown(
@@ -91,12 +100,22 @@ export function WhatsAppLanding() {
   }
 
   async function handleJoin(
+    event: React.MouseEvent<HTMLAnchorElement>,
     id: WhatsAppChannelId,
     surface: "desktop_direct" | "mobile_direct",
   ) {
+    event.preventDefault()
     if (joiningId !== null) return
+
+    const handoffWindow = window.open("about:blank", "_blank")
+    if (!handoffWindow) {
+      setJoinError({ id, reason: "popup" })
+      return
+    }
+
+    handoffWindow.opener = null
     setJoiningId(id)
-    setJoinErrorId(null)
+    setJoinError(null)
 
     try {
       const result = await onboardingFoundationAdapter.issueWhatsAppHandoff({
@@ -106,30 +125,34 @@ export function WhatsAppLanding() {
         surface,
         sessionId: getPortalAnalyticsContext().sessionId,
       })
-      window.location.assign(result.handoffPath)
-    } catch {
+      handoffWindow.location.replace(
+        new URL(result.handoffPath, window.location.origin).toString(),
+      )
       setJoiningId(null)
-      setJoinErrorId(id)
+    } catch {
+      handoffWindow.close()
+      setJoiningId(null)
+      setJoinError({ id, reason: "handoff" })
     }
   }
 
   const continueToDashboard = useCallback(async () => {
     if (continuing) return
     setContinuing(true)
-    setContinueError(null)
     try {
-      const result = await saveOnboardingFlowProgress({ flow: "whatsapp", currentStep: "continued" })
-      if (result.error) {
-        setContinueError("We could not save your progress. Please try again.")
-        return
-      }
-      router.push("/dashboard")
-    } catch {
-      setContinueError("We could not save your progress. Please try again.")
+      await saveOnboardingFlowProgress({ flow: "whatsapp", currentStep: "continued" })
     } finally {
       setContinuing(false)
+      router.push("/dashboard")
     }
   }, [continuing, router])
+
+  function joinErrorMessage(id: WhatsAppChannelId) {
+    if (joinError?.id !== id) return null
+    return joinError.reason === "popup"
+      ? "Allow new tabs for this site, then try again."
+      : "The channel could not be opened. Try again."
+  }
 
   return (
     <div className={styles.whatsappLayout}>
@@ -144,14 +167,7 @@ export function WhatsAppLanding() {
 
       <section className={styles.channelPanel} aria-labelledby="channel-heading">
         <div className={styles.channelPanelHeader}>
-          <div>
-            <p className={styles.stepLabel}>Choose where to start</p>
-            <h2 id="channel-heading">Your IPN conversations</h2>
-          </div>
-          <p className={styles.announcementNote}>
-            <span aria-hidden="true">✦</span>
-            Joining any IPN group automatically adds you to Announcements.
-          </p>
+          <h2 id="channel-heading">Join one or more IPN channels</h2>
         </div>
 
         <div className={styles.desktopChannels}>
@@ -174,7 +190,7 @@ export function WhatsAppLanding() {
                   <span className={styles.channelCopy}>
                     <span className={styles.channelNameRow}>
                       <strong>{channel.name}</strong>
-                      {channel.recommended && <span className={styles.recommended}>Recommended</span>}
+                      {channel.recommended && <span className={styles.recommended}>Start here</span>}
                     </span>
                     <span>{channel.description}</span>
                   </span>
@@ -183,13 +199,12 @@ export function WhatsAppLanding() {
               )
             })}
 
-            <div className={styles.eventEmptyState}>
-              <span className={styles.eventIcon} aria-hidden="true">◇</span>
-              <span>
-                <strong>No active event chats</strong>
-                <small>When an RSVP-gated chat opens, it will appear here.</small>
-              </span>
-            </div>
+            {selectedId === "general" && (
+              <p className={styles.introductionPrompt}>
+                <strong>Your first message:</strong>{" "}share your name, where you&apos;re based,
+                your background, and what you&apos;re studying or working on.
+              </p>
+            )}
           </div>
 
           <div className={styles.qrStage} aria-live="polite">
@@ -213,18 +228,21 @@ export function WhatsAppLanding() {
                 <p className={styles.qrStatus}>Loading QR code…</p>
               )}
             </div>
-            <p className={styles.qrHelp}>Scan with your phone, or join from this device.</p>
-            <button
-              type="button"
+            <p className={styles.qrHelp}>Scan with your phone, or open the channel in a new tab.</p>
+            <a
               className={styles.primaryAction}
-              aria-label={`Join ${selected.name} channel on this device`}
-              disabled={joiningId !== null}
-              onClick={() => handleJoin(selected.id, "desktop_direct")}
+              href={selected.redirectPath}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Join ${selected.name} channel on this device (opens in a new tab)`}
+              aria-disabled={joiningId !== null}
+              onClick={(event) => handleJoin(event, selected.id, "desktop_direct")}
             >
               {joiningId === selected.id ? "Opening channel…" : "Join channel on this device"}
-            </button>
-            {joinErrorId === selected.id && (
-              <p className={styles.errorMessage} role="alert">The channel could not be opened. Try again.</p>
+              {joiningId !== selected.id && <span aria-hidden="true"> ↗</span>}
+            </a>
+            {joinError?.id === selected.id && (
+              <p className={styles.errorMessage} role="alert">{joinErrorMessage(selected.id)}</p>
             )}
           </div>
         </div>
@@ -234,37 +252,51 @@ export function WhatsAppLanding() {
             <article key={channel.id} className={`${styles.mobileChannelCard} ${channel.recommended ? styles.mobileFeatured : ""}`}>
               <div className={styles.mobileChannelHeading}>
                 <span className={styles.channelIcon}><ChannelIcon id={channel.id} /></span>
-                <div><h3>{channel.name}</h3>{channel.recommended && <span className={styles.recommended}>Recommended</span>}</div>
+                <div><h3>{channel.name}</h3>{channel.recommended && <span className={styles.recommended}>Start here</span>}</div>
               </div>
               <p>{channel.description}</p>
-              <button
-                type="button"
-                aria-label={`Join ${channel.name} channel on this device`}
-                disabled={joiningId !== null}
-                onClick={() => handleJoin(channel.id, "mobile_direct")}
+              <a
+                href={channel.redirectPath}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Join ${channel.name} channel on this device (opens in a new tab)`}
+                aria-disabled={joiningId !== null}
+                onClick={(event) => handleJoin(event, channel.id, "mobile_direct")}
               >
                 {joiningId === channel.id ? "Opening channel…" : "Join channel on this device"}
-                {joiningId !== channel.id && <span aria-hidden="true"> →</span>}
-              </button>
-              {joinErrorId === channel.id && (
-                <p className={styles.mobileError} role="alert">The channel could not be opened. Try again.</p>
+                {joiningId !== channel.id && <span aria-hidden="true"> ↗</span>}
+              </a>
+              {channel.id === "general" && (
+                <p className={styles.mobileIntroductionPrompt}>
+                  <strong>Your first message:</strong>{" "}share your name, where you&apos;re based,
+                  your background, and what you&apos;re studying or working on.
+                </p>
+              )}
+              {joinError?.id === channel.id && (
+                <p className={styles.mobileError} role="alert">{joinErrorMessage(channel.id)}</p>
               )}
             </article>
           ))}
+        </div>
 
-          <div className={styles.eventEmptyState}>
-            <span className={styles.eventIcon} aria-hidden="true">◇</span>
-            <span><strong>No active event chats</strong><small>RSVP-gated chats will appear here when available.</small></span>
+        <div className={styles.portalNextStep}>
+          <div>
+            <strong>Finish joining channels</strong>
+            <span>Continue to your member portal to complete your profile and start exploring.</span>
           </div>
+          <a
+            href="/dashboard"
+            aria-disabled={continuing}
+            onClick={(event) => {
+              event.preventDefault()
+              void continueToDashboard()
+            }}
+          >
+            {continuing ? "Opening member portal…" : "Continue to member portal"}{" "}
+            {!continuing && <span aria-hidden="true">→</span>}
+          </a>
         </div>
       </section>
-      <div className={styles.whatsappContinue}>
-        <button type="button" className={styles.continueButton} disabled={continuing} onClick={continueToDashboard}>
-          {continuing ? "Opening dashboard…" : "Continue to dashboard"} <span aria-hidden="true">→</span>
-        </button>
-        {continueError && <p className={styles.errorMessage} role="alert">{continueError}</p>}
-        <p>You can continue without choosing a channel and return here anytime.</p>
-      </div>
     </div>
   )
 }

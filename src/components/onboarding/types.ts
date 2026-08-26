@@ -5,6 +5,7 @@ export type WhatsAppChannel = {
   name: string
   shortName: string
   description: string
+  redirectPath: string
   recommended?: boolean
 }
 

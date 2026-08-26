@@ -6,7 +6,8 @@ export const whatsappChannels: WhatsAppChannel[] = [
     name: "General",
     shortName: "General",
     description:
-      "Introductions, questions, opportunities, and everyday community conversation.",
+      "Introductions, ask questions, and general topic discussions.",
+    redirectPath: "/go/whatsapp/general?source=onboarding",
     recommended: true,
   },
   {
@@ -14,13 +15,15 @@ export const whatsappChannels: WhatsAppChannel[] = [
     name: "Labs Events",
     shortName: "Labs",
     description:
-      "A permanent, ongoing conversation for the IPN Labs seminar series.",
+      "Discussions specific to IPN Labs events and seminar series.",
+    redirectPath: "/go/whatsapp/labs?source=onboarding",
   },
   {
     id: "conferences",
     name: "Conferences",
     shortName: "Conferences",
     description:
-      "A permanent channel for conference planning, meetups, and connection.",
+      "Conference attendance, planning, and coordinating IPN meetups.",
+    redirectPath: "/go/whatsapp/conferences?source=onboarding",
   },
 ]

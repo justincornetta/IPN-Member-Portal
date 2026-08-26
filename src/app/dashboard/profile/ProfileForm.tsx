@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
@@ -1265,11 +1266,16 @@ export default function ProfileForm({
       />
 
       {saved && (
-        <div role="status" aria-live="polite" className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <svg className="h-4 w-4 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-          Profile saved successfully.
+        <div role="status" aria-live="polite" className="flex flex-wrap items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <span className="flex flex-1 items-center gap-3">
+            <svg className="h-4 w-4 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            Profile saved successfully.
+          </span>
+          <Link href="/dashboard" className="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-ipn hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn sm:min-h-0">
+            Return to dashboard <span aria-hidden="true" className="ml-1">→</span>
+          </Link>
         </div>
       )}
 

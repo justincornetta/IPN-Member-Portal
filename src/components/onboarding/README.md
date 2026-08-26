@@ -52,6 +52,13 @@ foundation client. This branch deliberately contains no `/go` implementation;
 the foundation owns the authenticated issuance endpoint, public scan-safe
 handoff, server-only invites, intent recording, and redirect analytics.
 
+Same-device actions keep onboarding open and launch the returned
+`handoffPath` in a new tab. Because issuance is asynchronous, the UI opens a
+blank tab synchronously from the member's click, removes its opener reference,
+and replaces that tab's location when the handoff is ready. Integration must
+preserve this behavior, close the pending tab on issuance failure, and reset
+the loading state after navigation so a member can join another channel.
+
 Temporary event chats are supplied later through an RSVP-gated collection. The
 current UI renders the empty-state contract and makes no temporary chats
 available.

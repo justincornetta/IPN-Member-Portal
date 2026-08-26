@@ -49,7 +49,7 @@ export default function WhatsAppCommunityCard({
 
       <div className="mt-4">
           <Link
-            href="/dashboard/whatsapp"
+            href="/onboarding/whatsapp?motion=editorial"
             onClick={onJoin}
             className={`inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ipn text-sm font-medium text-white transition hover:bg-ipn-dark ${
               compact ? "px-3 py-2" : "px-4 py-2"

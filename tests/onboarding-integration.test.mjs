@@ -14,10 +14,12 @@ test("WhatsApp UI uses the foundation handoff and no tracked QR fixtures", async
   assert.match(adapter, /new URL\(handoff\.handoffPath, window\.location\.origin\)/)
   assert.match(adapter, /QRCode\.toDataURL/)
   assert.match(landing, /desktop_qr_scan/)
+  assert.match(landing, /matchMedia\("\(max-width: 760px\)"\)/)
   assert.match(landing, /Date\.parse\(target\.expiresAt\) - Date\.now\(\) - 60_000/)
-  assert.match(landing, /if \(result\.error\)/)
-  assert.match(landing, /finally \{\s+setContinuing\(false\)/)
-  assert.doesNotMatch(landing, /redirectPath/)
+  assert.match(landing, /finally \{\s+setContinuing\(false\)\s+router\.push\("\/dashboard"\)/)
+  assert.match(landing, /window\.open\("about:blank", "_blank"\)/)
+  assert.match(landing, /handoffWindow\.location\.replace/)
+  assert.match(landing, /href=\{selected\.redirectPath\}/)
 
   for (const slug of ["general", "labs", "conferences"]) {
     await assert.rejects(access(new URL(`../public/onboarding/qr-${slug}.svg`, import.meta.url)))
@@ -29,7 +31,7 @@ test("community and event actions centralize handoffs while personal contacts re
   const eventCard = await readFile(new URL("../src/components/events/EventCard.tsx", import.meta.url), "utf8")
   const authActions = await readFile(new URL("../src/lib/auth/actions.ts", import.meta.url), "utf8")
 
-  assert.match(community, /href="\/dashboard\/whatsapp"/)
+  assert.match(community, /href="\/onboarding\/whatsapp\?motion=editorial"/)
   assert.doesNotMatch(community, /NEXT_PUBLIC_WHATSAPP/)
   assert.match(eventCard, /WhatsAppHandoffAction/)
   assert.doesNotMatch(eventCard, /href=\{eventChat/)

@@ -5,32 +5,28 @@ import { useRouter } from "next/navigation"
 import { saveOnboardingFlowProgress } from "@/lib/onboarding/actions"
 import styles from "./onboarding.module.css"
 
-export function WelcomeContinue() {
+export function WelcomeContinue({ editorialMotion = false }: { editorialMotion?: boolean }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function continueOnboarding() {
     if (pending) return
     setPending(true)
-    setError(null)
-    const result = await saveOnboardingFlowProgress({
-      flow: "welcome",
-      currentStep: "complete",
-      complete: true,
-    })
-    if (result.error) {
+    try {
+      await saveOnboardingFlowProgress({
+        flow: "welcome",
+        currentStep: "complete",
+        complete: true,
+      })
+    } finally {
       setPending(false)
-      setError("Your welcome progress could not be saved. Try again.")
-      return
+      router.push(editorialMotion ? "/onboarding/whatsapp?motion=editorial" : "/onboarding/whatsapp")
     }
-    router.push("/dashboard/whatsapp")
   }
 
   return <div>
     <button type="button" className={styles.continueButton} disabled={pending} onClick={continueOnboarding}>
       {pending ? "Saving…" : "Continue"} <span aria-hidden="true">→</span>
     </button>
-    {error && <p className={styles.errorMessage} role="alert">{error}</p>}
   </div>
 }
