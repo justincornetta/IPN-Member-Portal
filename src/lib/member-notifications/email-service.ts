@@ -3,7 +3,7 @@ import { Resend } from "resend"
 import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { sendOpsAlert } from "@/lib/slack/ops-alert"
+import { sendOpsAlert } from "@/lib/slack/ops-alert-core"
 import {
   NEW_EVENT_FATIGUE_GUARD_HOURS,
   REGISTRATION_REMINDER_KIND,
