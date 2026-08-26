@@ -36,7 +36,7 @@ function AgendaList({ activities, selectedKey, onSelect }: { activities: AgendaA
           : activity.event.location_label ?? "Online"
 
         return (
-          <button key={activity.key} type="button" onClick={() => onSelect(activity.key)} className={`grid w-full grid-cols-[3.25rem_1fr] gap-3 border-b border-zinc-100 px-3 py-4 text-left transition last:border-0 ${selected ? (isCommunity ? "bg-[#F1FBF8]" : "bg-ipn-light") : "hover:bg-zinc-50"}`} aria-pressed={selected}>
+          <button key={activity.key} type="button" onClick={() => onSelect(activity.key)} className={`grid w-full grid-cols-[3.25rem_1fr] items-center gap-3 border-b border-zinc-100 px-3 py-4 text-left transition last:border-0 ${selected ? (isCommunity ? "bg-[#F1FBF8]" : "bg-ipn-light") : "hover:bg-zinc-50"}`} aria-pressed={selected}>
             <span className="text-center">
               <span className={`block text-[10px] font-semibold uppercase ${isCommunity ? "text-[#176B5B]" : "text-ipn"}`}>{date.weekday}</span>
               <span className="block text-lg font-semibold text-zinc-900">{date.day}</span>
@@ -48,7 +48,7 @@ function AgendaList({ activities, selectedKey, onSelect }: { activities: AgendaA
               </span>
               <span className="mt-2 block text-sm font-semibold leading-5 text-zinc-900">{title}</span>
               <span className="mt-1 block truncate text-xs text-zinc-500">
-                {location}{activity.kind === "event" && activity.event.is_registered ? " · Registered" : ""}
+                {location}
               </span>
             </span>
           </button>

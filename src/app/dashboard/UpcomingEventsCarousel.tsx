@@ -108,25 +108,23 @@ export default function UpcomingEventsCarousel({ events, conferences = [], total
 
   return (
     <section className={`rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-ipn">Upcoming</p>
-          <h2 className="mt-1 text-xl font-semibold text-zinc-900">What&apos;s coming up at IPN</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-semibold text-zinc-900">What&apos;s coming up at IPN</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex max-w-full rounded-lg border border-zinc-200 bg-zinc-50 p-1" role="tablist" aria-label="Upcoming IPN activity">
+            <button type="button" role="tab" aria-selected={activeTab === "events"} onClick={() => setActiveTab("events")} className={`min-h-10 rounded-md px-3 py-2 text-sm font-medium transition ${activeTab === "events" ? "bg-white text-ipn shadow-sm ring-1 ring-ipn/20" : "text-zinc-500 hover:text-zinc-900"}`}>
+              IPN Events <span className="ml-1 text-xs text-zinc-400">{totalCount + meetupCount} upcoming</span>
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === "conferences"} onClick={() => setActiveTab("conferences")} className={`min-h-10 rounded-md px-3 py-2 text-sm font-medium transition ${activeTab === "conferences" ? "bg-white text-ipn shadow-sm ring-1 ring-ipn/20" : "text-zinc-500 hover:text-zinc-900"}`}>
+              Conferences {meetupCount > 0 && <span className="ml-1 rounded-full bg-[#E4F6F1] px-2 py-0.5 text-[11px] font-semibold text-[#176B5B]">{meetupCount} meetup{meetupCount === 1 ? "" : "s"}</span>}
+            </button>
+          </div>
+          <Link href={activeTab === "events" ? "/dashboard/events" : "/dashboard/conferences"} className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0">View all {activeTab === "events" ? "events" : "conferences"}</Link>
         </div>
-        <Link href={activeTab === "events" ? "/dashboard/events" : "/dashboard/conferences"} className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0">View all {activeTab === "events" ? "events" : "conferences"}</Link>
-      </div>
-
-      <div className="mt-4 inline-flex max-w-full rounded-lg border border-zinc-200 bg-zinc-50 p-1" role="tablist" aria-label="Upcoming IPN activity">
-        <button type="button" role="tab" aria-selected={activeTab === "events"} onClick={() => setActiveTab("events")} className={`min-h-10 rounded-md px-3 py-2 text-sm font-medium transition ${activeTab === "events" ? "bg-white text-ipn shadow-sm ring-1 ring-ipn/20" : "text-zinc-500 hover:text-zinc-900"}`}>
-          IPN Events <span className="ml-1 text-xs text-zinc-400">{totalCount + meetupCount} upcoming</span>
-        </button>
-        <button type="button" role="tab" aria-selected={activeTab === "conferences"} onClick={() => setActiveTab("conferences")} className={`min-h-10 rounded-md px-3 py-2 text-sm font-medium transition ${activeTab === "conferences" ? "bg-white text-ipn shadow-sm ring-1 ring-ipn/20" : "text-zinc-500 hover:text-zinc-900"}`}>
-          Conferences {meetupCount > 0 && <span className="ml-1 rounded-full bg-[#E4F6F1] px-2 py-0.5 text-[11px] font-semibold text-[#176B5B]">{meetupCount} meetup{meetupCount === 1 ? "" : "s"}</span>}
-        </button>
       </div>
 
       {activeTab === "events" && selectedActivity ? (
-        <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
+        <div className="mt-3 grid items-stretch gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
           <div className="max-h-[22rem] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-zinc-50 p-1" aria-label="IPN events agenda">
             {activities.map((activity) => {
               const community = activity.kind === "community"
@@ -143,7 +141,7 @@ export default function UpcomingEventsCarousel({ events, conferences = [], total
       ) : activeTab === "events" ? (
         <div className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center"><h3 className="font-semibold text-zinc-900">New events are coming soon</h3><p className="mt-2 text-sm text-zinc-500">IPN Labs and community events will appear here once announced.</p></div>
       ) : (
-        <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
+        <div className="mt-3 grid items-stretch gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
           <div className="max-h-[22rem] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-zinc-50 p-1" aria-label="Upcoming conferences agenda">
             {conferences.map((conference) => <button key={conference.id} type="button" aria-pressed={conference.id === selectedConference?.id} onClick={() => setSelectedConferenceId(conference.id)} className={`w-full rounded-lg px-3 py-3 text-left transition ${conference.id === selectedConference?.id ? "bg-white shadow-sm ring-1 ring-ipn/20" : "hover:bg-white"}`}><span className="block text-[10px] font-semibold uppercase text-ipn">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(conference.starts_at))} · {conference.category}</span><span className="mt-1 block text-sm font-semibold leading-5 text-zinc-800">{conference.name}</span><span className={`mt-1 block text-[11px] ${conference.meetups.length ? "text-[#176B5B]" : "text-zinc-400"}`}>{conference.meetups.length ? `${conference.meetups.length} IPN meetup${conference.meetups.length === 1 ? "" : "s"}` : "No meetup announced"}</span></button>)}
           </div>

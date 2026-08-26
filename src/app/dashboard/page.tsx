@@ -256,11 +256,9 @@ function buildDirectoryMapCities(rows: DirectoryMapMember[]) {
 function DirectoryPreview({
   memberCount,
   mapCities,
-  compact = false,
 }: {
   memberCount: number | null
   mapCities: DirectoryMapCity[]
-  compact?: boolean
 }) {
   const countryCount = new Set(
     mapCities.map((city) => city.country).filter(Boolean),
@@ -270,8 +268,7 @@ function DirectoryPreview({
     <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-ipn">Directory</p>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-900">
+          <h2 className="text-lg font-semibold text-zinc-900">
             Find IPN members
           </h2>
         </div>
@@ -283,7 +280,7 @@ function DirectoryPreview({
         </Link>
       </div>
 
-      <div className={`mt-3 grid gap-4 ${compact ? "" : "md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]"}`}>
+      <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
         <div className="min-w-0">
           <p className="text-sm leading-6 text-zinc-500">
             Search by school, field, location, and interests to find collaborators
@@ -310,17 +307,10 @@ function DirectoryPreview({
               <span className="text-[11px] text-zinc-400">Countries</span>
             </span>
           </div>
-          {compact && (
-            <Link href="/dashboard/directory" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline sm:min-h-0">
-              Browse member directory
-            </Link>
-          )}
         </div>
-        {!compact && (
-          <Link href="/dashboard/directory?view=map" className="block">
-            <MiniDirectoryMapPreview cities={mapCities} />
-          </Link>
-        )}
+        <Link href="/dashboard/directory?view=map" className="block">
+          <MiniDirectoryMapPreview cities={mapCities} />
+        </Link>
       </div>
     </section>
   )
@@ -520,19 +510,22 @@ export default async function DashboardPage() {
         totalCount={upcomingResult.count ?? upcomingEvents.length}
       />
 
-      <div className={`grid grid-cols-1 items-stretch gap-4 ${showGettingStarted ? "xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.75fr)]" : ""}`}>
+      <div className={`grid grid-cols-1 items-start gap-4 ${showGettingStarted ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}>
         {showGettingStarted && (
-          <ActivationChecklist
-            progress={onboardingProgress}
-            profileCompletedCount={profileCompletion.completedCount}
-            profileTotalCount={profileCompletion.totalCount}
-          />
+          <div className="xl:order-2">
+            <ActivationChecklist
+              progress={onboardingProgress}
+              profileCompletedCount={profileCompletion.completedCount}
+              profileTotalCount={profileCompletion.totalCount}
+            />
+          </div>
         )}
-        <DirectoryPreview
-          memberCount={memberCountResult.count}
-          mapCities={mapCities}
-          compact={showGettingStarted}
-        />
+        <div className={showGettingStarted ? "xl:order-1" : ""}>
+          <DirectoryPreview
+            memberCount={memberCountResult.count}
+            mapCities={mapCities}
+          />
+        </div>
       </div>
     </div>
   )

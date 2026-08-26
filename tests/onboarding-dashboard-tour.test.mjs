@@ -97,6 +97,9 @@ test("activation checklist uses one getting-started heading and green completion
   assert.match(checklist, /RSVP for an event/)
   assert.match(checklist, /Connect with a member/)
   assert.doesNotMatch(checklist, /Invite a friend/)
+  assert.doesNotMatch(checklist, /Four quick steps to feel at home/)
+  assert.match(checklist, /overflow-hidden rounded-xl border/)
+  assert.doesNotMatch(checklist, /xl:grid-cols-4/)
 })
 
 test("completed getting-started guidance shows once and then retires", async () => {
@@ -138,8 +141,12 @@ test("dashboard upcoming activity preserves 16:9 event covers and surfaces confe
   assert.match(upcoming, /Community/)
   assert.match(upcoming, /RSVP to meetup/)
   assert.match(upcoming, /No IPN meetup announced/)
+  assert.doesNotMatch(upcoming, />Upcoming<\/p>/)
+  assert.match(upcoming, /sm:flex-row sm:items-center sm:justify-between/)
   assert.match(dashboard, /from\("conferences"\)/)
   assert.match(dashboard, /conferences=\{/)
+  assert.doesNotMatch(dashboard, />Directory<\/p>/)
+  assert.match(dashboard, /xl:grid-cols-\[minmax\(0,1fr\)_22rem\]/)
 })
 
 test("events hub provides a scrollable agenda with selected-event details", async () => {
@@ -154,6 +161,8 @@ test("events hub provides a scrollable agenda with selected-event details", asyn
   assert.doesNotMatch(agenda, /calendar/i)
   assert.match(agenda, /variant="featured"/)
   assert.match(agenda, /CommunityEventDetail/)
+  assert.match(agenda, /grid-cols-\[3\.25rem_1fr\] items-center/)
+  assert.doesNotMatch(agenda, /· Registered/)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {
