@@ -198,7 +198,7 @@
 .featureIcon { box-shadow: 0 0 0 1px rgba(123, 79, 191, .16), 0 0 20px rgba(123, 79, 191, .2); }
 .featureCopy { display: grid; width: 100%; gap: 4px; }
 .featureCopy strong { min-height: 30px; color: var(--ink); font-size: clamp(11px, 1.12vw, 13px); font-weight: 680; line-height: 1.15; }
-.featureCopy > span { max-width: 190px; color: var(--muted); font-size: clamp(9.5px, .92vw, 11px); font-weight: 430; line-height: 1.28; }
+.featureCopy > span { max-width: 205px; color: var(--muted); font-size: clamp(11.5px, 1.02vw, 13.5px); font-weight: 430; line-height: 1.3; }
 
 .continueButton,
 .primaryAction {
@@ -484,7 +484,7 @@
   .featureIcon svg { width: 17px; height: 17px; }
   .featureCopy { gap: 2px; }
   .featureCopy strong { min-height: 0; font-size: 11px; line-height: 1.12; }
-  .featureCopy > span { max-width: none; font-size: 10px; line-height: 1.17; }
+  .featureCopy > span { max-width: none; font-size: 11px; line-height: 1.2; }
   .continueButton { min-height: 42px; margin-top: 8px; font-size: 13px; }
 
   .whatsappFrame { height: 100svh; min-height: 0; padding: 10px; }
@@ -563,7 +563,7 @@
   .featureIcon { width: 25px; height: 25px; }
   .featureIcon svg { width: 15px; height: 15px; }
   .featureCopy strong { font-size: 11px; }
-  .featureCopy > span { font-size: 10px; line-height: 1.15; }
+  .featureCopy > span { font-size: 10.5px; line-height: 1.17; }
   .continueButton { min-height: 36px; margin-top: 5px; }
 
   .whatsappFrame { padding: 5px 8px; }

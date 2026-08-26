@@ -3,27 +3,27 @@ import styles from "./onboarding.module.css"
 const features = [
   {
     label: "Join events",
-    description: "Browse IPN events and watch past recordings.",
+    description: "Browse events and watch past recordings.",
     icon: "calendar",
   },
   {
     label: "Explore conferences",
-    description: "View upcoming conferences, see who's attending, RSVP to IPN meetups, and access discounts.",
+    description: "Find conferences, RSVP to meetups, and access discounts.",
     icon: "globe",
   },
   {
     label: "Discover & connect",
-    description: "Search the member directory to find members in your area and with similar interests.",
+    description: "Find nearby members who share your interests.",
     icon: "people",
   },
   {
     label: "Access resources",
-    description: "A growing repository of IPN-exclusive discounts and resources.",
+    description: "Explore member-only resources and discounts.",
     icon: "book",
   },
   {
     label: "Connect on WhatsApp",
-    description: "Join the IPN WhatsApp for announcements, discussion, and chatting with other members.",
+    description: "Get announcements, join discussions, and meet members.",
     icon: "message",
   },
 ] as const
