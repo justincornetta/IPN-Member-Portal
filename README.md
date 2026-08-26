@@ -30,6 +30,13 @@ cp .env.example .env.local
 npm run dev
 ```
 
+`npm run dev` checks for the public Supabase URL and key before Next.js starts,
+so an incomplete local environment fails with an actionable terminal message
+instead of a browser runtime overlay. Because `.env.local` is intentionally
+gitignored, every clone or worktree needs its own file. On a trusted development
+machine, multiple worktrees can safely symlink `.env.local` to one canonical,
+untracked environment file rather than copying secrets between checkouts.
+
 Open [http://localhost:3000](http://localhost:3000).
 
 The landing page shows a Supabase configuration indicator — green if `.env.local` is wired up correctly, amber otherwise.

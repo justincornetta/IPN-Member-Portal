@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/check-required-env.mjs",
     "dev": "next dev",
     "build": "next build",
     "test": "node --test --experimental-strip-types tests/*.test.mjs",
