@@ -81,6 +81,18 @@ test("activation checklist supports explicit WhatsApp self-attestation", async (
   assert.match(checklist, /We couldn’t save that confirmation\. Try again\./)
 })
 
+test("activation checklist uses getting-started language and green completion markers", async () => {
+  const checklist = await readFile(
+    new URL("../src/app/dashboard/ActivationChecklist.tsx", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(checklist, />Getting Started</)
+  assert.match(checklist, />\s*Steps to get started\s*</)
+  assert.match(checklist, /bg-emerald-100 text-emerald-700/)
+  assert.match(checklist, /item\.completed \? <CheckIcon \/> : index \+ 1/)
+})
+
 test("product tour visits only active portal routes in the required sequence", () => {
   assert.deepEqual(
     PRODUCT_TOUR_STEPS.map((step) => step.route),

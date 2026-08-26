@@ -143,9 +143,9 @@ export default function ActivationChecklist({
     <section className="h-full rounded-xl border border-ipn/15 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="activation-heading">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ipn">Getting settled</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ipn">Getting Started</p>
           <h2 id="activation-heading" className="mt-1 text-lg font-semibold text-[#1A1034]">
-            Your activation path
+            Steps to get started
           </h2>
         </div>
         <p className="whitespace-nowrap rounded-full bg-ipn-light px-2.5 py-1 text-xs font-semibold text-ipn">
@@ -168,7 +168,7 @@ export default function ActivationChecklist({
               <span
                 className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                   item.completed
-                    ? "bg-ipn text-white"
+                    ? "bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200"
                     : "bg-ipn-light text-ipn"
                 }`}
                 aria-label={item.completed ? "Completed" : `Milestone ${index + 1}`}
