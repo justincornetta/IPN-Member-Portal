@@ -178,9 +178,9 @@ async function postToSlack(webhookUrl: string, body: unknown): Promise<void> {
 
 export async function sendEventRsvpSlackNotification(
   notification: EventRsvpNotification,
-): Promise<void> {
+): Promise<boolean> {
   const webhookUrl = process.env.SLACK_EVENT_RSVPS_WEBHOOK_URL
-  if (!webhookUrl) return
+  if (!webhookUrl) return false
 
   try {
     const admin = createAdminClient()
@@ -232,7 +232,9 @@ export async function sendEventRsvpSlackNotification(
     }
 
     await postToSlack(webhookUrl, payload)
+    return true
   } catch (error: unknown) {
     console.error("Event RSVP Slack notification failed", errorMessage(error))
+    return false
   }
 }
