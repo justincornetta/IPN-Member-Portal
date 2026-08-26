@@ -1,9 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { completeOnboardingStep } from "@/lib/onboarding/actions"
+import {
+  completeOnboardingStep,
+  saveOnboardingFlowProgress,
+} from "@/lib/onboarding/actions"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
 import { activationSummary } from "./activation-model"
 
@@ -12,7 +15,6 @@ type MilestoneId = "whatsapp" | "profile" | "event" | "community" | "invite"
 type ActivationItem = {
   id: MilestoneId
   title: string
-  description: string
   href?: string
   completed: boolean
 }
@@ -46,48 +48,73 @@ export default function ActivationChecklist({
 }) {
   const router = useRouter()
   const [inviteCopied, setInviteCopied] = useState(false)
+  const [whatsappConfirmed, setWhatsappConfirmed] = useState(false)
+  const [whatsappConfirmationError, setWhatsappConfirmationError] = useState(false)
+  const [isConfirmingWhatsApp, startWhatsAppConfirmation] = useTransition()
+  const whatsappCompleted = Boolean(progress?.whatsapp_completed_at) || whatsappConfirmed
 
   const items: ActivationItem[] = [
     {
       id: "whatsapp",
-      title: "Join IPN on WhatsApp",
-      description: "Choose the IPN groups that fit how you want to participate.",
+      title: whatsappCompleted ? "Joined IPN on WhatsApp" : "Join IPN on WhatsApp",
       href: "/onboarding/whatsapp?motion=editorial",
-      completed: Boolean(progress?.whatsapp_completed_at),
+      completed: whatsappCompleted,
     },
     {
       id: "profile",
       title: "Complete your profile",
-      description: `${profileCompletedCount} of ${profileTotalCount} profile requirements complete`,
       href: "/dashboard/profile",
       completed: Boolean(progress?.profile_completed_at),
     },
     {
       id: "event",
       title: "RSVP for an event",
-      description: "Find an upcoming gathering and save your place.",
       href: "/dashboard/events",
       completed: Boolean(progress?.event_rsvp_completed_at),
     },
     {
       id: "community",
       title: "Discover and connect with members",
-      description: "Search the community and start a new connection.",
       href: "/dashboard/directory",
       completed: Boolean(progress?.connection_request_completed_at),
     },
     {
       id: "invite",
       title: "Invite a friend",
-      description: inviteCopied
-        ? "Invite link copied."
-        : "Share IPN with someone who should be part of the network.",
       completed: Boolean(progress?.invite_completed_at),
     },
   ]
 
-  const summary = activationSummary(progress)
+  const summary = activationSummary({
+    whatsapp_completed_at: whatsappCompleted ? "complete" : null,
+    whatsapp_current_step: progress?.whatsapp_current_step ?? null,
+    profile_completed_at: progress?.profile_completed_at ?? null,
+    event_rsvp_completed_at: progress?.event_rsvp_completed_at ?? null,
+    connection_request_completed_at: progress?.connection_request_completed_at ?? null,
+    invite_completed_at: progress?.invite_completed_at ?? null,
+  })
   const completedCount = summary.completedCount
+
+  function confirmWhatsAppMembership() {
+    if (isConfirmingWhatsApp || whatsappCompleted) return
+    setWhatsappConfirmationError(false)
+
+    startWhatsAppConfirmation(async () => {
+      const result = await saveOnboardingFlowProgress({
+        flow: "whatsapp",
+        currentStep: "self_attested",
+        complete: true,
+      })
+
+      if (result.error) {
+        setWhatsappConfirmationError(true)
+        return
+      }
+
+      setWhatsappConfirmed(true)
+      router.refresh()
+    })
+  }
 
   async function copyInvite() {
     if (navigator.share) {
@@ -136,7 +163,7 @@ export default function ActivationChecklist({
       <ol className="mt-4 overflow-hidden rounded-xl border border-[#E8E0F2] bg-white">
         {items.map((item, index) => {
           const isNext = summary.nextMilestone === item.id
-          const content = (
+          const lead = (
             <>
               <span
                 className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -148,28 +175,24 @@ export default function ActivationChecklist({
               >
                 {item.completed ? <CheckIcon /> : index + 1}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-zinc-800">{item.title}</span>
-                  {isNext && !item.completed && (
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ipn">
-                      Next
-                    </span>
-                  )}
+              {item.id === "whatsapp" ? (
+                <Link
+                  href={item.href!}
+                  aria-label={item.completed ? "Review IPN WhatsApp groups" : "View IPN WhatsApp groups"}
+                  data-analytics-event="curated_click"
+                  data-analytics-id="dashboard-activation-whatsapp"
+                  data-analytics-label="Join IPN on WhatsApp"
+                  className="min-w-0 flex-1 text-sm font-semibold text-zinc-800 transition hover:text-ipn hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
+                >
+                  {item.title}
+                  {isNext && !item.completed && <span className="sr-only"> (Next step)</span>}
+                </Link>
+              ) : (
+                <span className="min-w-0 flex-1 text-sm font-semibold text-zinc-800">
+                  {item.title}
+                  {isNext && !item.completed && <span className="sr-only"> (Next step)</span>}
                 </span>
-                <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
-                  {item.completed ? "Complete" : item.description}
-                </span>
-                {item.id === "profile" && !item.completed && (
-                  <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-[#EDE5F7]" aria-hidden="true">
-                    <span
-                      className="block h-full rounded-full bg-ipn"
-                      style={{ width: `${(profileCompletedCount / profileTotalCount) * 100}%` }}
-                    />
-                  </span>
-                )}
-              </span>
-              <ArrowIcon />
+              )}
             </>
           )
 
@@ -178,13 +201,43 @@ export default function ActivationChecklist({
               key={item.id}
               className={`border-b border-[#EEE9F3] last:border-b-0 ${isNext && !item.completed ? "bg-[#FAF7FF]" : "bg-white"}`}
             >
-              {item.id === "invite" ? (
+              {item.id === "whatsapp" ? (
+                <>
+                  <div className="flex min-h-14 items-center gap-3 px-3 py-2">
+                    {lead}
+                    {!item.completed && (
+                      <button
+                        type="button"
+                        onClick={confirmWhatsAppMembership}
+                        disabled={isConfirmingWhatsApp}
+                        data-analytics-event="curated_click"
+                        data-analytics-id="dashboard-activation-whatsapp-self-attest"
+                        data-analytics-label="Confirm WhatsApp membership"
+                        className="shrink-0 rounded-lg border border-ipn/20 bg-white px-2.5 py-1.5 text-xs font-semibold text-ipn transition hover:border-ipn/40 hover:bg-ipn-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {isConfirmingWhatsApp ? "Saving…" : "I’m already in"}
+                      </button>
+                    )}
+                  </div>
+                  {whatsappConfirmationError && (
+                    <p className="border-t border-[#EEE9F3] px-3 py-2 text-xs text-red-700" role="alert">
+                      We couldn’t save that confirmation. Try again.
+                    </p>
+                  )}
+                </>
+              ) : item.id === "invite" ? (
                 <button
                   type="button"
                   onClick={copyInvite}
-                  className="flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
+                  className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
                 >
-                  {content}
+                  {lead}
+                  {inviteCopied && (
+                    <span className="shrink-0 text-xs font-semibold text-ipn" role="status">
+                      Copied
+                    </span>
+                  )}
+                  <ArrowIcon />
                 </button>
               ) : (
                 <Link
@@ -193,9 +246,15 @@ export default function ActivationChecklist({
                   data-analytics-event="curated_click"
                   data-analytics-id={`dashboard-activation-${item.id}`}
                   data-analytics-label={item.title}
-                  className="flex min-h-16 items-center gap-3 px-3 py-2.5 transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
+                  className="flex min-h-14 items-center gap-3 px-3 py-2 transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
                 >
-                  {content}
+                  {lead}
+                  {item.id === "profile" && (
+                    <span className="shrink-0 text-xs font-semibold text-ipn">
+                      {profileCompletedCount}/{profileTotalCount}
+                    </span>
+                  )}
+                  <ArrowIcon />
                 </Link>
               )}
             </li>

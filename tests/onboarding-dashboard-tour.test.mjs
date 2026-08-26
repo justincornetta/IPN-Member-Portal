@@ -1,5 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 
 import {
   STANDARD_REGISTRATION_DESTINATION,
@@ -66,6 +67,18 @@ test("continuing past optional WhatsApp keeps profile as the foreground priority
   })
   assert.equal(summary.completedCount, 0)
   assert.equal(summary.nextMilestone, "profile")
+})
+
+test("activation checklist supports explicit WhatsApp self-attestation", async () => {
+  const checklist = await readFile(
+    new URL("../src/app/dashboard/ActivationChecklist.tsx", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(checklist, /I’m already in/)
+  assert.match(checklist, /currentStep: "self_attested"/)
+  assert.match(checklist, /complete: true/)
+  assert.match(checklist, /We couldn’t save that confirmation\. Try again\./)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {

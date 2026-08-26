@@ -10,6 +10,13 @@ resetting another flow or replacing a previously recorded completion timestamp.
 The legacy connection-request, invite, and event-RSVP milestone timestamps remain
 unchanged. Existing profile and WhatsApp timestamps are also preserved.
 
+The dashboard WhatsApp milestone supports explicit member confirmation for
+people who already joined during registration or through another device. The
+inline “I’m already in” action completes the WhatsApp flow with
+`current_step = 'self_attested'`. Opening a channel or displaying a QR code is
+still not treated as proof of membership; join-intent analytics and member
+self-attestation remain distinguishable by the stored current step.
+
 Profile onboarding uses the approved seven-item denominator:
 
 1. profile photo;
