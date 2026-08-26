@@ -10,6 +10,7 @@ import type { OnboardingProgress } from "@/lib/onboarding/progress"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
 import ActivationChecklist from "./ActivationChecklist"
 import ProductTourLauncher from "@/components/product-tour/ProductTourLauncher"
+import { getProfileCompletion } from "./profile/profile-completion"
 
 type MemberProfile = {
   first_name: string | null
@@ -20,6 +21,9 @@ type MemberProfile = {
   avatar_url: string | null
   bio: string | null
   interest_tags: string[] | null
+  role_and_goals: string | null
+  inspiration: string | null
+  linkedin_url: string | null
 }
 
 type PortalFeature = {
@@ -448,12 +452,16 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
-  const [profileResult, upcomingResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
+  const [profileResult, educationResult, upcomingResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags")
+      .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags, role_and_goals, inspiration, linkedin_url")
       .eq("id", user!.id)
       .single(),
+    supabase
+      .from("member_education")
+      .select("institution")
+      .eq("user_id", user!.id),
     supabase
       .from("events")
       .select("*", { count: "exact" })
@@ -489,6 +497,22 @@ export default async function DashboardPage() {
 
   const profile = profileResult.data as MemberProfile | null
   const onboardingProgress = onboardingResult.data as OnboardingProgress | null
+  const profileCompletion = getProfileCompletion({
+    avatarUrl: profile?.avatar_url ?? null,
+    bio: profile?.bio ?? "",
+    role: profile?.persona ?? "",
+    affiliation: profile?.affiliation ?? "",
+    legacySchool: profile?.school ?? "",
+    educationInstitutions: (educationResult.data ?? []).map((entry) => entry.institution ?? ""),
+    interests: profile?.interest_tags ?? [],
+    roleAndGoals: profile?.role_and_goals ?? "",
+    inspiration: profile?.inspiration ?? "",
+    supportNeeds: typeof user?.user_metadata?.support_needs === "string"
+      ? user.user_metadata.support_needs
+      : "",
+    linkedinUrl: profile?.linkedin_url ?? "",
+    linkedinOptOut: user?.user_metadata?.linkedin_opt_out === true,
+  })
   const mapCities = buildDirectoryMapCities(
     (mapRowsResult.data ?? []) as DirectoryMapMember[],
   )
@@ -572,7 +596,11 @@ export default async function DashboardPage() {
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
         <div className="order-2 h-full">
-          <ActivationChecklist progress={onboardingProgress} />
+          <ActivationChecklist
+            progress={onboardingProgress}
+            profileCompletedCount={profileCompletion.completedCount}
+            profileTotalCount={profileCompletion.totalCount}
+          />
         </div>
       </div>
 

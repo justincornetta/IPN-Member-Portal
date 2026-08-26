@@ -10,21 +10,14 @@ import { activationSummary } from "./activation-model"
 type MilestoneId = "whatsapp" | "profile" | "event" | "community" | "invite"
 
 type ActivationItem = {
-  id: MilestoneId | "conferences" | "resources"
+  id: MilestoneId
   title: string
   description: string
   href?: string
-  kind: "milestone" | "suggestion"
   completed: boolean
 }
 
 const INVITE_URL = "https://members.intercollegiatepsychedelics.net/register?utm_source=member_portal&utm_medium=member_invite&utm_campaign=member_referral"
-const NEXT_ACTION_LABELS: Partial<Record<ActivationItem["id"], string>> = {
-  whatsapp: "Choose WhatsApp groups",
-  profile: "Complete profile",
-  event: "Browse events",
-  community: "Discover members",
-}
 
 function CheckIcon() {
   return (
@@ -44,11 +37,14 @@ function ArrowIcon() {
 
 export default function ActivationChecklist({
   progress,
+  profileCompletedCount,
+  profileTotalCount,
 }: {
   progress: OnboardingProgress | null
+  profileCompletedCount: number
+  profileTotalCount: number
 }) {
   const router = useRouter()
-  const [expanded, setExpanded] = useState(false)
   const [inviteCopied, setInviteCopied] = useState(false)
 
   const items: ActivationItem[] = [
@@ -57,15 +53,13 @@ export default function ActivationChecklist({
       title: "Join IPN on WhatsApp",
       description: "Choose the IPN groups that fit how you want to participate.",
       href: "/onboarding/whatsapp?motion=editorial",
-      kind: "milestone",
       completed: Boolean(progress?.whatsapp_completed_at),
     },
     {
       id: "profile",
       title: "Complete your profile",
-      description: "Add a photo, short bio, and interests so members can find you.",
+      description: `${profileCompletedCount} of ${profileTotalCount} profile requirements complete`,
       href: "/dashboard/profile",
-      kind: "milestone",
       completed: Boolean(progress?.profile_completed_at),
     },
     {
@@ -73,7 +67,6 @@ export default function ActivationChecklist({
       title: "RSVP for an event",
       description: "Find an upcoming gathering and save your place.",
       href: "/dashboard/events",
-      kind: "milestone",
       completed: Boolean(progress?.event_rsvp_completed_at),
     },
     {
@@ -81,40 +74,20 @@ export default function ActivationChecklist({
       title: "Discover and connect with members",
       description: "Search the community and start a new connection.",
       href: "/dashboard/directory",
-      kind: "milestone",
       completed: Boolean(progress?.connection_request_completed_at),
-    },
-    {
-      id: "conferences",
-      title: "Explore Conferences",
-      description: "Plan for conferences and find fellow IPN attendees.",
-      href: "/dashboard/conferences",
-      kind: "suggestion",
-      completed: false,
-    },
-    {
-      id: "resources",
-      title: "Explore Resources",
-      description: "Browse member benefits, articles, and partner organizations.",
-      href: "/dashboard/resources",
-      kind: "suggestion",
-      completed: false,
     },
     {
       id: "invite",
       title: "Invite a friend",
-      description: "Share IPN with someone who should be part of the network.",
-      kind: "milestone",
+      description: inviteCopied
+        ? "Invite link copied."
+        : "Share IPN with someone who should be part of the network.",
       completed: Boolean(progress?.invite_completed_at),
     },
   ]
 
-  const milestoneItems = items.filter((item) => item.kind === "milestone")
   const summary = activationSummary(progress)
   const completedCount = summary.completedCount
-  const nextItem = summary.nextMilestone
-    ? items.find((item) => item.id === summary.nextMilestone)
-    : undefined
 
   async function copyInvite() {
     if (navigator.share) {
@@ -139,28 +112,6 @@ export default function ActivationChecklist({
     router.refresh()
   }
 
-  const nextAction = nextItem?.id === "invite" ? (
-    <button
-      type="button"
-      onClick={copyInvite}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-semibold text-white hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
-    >
-      {inviteCopied ? "Invite link copied" : "Share an invite"}
-      <ArrowIcon />
-    </button>
-  ) : nextItem?.href ? (
-    <Link
-      href={nextItem.href}
-      data-analytics-event="curated_click"
-      data-analytics-id={`dashboard-activation-${nextItem.id}`}
-      data-analytics-label={nextItem.title}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-semibold text-white hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
-    >
-      {NEXT_ACTION_LABELS[nextItem.id] ?? "Continue"}
-      <ArrowIcon />
-    </Link>
-  ) : null
-
   return (
     <section className="h-full rounded-xl border border-ipn/15 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="activation-heading">
       <div className="flex items-start justify-between gap-4">
@@ -171,96 +122,86 @@ export default function ActivationChecklist({
           </h2>
         </div>
         <p className="whitespace-nowrap rounded-full bg-ipn-light px-2.5 py-1 text-xs font-semibold text-ipn">
-          {completedCount} of {milestoneItems.length} milestones
+          {completedCount} of {items.length} complete
         </p>
       </div>
 
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#EDE5F7]" aria-hidden="true">
         <div
           className="h-full rounded-full bg-ipn motion-safe:transition-[width] motion-reduce:transition-none"
-          style={{ width: `${(completedCount / milestoneItems.length) * 100}%` }}
+          style={{ width: `${(completedCount / items.length) * 100}%` }}
         />
       </div>
 
-      {nextItem ? (
-        <div className="mt-4 rounded-xl border border-[#E0D4F0] bg-[#FAF7FF] p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7B4FBF]">Your next step</p>
-          <h3 className="mt-1 text-base font-semibold text-[#1A1034]">{nextItem.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-zinc-600">{nextItem.description}</p>
-          <div className="mt-3">{nextAction}</div>
-        </div>
-      ) : (
-        <div className="mt-4 rounded-xl border border-[#E0D4F0] bg-[#FAF7FF] p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ipn">Milestones complete</p>
-          <h3 className="mt-1 text-base font-semibold text-[#1A1034]">You’re ready to make the portal your own.</h3>
-          <p className="mt-1 text-sm leading-6 text-zinc-600">Keep exploring events, people, conferences, and resources at your pace.</p>
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-medium text-zinc-500">Explore anytime</span>
-        <Link href="/dashboard/conferences" className="rounded-full border border-[#E0D4F0] px-3 py-1.5 text-xs font-semibold text-ipn hover:bg-ipn-light focus-visible:outline-2 focus-visible:outline-ipn">
-          Conferences
-        </Link>
-        <Link href="/dashboard/resources" className="rounded-full border border-[#E0D4F0] px-3 py-1.5 text-xs font-semibold text-ipn hover:bg-ipn-light focus-visible:outline-2 focus-visible:outline-ipn">
-          Resources
-        </Link>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        aria-expanded={expanded}
-        aria-controls="activation-path-details"
-        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline focus-visible:outline-2 focus-visible:outline-ipn"
-      >
-        {expanded ? "Hide activation path" : "View the full activation path"}
-      </button>
-
-      {expanded && (
-        <ol id="activation-path-details" className="mt-2 divide-y divide-zinc-100 border-t border-zinc-100">
-          {items.map((item) => (
-            <li key={item.id} className="flex items-center gap-3 py-3">
+      <ol className="mt-4 overflow-hidden rounded-xl border border-[#E8E0F2] bg-white">
+        {items.map((item, index) => {
+          const isNext = summary.nextMilestone === item.id
+          const content = (
+            <>
               <span
                 className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                   item.completed
                     ? "bg-ipn text-white"
-                    : item.kind === "suggestion"
-                      ? "border border-[#E0D4F0] bg-white text-[#7B4FBF]"
-                      : "bg-ipn-light text-ipn"
+                    : "bg-ipn-light text-ipn"
                 }`}
-                aria-label={item.completed ? "Completed" : item.kind === "suggestion" ? "Explore anytime" : `Milestone ${milestoneItems.findIndex((milestone) => milestone.id === item.id) + 1}`}
+                aria-label={item.completed ? "Completed" : `Milestone ${index + 1}`}
               >
-                {item.completed ? (
-                  <CheckIcon />
-                ) : item.kind === "suggestion" ? (
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m15.5 8.5-2.25 4.75L8.5 15.5l2.25-4.75L15.5 8.5Z" />
-                    <circle cx="12" cy="12" r="8.5" />
-                  </svg>
-                ) : (
-                  milestoneItems.findIndex((milestone) => milestone.id === item.id) + 1
-                )}
+                {item.completed ? <CheckIcon /> : index + 1}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-zinc-800">{item.title}</span>
-                <span className="block text-xs text-zinc-500">
-                  {item.kind === "suggestion" ? "Explore anytime · not counted as a milestone" : item.completed ? "Complete" : item.description}
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-zinc-800">{item.title}</span>
+                  {isNext && !item.completed && (
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ipn">
+                      Next
+                    </span>
+                  )}
                 </span>
+                <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
+                  {item.completed ? "Complete" : item.description}
+                </span>
+                {item.id === "profile" && !item.completed && (
+                  <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-[#EDE5F7]" aria-hidden="true">
+                    <span
+                      className="block h-full rounded-full bg-ipn"
+                      style={{ width: `${(profileCompletedCount / profileTotalCount) * 100}%` }}
+                    />
+                  </span>
+                )}
               </span>
+              <ArrowIcon />
+            </>
+          )
+
+          return (
+            <li
+              key={item.id}
+              className={`border-b border-[#EEE9F3] last:border-b-0 ${isNext && !item.completed ? "bg-[#FAF7FF]" : "bg-white"}`}
+            >
               {item.id === "invite" ? (
-                <button type="button" onClick={copyInvite} className="min-h-11 px-2 text-sm font-semibold text-ipn hover:underline focus-visible:outline-2 focus-visible:outline-ipn">
-                  {inviteCopied ? "Copied" : "Share"}
+                <button
+                  type="button"
+                  onClick={copyInvite}
+                  className="flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
+                >
+                  {content}
                 </button>
-              ) : item.href ? (
-                <Link href={item.href} aria-label={`Open ${item.title}`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-ipn hover:bg-ipn-light focus-visible:outline-2 focus-visible:outline-ipn">
-                  <ArrowIcon />
+              ) : (
+                <Link
+                  href={item.href!}
+                  aria-label={`Open ${item.title}`}
+                  data-analytics-event="curated_click"
+                  data-analytics-id={`dashboard-activation-${item.id}`}
+                  data-analytics-label={item.title}
+                  className="flex min-h-16 items-center gap-3 px-3 py-2.5 transition hover:bg-[#FAF7FF] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ipn"
+                >
+                  {content}
                 </Link>
-              ) : null}
+              )}
             </li>
-          ))}
-        </ol>
-      )}
+          )
+        })}
+      </ol>
     </section>
   )
 }

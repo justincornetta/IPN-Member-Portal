@@ -41,12 +41,11 @@ and are never cleared or replaced. The SQL backfill safely handles members with
 a LinkedIn URL; the profile integration must handle the explicit-opt-out branch.
 
 For compatibility, `support_needs` and the LinkedIn opt-out remain in Supabase
-Auth user metadata when the profile column is unavailable or empty. The
-authoritative completion synchronizer prefers `profiles.support_needs`, falls
-back to metadata, and accepts `linkedin_opt_out === true`. A future schema
-normalization can move both values to dedicated profile columns after a
-separate migration/RLS review; this integration deliberately adds no such
-production migration.
+Auth user metadata. The profile page, dashboard, authoritative completion
+synchronizer, and foundation backfill all read those metadata values and accept
+`linkedin_opt_out === true`. A future schema normalization can move both values
+to dedicated profile columns after a separate migration/RLS review; this
+integration deliberately adds no such production migration.
 
 ## WhatsApp channels and join intent
 

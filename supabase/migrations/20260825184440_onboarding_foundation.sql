@@ -47,6 +47,7 @@ select
   now(),
   now()
 from public.profiles
+join auth.users on users.id = profiles.id
 where nullif(btrim(profiles.avatar_url), '') is not null
   and nullif(btrim(profiles.bio), '') is not null
   and nullif(btrim(profiles.persona), '') is not null
@@ -67,7 +68,7 @@ where nullif(btrim(profiles.avatar_url), '') is not null
   )
   and nullif(btrim(profiles.role_and_goals), '') is not null
   and nullif(btrim(profiles.inspiration), '') is not null
-  and nullif(btrim(profiles.support_needs), '') is not null
+  and nullif(btrim(users.raw_user_meta_data->>'support_needs'), '') is not null
   and nullif(btrim(profiles.linkedin_url), '') is not null
 on conflict (user_id) do update
 set profile_started_at = coalesce(

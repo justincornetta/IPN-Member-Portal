@@ -315,7 +315,6 @@ export function ProductTourProvider({
                 </button>
               </div>
             </div>
-            <p className="mt-3 text-xs text-zinc-500">Use ← and → to move, or Esc to pause.</p>
           </div>
         </div>
       )}

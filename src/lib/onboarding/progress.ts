@@ -269,7 +269,7 @@ export async function syncProfileOnboardingCompletion(
   const [profileResult, educationResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("avatar_url, bio, persona, affiliation, school, interest_tags, role_and_goals, inspiration, support_needs, linkedin_url")
+      .select("avatar_url, bio, persona, affiliation, school, interest_tags, role_and_goals, inspiration, linkedin_url")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -282,12 +282,12 @@ export async function syncProfileOnboardingCompletion(
   if (educationResult.error) throw new Error(`Could not read profile education: ${educationResult.error.message}`)
   if (!profileResult.data) return false
 
-  const profile = profileResult.data as ProfileCompletionRecord
+  const profile = {
+    ...profileResult.data,
+    support_needs: compatibility.supportNeeds?.trim() || null,
+  } as ProfileCompletionRecord
   const fields = profileCompletionFieldsFromRecord(
-    {
-      ...profile,
-      support_needs: profile.support_needs?.trim() || compatibility.supportNeeds?.trim() || null,
-    },
+    profile,
     {
       education: (educationResult.data ?? []) as ProfileCompletionEducationRecord[],
       linkedInOptOut: compatibility.linkedInOptOut === true,
