@@ -292,7 +292,7 @@
 .eventEmptyState span:last-child { display: grid; gap: 3px; }
 .eventEmptyState strong { color: var(--ink); font-size: 13px; }
 .eventEmptyState small { font-size: 12px; }
-.introductionPrompt { margin: 0; padding: 8px 11px; border: 1px solid #d6c4ec; border-radius: 12px; background: #f7f1ff; color: var(--muted); font-size: 11px; line-height: 1.35; }
+.introductionPrompt { margin: 0; padding: 8px 11px 8px 13px; border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: 12px; background: var(--pale); color: #4f4169; font-size: 11px; line-height: 1.35; }
 .introductionPrompt strong { color: var(--purple); }
 
 .qrStage { display: flex; min-height: 0; flex-direction: column; align-items: center; justify-content: center; padding: clamp(10px, 1.5vh, 16px); border: 1px solid var(--border); border-radius: 15px; background: linear-gradient(180deg, #fff, var(--paper)); text-align: center; }
@@ -528,7 +528,7 @@
   .mobileChannelCard a { display: inline-flex; min-height: 40px; grid-column: 2; grid-row: 1 / span 2; align-items: center; padding-left: 6px; color: var(--purple); font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
   .mobileChannelCard a span { margin-left: 8px; }
   .mobileChannelCard a[aria-disabled="true"] { cursor: wait; opacity: .5; }
-  .mobileIntroductionPrompt { display: block; grid-column: 1 / -1 !important; margin: 0 !important; padding: 6px 8px; border-radius: 8px; background: #f7f1ff; color: var(--muted) !important; font-size: 11px !important; line-height: 1.22 !important; }
+  .mobileIntroductionPrompt { display: block; grid-column: 1 / -1 !important; margin: 0 !important; padding: 6px 8px 6px 10px; border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: 8px; background: var(--pale); color: #4f4169 !important; font-size: 11px !important; line-height: 1.22 !important; }
   .mobileIntroductionPrompt strong { color: var(--purple); }
   .mobileChannels .eventEmptyState { min-height: 38px; padding: 5px 8px; }
   .mobileChannels .eventIcon { width: 28px; height: 28px; border-radius: 8px; }
