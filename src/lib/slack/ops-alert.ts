@@ -1,5 +1,3 @@
-import "server-only"
-
 const WEBHOOK_TIMEOUT_MS = 10000
 
 function errorMessage(error: unknown): string {
