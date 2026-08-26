@@ -99,6 +99,12 @@ incoming webhook configured to post into `#member-portal-registrations`.
 Registration notifications are non-blocking: if the webhook is unset, invalid,
 or temporarily unavailable, registration still succeeds.
 
+Event RSVPs use `SLACK_EVENT_RSVPS_WEBHOOK_URL`, a separate incoming webhook
+configured for the GitHub/analytics updates channel. New IPN Labs event,
+conference, and meetup RSVPs post the event context, member name and email, and
+the event's cumulative RSVP count. Duplicate action retries do not post again,
+and webhook failures never block the RSVP.
+
 Feedback submissions use `SLACK_FEEDBACK_WEBHOOK_URL`.
 
 ### GitHub workflow notifications
