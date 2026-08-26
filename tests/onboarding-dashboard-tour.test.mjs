@@ -101,6 +101,25 @@ test("a semantically complete profile satisfies the activation milestone", () =>
   assert.equal(isProfileMilestoneComplete(null, 0, 0), false)
 })
 
+test("dashboard upcoming activity preserves 16:9 event covers and surfaces conference meetups", async () => {
+  const upcoming = await readFile(
+    new URL("../src/app/dashboard/UpcomingEventsCarousel.tsx", import.meta.url),
+    "utf8",
+  )
+  const dashboard = await readFile(
+    new URL("../src/app/dashboard/page.tsx", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(upcoming, /className="relative block aspect-video/)
+  assert.match(upcoming, /IPN Events/)
+  assert.match(upcoming, /Conferences/)
+  assert.match(upcoming, /RSVP to meetup/)
+  assert.match(upcoming, /No IPN meetup announced yet/)
+  assert.match(dashboard, /from\("conferences"\)/)
+  assert.match(dashboard, /conferences=\{/)
+})
+
 test("product tour visits only active portal routes in the required sequence", () => {
   assert.deepEqual(
     PRODUCT_TOUR_STEPS.map((step) => step.route),

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types"
+import type { ConferenceRecord } from "@/lib/conferences/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
@@ -452,7 +453,7 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
-  const [profileResult, educationResult, upcomingResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
+  const [profileResult, educationResult, upcomingResult, conferenceResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags, role_and_goals, inspiration, linkedin_url")
@@ -468,6 +469,13 @@ export default async function DashboardPage() {
       .eq("status", "published")
       .eq("is_recording", false)
       .or(`starts_at.gte.${now},ends_at.gte.${now}`)
+      .order("starts_at", { ascending: true })
+      .limit(5),
+    supabase
+      .from("conferences")
+      .select("id, slug, name, organizer, category, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status")
+      .eq("status", "published")
+      .gte("ends_at", now)
       .order("starts_at", { ascending: true })
       .limit(5),
     supabase
@@ -593,6 +601,7 @@ export default async function DashboardPage() {
         <UpcomingEventsCarousel
           className="order-1 h-full"
           events={upcomingEvents}
+          conferences={(conferenceResult.data ?? []) as ConferenceRecord[]}
           totalCount={upcomingResult.count ?? upcomingEvents.length}
         />
         <div className="order-2 h-full">
