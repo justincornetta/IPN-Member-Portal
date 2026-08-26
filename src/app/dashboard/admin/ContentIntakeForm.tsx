@@ -261,6 +261,7 @@ type EventFields = {
   whatsappChatUrl: string
   hasRegistration: boolean; registrationUrl: string; registrationProvider: string
   externalEventId: string; requiresVerifiedTicket: boolean
+  registrationReminderEnabled: boolean
   summary: string; description: string; speakers: string; imageUrl: string; slug: string
   speakerLinks: SpeakerLinkRow[]
   papers: PaperRow[]
@@ -273,6 +274,7 @@ const EVENT_DEFAULTS: EventFields = {
   whatsappChatUrl: "",
   hasRegistration: false, registrationUrl: "", registrationProvider: "Eventbrite",
   externalEventId: "", requiresVerifiedTicket: false,
+  registrationReminderEnabled: true,
   summary: "", description: "", speakers: "", imageUrl: "", slug: "",
   speakerLinks: [], papers: [], eventMaterials: [],
 }
@@ -333,6 +335,7 @@ function EventForm({ initial, onSubmit, pending }: {
       registrationProvider: f.hasRegistration ? f.registrationProvider || undefined : undefined,
       externalEventId: f.hasRegistration && f.registrationProvider === "Eventbrite" ? f.externalEventId || undefined : undefined,
       requiresVerifiedTicket: f.hasRegistration ? f.requiresVerifiedTicket : false,
+      registrationReminderEnabled: f.registrationReminderEnabled,
       summary: f.summary || undefined, description: f.description || undefined,
       speakers: f.speakers || undefined, imageUrl: f.imageUrl || undefined,
       speakerResources: hasSpeakerData ? {
@@ -399,6 +402,14 @@ function EventForm({ initial, onSubmit, pending }: {
             <Field label="Location label" hint="Shown on the event card (e.g. 'Online', 'San Francisco', 'Zoom')">
               <input value={f.locationLabel} onChange={(e) => set("locationLabel", e.target.value)} className={inputCls()} placeholder="Online" />
             </Field>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3.5 transition hover:border-zinc-300">
+              <input type="checkbox" checked={f.registrationReminderEnabled} onChange={(e) => set("registrationReminderEnabled", e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0" />
+              <span>
+                <span className="block text-sm text-zinc-700">Email members who have not registered about three days before this event</span>
+                <span className="mt-1 block text-xs leading-5 text-zinc-400">Enabled by default. Members who already RSVP or have a synced Eventbrite ticket are excluded.</span>
+              </span>
+            </label>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3.5 transition hover:border-zinc-300">
               <input type="checkbox" checked={f.hasRegistration} onChange={(e) => set("hasRegistration", e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0" />
@@ -1152,6 +1163,7 @@ function eventToFields(e: AdminEventSummary): EventFields {
     registrationProvider: e.registration_provider ?? "Eventbrite",
     externalEventId: e.external_event_id ?? "",
     requiresVerifiedTicket: e.requires_verified_ticket ?? false,
+    registrationReminderEnabled: e.registration_reminder_enabled ?? true,
     summary: e.summary ?? "", description: e.description ?? "",
     speakers: e.speakers ?? "", imageUrl: e.thumbnail_url ?? "", slug: e.slug ?? "",
     speakerLinks: (sr?.speakerLinks ?? []).map((l) => ({ label: l.label ?? "", url: l.url ?? "", linkType: l.type ?? "website" })),

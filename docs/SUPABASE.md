@@ -271,6 +271,7 @@ Portal-owned event records for the member-facing Events section.
 | `speaker_resources` | `jsonb` | Optional papers, links, and event resources for IPN Lab detail pages |
 | `status` | `text` | `draft`, `published`, or `cancelled` |
 | `registration_count` | `integer` | Maintained by trigger |
+| `registration_reminder_enabled` | `boolean` | Per-event opt-out for the approximately 72-hour non-registrant reminder; defaults `true` |
 
 ### `public.event_registrations`
 
@@ -309,7 +310,7 @@ Resend.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key |
-| `kind` | `text` | `new_event`, `connection_request_received`, or `connection_request_accepted` |
+| `kind` | `text` | `new_event`, `event_registration_reminder`, `connection_request_received`, or `connection_request_accepted` |
 | `recipient_user_id` / `actor_user_id` | `uuid` | Recipient and, for connection emails, the member whose action caused the message |
 | `event_id` / `connection_id` | `uuid` | Exactly one source is present according to the notification kind |
 | `dedupe_key` | `text` | Unique business key that prevents duplicate queue rows |
@@ -321,7 +322,17 @@ Resend.
 RLS is enabled, all `anon` and `authenticated` privileges are revoked, and no
 member-facing policies exist. Only service-role server code can access the
 queue. The migration is
-`supabase/migrations/20260731182209_member_email_notifications.sql`.
+`supabase/migrations/20260731182209_member_email_notifications.sql`; the
+registration-reminder extension is
+`supabase/migrations/20260826021557_add_event_registration_reminders.sql`.
+
+Registration reminders reuse this queue and its `MEMBER_NOTIFICATION_MODE`
+`off`/`test`/`live` audience safeguards. They are additionally fail-closed behind
+`EVENT_REGISTRATION_REMINDERS_ENABLED=true`. Queueing and send-time validation
+both suppress portal RSVPs, synced external tickets, and new-event announcements
+sent to the same recipient within 48 hours. The scheduler queues events with
+more than 66 and at most 72 hours remaining, providing a deterministic six-hour
+recovery window while retaining one durable delivery per event and recipient.
 
 ### `public.resources`
 

@@ -336,6 +336,7 @@ create table if not exists public.events (
   registration_provider text,
   external_event_id   text,
   requires_verified_ticket boolean not null default false,
+  registration_reminder_enabled boolean not null default true,
   thumbnail_url       text,
   chat_platform       text,
   chat_external_url   text,
@@ -364,6 +365,7 @@ alter table public.events add column if not exists registration_url text;
 alter table public.events add column if not exists registration_provider text;
 alter table public.events add column if not exists external_event_id text;
 alter table public.events add column if not exists requires_verified_ticket boolean not null default false;
+alter table public.events add column if not exists registration_reminder_enabled boolean not null default true;
 
 do $$
 begin
@@ -495,6 +497,7 @@ create table if not exists public.member_notification_deliveries (
   kind              text not null
     check (kind in (
       'new_event',
+      'event_registration_reminder',
       'connection_request_received',
       'connection_request_accepted'
     )),
@@ -515,7 +518,7 @@ create table if not exists public.member_notification_deliveries (
   updated_at        timestamptz not null default now(),
   constraint member_notification_source_check check (
     (
-      kind = 'new_event'
+      kind in ('new_event', 'event_registration_reminder')
       and event_id is not null
       and connection_id is null
       and actor_user_id is null
