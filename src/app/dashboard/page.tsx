@@ -1,5 +1,4 @@
 import Link from "next/link"
-import type { ReactNode } from "react"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
 import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
@@ -8,6 +7,7 @@ import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types
 import type { ConferenceRecord } from "@/lib/conferences/types"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
+import { activationSummary, isProfileMilestoneComplete } from "./activation-model"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
 import ActivationChecklist from "./ActivationChecklist"
 import ProductTourLauncher from "@/components/product-tour/ProductTourLauncher"
@@ -25,70 +25,6 @@ type MemberProfile = {
   role_and_goals: string | null
   inspiration: string | null
   linkedin_url: string | null
-}
-
-type PortalFeature = {
-  title: string
-  body: string
-  href: string
-  icon: ReactNode
-}
-
-function ResourceIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-      />
-    </svg>
-  )
-}
-
-function DirectoryIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-      />
-    </svg>
-  )
-}
-
-function CalendarIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-      />
-    </svg>
-  )
 }
 
 function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
@@ -320,9 +256,11 @@ function buildDirectoryMapCities(rows: DirectoryMapMember[]) {
 function DirectoryPreview({
   memberCount,
   mapCities,
+  compact = false,
 }: {
   memberCount: number | null
   mapCities: DirectoryMapCity[]
+  compact?: boolean
 }) {
   const countryCount = new Set(
     mapCities.map((city) => city.country).filter(Boolean),
@@ -345,7 +283,7 @@ function DirectoryPreview({
         </Link>
       </div>
 
-      <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
+      <div className={`mt-3 grid gap-4 ${compact ? "" : "md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]"}`}>
         <div className="min-w-0">
           <p className="text-sm leading-6 text-zinc-500">
             Search by school, field, location, and interests to find collaborators
@@ -372,75 +310,17 @@ function DirectoryPreview({
               <span className="text-[11px] text-zinc-400">Countries</span>
             </span>
           </div>
+          {compact && (
+            <Link href="/dashboard/directory" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline sm:min-h-0">
+              Browse member directory
+            </Link>
+          )}
         </div>
-        <Link href="/dashboard/directory?view=map" className="block">
-          <MiniDirectoryMapPreview cities={mapCities} />
-        </Link>
-      </div>
-    </section>
-  )
-}
-
-function ExplorePortal() {
-  const features: PortalFeature[] = [
-    {
-      title: "Member Benefits",
-      body: "Training discounts and member-only resources.",
-      href: "/dashboard/resources?tab=benefits",
-      icon: <ResourceIcon />,
-    },
-    {
-      title: "Event Recordings",
-      body: "Past IPN Labs and PsychedelX sessions.",
-      href: "/dashboard/events?tab=recordings",
-      icon: <CalendarIcon />,
-    },
-    {
-      title: "IPN Blog",
-      body: "Writing from the IPN network.",
-      href: "/dashboard/resources?tab=blog",
-      icon: <ResourceIcon />,
-    },
-    {
-      title: "IPN Partners",
-      body: "Organizations connected to the network.",
-      href: "/dashboard/resources?tab=partners",
-      icon: <DirectoryIcon />,
-    },
-  ]
-
-  return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div>
-        <p className="text-sm font-medium text-ipn">Portal</p>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-900">
-          Explore the member portal
-        </h2>
-      </div>
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {features.map((feature) => (
-          <Link
-            key={feature.title}
-            href={feature.href}
-            data-analytics-event="curated_click"
-            data-analytics-id={`dashboard-explore-${feature.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`}
-            data-analytics-label={feature.title}
-            className="flex items-start gap-3 rounded-lg border border-zinc-200 px-3 py-3 transition hover:border-ipn/30 hover:bg-zinc-50"
-          >
-            <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">
-              {feature.icon}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-zinc-900">
-                {feature.title}
-              </span>
-              <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-zinc-500">
-                {feature.body}
-              </span>
-            </span>
+        {!compact && (
+          <Link href="/dashboard/directory?view=map" className="block">
+            <MiniDirectoryMapPreview cities={mapCities} />
           </Link>
-        ))}
+        )}
       </div>
     </section>
   )
@@ -453,6 +333,34 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
+  const onboardingResultPromise = (async () => {
+    const fullResult = await supabase
+      .from("member_onboarding_progress")
+      .select(
+        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, product_tour_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at, getting_started_completed_at, getting_started_success_seen_at",
+      )
+      .eq("user_id", user!.id)
+      .maybeSingle()
+
+    if (!fullResult.error || (fullResult.error.code !== "42703" && !fullResult.error.message.includes("does not exist"))) {
+      return fullResult
+    }
+
+    const legacyResult = await supabase
+      .from("member_onboarding_progress")
+      .select(
+        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, product_tour_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
+      )
+      .eq("user_id", user!.id)
+      .maybeSingle()
+
+    return {
+      ...legacyResult,
+      data: legacyResult.data
+        ? { ...legacyResult.data, getting_started_completed_at: null, getting_started_success_seen_at: null }
+        : null,
+    }
+  })()
   const [profileResult, educationResult, upcomingResult, conferenceResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
     supabase
       .from("profiles")
@@ -494,13 +402,7 @@ export default async function DashboardPage() {
       .not("city_lng", "is", null)
       .order("first_name", { ascending: true })
       .limit(500),
-    supabase
-      .from("member_onboarding_progress")
-      .select(
-        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, product_tour_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
-      )
-      .eq("user_id", user!.id)
-      .maybeSingle(),
+    onboardingResultPromise,
   ])
 
   const profile = profileResult.data as MemberProfile | null
@@ -521,6 +423,21 @@ export default async function DashboardPage() {
     linkedinUrl: profile?.linkedin_url ?? "",
     linkedinOptOut: user?.user_metadata?.linkedin_opt_out === true,
   })
+  const profileMilestoneComplete = isProfileMilestoneComplete(
+    onboardingProgress?.profile_completed_at,
+    profileCompletion.completedCount,
+    profileCompletion.totalCount,
+  )
+  const gettingStartedSummary = activationSummary({
+    whatsapp_completed_at: onboardingProgress?.whatsapp_completed_at ?? null,
+    whatsapp_current_step: onboardingProgress?.whatsapp_current_step ?? null,
+    profile_completed_at: profileMilestoneComplete ? "complete" : null,
+    product_tour_completed_at: onboardingProgress?.product_tour_completed_at ?? null,
+    event_rsvp_completed_at: onboardingProgress?.event_rsvp_completed_at ?? null,
+    connection_request_completed_at: onboardingProgress?.connection_request_completed_at ?? null,
+  })
+  const gettingStartedComplete = gettingStartedSummary.completedCount === gettingStartedSummary.totalCount
+  const showGettingStarted = !gettingStartedComplete || !onboardingProgress?.getting_started_success_seen_at
   const mapCities = buildDirectoryMapCities(
     (mapRowsResult.data ?? []) as DirectoryMapMember[],
   )
@@ -597,28 +514,25 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
-        <UpcomingEventsCarousel
-          className="order-1 h-full"
-          events={upcomingEvents}
-          conferences={(conferenceResult.data ?? []) as ConferenceRecord[]}
-          totalCount={upcomingResult.count ?? upcomingEvents.length}
-        />
-        <div className="order-2 h-full">
+      <UpcomingEventsCarousel
+        events={upcomingEvents}
+        conferences={(conferenceResult.data ?? []) as ConferenceRecord[]}
+        totalCount={upcomingResult.count ?? upcomingEvents.length}
+      />
+
+      <div className={`grid grid-cols-1 items-stretch gap-4 ${showGettingStarted ? "xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.75fr)]" : ""}`}>
+        {showGettingStarted && (
           <ActivationChecklist
             progress={onboardingProgress}
             profileCompletedCount={profileCompletion.completedCount}
             profileTotalCount={profileCompletion.totalCount}
           />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        )}
         <DirectoryPreview
           memberCount={memberCountResult.count}
           mapCities={mapCities}
+          compact={showGettingStarted}
         />
-        <ExplorePortal />
       </div>
     </div>
   )

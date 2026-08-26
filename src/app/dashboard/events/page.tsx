@@ -3,6 +3,7 @@ import EventsHub from "./EventsHub"
 import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
+import type { ConferenceRecord } from "@/lib/conferences/types"
 
 export default async function EventsPage() {
   const supabase = await createClient()
@@ -13,7 +14,7 @@ export default async function EventsPage() {
   if (!user) redirect("/login")
 
   const now = new Date().toISOString()
-  const [{ data: upcoming }, { data: recordings }] = await Promise.all([
+  const [{ data: upcoming }, { data: recordings }, { data: conferences }] = await Promise.all([
     supabase
       .from("events")
       .select("*")
@@ -29,6 +30,12 @@ export default async function EventsPage() {
       .order("recording_published_at", { ascending: false, nullsFirst: false })
       .order("starts_at", { ascending: false, nullsFirst: false })
       .order("title", { ascending: true }),
+    supabase
+      .from("conferences")
+      .select("id, slug, name, organizer, category, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status")
+      .eq("status", "published")
+      .gte("ends_at", now)
+      .order("starts_at", { ascending: true }),
   ])
 
   const upcomingRecords = (upcoming ?? []) as EventRecord[]
@@ -77,7 +84,7 @@ export default async function EventsPage() {
   })
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">
       <div>
         <p className="hidden text-sm font-medium text-ipn sm:block">Events</p>
         <h1 className="text-2xl font-semibold text-zinc-900 sm:mt-1">
@@ -91,6 +98,7 @@ export default async function EventsPage() {
 
       <EventsHub
         upcomingEvents={upcomingEvents}
+        conferences={(conferences ?? []) as ConferenceRecord[]}
         recordings={((recordings ?? []) as EventRecord[]).map((event) => ({
           ...event,
           chat_external_url: null,

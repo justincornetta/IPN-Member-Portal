@@ -330,14 +330,12 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
-                  {countLabel && (
-                    <span className="rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs font-medium text-zinc-600">
-                      {countLabel}
-                    </span>
-                  )}
-                  {showEventChat ? (
+              <div>
+                <p className="mb-2 text-[11px] leading-5 text-zinc-400">
+                  {[countLabel, (!canJoin || !event.join_url) ? "Event link available 24 hours before start" : null].filter(Boolean).join(" · ")}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {showEventChat && (
                     <WhatsAppHandoffAction
                       kind="event"
                       slug={event.slug}
@@ -345,79 +343,52 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       label="Join chat"
                       className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
                     />
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="min-h-11 rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400 sm:min-h-0"
-                    >
-                      Event chat coming soon
-                    </button>
                   )}
-                  {unrsvpConfirming ? (
-                    <div className="col-span-2 grid grid-cols-2 items-center gap-1.5 sm:flex">
-                      <span className="col-span-2 text-xs text-zinc-500 sm:col-span-1">Cancel your RSVP?</span>
-                      <button
-                        type="button"
-                        onClick={handleUnrsvp}
-                        disabled={pending}
-                        data-analytics-event="curated_click"
-                        data-analytics-id={`event-cancel-rsvp-confirm-${event.slug}`}
-                        data-analytics-label="Confirm cancel RSVP"
-                        className="min-h-11 rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:min-h-0"
-                      >
-                        Yes, cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setUnrsvpConfirming(false)}
-                        className="min-h-11 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-500 transition hover:text-zinc-600 sm:min-h-0 sm:border-0"
-                      >
-                        Keep
-                      </button>
-                    </div>
-                  ) : (
+                  <AddToCalendarButton event={event} compact />
+                  {canJoin && event.join_url ? (
                     <button
                       type="button"
-                      onClick={() => setUnrsvpConfirming(true)}
+                      onClick={handleJoin}
                       data-analytics-event="curated_click"
-                      data-analytics-id={`event-cancel-rsvp-start-${event.slug}`}
-                      data-analytics-label="Cancel RSVP"
-                      className="min-h-11 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-200 hover:text-red-600 sm:min-h-0"
+                      data-analytics-id={`event-join-${event.slug}`}
+                      data-analytics-label="Join event"
+                      className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:min-h-0"
                     >
-                      Cancel RSVP
+                      Join
                     </button>
+                  ) : (
+                    <Link
+                      href={`/dashboard/events/${event.slug}`}
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
+                    >
+                      View event
+                    </Link>
                   )}
-                </div>
-                <div className="flex flex-col gap-1.5 sm:items-end">
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                    <AddToCalendarButton event={event} compact />
-	                    {canJoin ? (
-	                      <button
-	                        type="button"
-	                        onClick={handleJoin}
-	                        data-analytics-event="curated_click"
-	                        data-analytics-id={`event-join-${event.slug}`}
-	                        data-analytics-label="Join event"
-	                        className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:min-h-0"
-	                      >
-                        Join
-                      </button>
-                    ) : (
+                  {!unrsvpConfirming && (
+                    <details className="relative">
+                      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center justify-center rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-700 sm:min-h-0" aria-label="More event actions">
+                        More
+                      </summary>
                       <button
                         type="button"
-                        disabled
-                        title="Join link will be available 24 hours before the event starts"
-                        className="min-h-11 cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-400 sm:min-h-0"
+                        onClick={() => setUnrsvpConfirming(true)}
+                        data-analytics-event="curated_click"
+                        data-analytics-id={`event-cancel-rsvp-start-${event.slug}`}
+                        data-analytics-label="Cancel RSVP"
+                        className="absolute left-0 top-full z-10 mt-1 w-32 rounded-md border border-zinc-200 bg-white px-3 py-2 text-left text-xs font-medium text-red-600 shadow-lg hover:bg-red-50 sm:left-auto sm:right-0"
                       >
-                        Join
+                        Cancel RSVP
                       </button>
-                    )}
-                  </div>
-                  {!canJoin && (
-                    <p className="text-[11px] text-zinc-400">Event link available 24 hours before start</p>
+                    </details>
                   )}
                 </div>
+                {unrsvpConfirming && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+                    <span className="text-xs text-zinc-600">Cancel your RSVP?</span>
+                    <button type="button" onClick={handleUnrsvp} disabled={pending} data-analytics-event="curated_click" data-analytics-id={`event-cancel-rsvp-confirm-${event.slug}`} data-analytics-label="Confirm cancel RSVP" className="min-h-11 rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:min-h-0">Yes, cancel</button>
+                    <button type="button" onClick={() => setUnrsvpConfirming(false)} className="min-h-11 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-white sm:min-h-0">Keep RSVP</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import EventDateTime from "@/components/events/EventDateTime"
+import type { ConferenceRecord } from "@/lib/conferences/types"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import UpcomingAgenda from "./UpcomingAgenda"
 
 type Props = {
   upcomingEvents: EventWithRegistration[]
   recordings: EventRecord[]
+  conferences: ConferenceRecord[]
 }
 
 type EventTab = "upcoming" | "recordings"
@@ -174,7 +176,7 @@ function EmptyPanel({ title, body }: { title: string; body: string }) {
   )
 }
 
-export default function EventsHub({ upcomingEvents, recordings }: Props) {
+export default function EventsHub({ upcomingEvents, recordings, conferences }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -297,8 +299,8 @@ export default function EventsHub({ upcomingEvents, recordings }: Props) {
 
       {activeTab === "upcoming" && (
         <section className="flex flex-col gap-3 sm:gap-4">
-          {upcomingEvents.length ? (
-            <UpcomingAgenda events={upcomingEvents} />
+          {upcomingEvents.length || conferences.some((conference) => conference.meetups.length) ? (
+            <UpcomingAgenda events={upcomingEvents} conferences={conferences} />
           ) : (
             <EmptyPanel
               title="No upcoming events yet"

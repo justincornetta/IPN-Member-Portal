@@ -35,6 +35,8 @@ export type OnboardingProgress = {
   connection_request_completed_at: string | null
   invite_completed_at: string | null
   event_rsvp_completed_at: string | null
+  getting_started_completed_at: string | null
+  getting_started_success_seen_at: string | null
 }
 
 export type OnboardingFlow = "welcome" | "whatsapp" | "profile" | "product_tour"

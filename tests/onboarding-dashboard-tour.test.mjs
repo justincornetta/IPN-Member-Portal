@@ -99,6 +99,22 @@ test("activation checklist uses one getting-started heading and green completion
   assert.doesNotMatch(checklist, /Invite a friend/)
 })
 
+test("completed getting-started guidance shows once and then retires", async () => {
+  const [checklist, dashboard, actions, migration] = await Promise.all([
+    readFile(new URL("../src/app/dashboard/ActivationChecklist.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/dashboard/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/onboarding/actions.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260826205032_getting_started_completion_state.sql", import.meta.url), "utf8"),
+  ])
+
+  assert.match(checklist, /You&apos;re all set/)
+  assert.match(checklist, /markGettingStartedSuccessSeen/)
+  assert.match(dashboard, /getting_started_success_seen_at/)
+  assert.match(dashboard, /showGettingStarted/)
+  assert.match(actions, /getting_started_completed_at/)
+  assert.match(migration, /getting_started_success_seen_at timestamptz/)
+})
+
 test("a semantically complete profile satisfies the activation milestone", () => {
   assert.equal(isProfileMilestoneComplete(null, 7, 7), true)
   assert.equal(isProfileMilestoneComplete(null, 6, 7), false)
@@ -119,8 +135,9 @@ test("dashboard upcoming activity preserves 16:9 event covers and surfaces confe
   assert.match(upcoming, /className="relative block aspect-video/)
   assert.match(upcoming, /IPN Events/)
   assert.match(upcoming, /Conferences/)
+  assert.match(upcoming, /Community/)
   assert.match(upcoming, /RSVP to meetup/)
-  assert.match(upcoming, /No IPN meetup announced yet/)
+  assert.match(upcoming, /No IPN meetup announced/)
   assert.match(dashboard, /from\("conferences"\)/)
   assert.match(dashboard, /conferences=\{/)
 })
@@ -131,11 +148,12 @@ test("events hub provides a scrollable agenda with selected-event details", asyn
     "utf8",
   )
 
-  assert.match(agenda, /max-h-\[34rem\] overflow-y-auto/)
+  assert.match(agenda, /max-h-\[35rem\] overflow-y-auto/)
   assert.match(agenda, /Upcoming events agenda/)
   assert.doesNotMatch(agenda, /MonthCalendar/)
   assert.doesNotMatch(agenda, /calendar/i)
   assert.match(agenda, /variant="featured"/)
+  assert.match(agenda, /CommunityEventDetail/)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {

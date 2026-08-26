@@ -198,7 +198,7 @@ export default function ConferenceInteractive({
       </div>
 
       {meetups.length > 0 && (
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+        <section id="ipn-meetups" className="scroll-mt-24 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
             IPN events &amp; meetups
           </h2>
@@ -217,7 +217,7 @@ export default function ConferenceInteractive({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
-                        {meetup.type}
+                        Community
                       </span>
                       <span className="text-xs text-zinc-400">
                         {formatMeetupDateTime(meetup.startsAt, timezone)}

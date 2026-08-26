@@ -45,3 +45,44 @@ export async function saveOnboardingFlowProgress(input: {
     return { error: message }
   }
 }
+
+export async function markGettingStartedSuccessSeen(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Not authenticated" }
+
+  const now = new Date().toISOString()
+  const { data: existing, error: readError } = await supabase
+    .from("member_onboarding_progress")
+    .select("getting_started_completed_at, getting_started_success_seen_at")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (readError) {
+    console.error("[onboarding] failed to read Getting Started completion:", readError.message)
+    return { error: "Could not save Getting Started completion" }
+  }
+
+  const { error } = await supabase
+    .from("member_onboarding_progress")
+    .upsert(
+      {
+        user_id: user.id,
+        getting_started_completed_at: existing?.getting_started_completed_at ?? now,
+        getting_started_success_seen_at: existing?.getting_started_success_seen_at ?? now,
+        updated_at: now,
+      },
+      { onConflict: "user_id" },
+    )
+
+  if (error) {
+    console.error("[onboarding] failed to retire Getting Started:", error.message)
+    return { error: "Could not save Getting Started completion" }
+  }
+
+  revalidatePath("/dashboard")
+  return {}
+}
