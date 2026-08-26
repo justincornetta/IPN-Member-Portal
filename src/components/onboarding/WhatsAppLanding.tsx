@@ -167,14 +167,6 @@ export function WhatsAppLanding() {
               )
             })}
 
-            <div className={styles.eventEmptyState}>
-              <span className={styles.eventIcon} aria-hidden="true">◇</span>
-              <span>
-                <strong>No active event chats</strong>
-                <small>When an RSVP-gated chat opens, it will appear here.</small>
-              </span>
-            </div>
-
             {selectedId === "general" && (
               <p className={styles.introductionPrompt}>
                 <strong>Your first message:</strong>{" "}show your name, where you&apos;re based,
@@ -247,11 +239,6 @@ export function WhatsAppLanding() {
               )}
             </article>
           ))}
-
-          <div className={styles.eventEmptyState}>
-            <span className={styles.eventIcon} aria-hidden="true">◇</span>
-            <span><strong>No active event chats</strong><small>RSVP-gated chats will appear here when available.</small></span>
-          </div>
         </div>
 
         <div className={styles.portalNextStep}>
