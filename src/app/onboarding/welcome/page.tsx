@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { BrandLockup } from "@/components/onboarding/BrandLockup"
+import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress"
 import { PortalFeatureGrid } from "@/components/onboarding/PortalFeatureGrid"
 import styles from "@/components/onboarding/onboarding.module.css"
 
@@ -22,7 +23,10 @@ export default async function WelcomePage({
       <section className={styles.welcomeFrame}>
         <div className={styles.welcomeHero}>
           <div className={styles.welcomeMap} aria-hidden="true" />
-          <BrandLockup />
+          <header className={styles.welcomeHeader}>
+            <BrandLockup />
+            <OnboardingProgress current="welcome" editorialMotion={editorialMotion} />
+          </header>
           <div className={styles.welcomeCopy}>
             <p className={styles.eyebrow}>Welcome to IPN</p>
             <h1>A global community for what comes next.</h1>

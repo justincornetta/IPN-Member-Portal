@@ -1,11 +1,31 @@
 import styles from "./onboarding.module.css"
 
 const features = [
-  { label: "Join events", icon: "calendar" },
-  { label: "Explore conferences", icon: "globe" },
-  { label: "Discover & connect", icon: "people" },
-  { label: "Access resources", icon: "book" },
-  { label: "Connect on WhatsApp", icon: "message" },
+  {
+    label: "Join events",
+    description: "Browse IPN events and watch past recordings.",
+    icon: "calendar",
+  },
+  {
+    label: "Explore conferences",
+    description: "View upcoming conferences, see who's attending, RSVP to IPN meetups, and access discounts.",
+    icon: "globe",
+  },
+  {
+    label: "Discover & connect",
+    description: "Search the member directory to find members in your area and with similar interests.",
+    icon: "people",
+  },
+  {
+    label: "Access resources",
+    description: "A growing repository of IPN-exclusive discounts and resources.",
+    icon: "book",
+  },
+  {
+    label: "Connect on WhatsApp",
+    description: "Join the IPN WhatsApp for announcements, discussion, and chatting with other members.",
+    icon: "message",
+  },
 ] as const
 
 function FeatureIcon({ name }: { name: (typeof features)[number]["icon"] }) {
@@ -30,7 +50,10 @@ export function PortalFeatureGrid() {
       {features.map((feature) => (
         <li key={feature.label} className={styles.featureItem}>
           <span className={styles.featureIcon}><FeatureIcon name={feature.icon} /></span>
-          <span>{feature.label}</span>
+          <span className={styles.featureCopy}>
+            <strong>{feature.label}</strong>
+            <span>{feature.description}</span>
+          </span>
         </li>
       ))}
     </ul>
