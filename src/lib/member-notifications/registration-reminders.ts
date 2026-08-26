@@ -52,15 +52,26 @@ export function registrationReminderEventIsDue(
   event: RegistrationReminderEventState,
   now: Date,
 ) {
+  if (!registrationReminderEventIsAdHocEligible(event, now)) return false
   const startsAt = new Date(event.starts_at).getTime()
   const { windowStart, windowEnd } = registrationReminderWindow(now)
+  return (
+    startsAt > windowStart.getTime() &&
+    startsAt <= windowEnd.getTime()
+  )
+}
+
+export function registrationReminderEventIsAdHocEligible(
+  event: RegistrationReminderEventState,
+  now: Date,
+) {
+  const startsAt = new Date(event.starts_at).getTime()
   return (
     event.status === "published" &&
     !event.is_recording &&
     event.registration_reminder_enabled &&
     Number.isFinite(startsAt) &&
-    startsAt > windowStart.getTime() &&
-    startsAt <= windowEnd.getTime()
+    startsAt > now.getTime()
   )
 }
 

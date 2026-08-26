@@ -8,6 +8,7 @@ import {
   NEW_EVENT_FATIGUE_GUARD_HOURS,
   REGISTRATION_REMINDER_KIND,
   registrationReminderDedupeKey,
+  registrationReminderEventIsAdHocEligible,
   registrationReminderFeatureEnabled,
   registrationReminderRecipientIsEnabled,
   registrationReminderSuppressionReason,
@@ -560,6 +561,54 @@ export async function queueDueEventRegistrationReminders(
   if (eventError) throw new Error(eventError.message)
   const events = (eventRows ?? []) as EventRecord[]
   if (!events.length) return { mode, queued: 0, skipped: 0 }
+
+  return queueEventRegistrationReminders(events, mode, now, admin)
+}
+
+export async function queueEventRegistrationReminderNow(
+  eventId: string,
+  now = new Date(),
+): Promise<QueueResult> {
+  const mode = memberNotificationMode()
+  if (!registrationReminderFeatureEnabled(getEnv("EVENT_REGISTRATION_REMINDERS_ENABLED"))) {
+    return {
+      mode,
+      queued: 0,
+      skipped: 0,
+      reason: "event registration reminders are disabled",
+    }
+  }
+  if (mode === "off") {
+    return { mode, queued: 0, skipped: 0, reason: "notifications are disabled" }
+  }
+
+  const admin = createAdminClient()
+  const { data: eventRow, error: eventError } = await admin
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .maybeSingle()
+
+  if (eventError) throw new Error(eventError.message)
+  const event = eventRow as EventRecord | null
+  if (!event || !registrationReminderEventIsAdHocEligible(event, now)) {
+    return {
+      mode,
+      queued: 0,
+      skipped: 0,
+      reason: "event is not eligible for a registration reminder",
+    }
+  }
+
+  return queueEventRegistrationReminders([event], mode, now, admin)
+}
+
+async function queueEventRegistrationReminders(
+  events: EventRecord[],
+  mode: NotificationMode,
+  now: Date,
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<QueueResult> {
 
   let profileQuery = admin
     .from("profiles")

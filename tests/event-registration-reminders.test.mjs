@@ -5,6 +5,7 @@ import test from "node:test"
 import {
   NEW_EVENT_FATIGUE_GUARD_HOURS,
   registrationReminderDedupeKey,
+  registrationReminderEventIsAdHocEligible,
   registrationReminderEventIsDue,
   registrationReminderFeatureEnabled,
   registrationReminderRecipientIsEnabled,
@@ -82,6 +83,51 @@ test("cancelled, unpublished, recording, past, and out-of-window events are inel
   assert.equal(
     registrationReminderEventIsDue(
       dueEvent({ starts_at: "2026-08-28T09:59:59.999Z" }),
+      NOW,
+    ),
+    false,
+  )
+})
+
+test("an ad hoc reminder bypasses only the timing window", () => {
+  assert.equal(
+    registrationReminderEventIsAdHocEligible(
+      dueEvent({ starts_at: "2026-08-26T16:15:00.000Z" }),
+      NOW,
+    ),
+    true,
+  )
+  assert.equal(
+    registrationReminderEventIsAdHocEligible(
+      dueEvent({ starts_at: "2026-09-10T16:15:00.000Z" }),
+      NOW,
+    ),
+    true,
+  )
+  assert.equal(
+    registrationReminderEventIsAdHocEligible(
+      dueEvent({ status: "draft" }),
+      NOW,
+    ),
+    false,
+  )
+  assert.equal(
+    registrationReminderEventIsAdHocEligible(
+      dueEvent({ is_recording: true }),
+      NOW,
+    ),
+    false,
+  )
+  assert.equal(
+    registrationReminderEventIsAdHocEligible(
+      dueEvent({ registration_reminder_enabled: false }),
+      NOW,
+    ),
+    false,
+  )
+  assert.equal(
+    registrationReminderEventIsAdHocEligible(
+      dueEvent({ starts_at: "2026-08-25T16:00:00.000Z" }),
       NOW,
     ),
     false,
@@ -191,4 +237,26 @@ test("delivery code preserves send-time gates and per-recipient Resend idempoten
   assert.match(source, /\.update\(\{ status: "processing"/)
   assert.match(source, /\.update\(delivery\.dedupe_key\)/)
   assert.doesNotMatch(source, /eventRegistrationReminderEmail[\s\S]*join_url/)
+})
+
+test("the one-off consciousness roundtable job queues through the guarded reminder pipeline", () => {
+  const serviceSource = readFileSync(
+    new URL("../src/lib/member-notifications/email-service.ts", import.meta.url),
+    "utf8",
+  )
+  const functionSource = readFileSync(
+    new URL(
+      "../netlify/functions/queue-consciousness-roundtable-reminder.mts",
+      import.meta.url,
+    ),
+    "utf8",
+  )
+
+  assert.match(serviceSource, /queueEventRegistrationReminderNow/)
+  assert.match(serviceSource, /registrationReminderEventIsAdHocEligible/)
+  assert.match(functionSource, /7dc2bd55-4852-49be-a53c-9d5c60f4d7a0/)
+  assert.match(functionSource, /2026-08-27T13:00:00\.000Z/)
+  assert.match(functionSource, /=== "2026-08-27"/)
+  assert.match(functionSource, /schedule: "0 13 27 8 \*"/)
+  assert.doesNotMatch(functionSource, /processPendingMemberNotifications/)
 })
