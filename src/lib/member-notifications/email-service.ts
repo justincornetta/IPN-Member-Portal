@@ -4,6 +4,15 @@ import { formatEventDateTime } from "@/lib/events/calendar"
 import type { EventRecord } from "@/lib/events/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { sendOpsAlert } from "@/lib/slack/ops-alert"
+import {
+  NEW_EVENT_FATIGUE_GUARD_HOURS,
+  REGISTRATION_REMINDER_KIND,
+  registrationReminderDedupeKey,
+  registrationReminderFeatureEnabled,
+  registrationReminderRecipientIsEnabled,
+  registrationReminderSuppressionReason,
+  registrationReminderWindow,
+} from "./registration-reminders"
 
 type NetlifyRuntime = {
   env?: {
@@ -15,6 +24,7 @@ declare const Netlify: NetlifyRuntime | undefined
 
 export type MemberNotificationKind =
   | "new_event"
+  | typeof REGISTRATION_REMINDER_KIND
   | "connection_request_received"
   | "connection_request_accepted"
 
@@ -140,9 +150,7 @@ function testRecipients() {
 
 function recipientIsEnabled(email: string) {
   const mode = memberNotificationMode()
-  if (mode === "live") return true
-  if (mode === "test") return testRecipients().has(normalizeEmail(email))
-  return false
+  return registrationReminderRecipientIsEnabled(mode, email, testRecipients())
 }
 
 function isValidEmail(value: string) {
@@ -179,6 +187,17 @@ function tagValue(value: string) {
 
 function publicEventUrl(event: Pick<EventRecord, "slug">) {
   return `${siteUrl()}/events/${encodeURIComponent(event.slug)}`
+}
+
+function registrationReminderEventUrl(event: Pick<EventRecord, "slug">) {
+  const url = new URL(
+    `${siteUrl()}/dashboard/events/${encodeURIComponent(event.slug)}`,
+  )
+  url.searchParams.set("utm_source", "member_portal_email")
+  url.searchParams.set("utm_medium", "email")
+  url.searchParams.set("utm_campaign", "event_registration_reminder")
+  url.searchParams.set("utm_content", "72h")
+  return url.toString()
 }
 
 function connectionsUrl() {
@@ -298,6 +317,39 @@ function eventEmail(event: EventRecord, recipient: ProfileRow): EmailContent {
     closing: ["We look forward to seeing you there!"],
     receiptReason:
       "You are receiving this because you have an IPN Member Portal account.",
+  }
+}
+
+function eventRegistrationReminderEmail(
+  event: EventRecord,
+  recipient: ProfileRow,
+): EmailContent {
+  const body = ["There is still time to join other IPN members for this event."]
+  const highlight = event.summary?.trim()
+  if (highlight) body.push(highlight)
+
+  return {
+    subject: `Coming up this week: ${event.title}`,
+    preview: `There is still time to RSVP for ${event.title}.`,
+    greeting: `Hi ${firstName(recipient)},`,
+    body,
+    details: [
+      {
+        label: "When",
+        value: formatEventDateTime(event.starts_at, event.ends_at, event.timezone),
+      },
+      {
+        label: "Location",
+        value: event.location_label ?? event.location_details ?? "Online",
+      },
+    ],
+    afterDetails: [
+      "View the event page and RSVP if you would like to attend.",
+    ],
+    buttonLabel: "View event and RSVP",
+    buttonUrl: registrationReminderEventUrl(event),
+    receiptReason:
+      "You are receiving this because you have an IPN Member Portal account and have not RSVP'd for this event.",
   }
 }
 
@@ -477,6 +529,151 @@ export async function queueNewEventAnnouncementBySlug(eventSlug: string) {
   return queueNewEventAnnouncement(event.id)
 }
 
+export async function queueDueEventRegistrationReminders(
+  now = new Date(),
+): Promise<QueueResult> {
+  const mode = memberNotificationMode()
+  if (!registrationReminderFeatureEnabled(getEnv("EVENT_REGISTRATION_REMINDERS_ENABLED"))) {
+    return {
+      mode,
+      queued: 0,
+      skipped: 0,
+      reason: "event registration reminders are disabled",
+    }
+  }
+  if (mode === "off") {
+    return { mode, queued: 0, skipped: 0, reason: "notifications are disabled" }
+  }
+
+  const admin = createAdminClient()
+  const { windowStart, windowEnd } = registrationReminderWindow(now)
+  const { data: eventRows, error: eventError } = await admin
+    .from("events")
+    .select("*")
+    .eq("status", "published")
+    .eq("is_recording", false)
+    .eq("registration_reminder_enabled", true)
+    .gt("starts_at", windowStart.toISOString())
+    .lte("starts_at", windowEnd.toISOString())
+    .order("starts_at", { ascending: true })
+
+  if (eventError) throw new Error(eventError.message)
+  const events = (eventRows ?? []) as EventRecord[]
+  if (!events.length) return { mode, queued: 0, skipped: 0 }
+
+  let profileQuery = admin
+    .from("profiles")
+    .select("id, email, first_name, last_name, is_banned")
+
+  if (mode === "test") {
+    const recipients = [...testRecipients()]
+    if (!recipients.length) {
+      return {
+        mode,
+        queued: 0,
+        skipped: 0,
+        reason: "MEMBER_NOTIFICATION_TEST_RECIPIENTS is empty",
+      }
+    }
+    profileQuery = profileQuery.in("email", recipients)
+  }
+
+  const { data: profileRows, error: profileError } = await profileQuery
+  if (profileError) throw new Error(profileError.message)
+  const profiles = (profileRows ?? []) as ProfileRow[]
+  const validProfiles = profiles.filter((profile) => {
+    const email = normalizeEmail(profile.email)
+    return !profile.is_banned && isValidEmail(email) && recipientIsEnabled(email)
+  })
+
+  let queued = 0
+  let skipped = profiles.length - validProfiles.length
+  const fatigueSince = new Date(
+    now.getTime() - NEW_EVENT_FATIGUE_GUARD_HOURS * 60 * 60 * 1000,
+  ).toISOString()
+
+  for (const event of events) {
+    for (const profileChunk of chunks(validProfiles, 500)) {
+      const profileIds = profileChunk.map((profile) => profile.id)
+      const emails = profileChunk.map((profile) => normalizeEmail(profile.email))
+      const [registrationsResult, ticketsResult, announcementsResult] =
+        await Promise.all([
+          admin
+            .from("event_registrations")
+            .select("user_id")
+            .eq("event_id", event.id)
+            .in("user_id", profileIds),
+          admin
+            .from("event_ticket_access")
+            .select("attendee_email_normalized")
+            .eq("event_id", event.id)
+            .in("attendee_email_normalized", emails),
+          admin
+            .from("member_notification_deliveries")
+            .select("recipient_user_id, sent_at")
+            .eq("kind", "new_event")
+            .eq("event_id", event.id)
+            .eq("status", "sent")
+            .gte("sent_at", fatigueSince)
+            .in("recipient_user_id", profileIds),
+        ])
+
+      if (registrationsResult.error) throw new Error(registrationsResult.error.message)
+      if (ticketsResult.error) throw new Error(ticketsResult.error.message)
+      if (announcementsResult.error) throw new Error(announcementsResult.error.message)
+
+      const registeredUserIds = new Set(
+        (registrationsResult.data ?? []).map((row) => row.user_id as string),
+      )
+      const ticketEmails = new Set(
+        (ticketsResult.data ?? []).map((row) =>
+          normalizeEmail(row.attendee_email_normalized as string),
+        ),
+      )
+      const announcementByRecipient = new Map(
+        (announcementsResult.data ?? []).map((row) => [
+          row.recipient_user_id as string,
+          row.sent_at as string | null,
+        ]),
+      )
+
+      const eligibleProfiles = profileChunk.filter((profile) => {
+        const reason = registrationReminderSuppressionReason({
+          hasPortalRegistration: registeredUserIds.has(profile.id),
+          hasVerifiedExternalTicket: ticketEmails.has(normalizeEmail(profile.email)),
+          newEventAnnouncementSentAt: announcementByRecipient.get(profile.id),
+          now,
+        })
+        if (reason) skipped += 1
+        return !reason
+      })
+
+      if (!eligibleProfiles.length) continue
+      const { data, error } = await admin
+        .from("member_notification_deliveries")
+        .upsert(
+          eligibleProfiles.map((profile) => ({
+            kind: REGISTRATION_REMINDER_KIND,
+            recipient_user_id: profile.id,
+            actor_user_id: null,
+            event_id: event.id,
+            connection_id: null,
+            dedupe_key: registrationReminderDedupeKey(event.id, profile.id),
+            to_email: normalizeEmail(profile.email),
+            status: "pending" as const,
+          })),
+          { onConflict: "dedupe_key", ignoreDuplicates: true },
+        )
+        .select("id")
+
+      if (error) throw new Error(error.message)
+      queued += data?.length ?? 0
+    }
+  }
+
+  return { mode, queued, skipped }
+}
+
 async function queueConnectionNotification({
   kind,
   connectionId,
@@ -613,7 +810,18 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
     ),
   ]
 
-  const [profilesResult, eventsResult, connectionsResult] = await Promise.all([
+  const now = new Date()
+  const fatigueSince = new Date(
+    now.getTime() - NEW_EVENT_FATIGUE_GUARD_HOURS * 60 * 60 * 1000,
+  ).toISOString()
+  const [
+    profilesResult,
+    eventsResult,
+    connectionsResult,
+    registrationsResult,
+    ticketsResult,
+    announcementsResult,
+  ] = await Promise.all([
     profileIds.length
       ? admin
           .from("profiles")
@@ -629,11 +837,37 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
           .select("id, requester_id, addressee_id, status, updated_at")
           .in("id", connectionIds)
       : Promise.resolve({ data: [], error: null }),
+    eventIds.length
+      ? admin
+          .from("event_registrations")
+          .select("event_id, user_id")
+          .in("event_id", eventIds)
+          .in("user_id", profileIds)
+      : Promise.resolve({ data: [], error: null }),
+    eventIds.length
+      ? admin
+          .from("event_ticket_access")
+          .select("event_id, attendee_email_normalized")
+          .in("event_id", eventIds)
+      : Promise.resolve({ data: [], error: null }),
+    eventIds.length
+      ? admin
+          .from("member_notification_deliveries")
+          .select("event_id, recipient_user_id, sent_at")
+          .eq("kind", "new_event")
+          .eq("status", "sent")
+          .gte("sent_at", fatigueSince)
+          .in("event_id", eventIds)
+          .in("recipient_user_id", profileIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
 
   if (profilesResult.error) throw new Error(profilesResult.error.message)
   if (eventsResult.error) throw new Error(eventsResult.error.message)
   if (connectionsResult.error) throw new Error(connectionsResult.error.message)
+  if (registrationsResult.error) throw new Error(registrationsResult.error.message)
+  if (ticketsResult.error) throw new Error(ticketsResult.error.message)
+  if (announcementsResult.error) throw new Error(announcementsResult.error.message)
 
   const profileById = new Map(
     ((profilesResult.data ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]),
@@ -645,6 +879,23 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
     ((connectionsResult.data ?? []) as ConnectionRow[]).map((connection) => [
       connection.id,
       connection,
+    ]),
+  )
+  const registrationKeys = new Set(
+    (registrationsResult.data ?? []).map(
+      (registration) => `${registration.event_id}/${registration.user_id}`,
+    ),
+  )
+  const ticketKeys = new Set(
+    (ticketsResult.data ?? []).map(
+      (ticket) =>
+        `${ticket.event_id}/${normalizeEmail(ticket.attendee_email_normalized as string)}`,
+    ),
+  )
+  const announcementByEventRecipient = new Map(
+    (announcementsResult.data ?? []).map((announcement) => [
+      `${announcement.event_id}/${announcement.recipient_user_id}`,
+      announcement.sent_at as string | null,
     ]),
   )
 
@@ -686,6 +937,55 @@ async function buildNotifications(deliveries: DeliveryRow[]) {
       built.push({
         delivery: { ...delivery, to_email: email },
         content: eventEmail(event, recipient),
+        tagSource: event.slug,
+      })
+      continue
+    }
+
+    if (delivery.kind === REGISTRATION_REMINDER_KIND) {
+      const event = delivery.event_id ? eventById.get(delivery.event_id) : null
+      if (
+        !registrationReminderFeatureEnabled(
+          getEnv("EVENT_REGISTRATION_REMINDERS_ENABLED"),
+        ) ||
+        !event ||
+        event.status !== "published" ||
+        event.is_recording ||
+        !event.registration_reminder_enabled ||
+        new Date(event.starts_at).getTime() <= now.getTime()
+      ) {
+        skipped.push({
+          ...delivery,
+          status: "skipped",
+          last_error: "event is no longer eligible for registration reminders",
+          updated_at: now.toISOString(),
+        })
+        continue
+      }
+
+      const suppressionReason = registrationReminderSuppressionReason({
+        hasPortalRegistration: registrationKeys.has(
+          `${event.id}/${delivery.recipient_user_id}`,
+        ),
+        hasVerifiedExternalTicket: ticketKeys.has(`${event.id}/${email}`),
+        newEventAnnouncementSentAt: announcementByEventRecipient.get(
+          `${event.id}/${delivery.recipient_user_id}`,
+        ),
+        now,
+      })
+      if (suppressionReason) {
+        skipped.push({
+          ...delivery,
+          status: "skipped",
+          last_error: suppressionReason,
+          updated_at: now.toISOString(),
+        })
+        continue
+      }
+
+      built.push({
+        delivery: { ...delivery, to_email: email },
+        content: eventRegistrationReminderEmail(event, recipient),
         tagSource: event.slug,
       })
       continue
@@ -800,6 +1100,181 @@ async function sendBatch(batch: BuiltNotification[]) {
   return { sent: batch.length, failed: 0 }
 }
 
+async function registrationReminderSendTimeSuppressionReason(
+  delivery: DeliveryRow,
+) {
+  if (!delivery.event_id) return "event is unavailable"
+  if (!registrationReminderFeatureEnabled(getEnv("EVENT_REGISTRATION_REMINDERS_ENABLED"))) {
+    return "event registration reminders are disabled"
+  }
+
+  const admin = createAdminClient()
+  const now = new Date()
+  const fatigueSince = new Date(
+    now.getTime() - NEW_EVENT_FATIGUE_GUARD_HOURS * 60 * 60 * 1000,
+  ).toISOString()
+  const [eventResult, registrationResult, ticketResult, announcementResult] =
+    await Promise.all([
+      admin
+        .from("events")
+        .select("status, is_recording, registration_reminder_enabled, starts_at")
+        .eq("id", delivery.event_id)
+        .maybeSingle(),
+      admin
+        .from("event_registrations")
+        .select("user_id")
+        .eq("event_id", delivery.event_id)
+        .eq("user_id", delivery.recipient_user_id)
+        .maybeSingle(),
+      admin
+        .from("event_ticket_access")
+        .select("id")
+        .eq("event_id", delivery.event_id)
+        .eq("attendee_email_normalized", normalizeEmail(delivery.to_email))
+        .maybeSingle(),
+      admin
+        .from("member_notification_deliveries")
+        .select("sent_at")
+        .eq("kind", "new_event")
+        .eq("event_id", delivery.event_id)
+        .eq("recipient_user_id", delivery.recipient_user_id)
+        .eq("status", "sent")
+        .gte("sent_at", fatigueSince)
+        .order("sent_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+  if (eventResult.error) throw new Error(eventResult.error.message)
+  if (registrationResult.error) throw new Error(registrationResult.error.message)
+  if (ticketResult.error) throw new Error(ticketResult.error.message)
+  if (announcementResult.error) throw new Error(announcementResult.error.message)
+
+  const event = eventResult.data
+  if (
+    !event ||
+    event.status !== "published" ||
+    event.is_recording ||
+    !event.registration_reminder_enabled ||
+    new Date(event.starts_at).getTime() <= now.getTime()
+  ) {
+    return "event is no longer eligible for registration reminders"
+  }
+
+  return registrationReminderSuppressionReason({
+    hasPortalRegistration: Boolean(registrationResult.data),
+    hasVerifiedExternalTicket: Boolean(ticketResult.data),
+    newEventAnnouncementSentAt: announcementResult.data?.sent_at,
+    now,
+  })
+}
+
+async function sendRegistrationReminder(notification: BuiltNotification) {
+  const { delivery, content, tagSource } = notification
+  const now = new Date().toISOString()
+  let suppressionReason: string | null
+  try {
+    suppressionReason = await registrationReminderSendTimeSuppressionReason(delivery)
+  } catch (error) {
+    const failedRow: DeliveryRow = {
+      ...delivery,
+      status: "failed",
+      attempt_count: delivery.attempt_count + 1,
+      last_error: `send-time eligibility check failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      updated_at: now,
+    }
+    await upsertDeliveries([failedRow])
+    await alertIfExhausted([failedRow])
+    return { sent: 0, failed: 1, skipped: 0 }
+  }
+  if (suppressionReason) {
+    await upsertDeliveries([
+      {
+        ...delivery,
+        status: "skipped",
+        last_error: suppressionReason,
+        updated_at: now,
+      },
+    ])
+    return { sent: 0, failed: 0, skipped: 1 }
+  }
+
+  const apiKey = getEnv("RESEND_API_KEY")
+  if (!apiKey) {
+    const failedRow: DeliveryRow = {
+      ...delivery,
+      status: "failed",
+      attempt_count: delivery.attempt_count + 1,
+      last_error: "RESEND_API_KEY is not configured",
+      updated_at: now,
+    }
+    await upsertDeliveries([failedRow])
+    await alertIfExhausted([failedRow])
+    return { sent: 0, failed: 1, skipped: 0 }
+  }
+
+  const resend = new Resend(apiKey)
+  const idempotencyHash = createHash("sha256")
+    .update(delivery.dedupe_key)
+    .digest("hex")
+    .slice(0, 48)
+  const { data, error } = await resend.emails.send(
+    {
+      from: getEnv("MEMBER_EMAIL_FROM") ?? DEFAULT_MEMBER_EMAIL_FROM,
+      to: [delivery.to_email],
+      replyTo: getEnv("MEMBER_EMAIL_REPLY_TO") ?? DEFAULT_MEMBER_EMAIL_REPLY_TO,
+      subject: content.subject,
+      html: htmlEmail(content),
+      text: textEmail(content),
+      tags: [
+        { name: "kind", value: delivery.kind },
+        { name: "source", value: tagValue(tagSource) },
+      ],
+    },
+    { idempotencyKey: `member-notifications/${idempotencyHash}` },
+  )
+
+  if (error) {
+    const failedRow: DeliveryRow = {
+      ...delivery,
+      status: "failed",
+      attempt_count: delivery.attempt_count + 1,
+      last_error: error.message,
+      updated_at: now,
+    }
+    await upsertDeliveries([failedRow])
+    await alertIfExhausted([failedRow])
+    return { sent: 0, failed: 1, skipped: 0 }
+  }
+
+  const sentRow: DeliveryRow = {
+    ...delivery,
+    status: "sent",
+    resend_email_id: data?.id ?? null,
+    attempt_count: delivery.attempt_count + 1,
+    last_error: null,
+    sent_at: now,
+    updated_at: now,
+  }
+  try {
+    await upsertDeliveriesWithRetry([sentRow])
+  } catch (writeError) {
+    const message = writeError instanceof Error ? writeError.message : String(writeError)
+    console.error(
+      "[member-notification] sent registration reminder but failed to record delivery status:",
+      message,
+    )
+    await sendOpsAlert("Event registration reminder status write failed after send", {
+      "Delivery ID": delivery.id,
+      "Resend email ID": sentRow.resend_email_id ?? "unknown",
+      Error: message,
+    })
+  }
+  return { sent: 1, failed: 0, skipped: 0 }
+}
+
 export async function processPendingMemberNotifications(
   options: { deliveryId?: string } = {},
 ): Promise<MemberNotificationRunResult> {
@@ -863,7 +1338,24 @@ export async function processPendingMemberNotifications(
 
   let sent = 0
   let failed = 0
-  for (const batch of chunks(built, BATCH_SIZE)) {
+  let sendTimeSkipped = 0
+  const registrationReminders = built.filter(
+    ({ delivery }) => delivery.kind === REGISTRATION_REMINDER_KIND,
+  )
+  const otherNotifications = built.filter(
+    ({ delivery }) => delivery.kind !== REGISTRATION_REMINDER_KIND,
+  )
+
+  for (const reminderChunk of chunks(registrationReminders, 5)) {
+    const results = await Promise.all(
+      reminderChunk.map((notification) => sendRegistrationReminder(notification)),
+    )
+    sent += results.reduce((total, result) => total + result.sent, 0)
+    failed += results.reduce((total, result) => total + result.failed, 0)
+    sendTimeSkipped += results.reduce((total, result) => total + result.skipped, 0)
+  }
+
+  for (const batch of chunks(otherNotifications, BATCH_SIZE)) {
     const result = await sendBatch(batch)
     sent += result.sent
     failed += result.failed
@@ -874,7 +1366,7 @@ export async function processPendingMemberNotifications(
     checked: candidates.length,
     reserved: reserved.length,
     sent,
-    skipped: skipped.length,
+    skipped: skipped.length + sendTimeSkipped,
     failed,
   }
 }
