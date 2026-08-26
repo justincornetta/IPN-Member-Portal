@@ -137,10 +137,6 @@ export function WhatsAppLanding() {
       <section className={styles.channelPanel} aria-labelledby="channel-heading">
         <div className={styles.channelPanelHeader}>
           <h2 id="channel-heading">Join one or more IPN channels</h2>
-          <p className={styles.announcementNote}>
-            <span aria-hidden="true">✦</span>
-            Joining any IPN group automatically adds you to Announcements.
-          </p>
         </div>
 
         <div className={styles.desktopChannels}>
@@ -174,7 +170,7 @@ export function WhatsAppLanding() {
 
             {selectedId === "general" && (
               <p className={styles.introductionPrompt}>
-                <strong>Your first message:</strong>{" "}show your name, where you&apos;re based,
+                <strong>Your first message:</strong>{" "}share your name, where you&apos;re based,
                 your background, and what you&apos;re studying or working on.
               </p>
             )}
@@ -235,7 +231,7 @@ export function WhatsAppLanding() {
               </a>
               {channel.id === "general" && (
                 <p className={styles.mobileIntroductionPrompt}>
-                  <strong>Your first message:</strong>{" "}show your name, where you&apos;re based,
+                  <strong>Your first message:</strong>{" "}share your name, where you&apos;re based,
                   your background, and what you&apos;re studying or working on.
                 </p>
               )}
