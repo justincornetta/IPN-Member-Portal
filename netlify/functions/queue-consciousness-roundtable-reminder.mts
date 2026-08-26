@@ -3,11 +3,11 @@ import { queueEventRegistrationReminderNow } from "../../src/lib/member-notifica
 
 const EVENT_ID = "7dc2bd55-4852-49be-a53c-9d5c60f4d7a0"
 const EVENT_TITLE = "IPN Labs Roundtable Talk: The Science of Consciousness"
-const SEND_AT = "2026-08-27T13:00:00.000Z"
+const SEND_AT = "2026-08-26T13:30:00.000Z"
 
 export function consciousnessRoundtableReminderIsDue(now: Date) {
   return (
-    now.toISOString().slice(0, 10) === "2026-08-27" &&
+    now.toISOString().slice(0, 10) === "2026-08-26" &&
     now.getTime() >= Date.parse(SEND_AT)
   )
 }
@@ -40,6 +40,6 @@ export default async function queueConsciousnessRoundtableReminder() {
 }
 
 export const config: Config = {
-  // 9:00 AM America/New_York on August 27. The runtime year guard makes this 2026-only.
-  schedule: "0 13 27 8 *",
+  // 9:30 AM America/New_York on August 26. The runtime date guard makes this 2026-only.
+  schedule: "30 13 26 8 *",
 }
