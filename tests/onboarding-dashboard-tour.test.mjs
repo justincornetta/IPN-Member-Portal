@@ -150,10 +150,11 @@ test("dashboard upcoming activity preserves 16:9 event covers and surfaces confe
 })
 
 test("events hub provides a scrollable agenda with selected-event details", async () => {
-  const agenda = await readFile(
-    new URL("../src/app/dashboard/events/UpcomingAgenda.tsx", import.meta.url),
-    "utf8",
-  )
+  const [agenda, eventsPage, eventCard] = await Promise.all([
+    readFile(new URL("../src/app/dashboard/events/UpcomingAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/dashboard/events/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/events/EventCard.tsx", import.meta.url), "utf8"),
+  ])
 
   assert.match(agenda, /max-h-\[35rem\] overflow-y-auto/)
   assert.match(agenda, /Upcoming events agenda/)
@@ -163,6 +164,9 @@ test("events hub provides a scrollable agenda with selected-event details", asyn
   assert.match(agenda, /CommunityEventDetail/)
   assert.match(agenda, /grid-cols-\[3\.25rem_1fr\] items-center/)
   assert.doesNotMatch(agenda, /· Registered/)
+  assert.doesNotMatch(eventsPage, />Events<\/p>/)
+  assert.match(eventCard, /repeat\(auto-fit,minmax\(6rem,1fr\)\)/)
+  assert.match(eventCard, /\[&>button\]:h-9/)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {

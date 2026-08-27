@@ -86,8 +86,7 @@ export default async function EventsPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">
       <div>
-        <p className="hidden text-sm font-medium text-ipn sm:block">Events</p>
-        <h1 className="text-2xl font-semibold text-zinc-900 sm:mt-1">
+        <h1 className="text-2xl font-semibold text-zinc-900">
           Events
         </h1>
         <p className="mt-1 line-clamp-1 max-w-2xl text-sm leading-5 text-zinc-500 sm:mt-2 sm:line-clamp-none sm:leading-6">

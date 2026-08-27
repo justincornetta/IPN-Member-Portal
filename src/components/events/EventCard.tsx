@@ -334,17 +334,19 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 <p className="mb-2 text-[11px] leading-5 text-zinc-400">
                   {[countLabel, (!canJoin || !event.join_url) ? "Event link available 24 hours before start" : null].filter(Boolean).join(" · ")}
                 </p>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(6rem,1fr))]">
                   {showEventChat && (
                     <WhatsAppHandoffAction
                       kind="event"
                       slug={event.slug}
                       source="event-card"
                       label="Join chat"
-                      className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
+                      className="inline-flex h-9 min-h-9 w-full items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70"
                     />
                   )}
-                  <AddToCalendarButton event={event} compact />
+                  <div className="[&>button]:h-9 [&>button]:min-h-9 [&>button]:w-full [&>button]:whitespace-nowrap">
+                    <AddToCalendarButton event={event} compact />
+                  </div>
                   {canJoin && event.join_url ? (
                     <button
                       type="button"
@@ -352,21 +354,21 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       data-analytics-event="curated_click"
                       data-analytics-id={`event-join-${event.slug}`}
                       data-analytics-label="Join event"
-                      className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:min-h-0"
+                      className="h-9 min-h-9 w-full rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700"
                     >
                       Join
                     </button>
                   ) : (
                     <Link
                       href={`/dashboard/events/${event.slug}`}
-                      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
+                      className="inline-flex h-9 min-h-9 w-full items-center justify-center rounded-md bg-ipn px-3 text-xs font-medium text-white transition hover:bg-ipn-dark"
                     >
                       View event
                     </Link>
                   )}
                   {!unrsvpConfirming && (
-                    <details className="relative">
-                      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center justify-center rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-700 sm:min-h-0" aria-label="More event actions">
+                    <details className="relative w-full">
+                      <summary className="inline-flex h-9 min-h-9 w-full cursor-pointer list-none items-center justify-center rounded-md border border-zinc-200 px-3 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-700" aria-label="More event actions">
                         More
                       </summary>
                       <button
