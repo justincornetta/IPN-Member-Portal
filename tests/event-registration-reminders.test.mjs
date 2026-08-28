@@ -239,6 +239,27 @@ test("delivery code preserves send-time gates and per-recipient Resend idempoten
   assert.doesNotMatch(source, /eventRegistrationReminderEmail[\s\S]*join_url/)
 })
 
+test("the final notification constraint migration preserves reminders and conferences", () => {
+  const migration = readFileSync(
+    new URL(
+      "../supabase/migrations/20260827203009_reconcile_member_notification_constraints.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  )
+
+  for (const kind of [
+    "event_registration_reminder",
+    "new_conference",
+    "conference_meetup_added",
+    "conference_discount_added",
+  ]) {
+    assert.match(migration, new RegExp(`'${kind}'`))
+  }
+  assert.match(migration, /conference_id is null/)
+  assert.match(migration, /source_key is null/)
+})
+
 test("the one-off consciousness roundtable job queues through the guarded reminder pipeline", () => {
   const serviceSource = readFileSync(
     new URL("../src/lib/member-notifications/email-service.ts", import.meta.url),

@@ -32,6 +32,17 @@ import type {
 } from "@/lib/admin/conference-actions"
 import type { EventSpeakerLinkType } from "@/lib/events/types"
 import type { ConferenceCategory, ConferenceRecord, ConferenceStatus, PastConferenceRecord } from "@/lib/conferences/types"
+import { toIsoInTimeZone } from "@/lib/admin/content-utils"
+import {
+  buildConferenceDiscountEmailContent,
+  buildConferenceMeetupEmailContent,
+  buildNewConferenceEmailContent,
+} from "@/lib/member-notifications/conference-email-content"
+import type { ConferenceEmailContent } from "@/lib/member-notifications/conference-email-content"
+import ConferenceCard from "@/components/conferences/ConferenceCard"
+import ConferenceDetailOverview from "@/components/conferences/ConferenceDetailOverview"
+import { ConferenceInteractivePreview } from "@/components/conferences/ConferenceInteractive"
+import PastConferenceCard from "@/components/conferences/PastConferenceCard"
 
 // ─── Speaker & materials form types ──────────────────────────────────────────
 
@@ -210,7 +221,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
       {cropSrc && (
         <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/95">
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-            <p className="text-sm font-medium text-white">Crop to 16:9 thumbnail</p>
+            <p className="text-sm font-medium text-white">Crop to 16:9</p>
             <button type="button" onClick={() => setCropSrc(null)} className="cursor-pointer text-sm text-zinc-400 transition hover:text-white">
               Cancel
             </button>
@@ -763,11 +774,12 @@ function ResourceForm({ initial, onSubmit, pending }: {
 
 // ─── Conference form (4 steps) ────────────────────────────────────────────────
 
-type ConferenceMeetupRow = { id?: string; title: string; type: string; startsAt: string; location: string; description: string }
-type ConferenceDiscountRow = { label: string; code: string; url: string; description: string; howToApply: string; expiresAt: string }
+type ConferenceMeetupRow = { id?: string; title: string; startsAt: string; endsAt: string; location: string; description: string; notificationMessage: string }
+type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; notificationMessage: string; howToApply: string; expiresAt: string }
 
 type ConferenceFields = {
   name: string; organizer: string; category: ConferenceCategory
+  coverImageUrl: string
   city: string; state: string; country: string; venue: string
   startsAt: string; endsAt: string; timezone: string
   websiteUrl: string; registrationUrl: string; whatsappUrl: string
@@ -779,6 +791,7 @@ type ConferenceFields = {
 
 const CONFERENCE_DEFAULTS: ConferenceFields = {
   name: "", organizer: "", category: "Community",
+  coverImageUrl: "",
   city: "", state: "", country: "", venue: "",
   startsAt: "", endsAt: "", timezone: "America/New_York",
   websiteUrl: "", registrationUrl: "", whatsappUrl: "",
@@ -788,7 +801,450 @@ const CONFERENCE_DEFAULTS: ConferenceFields = {
 }
 
 const CONFERENCE_CATEGORIES: ConferenceCategory[] = ["Academic", "Industry", "Community", "Harm Reduction"]
-const CONFERENCE_STATUSES: ConferenceStatus[] = ["draft", "published", "archived"]
+
+function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | null {
+  const timezone = fields.timezone || "America/New_York"
+  const startsAt = toIsoInTimeZone(fields.startsAt, timezone)
+  const endsAt = toIsoInTimeZone(fields.endsAt, timezone)
+  if (!startsAt || !endsAt || !fields.name.trim()) return null
+
+  return {
+    id: "preview",
+    slug: fields.slug.trim() || "conference-preview",
+    name: fields.name.trim(),
+    organizer: fields.organizer.trim() || null,
+    category: fields.category,
+    cover_image_url: fields.coverImageUrl.trim() || null,
+    summary: fields.summary.trim() || null,
+    description: fields.description.trim() || null,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    timezone,
+    city: fields.city.trim() || null,
+    state: fields.state.trim() || null,
+    country: fields.country.trim() || null,
+    venue: fields.venue.trim() || null,
+    website_url: fields.websiteUrl.trim() || null,
+    registration_url: fields.registrationUrl.trim() || null,
+    whatsapp_url: fields.whatsappUrl.trim() || null,
+    meetups: fields.meetups
+      .filter((meetup) => meetup.title.trim())
+      .map((meetup, index) => ({
+        id: meetup.id ?? `preview-meetup-${index}`,
+        title: meetup.title.trim(),
+        type: "IPN Meetup",
+        startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
+        endsAt: toIsoInTimeZone(meetup.endsAt, timezone),
+        location: meetup.location.trim() || null,
+        description: meetup.description.trim() || null,
+        notificationMessage: meetup.notificationMessage.trim() || null,
+      })),
+    discounts: fields.discounts
+      .filter((discount) => discount.label.trim())
+      .map((discount, index) => ({
+        id: discount.id ?? `preview-discount-${index}`,
+        label: discount.label.trim(),
+        code: discount.code.trim() || null,
+        url: discount.url.trim() || null,
+        description: discount.description.trim() || null,
+        notificationMessage: discount.notificationMessage.trim() || null,
+        howToApply: discount.howToApply.trim() || null,
+        expiresAt: toIsoInTimeZone(discount.expiresAt, timezone),
+      })),
+    rsvp_count: 0,
+    status: fields.status,
+  }
+}
+
+function conferenceEmailPreviews(
+  fields: ConferenceFields,
+  initialStatus: ConferenceStatus | undefined,
+) {
+  if (fields.status !== "published") return []
+  const conference = conferencePreviewRecord(fields)
+  if (!conference) return []
+  const buttonUrl = `https://members.intercollegiatepsychedelics.net/dashboard/conferences/${encodeURIComponent(conference.slug)}`
+
+  if (initialStatus !== "published") {
+    return [{
+      id: "conference-announcement",
+      label: "New conference announcement",
+      content: buildNewConferenceEmailContent(conference, "Member", buttonUrl),
+    }]
+  }
+
+  return [
+    ...conference.meetups
+      .filter((meetup) => meetup.id.startsWith("preview-meetup-"))
+      .map((meetup) => ({
+        id: `meetup:${meetup.id}`,
+        label: `Meetup alert · ${meetup.title}`,
+        content: buildConferenceMeetupEmailContent(conference, meetup, "Member", buttonUrl),
+      })),
+    ...conference.discounts
+      .filter((discount) => discount.id.startsWith("preview-discount-"))
+      .map((discount) => ({
+        id: `discount:${discount.id}`,
+        label: `Discount alert · ${discount.label}`,
+        content: buildConferenceDiscountEmailContent(conference, discount, "Member", buttonUrl),
+      })),
+  ]
+}
+
+function configuredConferenceEmailPreviews(fields: ConferenceFields) {
+  const conference = conferencePreviewRecord(fields)
+  if (!conference) return []
+  const buttonUrl = `https://members.intercollegiatepsychedelics.net/dashboard/conferences/${encodeURIComponent(conference.slug)}`
+
+  return [
+    ...conference.meetups.map((meetup) => ({
+      id: `meetup:${meetup.id}`,
+      label: `Meetup alert · ${meetup.title}`,
+      content: buildConferenceMeetupEmailContent(conference, meetup, "Member", buttonUrl),
+    })),
+    ...conference.discounts.map((discount) => ({
+      id: `discount:${discount.id}`,
+      label: `Discount alert · ${discount.label}`,
+      content: buildConferenceDiscountEmailContent(conference, discount, "Member", buttonUrl),
+    })),
+  ]
+}
+
+function ConferenceEmailPreview({ label, content }: { label: string; content: ConferenceEmailContent }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#d9d0e8] bg-white shadow-sm">
+      <div className="border-b border-[#e8e2f0] bg-[#f7f4fb] px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7559a3]">{label}</p>
+        <p className="mt-1 text-sm font-semibold text-zinc-900">{content.subject}</p>
+        <p className="mt-0.5 text-xs text-zinc-500">Preview text: {content.preview}</p>
+      </div>
+      <div className="space-y-4 px-4 py-5 text-sm leading-6 text-zinc-700 sm:px-6">
+        <p>{content.greeting}</p>
+        {content.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        {content.details?.length ? (
+          <dl className="space-y-2 border-y border-zinc-100 py-4">
+            {content.details.map((detail) => (
+              <div key={detail.label} className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2">
+                <dt className="font-semibold text-zinc-800">{detail.label}:</dt>
+                <dd>{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {content.afterDetails?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        <span className="inline-flex min-h-11 items-center rounded-lg bg-[#5b3f8c] px-4 font-semibold text-white">
+          {content.buttonLabel}
+        </span>
+        {content.closing?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        <div>
+          <p>Sincerely,</p>
+          <p>The IPN Team</p>
+        </div>
+        <p className="border-t border-zinc-100 pt-4 text-xs leading-5 text-zinc-500">{content.receiptReason}</p>
+      </div>
+    </section>
+  )
+}
+
+type ConferenceEmailPreviewEntry = ReturnType<typeof configuredConferenceEmailPreviews>[number]
+
+function ConferenceEmailPreviewGroup({
+  title,
+  description,
+  previews,
+}: {
+  title: string
+  description: string
+  previews: ConferenceEmailPreviewEntry[]
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <p className="text-xs font-semibold text-zinc-800">{title}</p>
+        <p className="mt-1 text-[11px] leading-5 text-zinc-500">{description}</p>
+      </div>
+      {previews.map((preview) => (
+        <ConferenceEmailPreview key={preview.id} label={preview.label} content={preview.content} />
+      ))}
+    </section>
+  )
+}
+
+type PreviewChannel = "portal" | "email"
+type PortalPreviewSurface = "card" | "details"
+type PortalPreviewViewport = "mobile" | "desktop"
+
+function PreviewToggle<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (value: T) => void
+  label: string
+}) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`min-h-9 rounded-md px-3 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-ipn/25 ${
+            value === option.value ? "bg-ipn text-white shadow-sm" : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function MemberPortalFrame({
+  path,
+  viewport,
+  children,
+}: {
+  path: string
+  viewport: PortalPreviewViewport
+  children: React.ReactNode
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-zinc-300/40">
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 text-white">
+        <span className="flex gap-1.5" aria-hidden="true">
+          <span className="h-2 w-2 rounded-full bg-rose-400" />
+          <span className="h-2 w-2 rounded-full bg-amber-300" />
+          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+        </span>
+        <span className="min-w-0 truncate rounded-md bg-white/10 px-3 py-1 font-mono text-[10px] text-zinc-300">{path}</span>
+      </div>
+      <div className="overflow-x-auto bg-zinc-100 p-3 sm:p-5">
+        <div className={`mx-auto transition-[max-width] duration-200 ${viewport === "mobile" ? "max-w-[22rem]" : "max-w-4xl"}`}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConferencePreviewWorkspace({
+  conference,
+  queuedEmailPreviews,
+  configuredEmailPreviews,
+  status,
+}: {
+  conference: ConferenceRecord | null
+  queuedEmailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  configuredEmailPreviews: ReturnType<typeof configuredConferenceEmailPreviews>
+  status: ConferenceStatus
+}) {
+  const [channel, setChannel] = useState<PreviewChannel>("portal")
+  const [surface, setSurface] = useState<PortalPreviewSurface>("card")
+  const [viewport, setViewport] = useState<PortalPreviewViewport>("desktop")
+  const queuedEmailIds = new Set(queuedEmailPreviews.map((preview) => preview.id))
+  const reviewOnlyEmailPreviews = configuredEmailPreviews.filter((preview) => !queuedEmailIds.has(preview.id))
+
+  return (
+    <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-zinc-800">Preview</p>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-500">Review the member-facing portal and email experience before publishing.</p>
+        </div>
+        <PreviewToggle
+          value={channel}
+          onChange={setChannel}
+          label="Preview channel"
+          options={[{ value: "portal", label: "Member portal" }, { value: "email", label: "Member email" }]}
+        />
+      </div>
+
+      {channel === "portal" ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <PreviewToggle
+              value={surface}
+              onChange={setSurface}
+              label="Portal preview surface"
+              options={[{ value: "card", label: "Conference card" }, { value: "details", label: "Detail page" }]}
+            />
+            <PreviewToggle
+              value={viewport}
+              onChange={setViewport}
+              label="Portal preview viewport"
+              options={[{ value: "mobile", label: "Mobile" }, { value: "desktop", label: "Desktop" }]}
+            />
+          </div>
+          {conference ? (
+            <MemberPortalFrame path={`/dashboard/conferences/${conference.slug}`} viewport={viewport}>
+              {surface === "card" ? (
+                <div className={viewport === "mobile" ? "mx-auto" : "mx-auto max-w-md"}>
+                  <ConferenceCard conference={conference} preview compact={viewport === "mobile"} />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  <ConferenceDetailOverview conference={conference} preview compact={viewport === "mobile"} />
+                  <ConferenceInteractivePreview
+                    meetups={conference.meetups}
+                    timezone={conference.timezone}
+                    compact={viewport === "mobile"}
+                  />
+                </div>
+              )}
+            </MemberPortalFrame>
+          ) : (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a conference name and valid dates to see the portal preview.</p>
+          )}
+          <p className="text-[11px] leading-5 text-zinc-400">Preview links, RSVP buttons, and attendee controls are inactive.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {status !== "published" ? (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">No member email will be queued while this conference is {status}. You can still review configured meetup and discount messages below.</p>
+          ) : queuedEmailPreviews.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Saving these edits will not queue a new member email. Existing meetup and discount messages are previewed below for review.</p>
+          ) : null}
+          {queuedEmailPreviews.length > 0 && (
+            <ConferenceEmailPreviewGroup
+              title="Emails queued by this save"
+              description="These are the messages members will receive after you publish this change."
+              previews={queuedEmailPreviews}
+            />
+          )}
+          {reviewOnlyEmailPreviews.length > 0 && (
+            <ConferenceEmailPreviewGroup
+              title="Configured message previews"
+              description="These show the current copy for saved meetups and discounts. Editing a saved item does not send its alert again."
+              previews={reviewOnlyEmailPreviews}
+            />
+          )}
+          {queuedEmailPreviews.length === 0 && reviewOnlyEmailPreviews.length === 0 && (
+            <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a meetup or discount to preview its member alert.</p>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function ConferencePublishConfirmation({
+  conferenceName,
+  emailPreviews,
+  isUpdate,
+  onBack,
+  onConfirm,
+}: {
+  conferenceName: string
+  emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  isUpdate: boolean
+  onBack: () => void
+  onConfirm: () => void
+}) {
+  const backButtonRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLElement>(null)
+  const sendsEmail = emailPreviews.length > 0
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    backButtonRef.current?.focus()
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onBack()
+      if (event.key !== "Tab") return
+      const buttons = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])
+      const first = buttons[0]
+      const last = buttons.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape)
+      document.body.style.overflow = previousOverflow
+      previouslyFocused?.focus()
+    }
+  }, [onBack])
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-zinc-950/55 px-0 sm:items-center sm:px-4"
+      onClick={onBack}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="conference-publish-title"
+        aria-describedby="conference-publish-description"
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className={`border-b px-5 py-5 sm:px-6 ${sendsEmail ? "border-amber-200 bg-amber-50" : "border-zinc-200 bg-zinc-50"}`}>
+          <div className="flex items-start gap-3">
+            <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${sendsEmail ? "bg-amber-100 text-amber-700" : "bg-ipn/10 text-ipn"}`} aria-hidden="true">
+              {sendsEmail ? "!" : "✓"}
+            </span>
+            <div>
+              <h2 id="conference-publish-title" className="text-lg font-semibold text-zinc-900">
+                {sendsEmail
+                  ? `Review member email before ${isUpdate ? "saving" : "publishing"}`
+                  : isUpdate
+                    ? "Save conference changes?"
+                    : "Publish conference?"}
+              </h2>
+              <p id="conference-publish-description" className="mt-1 text-sm leading-6 text-zinc-600">
+                {sendsEmail
+                  ? `${isUpdate ? "Saving" : "Publishing"} ${conferenceName} will queue ${emailPreviews.length} member email${emailPreviews.length === 1 ? "" : "s"}. New conferences and newly added IPN meetups or member discounts trigger these alerts. Review the complete content below before confirming.`
+                  : isUpdate
+                    ? `Saving ${conferenceName} will update the member portal. This save will not queue a member email.`
+                    : `Publishing ${conferenceName} will update the member portal. This save will not queue a member email.`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {sendsEmail && (
+          <div className="flex-1 space-y-4 overflow-y-auto bg-zinc-50 px-4 py-5 sm:px-6">
+            {emailPreviews.map((preview) => (
+              <ConferenceEmailPreview key={preview.id} label={preview.label} content={preview.content} />
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 bg-white px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <button
+            ref={backButtonRef}
+            type="button"
+            onClick={onBack}
+            className="min-h-11 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-ipn/25"
+          >
+            Back to editing
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="min-h-11 rounded-lg bg-ipn px-5 py-2 text-sm font-semibold text-white transition hover:bg-ipn/90 focus:outline-none focus:ring-2 focus:ring-ipn/30 focus:ring-offset-2"
+          >
+            {isUpdate ? "Confirm & save changes" : sendsEmail ? "Confirm & publish" : "Publish conference"}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
 
 function ConferenceForm({ initial, onSubmit, pending }: {
   initial?: Partial<ConferenceFields>
@@ -798,6 +1254,15 @@ function ConferenceForm({ initial, onSubmit, pending }: {
   const [step, setStep] = useState(1)
   const [f, setF] = useState<ConferenceFields>({ ...CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [publishConfirmation, setPublishConfirmation] = useState<{
+    payload: Omit<AdminConferencePayload, "id">
+    emailPreviews: ReturnType<typeof conferenceEmailPreviews>
+  } | null>(null)
+  const publishFields = { ...f, status: "published" as const }
+  const queuedEmailPreviews = conferenceEmailPreviews(publishFields, initial?.status)
+  const configuredEmailPreviews = configuredConferenceEmailPreviews(f)
+  const portalPreview = conferencePreviewRecord(f)
+  const isPublishedConference = initial?.status === "published"
 
   function set<K extends keyof ConferenceFields>(key: K, value: ConferenceFields[K]) {
     setF((prev) => ({ ...prev, [key]: value }))
@@ -813,33 +1278,48 @@ function ConferenceForm({ initial, onSubmit, pending }: {
     return Object.keys(e).length === 0
   }
 
-  function handleSubmit() {
+  function handleSubmit(status: Extract<ConferenceStatus, "draft" | "published">) {
+    const incompleteMeetup = f.meetups.find((meetup) => meetup.title.trim() && (!meetup.startsAt || !meetup.endsAt))
+    if (incompleteMeetup) {
+      setErrors((current) => ({ ...current, meetups: "Every meetup needs a start and end date and time." }))
+      return
+    }
+    const reversedMeetup = f.meetups.find((meetup) => meetup.title.trim() && meetup.endsAt <= meetup.startsAt)
+    if (reversedMeetup) {
+      setErrors((current) => ({ ...current, meetups: "Each meetup end time must be after its start time." }))
+      return
+    }
+
     const meetups: AdminConferenceMeetupInput[] = f.meetups
       .filter((m) => m.title.trim())
       .map((m) => ({
         id: m.id,
         title: m.title.trim(),
-        type: m.type.trim() || "IPN Meetup",
         startsAt: m.startsAt,
+        endsAt: m.endsAt || undefined,
         location: m.location.trim() || undefined,
         description: m.description.trim() || undefined,
+        notificationMessage: m.notificationMessage.trim() || undefined,
       }))
     const discounts: AdminConferenceDiscountInput[] = f.discounts
       .filter((d) => d.label.trim())
       .map((d) => ({
+        id: d.id,
         label: d.label.trim(),
         code: d.code.trim() || undefined,
         url: d.url.trim() || undefined,
         description: d.description.trim() || undefined,
+        notificationMessage: d.notificationMessage.trim() || undefined,
         howToApply: d.howToApply.trim() || undefined,
         expiresAt: d.expiresAt || undefined,
       }))
 
-    onSubmit({
+    const payload: Omit<AdminConferencePayload, "id"> = {
       slug: f.slug || undefined,
       name: f.name,
       organizer: f.organizer || undefined,
       category: f.category,
+      coverImageUrl: f.coverImageUrl || undefined,
       summary: f.summary || undefined,
       description: f.description || undefined,
       startsAt: f.startsAt,
@@ -852,10 +1332,23 @@ function ConferenceForm({ initial, onSubmit, pending }: {
       websiteUrl: f.websiteUrl || undefined,
       registrationUrl: f.registrationUrl || undefined,
       whatsappUrl: f.whatsappUrl || undefined,
-      status: f.status,
+      status,
       meetups,
       discounts,
-    })
+    }
+    if (status === "draft") {
+      onSubmit(payload)
+      return
+    }
+    setPublishConfirmation({ payload, emailPreviews: queuedEmailPreviews })
+  }
+
+  const closePublishConfirmation = useCallback(() => setPublishConfirmation(null), [])
+
+  function confirmPublish() {
+    if (!publishConfirmation) return
+    onSubmit(publishConfirmation.payload)
+    setPublishConfirmation(null)
   }
 
   return (
@@ -919,7 +1412,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
 
       {step === 2 && (
         <>
-          <StepBar step={2} total={4} title="Links & status" />
+          <StepBar step={2} total={4} title="Links" />
           <div className="flex flex-col gap-4">
             <Field label="Conference website" hint="Optional">
               <input value={f.websiteUrl} onChange={(e) => set("websiteUrl", e.target.value)} className={inputCls()} placeholder="https://..." />
@@ -930,11 +1423,6 @@ function ConferenceForm({ initial, onSubmit, pending }: {
             <Field label="WhatsApp chat invite URL" hint="Optional — conference-specific member chat">
               <input value={f.whatsappUrl} onChange={(e) => set("whatsappUrl", e.target.value)} className={inputCls()} placeholder="https://chat.whatsapp.com/..." />
             </Field>
-            <Field label="Status" hint="Draft is hidden from everyone; published shows on the admin-beta page; archived hides it again">
-              <select value={f.status} onChange={(e) => set("status", e.target.value as ConferenceStatus)} className={`cursor-pointer ${inputCls()}`}>
-                {CONFERENCE_STATUSES.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-              </select>
-            </Field>
           </div>
           <NavRow step={2} total={4} onBack={() => setStep(1)} onNext={() => setStep(3)} onSubmit={() => {}} pending={pending} submitLabel="" />
         </>
@@ -944,6 +1432,9 @@ function ConferenceForm({ initial, onSubmit, pending }: {
         <>
           <StepBar step={3} total={4} title="Details" sub="Shown on the conference detail page" />
           <div className="flex flex-col gap-4">
+            <Field label="Cover photo" hint="16:9 landscape image. 1280 × 720 px recommended; keep important content away from the edges.">
+              <ImageUploadField value={f.coverImageUrl} onChange={(url) => set("coverImageUrl", url)} />
+            </Field>
             <Field label="Summary" hint="1–2 sentences shown on the conference card">
               <textarea value={f.summary} onChange={(e) => set("summary", e.target.value)} rows={2} className={inputCls()} />
             </Field>
@@ -965,22 +1456,36 @@ function ConferenceForm({ initial, onSubmit, pending }: {
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium text-zinc-600">IPN meetups</p>
               <p className="text-[11px] text-zinc-400">On-site IPN gatherings during this conference</p>
+              {errors.meetups && <p className="text-xs text-red-600">{errors.meetups}</p>}
               {f.meetups.map((meetup, i) => (
                 <div key={i} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto]">
-                    <input value={meetup.title} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], title: e.target.value }; set("meetups", next) }} placeholder="Meetup title" className={inputCls()} />
-                    <input value={meetup.type} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], type: e.target.value }; set("meetups", next) }} placeholder="Type (e.g. IPN Meetup)" className={inputCls()} />
-                    <button type="button" onClick={() => set("meetups", f.meetups.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <Field label="Meetup title">
+                      <input value={meetup.title} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], title: e.target.value }; set("meetups", next) }} placeholder="e.g. IPN member happy hour" className={inputCls()} />
+                    </Field>
+                    <button type="button" onClick={() => set("meetups", f.meetups.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer self-end rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input type="datetime-local" value={meetup.startsAt} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], startsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
-                    <input value={meetup.location} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], location: e.target.value }; set("meetups", next) }} placeholder="Location (e.g. Hotel poolside bar)" className={inputCls()} />
+                    <Field label="Start date & time" required>
+                      <input type="datetime-local" required value={meetup.startsAt} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], startsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                    </Field>
+                    <Field label="End date & time" required>
+                      <input type="datetime-local" required value={meetup.endsAt} min={meetup.startsAt || undefined} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], endsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                    </Field>
                   </div>
-                  <input value={meetup.description} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], description: e.target.value }; set("meetups", next) }} placeholder="Description (optional)" className={inputCls()} />
+                  <Field label="Location" hint="Optional">
+                    <input value={meetup.location} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], location: e.target.value }; set("meetups", next) }} placeholder="e.g. Hotel poolside bar" className={inputCls()} />
+                  </Field>
+                  <Field label="Description" hint="Optional. Shown on the member portal.">
+                    <input value={meetup.description} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], description: e.target.value }; set("meetups", next) }} className={inputCls()} />
+                  </Field>
+                  <Field label="Email message" hint="Optional. Written only for the member alert; if blank, the description above is used.">
+                    <textarea value={meetup.notificationMessage} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], notificationMessage: e.target.value }; set("meetups", next) }} rows={3} placeholder="Join fellow IPN members for a casual meetup during the conference. Look for the purple lanyard." className={inputCls()} />
+                  </Field>
                 </div>
               ))}
               <p className="text-[11px] text-zinc-400">Members RSVP to meetups in-app — no registration link needed.</p>
-              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", type: "IPN Meetup", startsAt: "", location: "", description: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", startsAt: "", endsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add meetup
               </button>
             </div>
@@ -997,19 +1502,62 @@ function ConferenceForm({ initial, onSubmit, pending }: {
                   </div>
                   <input value={discount.url} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], url: e.target.value }; set("discounts", next) }} placeholder="URL (optional)" className={inputCls()} />
                   <input value={discount.description} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], description: e.target.value }; set("discounts", next) }} placeholder="Description (optional)" className={inputCls()} />
+                  <Field label="Email message" hint="Optional. Written only for the member alert; if blank, the description above is used.">
+                    <textarea value={discount.notificationMessage} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], notificationMessage: e.target.value }; set("discounts", next) }} rows={3} placeholder="IPN members can now save on conference registration. Use the member code before the deadline." className={inputCls()} />
+                  </Field>
                   <input value={discount.howToApply} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], howToApply: e.target.value }; set("discounts", next) }} placeholder="How to apply (e.g. 'Enter code at checkout')" className={inputCls()} />
                   <Field label="Expires" hint="Optional">
                     <input type="datetime-local" value={discount.expiresAt} onChange={(e) => { const next = [...f.discounts]; next[i] = { ...next[i], expiresAt: e.target.value }; set("discounts", next) }} className={inputCls()} />
                   </Field>
                 </div>
               ))}
-              <button type="button" onClick={() => set("discounts", [...f.discounts, { label: "", code: "", url: "", description: "", howToApply: "", expiresAt: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <button type="button" onClick={() => set("discounts", [...f.discounts, { label: "", code: "", url: "", description: "", notificationMessage: "", howToApply: "", expiresAt: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add discount
               </button>
             </div>
+
+            <ConferencePreviewWorkspace
+              conference={portalPreview}
+              queuedEmailPreviews={queuedEmailPreviews}
+              configuredEmailPreviews={configuredEmailPreviews}
+              status="published"
+            />
           </div>
-          <NavRow step={4} total={4} onBack={() => setStep(3)} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Publish conference" />
+          <div className="mt-7 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" onClick={() => setStep(3)} className="min-h-11 w-full cursor-pointer rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-800 sm:w-auto sm:border-transparent">
+              ← Back
+            </button>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              {!isPublishedConference && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit("draft")}
+                  disabled={pending}
+                  className="min-h-11 w-full cursor-pointer rounded-lg border border-ipn/30 bg-white px-5 py-2 text-sm font-medium text-ipn transition hover:bg-ipn/5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {pending ? "Saving…" : "Save draft"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleSubmit("published")}
+                disabled={pending}
+                className="min-h-11 w-full cursor-pointer rounded-lg bg-ipn px-5 py-2 text-sm font-medium text-white transition hover:bg-ipn/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {pending ? "Saving…" : isPublishedConference ? "Save changes" : "Publish conference"}
+              </button>
+            </div>
+          </div>
         </>
+      )}
+      {publishConfirmation && (
+        <ConferencePublishConfirmation
+          conferenceName={f.name.trim() || "this conference"}
+          emailPreviews={publishConfirmation.emailPreviews}
+          isUpdate={isPublishedConference}
+          onBack={closePublishConfirmation}
+          onConfirm={confirmPublish}
+        />
       )}
     </>
   )
@@ -1021,6 +1569,7 @@ type PastConferenceFields = {
   name: string
   organizer: string
   category: string
+  coverImageUrl: string
   startsAt: string
   endsAt: string
   city: string
@@ -1032,8 +1581,56 @@ type PastConferenceFields = {
 
 const PAST_CONFERENCE_DEFAULTS: PastConferenceFields = {
   name: "", organizer: "", category: "",
+  coverImageUrl: "",
   startsAt: "", endsAt: "", city: "", state: "", country: "",
   summary: "", driveFolderUrl: "",
+}
+
+function pastConferencePreviewRecord(fields: PastConferenceFields): PastConferenceRecord | null {
+  if (!fields.name.trim()) return null
+  return {
+    id: "preview",
+    name: fields.name.trim(),
+    organizer: fields.organizer.trim() || null,
+    category: fields.category.trim() || null,
+    cover_image_url: fields.coverImageUrl.trim() || null,
+    starts_at: fields.startsAt || null,
+    ends_at: fields.endsAt || null,
+    city: fields.city.trim() || null,
+    state: fields.state.trim() || null,
+    country: fields.country.trim() || null,
+    summary: fields.summary.trim() || null,
+    drive_folder_url: fields.driveFolderUrl.trim() || null,
+  }
+}
+
+function PastConferencePreview({ conference }: { conference: PastConferenceRecord | null }) {
+  const [viewport, setViewport] = useState<PortalPreviewViewport>("desktop")
+  return (
+    <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-zinc-800">Member portal preview</p>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-500">This is the past-conference card members will see.</p>
+        </div>
+        <PreviewToggle
+          value={viewport}
+          onChange={setViewport}
+          label="Past conference preview viewport"
+          options={[{ value: "mobile", label: "Mobile" }, { value: "desktop", label: "Desktop" }]}
+        />
+      </div>
+      {conference ? (
+        <MemberPortalFrame path="/dashboard/conferences?tab=past" viewport={viewport}>
+          <div className={viewport === "mobile" ? "mx-auto" : "mx-auto max-w-md"}>
+            <PastConferenceCard conference={conference} preview compact={viewport === "mobile"} />
+          </div>
+        </MemberPortalFrame>
+      ) : (
+        <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">Add a conference name to see the member portal preview.</p>
+      )}
+    </section>
+  )
 }
 
 function PastConferenceForm({ initial, onSubmit, pending }: {
@@ -1043,6 +1640,7 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
 }) {
   const [f, setF] = useState<PastConferenceFields>({ ...PAST_CONFERENCE_DEFAULTS, ...initial })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const portalPreview = pastConferencePreviewRecord(f)
 
   function set<K extends keyof PastConferenceFields>(key: K, value: PastConferenceFields[K]) {
     setF((prev) => ({ ...prev, [key]: value }))
@@ -1059,6 +1657,7 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
       name: f.name,
       organizer: f.organizer || undefined,
       category: f.category || undefined,
+      coverImageUrl: f.coverImageUrl || undefined,
       startsAt: f.startsAt || undefined,
       endsAt: f.endsAt || undefined,
       city: f.city || undefined,
@@ -1085,6 +1684,9 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
             <input value={f.category} onChange={(e) => set("category", e.target.value)} className={inputCls()} />
           </Field>
         </div>
+        <Field label="Cover photo" hint="16:9 landscape image. 1280 × 720 px recommended; keep important content away from the edges.">
+          <ImageUploadField value={f.coverImageUrl} onChange={(url) => set("coverImageUrl", url)} />
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Start date" hint="Optional">
             <input type="date" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inputCls()} />
@@ -1110,6 +1712,7 @@ function PastConferenceForm({ initial, onSubmit, pending }: {
         <Field label="Google Drive folder URL" hint="Shown as a &quot;View & share photos&quot; button — leave blank to show &quot;Photos coming soon&quot;">
           <input value={f.driveFolderUrl} onChange={(e) => set("driveFolderUrl", e.target.value)} className={inputCls()} placeholder="https://drive.google.com/..." />
         </Field>
+        <PastConferencePreview conference={portalPreview} />
       </div>
       <NavRow step={1} total={1} onBack={() => {}} onNext={() => {}} onSubmit={handleSubmit} pending={pending} submitLabel="Save past conference" />
     </>
@@ -1205,18 +1808,22 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
   const timezone = c.timezone ?? "America/New_York"
   return {
     name: c.name, organizer: c.organizer ?? "", category: c.category,
+    coverImageUrl: c.cover_image_url ?? "",
     city: c.city ?? "", state: c.state ?? "", country: c.country ?? "", venue: c.venue ?? "",
     startsAt: isoToLocal(c.starts_at, timezone), endsAt: isoToLocal(c.ends_at, timezone), timezone,
     websiteUrl: c.website_url ?? "", registrationUrl: c.registration_url ?? "", whatsappUrl: c.whatsapp_url ?? "",
     status: c.status,
     summary: c.summary ?? "", description: c.description ?? "", slug: c.slug,
     meetups: c.meetups.map((m) => ({
-      id: m.id, title: m.title, type: m.type, startsAt: isoToLocal(m.startsAt, timezone),
+      id: m.id, title: m.title, startsAt: isoToLocal(m.startsAt, timezone),
+      endsAt: m.endsAt ? isoToLocal(m.endsAt, timezone) : "",
       location: m.location ?? "", description: m.description ?? "",
+      notificationMessage: m.notificationMessage ?? "",
     })),
     discounts: c.discounts.map((d) => ({
-      label: d.label, code: d.code ?? "", url: d.url ?? "",
-      description: d.description ?? "", howToApply: d.howToApply ?? "",
+      id: d.id, label: d.label, code: d.code ?? "", url: d.url ?? "",
+      description: d.description ?? "", notificationMessage: d.notificationMessage ?? "",
+      howToApply: d.howToApply ?? "",
       expiresAt: d.expiresAt ? isoToLocal(d.expiresAt, timezone) : "",
     })),
   }
@@ -1225,6 +1832,7 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
 function pastConferenceToFields(c: PastConferenceRecord): PastConferenceFields {
   return {
     name: c.name, organizer: c.organizer ?? "", category: c.category ?? "",
+    coverImageUrl: c.cover_image_url ?? "",
     startsAt: c.starts_at ?? "", endsAt: c.ends_at ?? "",
     city: c.city ?? "", state: c.state ?? "", country: c.country ?? "",
     summary: c.summary ?? "", driveFolderUrl: c.drive_folder_url ?? "",
@@ -1611,7 +2219,7 @@ export default function ContentIntakeForm() {
       if (result.error) {
         setErrorMsg(result.error)
       } else {
-        setSuccessMsg(`Published: ${result.slug}`)
+        setSuccessMsg(payload.status === "draft" ? `Draft saved: ${result.slug}` : `Saved: ${result.slug}`)
         await loadData()
         setView("list")
       }

@@ -116,8 +116,8 @@ export default function ConferencesGrid({
 
           {filtered.length ? (
             <div className="grid min-w-0 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((conference) => (
-                <ConferenceCard key={conference.id} conference={conference} />
+              {filtered.map((conference, index) => (
+                <ConferenceCard key={conference.id} conference={conference} priority={index === 0} />
               ))}
             </div>
           ) : (
