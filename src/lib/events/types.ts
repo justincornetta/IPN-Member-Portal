@@ -62,6 +62,7 @@ export type EventRecord = {
   speaker_resources: EventSpeakerResources | null
   status: string
   registration_count: number
+  registration_reminder_enabled: boolean
 }
 
 export type EventWithRegistration = EventRecord & {

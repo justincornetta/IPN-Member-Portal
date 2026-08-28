@@ -1,12 +1,16 @@
 import type { Config } from "@netlify/functions"
-import { processPendingMemberNotifications } from "../../src/lib/member-notifications/email-service"
+import {
+  processPendingMemberNotifications,
+  queueDueEventRegistrationReminders,
+} from "../../src/lib/member-notifications/email-service"
 
 export default async function sendMemberNotifications() {
   try {
+    const queued = await queueDueEventRegistrationReminders()
     const result = await processPendingMemberNotifications()
-    console.log("[send-member-notifications]", JSON.stringify({ result }))
+    console.log("[send-member-notifications]", JSON.stringify({ queued, result }))
 
-    return new Response(JSON.stringify({ ok: true, result }), {
+    return new Response(JSON.stringify({ ok: true, queued, result }), {
       headers: { "content-type": "application/json" },
     })
   } catch (error) {

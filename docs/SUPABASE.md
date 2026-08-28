@@ -271,6 +271,7 @@ Portal-owned event records for the member-facing Events section.
 | `speaker_resources` | `jsonb` | Optional papers, links, and event resources for IPN Lab detail pages |
 | `status` | `text` | `draft`, `published`, or `cancelled` |
 | `registration_count` | `integer` | Maintained by trigger |
+| `registration_reminder_enabled` | `boolean` | Per-event opt-out for the approximately 72-hour non-registrant reminder; defaults `true` |
 
 ### `public.event_registrations`
 
@@ -309,7 +310,7 @@ Resend.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary key |
-| `kind` | `text` | `new_event`, `new_conference`, `conference_meetup_added`, `conference_discount_added`, `connection_request_received`, or `connection_request_accepted` |
+| `kind` | `text` | `new_event`, `event_registration_reminder`, `new_conference`, `conference_meetup_added`, `conference_discount_added`, `connection_request_received`, or `connection_request_accepted` |
 | `recipient_user_id` / `actor_user_id` | `uuid` | Recipient and, for connection emails, the member whose action caused the message |
 | `event_id` / `conference_id` / `connection_id` | `uuid` | Exactly one source is present according to the notification kind |
 | `source_key` | `text` | Stable meetup or discount id for conference follow-ups; otherwise null |
@@ -325,6 +326,18 @@ queue. The base migration is
 `supabase/migrations/20260731182209_member_email_notifications.sql`, extended
 for conference messages by
 `supabase/migrations/20260825204123_conference_email_notifications.sql`.
+The registration-reminder extension is
+`supabase/migrations/20260826021557_add_event_registration_reminders.sql`.
+`supabase/migrations/20260827203009_reconcile_member_notification_constraints.sql`
+then reconciles the shared queue constraints so both extensions remain valid.
+
+Registration reminders reuse this queue and its `MEMBER_NOTIFICATION_MODE`
+`off`/`test`/`live` audience safeguards. They are additionally fail-closed behind
+`EVENT_REGISTRATION_REMINDERS_ENABLED=true`. Queueing and send-time validation
+both suppress portal RSVPs, synced external tickets, and new-event announcements
+sent to the same recipient within 48 hours. The scheduler queues events with
+more than 66 and at most 72 hours remaining, providing a deterministic six-hour
+recovery window while retaining one durable delivery per event and recipient.
 
 ### `public.resources`
 
