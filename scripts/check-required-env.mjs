@@ -25,7 +25,6 @@ for (const filename of envFiles) {
     values[match[1]] = match[2].trim().replace(/^(?:"(.*)"|'(.*)')$/, "$1$2")
   }
 }
-
 const required = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -41,4 +40,3 @@ if (missing.length > 0) {
   ].join("\n"))
   process.exit(1)
 }
-
