@@ -11,15 +11,19 @@ export type ConferenceMeetup = {
   title: string
   type: string
   startsAt: string
+  endsAt?: string | null
   location: string | null
   description: string | null
+  notificationMessage?: string | null
 }
 
 export type ConferenceDiscount = {
+  id: string
   label: string
   code: string | null
   url: string | null
   description: string | null
+  notificationMessage?: string | null
   howToApply: string | null
   expiresAt: string | null
 }
@@ -30,6 +34,7 @@ export type ConferenceRecord = {
   name: string
   organizer: string | null
   category: ConferenceCategory
+  cover_image_url: string | null
   summary: string | null
   description: string | null
   starts_at: string
@@ -55,9 +60,11 @@ export type ConferenceAttendee = DirectoryMember
 
 export type PastConferenceRecord = {
   id: string
+  slug?: string | null
   name: string
   organizer: string | null
   category: string | null
+  cover_image_url: string | null
   starts_at: string | null
   ends_at: string | null
   city: string | null

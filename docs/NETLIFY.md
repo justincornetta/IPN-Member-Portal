@@ -40,9 +40,9 @@ Add these in Netlify project settings:
 | `RESEND_API_KEY` | Resend API key | Same value only when testing email sends | Server-only key for event RSVP emails and member notifications |
 | `EVENT_EMAIL_FROM` | `IPN Events <events@members.intercollegiatepsychedelics.net>` | Same or sandbox sender | Sender used for event transactional emails; use the already verified `members.intercollegiatepsychedelics.net` Resend domain |
 | `EVENT_EMAIL_REPLY_TO` | `info@intercollegiatepsychedelics.net` | Same or test inbox | Reply-to address for event transactional emails |
-| `MEMBER_NOTIFICATION_MODE` | Start with `test`; change to `live` only after approval | `test` | Safety switch for new-event and connection emails. `off` (and an unset value) queues/sends nothing; `test` limits recipients to the allowlist; `live` enables the full member audience. |
+| `MEMBER_NOTIFICATION_MODE` | Start with `test`; change to `live` only after approval | `test` | Safety switch for new-event, conference, and connection emails. `off` (and an unset value) queues/sends nothing; `test` limits recipients to the allowlist; `live` enables the full member audience. |
 | `MEMBER_NOTIFICATION_TEST_RECIPIENTS` | Comma-separated approved test emails | Same value | Required in `test` mode. Initial QA should contain only Justin's account and the dedicated test account. |
-| `MEMBER_EMAIL_FROM` | `IPN Member Portal <members@members.intercollegiatepsychedelics.net>` | Same or sandbox sender | Sender for new-event and connection notifications on the verified member-portal domain |
+| `MEMBER_EMAIL_FROM` | `IPN Member Portal <members@members.intercollegiatepsychedelics.net>` | Same or sandbox sender | Sender for new-event, conference, and connection notifications on the verified member-portal domain |
 | `MEMBER_EMAIL_REPLY_TO` | `info@intercollegiatepsychedelics.net` | Same or test inbox | Reply-to address for member notifications |
 
 Do not add service-role keys, Mailchimp keys, Resend keys, or other webhook secrets until a feature needs them.
@@ -54,7 +54,7 @@ Resend is currently configured on the existing plan with one verified domain:
 Resend or attempt to verify the root domain unless the email strategy changes.
 
 Keep `MEMBER_NOTIFICATION_MODE=test` through the first end-to-end checks. In
-that mode, both queued event announcements and immediate connection emails are
+that mode, queued event/conference announcements and immediate connection emails are
 limited to `MEMBER_NOTIFICATION_TEST_RECIPIENTS`; all other members are skipped.
 Changing the mode to `live` is the explicit production-audience switch.
 
@@ -68,14 +68,21 @@ Functions UI "Run now" action for preview/manual smoke tests.
 
 ## Scheduled member notifications
 
-New-event and connection notifications use the private
+New-event, conference, and connection notifications use the private
 `member_notification_deliveries` ledger. Connection messages are attempted
 immediately after the member action. The Netlify Scheduled Function at
 `netlify/functions/send-member-notifications.mts` runs every 5 minutes to send
-queued event announcements and retry temporary failures. Each 30-second
+queued event and conference announcements and retry temporary failures. Each 30-second
 scheduled invocation reserves at most 100 messages, sends them in one Resend
 batch, and uses a deterministic idempotency key. Larger queues continue on the
 next 5-minute run.
+
+Conference announcements use the same full eligible member audience as new
+events. Publishing a conference for the first time queues one `new_conference`
+message. Adding a meetup or discount to an already published conference queues
+a `conference_meetup_added` or `conference_discount_added` follow-up for that
+item. Items included in the initial publication do not generate duplicate
+follow-ups, and draft or archived saves queue nothing.
 
 To queue an existing event for the allowlisted test recipients, keep
 `MEMBER_NOTIFICATION_MODE=test` and manually POST its exact slug to the

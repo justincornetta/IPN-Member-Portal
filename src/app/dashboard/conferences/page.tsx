@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { listPublishedConferences, listPastConferences } from "@/lib/conferences/queries"
+import {
+  mergeCompletedAndHistoricalConferences,
+  splitConferencesByEndDate,
+} from "@/lib/conferences/lifecycle"
 import ConferencesGrid from "./ConferencesGrid"
 
 export default async function ConferencesPage() {
@@ -11,10 +15,12 @@ export default async function ConferencesPage() {
 
   if (!user) redirect("/login")
 
-  const [conferences, pastConferences] = await Promise.all([
+  const [publishedConferences, historicalConferences] = await Promise.all([
     listPublishedConferences(),
     listPastConferences(),
   ])
+  const { upcoming: conferences, completed } = splitConferencesByEndDate(publishedConferences)
+  const pastConferences = mergeCompletedAndHistoricalConferences(completed, historicalConferences)
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">

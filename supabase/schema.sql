@@ -488,15 +488,20 @@ alter table public.event_email_deliveries enable row level security;
 
 -- ── 6a. Member notification deliveries ─────────────────────
 --
--- Private queue and audit ledger for new-event announcements and connection
--- notifications. Member clients receive no policies on this table; service-role
--- server code is the only reader/writer.
+-- Private queue and audit ledger for new-event, conference, and connection
+-- notifications. Member clients receive no policies on this table;
+-- service-role server code is the only reader/writer. The conference foreign
+-- key and stable item-id backfill are applied by the conference notification
+-- migration after the conferences table exists.
 
 create table if not exists public.member_notification_deliveries (
   id                uuid primary key default gen_random_uuid(),
   kind              text not null
     check (kind in (
       'new_event',
+      'new_conference',
+      'conference_meetup_added',
+      'conference_discount_added',
       'event_registration_reminder',
       'connection_request_received',
       'connection_request_accepted'
@@ -504,7 +509,9 @@ create table if not exists public.member_notification_deliveries (
   recipient_user_id uuid not null references auth.users on delete cascade,
   actor_user_id     uuid references auth.users on delete cascade,
   event_id          uuid references public.events on delete cascade,
+  conference_id     uuid,
   connection_id     uuid references public.connections on delete cascade,
+  source_key        text,
   dedupe_key        text not null unique,
   to_email          text not null,
   status            text not null default 'pending'
@@ -520,8 +527,28 @@ create table if not exists public.member_notification_deliveries (
     (
       kind in ('new_event', 'event_registration_reminder')
       and event_id is not null
+      and conference_id is null
       and connection_id is null
       and actor_user_id is null
+      and source_key is null
+    )
+    or
+    (
+      kind = 'new_conference'
+      and conference_id is not null
+      and event_id is null
+      and connection_id is null
+      and actor_user_id is null
+      and source_key is null
+    )
+    or
+    (
+      kind in ('conference_meetup_added', 'conference_discount_added')
+      and conference_id is not null
+      and event_id is null
+      and connection_id is null
+      and actor_user_id is null
+      and source_key is not null
     )
     or
     (
@@ -529,6 +556,8 @@ create table if not exists public.member_notification_deliveries (
       and connection_id is not null
       and actor_user_id is not null
       and event_id is null
+      and conference_id is null
+      and source_key is null
     )
   )
 );
@@ -544,6 +573,9 @@ create index if not exists member_notification_deliveries_event_idx
 
 create index if not exists member_notification_deliveries_connection_idx
   on public.member_notification_deliveries (connection_id, kind);
+
+create index if not exists member_notification_deliveries_conference_idx
+  on public.member_notification_deliveries (conference_id, kind);
 
 alter table public.member_notification_deliveries enable row level security;
 revoke all on public.member_notification_deliveries from anon, authenticated, public;

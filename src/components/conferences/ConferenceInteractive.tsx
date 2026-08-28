@@ -28,6 +28,8 @@ type Props = {
   meetups: ConferenceMeetup[]
   timezone: string
   initialMeetupRsvpIds: string[]
+  preview?: boolean
+  compact?: boolean
 }
 
 const STACK_LIMIT = 6
@@ -49,6 +51,8 @@ export default function ConferenceInteractive({
   meetups,
   timezone,
   initialMeetupRsvpIds,
+  preview = false,
+  compact = false,
 }: Props) {
   const router = useRouter()
   const [isGoing, setIsGoing] = useState(initialIsGoing)
@@ -91,6 +95,7 @@ export default function ConferenceInteractive({
   const overflow = Math.max(totalCount - stacked.length, 0)
 
   function toggleRsvp() {
+    if (preview) return
     setError(null)
     const goingNext = !isGoing
     setIsGoing(goingNext)
@@ -108,6 +113,7 @@ export default function ConferenceInteractive({
   }
 
   function toggleVisibility(nextVisible: boolean) {
+    if (preview) return
     setError(null)
     setIsVisible(nextVisible)
     startTransition(async () => {
@@ -122,6 +128,7 @@ export default function ConferenceInteractive({
   }
 
   function toggleMeetupRsvp(meetupId: string) {
+    if (preview) return
     setMeetupError(null)
     const goingNext = !meetupGoing.has(meetupId)
     setMeetupGoing((current) => {
@@ -165,8 +172,8 @@ export default function ConferenceInteractive({
           <button
             type="button"
             onClick={toggleRsvp}
-            disabled={pending}
-            className={`inline-flex min-h-11 flex-shrink-0 items-center rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 ${
+            disabled={preview || pending}
+            className={`inline-flex min-h-11 flex-shrink-0 items-center rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed ${preview ? "" : "disabled:opacity-60"} ${compact ? "" : "sm:min-h-0"} ${
               isGoing
                 ? "border border-zinc-200 bg-white text-zinc-600 hover:border-red-200 hover:text-red-600"
                 : "bg-ipn text-white hover:bg-ipn-dark"
@@ -184,7 +191,7 @@ export default function ConferenceInteractive({
               type="checkbox"
               checked={isVisible}
               onChange={(event) => toggleVisibility(event.target.checked)}
-              disabled={pending}
+              disabled={preview || pending}
               className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0"
             />
             <span className="text-sm text-zinc-700">
@@ -198,7 +205,7 @@ export default function ConferenceInteractive({
       </div>
 
       {meetups.length > 0 && (
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className={`rounded-lg border border-zinc-200 bg-white p-5 shadow-sm ${compact ? "" : "sm:p-7"}`}>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
             IPN events &amp; meetups
           </h2>
@@ -217,17 +224,17 @@ export default function ConferenceInteractive({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
-                        {meetup.type}
+                        IPN Meetup
                       </span>
                       <span className="text-xs text-zinc-400">
-                        {formatMeetupDateTime(meetup.startsAt, timezone)}
+                        {formatMeetupDateTime(meetup.startsAt, timezone, meetup.endsAt)}
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => toggleMeetupRsvp(meetup.id)}
-                      disabled={meetupPendingId === meetup.id}
-                      className={`inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 ${
+                      disabled={preview || meetupPendingId === meetup.id}
+                      className={`inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${preview ? "" : "disabled:opacity-60"} ${compact ? "" : "sm:min-h-0"} ${
                         going
                           ? "border-zinc-200 bg-white text-zinc-600 hover:border-red-200 hover:text-red-600"
                           : "border-ipn/20 bg-white text-ipn hover:bg-ipn/5"
@@ -254,8 +261,9 @@ export default function ConferenceInteractive({
         </h2>
         <button
           type="button"
-          onClick={() => setShowList((current) => !current)}
-          className="mt-3 flex min-h-11 w-full items-center justify-between gap-3 text-left sm:min-h-0"
+          onClick={() => { if (!preview) setShowList((current) => !current) }}
+          disabled={preview}
+          className={`mt-3 flex min-h-11 w-full items-center justify-between gap-3 text-left disabled:cursor-not-allowed ${compact ? "" : "sm:min-h-0"}`}
         >
           <span className="flex items-center gap-3">
             <span className="flex -space-x-2">
@@ -328,5 +336,53 @@ export default function ConferenceInteractive({
         />
       )}
     </div>
+  )
+}
+
+const PREVIEW_MEMBER: ConferenceAttendee = {
+  id: "preview-member",
+  first_name: "IPN",
+  last_name: "Member",
+  avatar_url: null,
+  school: null,
+  affiliation: null,
+  field: null,
+  city: null,
+  state: null,
+  country: null,
+  bio: null,
+  interest_tags: null,
+  linkedin_url: null,
+  persona: null,
+  admin_role: null,
+  team: null,
+}
+
+export function ConferenceInteractivePreview({
+  meetups,
+  timezone,
+  compact = false,
+}: {
+  meetups: ConferenceMeetup[]
+  timezone: string
+  compact?: boolean
+}) {
+  return (
+    <ConferenceInteractive
+      conferenceId="preview"
+      conferenceSlug="conference-preview"
+      currentUserId={PREVIEW_MEMBER.id}
+      currentMemberProfile={PREVIEW_MEMBER}
+      initialIsGoing={false}
+      initialIsVisible={true}
+      initialAttendees={[]}
+      totalCount={0}
+      connectionMap={{}}
+      meetups={meetups}
+      timezone={timezone}
+      initialMeetupRsvpIds={[]}
+      preview
+      compact={compact}
+    />
   )
 }

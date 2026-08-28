@@ -14,13 +14,36 @@ export function formatConferenceDateRange(startsAt: string, endsAt: string, time
   return `${monthDay.format(start)} – ${monthDay.format(end)}, ${year.format(end)}`
 }
 
-export function formatMeetupDateTime(startsAt: string, timezone: string) {
-  return new Intl.DateTimeFormat("en", {
+function meetupDateKey(value: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: timezone,
+  }).formatToParts(value)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? ""
+  return `${part("year")}-${part("month")}-${part("day")}`
+}
+
+export function formatMeetupDateTime(startsAt: string, timezone: string, endsAt?: string | null) {
+  const start = new Date(startsAt)
+  const startFormatter = new Intl.DateTimeFormat("en", {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZone: timezone,
-  }).format(new Date(startsAt))
+  })
+  const formattedStart = startFormatter.format(start)
+  if (!endsAt) return formattedStart
+
+  const end = new Date(endsAt)
+  if (Number.isNaN(end.getTime())) return formattedStart
+  const sameDay = meetupDateKey(start, timezone) === meetupDateKey(end, timezone)
+  const endFormatter = new Intl.DateTimeFormat("en", sameDay
+    ? { hour: "numeric", minute: "2-digit", timeZone: timezone }
+    : { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: timezone })
+
+  return `${formattedStart}–${endFormatter.format(end)}`
 }

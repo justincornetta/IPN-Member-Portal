@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import type { ConferenceAttendee, ConferenceRecord, PastConferenceRecord } from "./types"
 
 const CONFERENCE_SELECT =
-  "id, slug, name, organizer, category, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status"
+  "id, slug, name, organizer, category, cover_image_url, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status"
 
 export async function listPublishedConferences(): Promise<ConferenceRecord[]> {
   const supabase = await createClient()
@@ -19,7 +19,7 @@ export async function listPastConferences(): Promise<PastConferenceRecord[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from("past_conferences")
-    .select("id, name, organizer, category, starts_at, ends_at, city, state, country, summary, drive_folder_url")
+    .select("id, name, organizer, category, cover_image_url, starts_at, ends_at, city, state, country, summary, drive_folder_url")
     .order("starts_at", { ascending: false })
 
   return (data ?? []) as PastConferenceRecord[]
