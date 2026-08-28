@@ -15,9 +15,11 @@ const TYPE_OPTIONS: { id: FeedbackType; label: string; description: string }[] =
 export function FeedbackForm({
   onComplete,
   embedded = false,
+  autoFocus = true,
 }: {
   onComplete?: () => void
   embedded?: boolean
+  autoFocus?: boolean
 }) {
   const pathname = usePathname()
   const [type, setType] = useState<FeedbackType>("feedback")
@@ -27,10 +29,10 @@ export function FeedbackForm({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (embedded) return
+    if (embedded || !autoFocus) return
     const timer = window.setTimeout(() => textareaRef.current?.focus(), 50)
     return () => window.clearTimeout(timer)
-  }, [embedded, type])
+  }, [autoFocus, embedded, type])
 
   async function handleSubmit() {
     if (!message.trim()) return
@@ -133,7 +135,7 @@ export function FeedbackForm({
   )
 }
 
-function FeedbackModal({ onClose }: { onClose: () => void }) {
+function FeedbackModal({ onClose, guided = false }: { onClose: () => void; guided?: boolean }) {
   useEffect(() => {
     document.body.style.overflow = "hidden"
     return () => { document.body.style.overflow = "" }
@@ -146,8 +148,13 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 sm:items-center sm:px-4" onClick={onClose}>
-      <div className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 md:items-center md:px-4" onClick={onClose}>
+      <div
+        data-tour-guided-feedback={guided ? "true" : undefined}
+        role={guided ? "region" : "dialog"}
+        aria-label="Share feedback"
+        aria-modal={guided ? undefined : true}
+        className={`${guided ? "max-h-[calc(100dvh-18rem)]" : "max-h-[calc(100dvh-1rem)]"} w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl md:max-h-[calc(100dvh-1rem)] md:rounded-2xl`}
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <p className="text-sm font-semibold text-zinc-900">Share feedback</p>
@@ -159,7 +166,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
             </svg>
           </button>
         </div>
-        <FeedbackForm onComplete={onClose} />
+        <FeedbackForm onComplete={onClose} autoFocus={!guided} />
       </div>
     </div>
   )
@@ -167,54 +174,28 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
 
 export default function FeedbackFooter() {
   const [open, setOpen] = useState(false)
-  const pathname = usePathname()
-  const hideMobileBar = pathname?.startsWith("/dashboard/profile")
-
+  const [guidedOpen, setGuidedOpen] = useState(false)
   useEffect(() => {
-    function handleOpenFeedback() {
+    function handleOpenFeedback(event: Event) {
+      setGuidedOpen(event instanceof CustomEvent && event.detail?.guided === true)
       setOpen(true)
+    }
+    function handleCloseFeedback() {
+      setOpen(false)
+      setGuidedOpen(false)
     }
 
     window.addEventListener("ipn:open-feedback", handleOpenFeedback)
-    return () => window.removeEventListener("ipn:open-feedback", handleOpenFeedback)
+    window.addEventListener("ipn:close-feedback", handleCloseFeedback)
+    return () => {
+      window.removeEventListener("ipn:open-feedback", handleOpenFeedback)
+      window.removeEventListener("ipn:close-feedback", handleCloseFeedback)
+    }
   }, [])
 
   return (
     <>
-      {!hideMobileBar && (
-        <div
-          className="fixed inset-x-0 z-40 px-3 md:hidden"
-          style={{ bottom: "calc(4.75rem + env(safe-area-inset-bottom))" }}
-        >
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-ipn/20 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-lg shadow-zinc-900/10"
-            aria-label="Send feedback or report a bug"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ipn-light text-ipn">
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.7}
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8.625 9.75h6.75m-6.75 3h4.5m8.625-.75c0 4.142-4.03 7.5-9 7.5a10.6 10.6 0 0 1-3.45-.566L3 20.25l1.316-3.95A6.9 6.9 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z"
-                />
-              </svg>
-            </span>
-            <span className="truncate">Found an issue?</span>
-            <span className="font-semibold text-ipn">Send feedback</span>
-          </button>
-        </div>
-      )}
-
-      <footer className="mt-auto hidden px-4 py-5 sm:px-6 md:block">
+      <footer className="mt-auto px-3 py-5 sm:px-6">
         <div className="mx-auto flex max-w-md justify-center">
           <button
             type="button"
@@ -238,13 +219,16 @@ export default function FeedbackFooter() {
                 />
               </svg>
             </span>
-            <span>Found a bug or have feedback?</span>
-            <span className="text-ipn underline underline-offset-2">Send feedback</span>
+            <span>Found an issue?</span>
+            <span className="font-semibold text-ipn">Send feedback</span>
           </button>
         </div>
       </footer>
 
-      {open && <FeedbackModal onClose={() => setOpen(false)} />}
+      {open && <FeedbackModal onClose={() => {
+        setOpen(false)
+        setGuidedOpen(false)
+      }} guided={guidedOpen} />}
     </>
   )
 }

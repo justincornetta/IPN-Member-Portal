@@ -245,7 +245,32 @@ export async function advanceOnboardingFlow(
     .eq("user_id", userId)
     .maybeSingle()
 
-  if (selectError) throw new Error(`Could not read onboarding progress: ${selectError.message}`)
+  if (selectError) {
+    const missingFlowColumns =
+      selectError.code === "42703" || selectError.message.includes("does not exist")
+    if (!missingFlowColumns) {
+      throw new Error(`Could not read onboarding progress: ${selectError.message}`)
+    }
+
+    // Compatibility for development/staging databases that have the original
+    // milestone columns but not the resumable flow migration yet. In-progress
+    // steps remain best-effort; durable legacy completion is still recorded.
+    if (input.complete && (input.flow === "whatsapp" || input.flow === "profile")) {
+      const completedColumn = FLOW_COLUMNS[input.flow].completed
+      const now = new Date().toISOString()
+      const { error: legacyUpsertError } = await supabase
+        .from("member_onboarding_progress")
+        .upsert(
+          { user_id: userId, [completedColumn]: now, updated_at: now },
+          { onConflict: "user_id" },
+        )
+      if (legacyUpsertError) {
+        throw new Error(`Could not save onboarding progress: ${legacyUpsertError.message}`)
+      }
+      return true
+    }
+    return false
+  }
 
   const row = existing as Partial<OnboardingProgress> | null
   const now = new Date().toISOString()
@@ -261,6 +286,7 @@ export async function advanceOnboardingFlow(
     .upsert({ user_id: userId, ...updates }, { onConflict: "user_id" })
 
   if (upsertError) throw new Error(`Could not save onboarding progress: ${upsertError.message}`)
+  return true
 }
 
 export async function syncProfileOnboardingCompletion(

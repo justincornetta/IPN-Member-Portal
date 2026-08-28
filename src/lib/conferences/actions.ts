@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendEventRsvpSlackNotification } from "@/lib/slack/event-rsvp"
+import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 
 export async function rsvpToConference(
   conferenceId: string,
@@ -44,6 +45,7 @@ export async function rsvpToConference(
   }
 
   if (isNewRsvp) {
+    await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
     after(() => sendEventRsvpSlackNotification({
       kind: "conference",
       conferenceId,
@@ -100,6 +102,7 @@ export async function rsvpToMeetup(
   if (error && error.code !== "23505") return { error: error.message }
 
   if (isNewRsvp) {
+    await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
     after(() => sendEventRsvpSlackNotification({
       kind: "meetup",
       conferenceId,
@@ -109,6 +112,9 @@ export async function rsvpToMeetup(
   }
 
   revalidatePath(`/dashboard/conferences/${conferenceSlug}`)
+  revalidatePath("/dashboard/conferences")
+  revalidatePath("/dashboard/events")
+  revalidatePath("/dashboard")
   return {}
 }
 
@@ -134,6 +140,9 @@ export async function cancelMeetupRsvp(
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/conferences/${conferenceSlug}`)
+  revalidatePath("/dashboard/conferences")
+  revalidatePath("/dashboard/events")
+  revalidatePath("/dashboard")
   return {}
 }
 

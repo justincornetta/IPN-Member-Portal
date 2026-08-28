@@ -48,7 +48,7 @@ export default async function WelcomePage({
           <div className={styles.portalIntro}>
             <p className={styles.stepLabel}>Your IPN Member Portal</p>
             <h2>Your member-exclusive home</h2>
-            <p>Find events, useful resources, and the people who make this community move.</p>
+            <p>Find events, useful resources, and the people shaping the future of psychedelic medicine.</p>
           </div>
           <PortalFeatureGrid />
           <WelcomeContinue editorialMotion={editorialMotion} />

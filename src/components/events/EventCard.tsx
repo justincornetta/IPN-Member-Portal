@@ -25,11 +25,13 @@ function DateBadge({ startsAt }: { startsAt: string }) {
   const date = new Date(startsAt)
   const month = new Intl.DateTimeFormat("en", { month: "short" }).format(date)
   const day = new Intl.DateTimeFormat("en", { day: "2-digit" }).format(date)
+  const weekday = new Intl.DateTimeFormat("en", { weekday: "short" }).format(date)
 
   return (
-    <span className="flex h-14 w-14 flex-col items-center justify-center rounded-md bg-ipn text-center text-white shadow-sm">
-      <span className="text-[11px] font-semibold uppercase leading-none">{month}</span>
-      <span className="mt-1 text-lg font-semibold leading-none">{day}</span>
+    <span className="flex w-14 flex-col items-center justify-center text-center">
+      <span className="text-[11px] font-semibold uppercase leading-none text-ipn">{weekday}</span>
+      <span className="mt-2 text-3xl font-semibold leading-none text-ipn">{day}</span>
+      <span className="mt-2 text-[11px] uppercase leading-none text-zinc-500">{month}</span>
     </span>
   )
 }
@@ -42,7 +44,7 @@ function EventArtwork({
   compact?: boolean
 }) {
   return (
-    <div className="relative h-36 overflow-hidden rounded-lg bg-zinc-950 sm:h-full sm:min-h-40">
+    <div className="relative h-full min-h-36 overflow-hidden rounded-lg bg-ipn-light sm:min-h-40">
       {event.thumbnail_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -51,27 +53,18 @@ function EventArtwork({
           className="h-full w-full object-cover"
         />
       ) : (
-        <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_24%,#18181b_68%)]">
-          <div className="absolute left-6 top-6 h-2 w-2 rounded-full bg-white/80" />
-          <div className="absolute left-16 top-16 h-1.5 w-1.5 rounded-full bg-white/70" />
-          <div className="absolute bottom-8 left-10 h-2.5 w-2.5 rounded-full bg-white/70" />
-          <div className="absolute right-10 top-10 h-2 w-2 rounded-full bg-white/80" />
-          <div className="absolute bottom-12 right-14 h-1.5 w-1.5 rounded-full bg-white/60" />
-          <div className="absolute left-7 top-7 h-px w-24 rotate-45 bg-white/25" />
-          <div className="absolute bottom-10 left-12 h-px w-36 -rotate-12 bg-white/20" />
-          <div className="absolute right-12 top-12 h-px w-28 rotate-[135deg] bg-white/25" />
-        </div>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/purple_icon.png"
+          alt=""
+          className="h-full w-full object-contain p-12"
+        />
       )}
       {compact && (
         <div className="absolute left-3 top-3">
           <DateBadge startsAt={event.starts_at} />
         </div>
       )}
-      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 ${compact ? "hidden sm:block" : ""}`}>
-        <span className="rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-zinc-800">
-          {event.event_type}
-        </span>
-      </div>
     </div>
   )
 }
@@ -221,8 +214,13 @@ export default function EventCard({ event, variant = "full" }: Props) {
   }
 
   return (
-    <article className={`rounded-lg border border-zinc-200 bg-white p-3 shadow-sm ${isCompact ? "" : "sm:p-4"}`}>
-      <div className={`grid gap-4 ${isFeatured ? "xl:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1.15fr)]" : isCompact ? "" : "sm:grid-cols-[220px_1fr]"}`}>
+    <article className={`rounded-xl border border-zinc-200 bg-white p-3 shadow-sm ${isCompact ? "" : "sm:p-5"}`}>
+      <div className={`grid gap-4 ${isFeatured ? "xl:grid-cols-[4.5rem_minmax(18rem,0.9fr)_minmax(0,1.1fr)] xl:gap-6" : isCompact ? "" : "sm:grid-cols-[220px_1fr]"}`}>
+        {isFeatured && (
+          <div className="hidden items-start justify-center pt-2 xl:flex">
+            <DateBadge startsAt={event.starts_at} />
+          </div>
+        )}
         <Link
           href={`/dashboard/events/${event.slug}`}
           data-analytics-event="curated_click"
@@ -256,36 +254,58 @@ export default function EventCard({ event, variant = "full" }: Props) {
             data-analytics-label="Event detail title"
             className="mt-2 group"
           >
-            <h2 className="text-base font-semibold leading-snug text-zinc-900 group-hover:text-ipn">
+            <h2 className={`${isFeatured ? "text-xl" : "text-base"} font-semibold leading-snug text-zinc-900 group-hover:text-ipn`}>
               {event.title}
             </h2>
           </Link>
 
           {event.summary && (
-            <p className={`mt-2 text-sm leading-6 text-zinc-500 ${isCompact ? "max-h-12 overflow-hidden" : ""}`}>
+            <p className={`mt-2 text-sm leading-6 text-zinc-500 ${isCompact ? "max-h-12 overflow-hidden" : isFeatured ? "line-clamp-4" : ""}`}>
               {event.summary}
             </p>
           )}
 
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-400">
-            {event.location_label && (
-              <span>
-                <span className="font-medium text-zinc-500">Location:</span>{" "}
-                {event.location_label}
-              </span>
-            )}
-            {event.speakers && (
-              <span>
+          <div className="mt-3 flex flex-col gap-1 text-xs leading-5 text-zinc-400">
+            {!isFeatured && event.speakers && (
+              <p>
                 <span className="font-medium text-zinc-500">Speakers:</span>{" "}
                 {event.speakers}
-              </span>
+              </p>
+            )}
+            {event.location_label && (
+              <p>
+                <span className="font-medium text-zinc-500">Location:</span>{" "}
+                {event.location_label}
+              </p>
             )}
           </div>
 
           <div className="mt-auto pt-4">
             {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
-            {isLockedTicketedEvent ? (
+            {isFeatured ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span
+                  className={`inline-flex min-h-9 items-center self-start rounded-md px-3 text-xs font-semibold ${
+                    registered
+                      ? "bg-[#E4F6F1] text-[#176B5B]"
+                      : "bg-zinc-100 text-zinc-600"
+                  }`}
+                >
+                  {registered ? "You’re registered" : "Not registered"}
+                </span>
+                <div className="flex flex-col-reverse gap-2 min-[420px]:flex-row min-[420px]:justify-end">
+                  <AddToCalendarButton event={event} compact />
+                  <Link
+                    href={`/dashboard/events/${event.slug}`}
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-semibold text-white transition hover:bg-ipn-dark sm:min-h-0"
+                  >
+                    View event
+                    <span aria-hidden="true" className="ml-3 text-lg leading-none">→</span>
+                  </Link>
+                </div>
+              </div>
+            ) : isLockedTicketedEvent ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <p className="max-w-xl text-xs leading-5 text-zinc-500">
                   Register on Eventbrite with the same email you use for this
@@ -330,67 +350,98 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 </div>
               </div>
             ) : (
-              <div>
-                <p className="mb-2 text-[11px] leading-5 text-zinc-400">
-                  {[countLabel, (!canJoin || !event.join_url) ? "Event link available 24 hours before start" : null].filter(Boolean).join(" · ")}
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(6rem,1fr))]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+                  {countLabel && (
+                    <span className="rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs font-medium text-zinc-600">
+                      {countLabel}
+                    </span>
+                  )}
                   {showEventChat && (
                     <WhatsAppHandoffAction
                       kind="event"
                       slug={event.slug}
                       source="event-card"
                       label="Join chat"
-                      className="inline-flex h-9 min-h-9 w-full items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70"
+                      className="inline-flex min-h-11 items-center justify-center rounded-md border border-ipn/20 bg-ipn-light px-2.5 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn-light/70 sm:min-h-0"
                     />
                   )}
-                  <div className="[&>button]:h-9 [&>button]:min-h-9 [&>button]:w-full [&>button]:whitespace-nowrap">
-                    <AddToCalendarButton event={event} compact />
-                  </div>
-                  {canJoin && event.join_url ? (
+                  {!showEventChat && (
                     <button
                       type="button"
-                      onClick={handleJoin}
-                      data-analytics-event="curated_click"
-                      data-analytics-id={`event-join-${event.slug}`}
-                      data-analytics-label="Join event"
-                      className="h-9 min-h-9 w-full rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700"
+                      disabled
+                      className="min-h-11 rounded-md border border-dashed border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-400 sm:min-h-0"
                     >
-                      Join
+                      Event chat coming soon
                     </button>
-                  ) : (
-                    <Link
-                      href={`/dashboard/events/${event.slug}`}
-                      className="inline-flex h-9 min-h-9 w-full items-center justify-center rounded-md bg-ipn px-3 text-xs font-medium text-white transition hover:bg-ipn-dark"
-                    >
-                      View event
-                    </Link>
                   )}
-                  {!unrsvpConfirming && (
-                    <details className="relative w-full">
-                      <summary className="inline-flex h-9 min-h-9 w-full cursor-pointer list-none items-center justify-center rounded-md border border-zinc-200 px-3 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-700" aria-label="More event actions">
-                        More
-                      </summary>
+                  {unrsvpConfirming ? (
+                    <div className="col-span-2 grid grid-cols-2 items-center gap-1.5 sm:flex">
+                      <span className="col-span-2 text-xs text-zinc-500 sm:col-span-1">Cancel your RSVP?</span>
                       <button
                         type="button"
-                        onClick={() => setUnrsvpConfirming(true)}
+                        onClick={handleUnrsvp}
+                        disabled={pending}
                         data-analytics-event="curated_click"
-                        data-analytics-id={`event-cancel-rsvp-start-${event.slug}`}
-                        data-analytics-label="Cancel RSVP"
-                        className="absolute left-0 top-full z-10 mt-1 w-32 rounded-md border border-zinc-200 bg-white px-3 py-2 text-left text-xs font-medium text-red-600 shadow-lg hover:bg-red-50 sm:left-auto sm:right-0"
+                        data-analytics-id={`event-cancel-rsvp-confirm-${event.slug}`}
+                        data-analytics-label="Confirm cancel RSVP"
+                        className="min-h-11 rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:min-h-0"
                       >
-                        Cancel RSVP
+                        Yes, cancel
                       </button>
-                    </details>
+                      <button
+                        type="button"
+                        onClick={() => setUnrsvpConfirming(false)}
+                        className="min-h-11 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-500 transition hover:text-zinc-600 sm:min-h-0 sm:border-0"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setUnrsvpConfirming(true)}
+                      data-analytics-event="curated_click"
+                      data-analytics-id={`event-cancel-rsvp-start-${event.slug}`}
+                      data-analytics-label="Cancel RSVP"
+                      className="min-h-11 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-200 hover:text-red-600 sm:min-h-0"
+                    >
+                      Cancel RSVP
+                    </button>
+                  )}
+                  <span className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#E4F6F1] px-2.5 py-1.5 text-xs font-semibold text-[#176B5B] sm:min-h-0">
+                    You’re registered
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 sm:items-end">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                    <AddToCalendarButton event={event} compact />
+                    {canJoin && event.join_url ? (
+                      <button
+                        type="button"
+                        onClick={handleJoin}
+                        data-analytics-event="curated_click"
+                        data-analytics-id={`event-join-${event.slug}`}
+                        data-analytics-label="Join event"
+                        className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:min-h-0"
+                      >
+                        Join
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="Join link will be available 24 hours before the event starts"
+                        className="min-h-11 cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-400 sm:min-h-0"
+                      >
+                        Join
+                      </button>
+                    )}
+                  </div>
+                  {!canJoin && (
+                    <p className="text-[11px] text-zinc-400">Event link available 24 hours before start</p>
                   )}
                 </div>
-                {unrsvpConfirming && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2">
-                    <span className="text-xs text-zinc-600">Cancel your RSVP?</span>
-                    <button type="button" onClick={handleUnrsvp} disabled={pending} data-analytics-event="curated_click" data-analytics-id={`event-cancel-rsvp-confirm-${event.slug}`} data-analytics-label="Confirm cancel RSVP" className="min-h-11 rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:min-h-0">Yes, cancel</button>
-                    <button type="button" onClick={() => setUnrsvpConfirming(false)} className="min-h-11 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-white sm:min-h-0">Keep RSVP</button>
-                  </div>
-                )}
               </div>
             )}
           </div>

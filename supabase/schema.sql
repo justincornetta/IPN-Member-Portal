@@ -454,6 +454,12 @@ create policy "Users can create own event registrations"
     )
   );
 
+drop policy if exists "Users can delete own event registrations" on public.event_registrations;
+create policy "Users can delete own event registrations"
+  on public.event_registrations for delete
+  to authenticated
+  using ((select auth.uid()) = user_id);
+
 create table if not exists public.event_email_deliveries (
   id                      uuid primary key default gen_random_uuid(),
   event_id                uuid not null references public.events on delete cascade,

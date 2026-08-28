@@ -587,7 +587,7 @@ export default async function EventDetailPage({ params }: Props) {
         Back to events
       </Link>
 
-      <EventCard event={clientEvent} />
+      <EventCard event={clientEvent} variant="full" />
 
       {eventChatAvailable && (
         <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">

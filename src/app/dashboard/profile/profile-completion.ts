@@ -13,9 +13,13 @@ export type ProfileCompletionInput = {
   avatarUrl: string | null
   bio: string
   role: string
+  requiresEducation: boolean
   affiliation: string
-  legacySchool: string
-  educationInstitutions: string[]
+  education: Array<{
+    institution: string
+    degreeCredential: string
+    areaOfStudy: string
+  }>
   interests: string[]
   roleAndGoals: string
   inspiration: string
@@ -43,6 +47,11 @@ export function getProfileCompletion(input: ProfileCompletionInput) {
     input.inspiration,
     input.supportNeeds,
   ].filter(hasText).length
+  const hasCompleteEducation = input.education.some((entry) => (
+    hasText(entry.institution)
+    && hasText(entry.degreeCredential)
+    && hasText(entry.areaOfStudy)
+  ))
 
   const items: ProfileCompletionItem[] = [
     {
@@ -66,12 +75,10 @@ export function getProfileCompletion(input: ProfileCompletionInput) {
     {
       field: "organization",
       label: "School or organization",
-      actionLabel: "Add school or organization",
-      complete: [
-        input.affiliation,
-        input.legacySchool,
-        ...input.educationInstitutions,
-      ].some(hasText),
+      actionLabel: "Complete education",
+      complete: input.requiresEducation
+        ? hasCompleteEducation
+        : hasText(input.affiliation) || hasCompleteEducation,
     },
     {
       field: "interests",

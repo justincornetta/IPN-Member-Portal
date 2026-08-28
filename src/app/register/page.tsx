@@ -301,7 +301,7 @@ function StepLocation({
             options={schoolOptions}
             inputClassName="w-full rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 sm:text-sm"
             placeholder={data.country ? "Type to search…" : "Select a country first"} />
-          {data.country && <p className="text-xs text-zinc-400">Showing schools in {data.country}. Change your country selection above to search elsewhere.</p>}
+          {data.country && <p className="mt-1.5 text-xs leading-5 text-zinc-500">Showing schools in {data.country}. Change your country selection above to search elsewhere.</p>}
           <FieldError msg={errors.school} />
         </div>
       )}
@@ -468,6 +468,8 @@ function RegisterPageContent() {
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null)
+  const hasMountedRef = useRef(false)
 
   useEffect(() => {
     trackPortalEvent("registration_step_view", {
@@ -476,6 +478,23 @@ function RegisterPageContent() {
         stepLabel: STEPS[step - 1],
       },
     })
+  }, [step])
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    contentRef.current?.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    })
+    const frame = window.requestAnimationFrame(() => {
+      stepHeadingRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [step])
 
   function update(key: StringFormKey, value: string) {
@@ -629,20 +648,30 @@ function RegisterPageContent() {
           })}
         </div>
 
-        {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
-        {step === 2 && (
-          <StepLocation
-            data={data}
-            update={update}
-            errors={errors}
-            onVerifiedLocation={handleVerifiedLocation}
-            onLocationStatus={() => {}}
-          />
-        )}
-        {step === 3 && (
-          <StepBackground data={data} update={update} updateBarriers={updateBarriers} errors={errors} />
-        )}
-        {step === 4 && <StepAbout data={data} update={update} errors={errors} />}
+        <section aria-labelledby="registration-step-heading">
+          <h2
+            ref={stepHeadingRef}
+            id="registration-step-heading"
+            tabIndex={-1}
+            className="sr-only outline-none"
+          >
+            Step {step} of {STEPS.length}: {STEPS[step - 1]}
+          </h2>
+          {step === 1 && <StepAccount data={data} update={update} errors={errors} />}
+          {step === 2 && (
+            <StepLocation
+              data={data}
+              update={update}
+              errors={errors}
+              onVerifiedLocation={handleVerifiedLocation}
+              onLocationStatus={() => {}}
+            />
+          )}
+          {step === 3 && (
+            <StepBackground data={data} update={update} updateBarriers={updateBarriers} errors={errors} />
+          )}
+          {step === 4 && <StepAbout data={data} update={update} errors={errors} />}
+        </section>
 
         {globalError && (
           <p className="mt-4 text-sm text-red-600">{globalError}</p>

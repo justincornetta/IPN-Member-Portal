@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import EventDateTime from "@/components/events/EventDateTime"
 import type { ConferenceRecord } from "@/lib/conferences/types"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
@@ -12,6 +12,7 @@ type Props = {
   upcomingEvents: EventWithRegistration[]
   recordings: EventRecord[]
   conferences: ConferenceRecord[]
+  registeredMeetupIds?: string[]
 }
 
 type EventTab = "upcoming" | "recordings"
@@ -176,9 +177,12 @@ function EmptyPanel({ title, body }: { title: string; body: string }) {
   )
 }
 
-export default function EventsHub({ upcomingEvents, recordings, conferences }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
+export default function EventsHub({
+  upcomingEvents,
+  recordings,
+  conferences,
+  registeredMeetupIds = [],
+}: Props) {
   const searchParams = useSearchParams()
   const activeTab = eventTabFromParam(searchParams.get("tab"))
   const [recordingTab, setRecordingTab] = useState<RecordingTab>("PsychedelX")
@@ -268,39 +272,16 @@ export default function EventsHub({ upcomingEvents, recordings, conferences }: P
     return () => query.removeEventListener("change", updateCompactMode)
   }, [])
 
-  function setEventTab(tab: EventTab) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("tab", tab)
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }
-
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
-        {[
-          ["upcoming", "Upcoming"],
-          ["recordings", `Recordings · ${recordings.length}`],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setEventTab(id as EventTab)}
-            className={`min-h-11 rounded-md px-3 py-2 text-sm font-medium transition ${
-              activeTab === id
-                ? "bg-ipn text-white shadow-sm"
-                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       {activeTab === "upcoming" && (
         <section className="flex flex-col gap-3 sm:gap-4">
           {upcomingEvents.length || conferences.some((conference) => conference.meetups.length) ? (
-            <UpcomingAgenda events={upcomingEvents} conferences={conferences} />
+            <UpcomingAgenda
+              events={upcomingEvents}
+              conferences={conferences}
+              registeredMeetupIds={registeredMeetupIds}
+            />
           ) : (
             <EmptyPanel
               title="No upcoming events yet"

@@ -1,5 +1,18 @@
 import type { EventRecord } from "./types"
 
+export type CalendarEvent = Pick<
+  EventRecord,
+  | "id"
+  | "title"
+  | "starts_at"
+  | "ends_at"
+  | "summary"
+  | "description"
+  | "join_url"
+  | "location_label"
+  | "location_details"
+>
+
 function toUtcCalendarStamp(value: string): string {
   return new Date(value)
     .toISOString()
@@ -69,7 +82,7 @@ export function canJoinEvent(startsAt: string, _timezone: string, now = new Date
   return now.getTime() >= startsAtMs - 24 * 60 * 60 * 1000
 }
 
-export function buildCalendarDescription(event: EventRecord): string {
+export function buildCalendarDescription(event: CalendarEvent): string {
   const parts = [
     event.summary,
     event.description,
@@ -81,7 +94,7 @@ export function buildCalendarDescription(event: EventRecord): string {
   return parts.filter(Boolean).join("\n\n")
 }
 
-export function buildGoogleCalendarUrl(event: EventRecord): string {
+export function buildGoogleCalendarUrl(event: CalendarEvent): string {
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: event.title,
@@ -95,7 +108,7 @@ export function buildGoogleCalendarUrl(event: EventRecord): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
-export function buildOutlookCalendarUrl(event: EventRecord): string {
+export function buildOutlookCalendarUrl(event: CalendarEvent): string {
   const params = new URLSearchParams({
     path: "/calendar/action/compose",
     rru: "addevent",
@@ -109,7 +122,7 @@ export function buildOutlookCalendarUrl(event: EventRecord): string {
   return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`
 }
 
-export function buildIcsContent(event: EventRecord): string {
+export function buildIcsContent(event: CalendarEvent): string {
   const description = buildCalendarDescription(event)
   const location = event.location_label ?? event.location_details ?? "Online"
 

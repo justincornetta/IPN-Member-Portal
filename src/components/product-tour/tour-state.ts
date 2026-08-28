@@ -1,4 +1,4 @@
-export const PRODUCT_TOUR_VERSION = 1
+export const PRODUCT_TOUR_VERSION = 2
 
 export type ProductTourStatus = "active" | "paused" | "completed"
 
@@ -12,7 +12,7 @@ export const PRODUCT_TOUR_STEPS = [
   {
     id: "dashboard",
     title: "Your dashboard",
-    description: "See upcoming events, your activation path, and ways to explore IPN.",
+    description: "Get the latest on what's happening at IPN",
     route: "/dashboard",
   },
   {
@@ -24,7 +24,7 @@ export const PRODUCT_TOUR_STEPS = [
   {
     id: "events",
     title: "Find IPN events",
-    description: "Browse upcoming gatherings, RSVP, and return for event details.",
+    description: "Learn more, join upcoming events, and find past event recordings.",
     route: "/dashboard/events",
   },
   {
@@ -36,13 +36,19 @@ export const PRODUCT_TOUR_STEPS = [
   {
     id: "conferences",
     title: "Navigate conferences",
-    description: "Find conference details and connect with other IPN attendees.",
+    description: "Find upcoming conferences, discounts, see who's attending, and RSVP to IPN meetups.",
     route: "/dashboard/conferences",
   },
   {
     id: "resources",
     title: "Use member resources",
     description: "Explore member benefits, articles, and partner organizations.",
+    route: "/dashboard/resources",
+  },
+  {
+    id: "feedback",
+    title: "Help us improve IPN",
+    description: "Your feedback is very valuable to us. Share what’s working and what we can improve.",
     route: "/dashboard/resources",
   },
   {

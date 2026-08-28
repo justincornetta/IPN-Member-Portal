@@ -580,15 +580,15 @@ function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
 }
 
 function TextInput({
-  id, name, type = "text", value, onChange, placeholder, autoComplete,
+  id, name, type = "text", value, onChange, placeholder, autoComplete, required = false,
 }: {
   id: string; name: string; type?: string; value: string
-  onChange: (v: string) => void; placeholder?: string; autoComplete?: string
+  onChange: (v: string) => void; placeholder?: string; autoComplete?: string; required?: boolean
 }) {
   return (
     <input
       id={id} name={name} type={type} value={value}
-      autoComplete={autoComplete} placeholder={placeholder}
+      autoComplete={autoComplete} placeholder={placeholder} required={required}
       onChange={(e) => onChange(e.target.value)}
       className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
     />
@@ -994,9 +994,13 @@ export default function ProfileForm({
     avatarUrl: data.avatar_url,
     bio: data.bio,
     role: data.persona,
+    requiresEducation: STUDENT_BACKGROUNDS.has(data.persona),
     affiliation: data.affiliation,
-    legacySchool: data.school,
-    educationInstitutions: data.education.map((entry) => entry.institution),
+    education: data.education.map((entry) => ({
+      institution: entry.institution,
+      degreeCredential: entry.degree_credential,
+      areaOfStudy: entry.area_of_study,
+    })),
     interests: data.interest_tags,
     roleAndGoals: data.role_and_goals,
     inspiration: data.inspiration,
@@ -1104,21 +1108,38 @@ export default function ProfileForm({
       document.getElementById("linkedin_url")?.focus({ preventScroll: false })
       return
     }
-    if (field === "organization" && !isProfessional && data.education.length === 0) {
-      update("education", [{
-        id: crypto.randomUUID(),
-        institution: "",
-        education_level: "",
-        degree_credential: "",
-        area_of_study: "",
-        status: "",
-        graduation_year: null,
-      }])
-      window.requestAnimationFrame(() => {
+    if (field === "organization" && !isProfessional) {
+      if (data.education.length === 0) {
+        update("education", [{
+          id: crypto.randomUUID(),
+          institution: "",
+          education_level: "",
+          degree_credential: "",
+          area_of_study: "",
+          status: "",
+          graduation_year: null,
+        }])
         window.requestAnimationFrame(() => {
-          document.getElementById("education_institution_0")?.focus({ preventScroll: false })
+          window.requestAnimationFrame(() => {
+            document.getElementById("education_institution_0")?.focus({ preventScroll: false })
+          })
         })
-      })
+        return
+      }
+
+      const incompleteIndex = data.education.findIndex((entry) => (
+        !entry.institution.trim()
+        || !entry.degree_credential.trim()
+        || !entry.area_of_study.trim()
+      ))
+      const index = incompleteIndex === -1 ? 0 : incompleteIndex
+      const entry = data.education[index]
+      const id = !entry.institution.trim()
+        ? `education_institution_${index}`
+        : !entry.degree_credential.trim()
+          ? `education_degree_${index}`
+          : `education_area_${index}`
+      document.getElementById(id)?.focus({ preventScroll: false })
       return
     }
 
@@ -1256,14 +1277,27 @@ export default function ProfileForm({
     : userId[0].toUpperCase()
 
   return (
-    <div ref={topRef} className="flex flex-col gap-10">
+    <div ref={topRef} className="flex flex-col gap-10 pb-28 sm:pb-0">
 
-      <ProfileCompletionStatus
-        completedCount={profileCompletion.completedCount}
-        totalCount={profileCompletion.totalCount}
-        items={profileCompletion.items}
-        onFocusField={focusProfileField}
-      />
+      <div className="flex flex-col gap-3">
+        <ProfileCompletionStatus
+          completedCount={profileCompletion.completedCount}
+          totalCount={profileCompletion.totalCount}
+          items={profileCompletion.items}
+          onFocusField={focusProfileField}
+        />
+        <div className="hidden items-center justify-end gap-3 sm:flex">
+          {error && <span className="text-sm text-red-600" role="alert">{error}</span>}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="min-h-11 w-full rounded-lg bg-ipn px-6 py-2.5 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50 sm:w-auto sm:min-h-0"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
 
       {saved && (
         <div role="status" aria-live="polite" className="flex flex-wrap items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
@@ -1539,13 +1573,13 @@ export default function ProfileForm({
                   <Label htmlFor={`education_degree_${index}`}>Degree or credential</Label>
                   <TextInput id={`education_degree_${index}`} name={`education_degree_${index}`}
                     value={entry.degree_credential} onChange={(value) => updateEducation(index, "degree_credential", value)}
-                    placeholder="BA, PhD, certificate…" />
+                    placeholder="BA, PhD, certificate…" required />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Label htmlFor={`education_area_${index}`}>Area of study (optional)</Label>
+                  <Label htmlFor={`education_area_${index}`}>Area of study</Label>
                   <TextInput id={`education_area_${index}`} name={`education_area_${index}`}
                     value={entry.area_of_study} onChange={(value) => updateEducation(index, "area_of_study", value)}
-                    placeholder="Neuroscience, psychology, law…" />
+                    placeholder="Neuroscience, psychology, law…" required />
                 </div>
                 <div className="flex flex-col gap-1 sm:col-span-2">
                   <Label htmlFor={`education_year_${index}`}>Graduation year (optional)</Label>
@@ -1785,7 +1819,7 @@ export default function ProfileForm({
 
       {/* ── Save ── */}
       <div
-        className="fixed inset-x-4 z-40 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-lg shadow-zinc-900/10 backdrop-blur sm:static sm:inset-auto sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:shadow-none sm:backdrop-blur-0"
+        className="fixed inset-x-4 z-40 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-lg shadow-zinc-900/10 backdrop-blur sm:hidden"
         style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
       >
         <button
@@ -1807,54 +1841,72 @@ export default function ProfileForm({
           aria-modal="true"
           aria-labelledby="crop-dialog-title"
           tabIndex={-1}
-          className="fixed inset-0 z-50 flex flex-col bg-zinc-950/80"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4"
         >
-          <h2 id="crop-dialog-title" className="sr-only">Crop profile photo</h2>
-          <div className="relative flex-1">
-            <Cropper
-              image={cropSrc}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              cropShape="round"
-              showGrid={false}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-            />
-          </div>
-          <div className="flex flex-col gap-3 bg-zinc-900 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-              <input
-                type="range"
-                aria-label="Photo zoom"
-                data-dialog-initial-focus
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full accent-ipn"
-              />
-            </div>
-            <div className="flex gap-3">
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-zinc-900 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
+              <div>
+                <h2 id="crop-dialog-title" className="text-base font-semibold text-white">Crop profile photo</h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-300">Move and zoom your photo to frame it.</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setCropSrc(null)}
-                className="flex-1 rounded-lg border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 transition"
+                aria-label="Close photo cropper"
+                className="-mr-2 -mt-2 inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg text-zinc-300 transition hover:bg-white/10 hover:text-white"
               >
-                Cancel
+                <span aria-hidden="true">×</span>
               </button>
-              <button
-                type="button"
-                onClick={handleCropConfirm}
-                className="flex-1 rounded-lg bg-ipn py-2.5 text-sm font-medium text-white hover:bg-ipn/90 transition"
-              >
-                Save photo
-              </button>
+            </div>
+            <div className="relative aspect-square w-full flex-none bg-zinc-950">
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div
+              className="flex flex-col gap-3 bg-zinc-900 px-5 py-4"
+              style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            >
+              <div className="flex min-h-11 items-center gap-3">
+                <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                <input
+                  type="range"
+                  aria-label="Photo zoom"
+                  data-dialog-initial-focus
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="w-full accent-ipn"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCropSrc(null)}
+                  className="min-h-11 flex-1 rounded-lg border border-zinc-600 px-3 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCropConfirm}
+                  className="min-h-11 flex-1 rounded-lg bg-ipn px-3 py-2.5 text-sm font-medium text-white transition hover:bg-ipn/90"
+                >
+                  Save photo
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -93,13 +93,18 @@ export async function unregisterFromEvent(
 
   if (!user) return { error: "Not authenticated" }
 
-  const { error } = await supabase
+  const { data: deletedRegistration, error } = await supabase
     .from("event_registrations")
     .delete()
     .eq("event_id", eventId)
     .eq("user_id", user.id)
+    .select("event_id")
+    .maybeSingle()
 
   if (error) return { error: error.message }
+  if (!deletedRegistration) {
+    return { error: "We couldn't update your registration. Please try again." }
+  }
 
   if (analytics?.sessionId) {
     await recordPortalAnalyticsEvent({

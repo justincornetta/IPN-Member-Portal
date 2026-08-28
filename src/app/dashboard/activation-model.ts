@@ -5,6 +5,7 @@ export type ActivationProgressInput = {
   product_tour_completed_at: string | null
   event_rsvp_completed_at: string | null
   connection_request_completed_at: string | null
+  participation_completed?: boolean
 }
 
 export const ACTIVATION_MILESTONE_ORDER = [
@@ -33,7 +34,9 @@ export function activationSummary(progress: ActivationProgressInput | null): {
     whatsapp: Boolean(progress?.whatsapp_completed_at),
     profile: Boolean(progress?.profile_completed_at),
     tour: Boolean(progress?.product_tour_completed_at),
-    participate: Boolean(progress?.event_rsvp_completed_at || progress?.connection_request_completed_at),
+    participate: progress?.participation_completed ?? Boolean(
+      progress?.event_rsvp_completed_at || progress?.connection_request_completed_at,
+    ),
   }
 
   const prioritySatisfied = {

@@ -22,7 +22,7 @@ function exportedFunctionSource(name, nextName) {
   return ADMIN_ACTIONS_SOURCE.slice(start, end)
 }
 
-test("both admin tiers can manage leadership, while regular members cannot", () => {
+test("admins can search leadership while only superadmins can assign access", () => {
   assert.equal(isPortalAdminRole("admin"), true)
   assert.equal(isPortalAdminRole("superadmin"), true)
   assert.equal(isPortalAdminRole(null), false)
@@ -30,10 +30,10 @@ test("both admin tiers can manage leadership, while regular members cannot", () 
 
   const searchSource = exportedFunctionSource("searchMembersForAdmin", "getMemberDetail")
   const assignmentSource = exportedFunctionSource("assignAdminAccess", "publishAdminContent")
-  for (const source of [searchSource, assignmentSource]) {
-    assert.match(source, /await verifyAdmin\(\)/)
-    assert.doesNotMatch(source, /verifySuperadmin\(\)/)
-  }
+  assert.match(searchSource, /await verifyAdmin\(\)/)
+  assert.doesNotMatch(searchSource, /verifySuperadmin(?:User)?\(\)/)
+  assert.match(assignmentSource, /await verifySuperadminUser\(\)/)
+  assert.doesNotMatch(assignmentSource, /await verifyAdmin\(\)/)
 })
 
 test("leadership assignments use the database's canonical team names", () => {

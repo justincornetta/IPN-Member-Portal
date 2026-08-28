@@ -1,13 +1,21 @@
 "use client"
 
 import Image from "next/image"
+import {
+  ArrowRightIcon,
+  ArrowTopRightOnSquareIcon,
+  BeakerIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  PencilSquareIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/outline"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { onboardingFoundationAdapter } from "./foundation-adapter"
 import { whatsappChannels } from "./channels"
 import { getPortalAnalyticsContext } from "@/lib/portal-analytics/client"
 import { saveOnboardingFlowProgress } from "@/lib/onboarding/actions"
-import type { WhatsAppChannelId } from "./types"
+import type { WhatsAppChannel, WhatsAppChannelId } from "./types"
 import styles from "./onboarding.module.css"
 
 type QrState =
@@ -21,12 +29,41 @@ type JoinErrorState = {
 }
 
 function ChannelIcon({ id }: { id: WhatsAppChannelId }) {
+  const Icon = id === "general"
+    ? ChatBubbleOvalLeftEllipsisIcon
+    : id === "labs"
+      ? BeakerIcon
+      : UserGroupIcon
+
+  return <Icon aria-hidden="true" />
+}
+
+function ChannelPreview({ channel }: { channel: WhatsAppChannel }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {id === "general" && <><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4A8 8 0 1 1 20 11.5Z" /><path d="M8.5 11h.01M12 11h.01M15.5 11h.01" /></>}
-      {id === "labs" && <><path d="M9 3h6M10 3v6l-5 9.2A1.9 1.9 0 0 0 6.7 21h10.6a1.9 1.9 0 0 0 1.7-2.8L14 9V3" /><path d="M8 15h8" /></>}
-      {id === "conferences" && <><circle cx="8" cy="9" r="3" /><circle cx="17" cy="10" r="2.3" /><path d="M2.8 20c.5-4.1 2.2-6 5.2-6s4.8 1.9 5.2 6M13.5 15.3c3.7-1 6.8.9 7.5 4.7" /></>}
-    </svg>
+    <>
+      <div className={styles.previewHeader}>
+        <span className={styles.previewIcon}><ChannelIcon id={channel.id} /></span>
+        <div>
+          <p className={styles.desktopPreviewName}>{channel.name}</p>
+          <p className={styles.mobilePreviewName}>Preview: {channel.name}</p>
+          <p>{channel.previewDescription}</p>
+        </div>
+      </div>
+
+      <div className={styles.previewMessages} aria-label={`${channel.name} conversation preview`}>
+        {channel.previewMessages.map((message) => (
+          <p key={message}>{message}</p>
+        ))}
+      </div>
+
+      <div className={styles.previewPrompt}>
+        <span className={styles.promptIcon}><PencilSquareIcon aria-hidden="true" /></span>
+        <div>
+          <strong>{channel.promptLabel}</strong>
+          <p>{channel.prompt}</p>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -158,61 +195,51 @@ export function WhatsAppLanding() {
     <div className={styles.whatsappLayout}>
       <div className={styles.whatsappIntro}>
         <p className={styles.eyebrow}>Member community</p>
-        <h1>Connect with IPN on WhatsApp</h1>
+        <h1>Meet the community on WhatsApp</h1>
         <p>
-          IPN uses WhatsApp for everyday community conversation, ongoing
-          programs, conference coordination, and event-specific chats.
+          Connect in focused spaces for conversations, resources, and
+          real-world opportunities.
         </p>
       </div>
 
-      <section className={styles.channelPanel} aria-labelledby="channel-heading">
-        <div className={styles.channelPanelHeader}>
-          <h2 id="channel-heading">Join one or more IPN channels</h2>
-        </div>
-
-        <div className={styles.desktopChannels}>
-          <div className={styles.channelList} role="radiogroup" aria-label="WhatsApp channels">
-            {whatsappChannels.map((channel, index) => {
-              const isSelected = selectedId === channel.id
-              return (
-                <button
-                  key={channel.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  tabIndex={isSelected ? 0 : -1}
-                  disabled={joiningId !== null}
-                  className={`${styles.channelChoice} ${isSelected ? styles.channelChoiceSelected : ""} ${channel.recommended ? styles.channelChoiceFeatured : ""}`}
-                  onClick={() => selectChannel(channel.id)}
-                  onKeyDown={(event) => handleChannelKeyDown(event, index)}
-                >
-                  <span className={styles.channelIcon}><ChannelIcon id={channel.id} /></span>
-                  <span className={styles.channelCopy}>
+      <section className={styles.channelExperience} aria-label="Choose an IPN WhatsApp channel">
+        <div className={styles.desktopExperience}>
+          <aside className={styles.desktopChannelNav}>
+            <p className={styles.channelNavLabel}>Choose a channel</p>
+            <div className={styles.desktopChannelSelector} role="radiogroup" aria-label="WhatsApp channels">
+              {whatsappChannels.map((channel, index) => {
+                const isSelected = selectedId === channel.id
+                return (
+                  <button
+                    key={channel.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    tabIndex={isSelected ? 0 : -1}
+                    disabled={joiningId !== null}
+                    className={`${styles.channelChoice} ${isSelected ? styles.channelChoiceSelected : ""}`}
+                    onClick={() => selectChannel(channel.id)}
+                    onKeyDown={(event) => handleChannelKeyDown(event, index)}
+                  >
+                    <span className={styles.channelIcon}><ChannelIcon id={channel.id} /></span>
                     <span className={styles.channelNameRow}>
                       <strong>{channel.name}</strong>
                       {channel.recommended && <span className={styles.recommended}>Start here</span>}
                     </span>
-                    <span>{channel.description}</span>
-                  </span>
-                  <span className={styles.selectionMark} aria-hidden="true">{isSelected ? "●" : "○"}</span>
-                </button>
-              )
-            })}
-
-            {selectedId === "general" && (
-              <p className={styles.introductionPrompt}>
-                <strong>Your first message:</strong>{" "}share your name, where you&apos;re based,
-                your background, and what you&apos;re studying or working on.
-              </p>
-            )}
-          </div>
-
-          <div className={styles.qrStage} aria-live="polite">
-            <div className={styles.qrTitle}>
-              <span className={styles.channelIcon}><ChannelIcon id={selected.id} /></span>
-              <div><span>Selected channel</span><strong>{selected.name}</strong></div>
+                  </button>
+                )
+              })}
             </div>
+          </aside>
 
+          <article className={styles.previewPanel} aria-live="polite">
+            <ChannelPreview channel={selected} />
+          </article>
+
+          <aside className={styles.qrStage} aria-live="polite">
+            <p className={styles.qrEyebrow}>Scan to join</p>
+            <h2>Scan to join {selected.name}</h2>
+            <span className={styles.qrAccent} aria-hidden="true" />
             <div className={styles.qrFrame}>
               {qrState.status === "ready" ? (
                 <Image src={qrState.imageSrc} alt={`QR code for the IPN ${selected.name} WhatsApp channel`} width={244} height={244} loading="eager" />
@@ -238,63 +265,85 @@ export function WhatsAppLanding() {
               aria-disabled={joiningId !== null}
               onClick={(event) => handleJoin(event, selected.id, "desktop_direct")}
             >
-              {joiningId === selected.id ? "Opening channel…" : "Join channel on this device"}
-              {joiningId !== selected.id && <span aria-hidden="true"> ↗</span>}
+              {joiningId === selected.id ? "Opening channel…" : "Join channel"}
+              {joiningId !== selected.id && <ArrowTopRightOnSquareIcon aria-hidden="true" />}
             </a>
             {joinError?.id === selected.id && (
               <p className={styles.errorMessage} role="alert">{joinErrorMessage(selected.id)}</p>
             )}
-          </div>
-        </div>
-
-        <div className={styles.mobileChannels}>
-          {whatsappChannels.map((channel) => (
-            <article key={channel.id} className={`${styles.mobileChannelCard} ${channel.recommended ? styles.mobileFeatured : ""}`}>
-              <div className={styles.mobileChannelHeading}>
-                <span className={styles.channelIcon}><ChannelIcon id={channel.id} /></span>
-                <div><h3>{channel.name}</h3>{channel.recommended && <span className={styles.recommended}>Start here</span>}</div>
-              </div>
-              <p>{channel.description}</p>
+            <div className={styles.desktopPortalNextStep}>
+              <span>Or</span>
               <a
-                href={channel.redirectPath}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Join ${channel.name} channel on this device (opens in a new tab)`}
-                aria-disabled={joiningId !== null}
-                onClick={(event) => handleJoin(event, channel.id, "mobile_direct")}
+                href="/dashboard"
+                aria-disabled={continuing}
+                onClick={(event) => {
+                  event.preventDefault()
+                  void continueToDashboard()
+                }}
               >
-                {joiningId === channel.id ? "Opening channel…" : "Join channel on this device"}
-                {joiningId !== channel.id && <span aria-hidden="true"> ↗</span>}
+                {continuing ? "Opening member portal…" : "Continue to member portal"}
+                {!continuing && <ArrowRightIcon aria-hidden="true" />}
               </a>
-              {channel.id === "general" && (
-                <p className={styles.mobileIntroductionPrompt}>
-                  <strong>Your first message:</strong>{" "}share your name, where you&apos;re based,
-                  your background, and what you&apos;re studying or working on.
-                </p>
-              )}
-              {joinError?.id === channel.id && (
-                <p className={styles.mobileError} role="alert">{joinErrorMessage(channel.id)}</p>
-              )}
-            </article>
-          ))}
+            </div>
+          </aside>
         </div>
 
-        <div className={styles.portalNextStep}>
-          <div>
-            <strong>Finish joining channels</strong>
-            <span>Continue to your member portal to complete your profile and start exploring.</span>
+        <div className={styles.mobileExperience}>
+          <div className={styles.mobileChannelSelector} role="radiogroup" aria-label="WhatsApp channels">
+            {whatsappChannels.map((channel, index) => {
+              const isSelected = selectedId === channel.id
+              return (
+                <button
+                  key={channel.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
+                  disabled={joiningId !== null}
+                  className={`${styles.mobileChannelChoice} ${isSelected ? styles.mobileChannelChoiceSelected : ""}`}
+                  onClick={() => selectChannel(channel.id)}
+                  onKeyDown={(event) => handleChannelKeyDown(event, index)}
+                >
+                  <span className={styles.channelIcon}><ChannelIcon id={channel.id} /></span>
+                  <span>
+                    <strong>{channel.name}</strong>
+                    {channel.recommended && <span className={styles.recommended}>Start here</span>}
+                  </span>
+                </button>
+              )
+            })}
           </div>
+
+          <article className={styles.mobilePreviewPanel} aria-live="polite">
+            <ChannelPreview channel={selected} />
+          </article>
+
           <a
-            href="/dashboard"
-            aria-disabled={continuing}
-            onClick={(event) => {
-              event.preventDefault()
-              void continueToDashboard()
-            }}
+            className={styles.mobileJoinAction}
+            href={selected.redirectPath}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Join ${selected.name} channel on this device (opens in a new tab)`}
+            aria-disabled={joiningId !== null}
+            onClick={(event) => handleJoin(event, selected.id, "mobile_direct")}
           >
-            {continuing ? "Opening member portal…" : "Continue to member portal"}{" "}
-            {!continuing && <span aria-hidden="true">→</span>}
+            {joiningId === selected.id ? "Opening channel…" : "Join channel"}
           </a>
+          {joinError?.id === selected.id && (
+            <p className={styles.mobileError} role="alert">{joinErrorMessage(selected.id)}</p>
+          )}
+          <div className={styles.mobilePortalNextStep}>
+            <a
+              href="/dashboard"
+              aria-disabled={continuing}
+              onClick={(event) => {
+                event.preventDefault()
+                void continueToDashboard()
+              }}
+            >
+              {continuing ? "Opening member portal…" : "Continue to member portal"}
+            </a>
+          </div>
         </div>
       </section>
     </div>

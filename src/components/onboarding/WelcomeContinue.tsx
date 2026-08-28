@@ -1,32 +1,25 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { saveOnboardingFlowProgress } from "@/lib/onboarding/actions"
 import styles from "./onboarding.module.css"
 
 export function WelcomeContinue({ editorialMotion = false }: { editorialMotion?: boolean }) {
-  const router = useRouter()
-  const [pending, setPending] = useState(false)
+  const destination = editorialMotion
+    ? "/onboarding/whatsapp?motion=editorial"
+    : "/onboarding/whatsapp"
 
-  async function continueOnboarding() {
-    if (pending) return
-    setPending(true)
-    try {
-      await saveOnboardingFlowProgress({
-        flow: "welcome",
-        currentStep: "complete",
-        complete: true,
-      })
-    } finally {
-      setPending(false)
-      router.push(editorialMotion ? "/onboarding/whatsapp?motion=editorial" : "/onboarding/whatsapp")
-    }
+  function saveWelcomeProgress() {
+    void saveOnboardingFlowProgress({
+      flow: "welcome",
+      currentStep: "complete",
+      complete: true,
+    })
   }
 
-  return <div>
-    <button type="button" className={styles.continueButton} disabled={pending} onClick={continueOnboarding}>
-      {pending ? "Saving…" : "Continue"} <span aria-hidden="true">→</span>
-    </button>
+  return <div className={styles.continueAction}>
+    <Link href={destination} className={styles.continueButton} onClick={saveWelcomeProgress}>
+      Continue <span aria-hidden="true">→</span>
+    </Link>
   </div>
 }

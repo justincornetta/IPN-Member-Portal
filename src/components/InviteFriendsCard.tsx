@@ -161,19 +161,11 @@ export default function InviteFriendsCard({
       <div id={id} className={`flex flex-wrap items-center gap-2 ${className}`}>
         <button
           type="button"
-          onClick={copyInviteLink}
+          onClick={shareInviteLink}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
         >
-          <CopyIcon />
+          <InviteIcon />
           {copied ? "Copied" : "Invite Your Friends to IPN"}
-        </button>
-        <button
-          type="button"
-          onClick={shareInviteLink}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
-          aria-label="Share IPN invite link"
-        >
-          <ShareIcon />
         </button>
       </div>
     )

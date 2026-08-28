@@ -28,7 +28,26 @@ function errorResponse(message: string, status: number) {
 
 function requestHasSameOrigin(request: Request) {
   const origin = request.headers.get("origin")
-  return !origin || origin === new URL(request.url).origin
+  if (!origin) return true
+
+  try {
+    const originUrl = new URL(origin)
+    const requestUrl = new URL(request.url)
+    const expectedHost =
+      request.headers.get("x-forwarded-host") ??
+      request.headers.get("host") ??
+      requestUrl.host
+    const expectedProtocol =
+      request.headers.get("x-forwarded-proto") ??
+      requestUrl.protocol.replace(":", "")
+
+    return (
+      originUrl.host === expectedHost &&
+      originUrl.protocol === `${expectedProtocol}:`
+    )
+  } catch {
+    return false
+  }
 }
 
 async function resolveTarget(
@@ -125,6 +144,28 @@ export async function POST(
     })
 
   if (error) {
+    if (
+      target.kind === "permanent" &&
+      (error.code === "42P01" ||
+        error.code === "PGRST205" ||
+        error.message.includes("does not exist") ||
+        error.message.includes("Could not find the table"))
+    ) {
+      const fallbackQuery = new URLSearchParams({ source, surface })
+      return NextResponse.json(
+        {
+          handoffPath: `/go/whatsapp/${encodeURIComponent(target.slug)}?${fallbackQuery}`,
+          expiresAt,
+          channel: {
+            kind: target.kind,
+            slug: target.slug,
+            label: target.label,
+            featured: target.featured,
+          },
+        },
+        { headers: { "Cache-Control": "no-store, private" } },
+      )
+    }
     console.error("[whatsapp] handoff insert failed:", error.message)
     return errorResponse("Could not prepare WhatsApp handoff", 503)
   }

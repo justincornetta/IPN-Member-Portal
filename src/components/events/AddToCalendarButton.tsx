@@ -5,12 +5,12 @@ import {
   buildGoogleCalendarUrl,
   buildIcsContent,
   buildOutlookCalendarUrl,
+  type CalendarEvent,
 } from "@/lib/events/calendar"
 import EventDateTime from "@/components/events/EventDateTime"
-import type { EventRecord } from "@/lib/events/types"
 
 type Props = {
-  event: EventRecord
+  event: CalendarEvent & { timezone: string }
   compact?: boolean
 }
 

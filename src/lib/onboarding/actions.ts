@@ -27,7 +27,7 @@ export async function saveOnboardingFlowProgress(input: {
   flow: OnboardingFlow
   currentStep?: string | null
   complete?: boolean
-}): Promise<{ error?: string }> {
+}): Promise<{ error?: string; fallback?: boolean }> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -36,9 +36,9 @@ export async function saveOnboardingFlowProgress(input: {
   if (!user) return { error: "Not authenticated" }
 
   try {
-    await advanceOnboardingFlow(supabase, user.id, input)
+    const persistedDurably = await advanceOnboardingFlow(supabase, user.id, input)
     revalidatePath("/dashboard")
-    return {}
+    return persistedDurably ? {} : { fallback: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not save onboarding progress"
     console.error("[onboarding] failed to advance flow:", message)
@@ -46,7 +46,18 @@ export async function saveOnboardingFlowProgress(input: {
   }
 }
 
-export async function markGettingStartedSuccessSeen(): Promise<{ error?: string }> {
+function isMissingOnboardingColumn(error: { code?: string; message: string }) {
+  const message = error.message.toLowerCase()
+  return error.code === "42703"
+    || error.code === "PGRST204"
+    || message.includes("does not exist")
+    || message.includes("schema cache")
+}
+
+export async function markGettingStartedSuccessSeen(): Promise<{
+  error?: string
+  fallback?: boolean
+}> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -62,6 +73,11 @@ export async function markGettingStartedSuccessSeen(): Promise<{ error?: string 
     .maybeSingle()
 
   if (readError) {
+    if (
+      isMissingOnboardingColumn(readError)
+    ) {
+      return { fallback: true }
+    }
     console.error("[onboarding] failed to read Getting Started completion:", readError.message)
     return { error: "Could not save Getting Started completion" }
   }

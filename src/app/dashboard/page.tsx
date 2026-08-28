@@ -5,6 +5,7 @@ import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types"
 import type { ConferenceRecord } from "@/lib/conferences/types"
+import { STUDENT_BACKGROUNDS } from "@/lib/constants/registration"
 import { resolveDirectoryMapState } from "@/lib/directory/location"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
 import { activationSummary, isProfileMilestoneComplete } from "./activation-model"
@@ -25,187 +26,6 @@ type MemberProfile = {
   role_and_goals: string | null
   inspiration: string | null
   linkedin_url: string | null
-}
-
-function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
-  const projectCity = (city: DirectoryMapCity) => {
-    const lng = Math.max(-180, Math.min(180, city.lng))
-    const lat = Math.max(-70, Math.min(70, city.lat))
-    const rawX = 110 + (lng / 180) * 56
-    const rawY = 76 - (lat / 70) * 44
-    const dx = rawX - 110
-    const dy = rawY - 76
-    const distance = Math.hypot(dx, dy)
-    const maxDistance = 52
-    const scale = distance > maxDistance ? maxDistance / distance : 1
-
-    return {
-      x: 110 + dx * scale,
-      y: 76 + dy * scale,
-      memberCount: city.memberCount,
-      cityCount: 1,
-      label: city.city,
-    }
-  }
-
-  const clusters = cities
-    .map(projectCity)
-    .reduce<Array<ReturnType<typeof projectCity>>>((grouped, point) => {
-      const nearby = grouped.find(
-        (cluster) => Math.hypot(cluster.x - point.x, cluster.y - point.y) < 18,
-      )
-
-      if (!nearby) {
-        grouped.push(point)
-        return grouped
-      }
-
-      const nextMemberCount = nearby.memberCount + point.memberCount
-      nearby.x =
-        (nearby.x * nearby.memberCount + point.x * point.memberCount) /
-        nextMemberCount
-      nearby.y =
-        (nearby.y * nearby.memberCount + point.y * point.memberCount) /
-        nextMemberCount
-      nearby.memberCount = nextMemberCount
-      nearby.cityCount += 1
-      nearby.label = `${nearby.cityCount} cities`
-
-      return grouped
-    }, [])
-    .sort((a, b) => b.memberCount - a.memberCount)
-    .slice(0, 8)
-
-  return (
-    <div className="relative flex min-h-36 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 220 150"
-        role="img"
-        aria-label="IPN member locations preview"
-      >
-        <defs>
-          <radialGradient id="mini-directory-globe" cx="40%" cy="28%" r="70%">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="58%" stopColor="#f1f5f9" />
-            <stop offset="100%" stopColor="#dfe5ee" />
-          </radialGradient>
-          <clipPath id="mini-directory-globe-clip">
-            <circle cx="110" cy="76" r="60" />
-          </clipPath>
-        </defs>
-        <rect width="220" height="150" fill="#fafafa" />
-        <circle
-          cx="110"
-          cy="76"
-          r="60"
-          fill="url(#mini-directory-globe)"
-          stroke="#d7dce5"
-          strokeWidth="1"
-        />
-        <g clipPath="url(#mini-directory-globe-clip)">
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="60"
-            ry="20"
-            fill="none"
-            stroke="#cfd6e1"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="60"
-            ry="40"
-            fill="none"
-            stroke="#d8dee8"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="40"
-            ry="60"
-            fill="none"
-            stroke="#d8dee8"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="20"
-            ry="60"
-            fill="none"
-            stroke="#d8dee8"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <path d="M50 76h120M110 16v120" stroke="#cfd6e1" strokeWidth="1" opacity="0.7" />
-          <g fill="#dce2eb" stroke="#ffffff" strokeLinejoin="round" strokeWidth="0.9">
-            <path
-              d="M53 55c3-11 12-18 25-21 11-3 25-1 33 6 5 5 3 12-5 15-7 3-11 8-17 13-7 6-17 6-27 1-7-4-11-8-9-14Z"
-              opacity="0.9"
-            />
-            <path
-              d="M79 75c8 0 16 4 19 11 3 8-1 16-6 24-4 6-6 13-9 19-8-6-11-15-9-25 2-8-4-16 0-23 1-3 2-5 5-6Z"
-              opacity="0.82"
-            />
-            <path
-              d="M114 46c7-6 18-8 29-5 5 1 9 4 13 8-8 6-19 6-29 5-6-1-10-2-13-8Z"
-              opacity="0.86"
-            />
-            <path
-              d="M122 60c10-4 22 0 29 9 8 11 5 25-2 37-7 2-17-3-22-11-5-7-11-13-9-23 1-5 1-9 4-12Z"
-              opacity="0.82"
-            />
-            <path
-              d="M145 50c11-14 30-17 46-8 14 8 19 21 13 35-12 3-24-1-36-8-10-6-18-5-28-4-1-6 0-11 5-15Z"
-              opacity="0.8"
-            />
-            <path
-              d="M159 103c8-5 21-4 28 2 3 3 2 7-2 10-8 5-19 5-28 1-5-3-4-9 2-13Z"
-              opacity="0.8"
-            />
-            <path
-              d="M191 111c3-2 7-1 9 1-1 4-4 6-8 5-3-1-3-4-1-6Z"
-              opacity="0.75"
-            />
-          </g>
-          <g fill="none" stroke="#c6cedb" strokeWidth="0.8" opacity="0.55">
-            <path d="M92 41c-5 7-5 14 0 21" />
-            <path d="M134 56c-4 15-2 29 8 42" />
-            <path d="M166 48c4 9 4 16-1 23" />
-          </g>
-        </g>
-        {clusters.map((cluster) => {
-          const radius = Math.min(13, 7 + Math.sqrt(cluster.memberCount) * 1.8)
-          const label = `${cluster.label}: ${cluster.memberCount} member${cluster.memberCount === 1 ? "" : "s"}`
-          return (
-            <g
-              key={`${cluster.x}-${cluster.y}`}
-              transform={`translate(${cluster.x} ${cluster.y})`}
-              role="img"
-              aria-label={label}
-            >
-              <circle r={radius + 4} fill="rgba(102,79,161,0.22)" />
-              <circle r={radius} fill="#664fa1" stroke="white" strokeWidth="2" />
-              <text
-                y="4"
-                textAnchor="middle"
-                className="select-none fill-white text-[9px] font-bold"
-              >
-                {cluster.memberCount}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-    </div>
-  )
 }
 
 function buildDirectoryMapCities(rows: DirectoryMapMember[]) {
@@ -253,63 +73,149 @@ function buildDirectoryMapCities(rows: DirectoryMapMember[]) {
   return [...cityMap.values()].sort((a, b) => b.memberCount - a.memberCount)
 }
 
+function memberSeed(value: string) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function selectFeaturedMembers(
+  members: DirectoryMapMember[],
+  currentUserId: string,
+) {
+  const day = new Date().toISOString().slice(0, 10)
+  const eligibleMembers = members
+    .filter((member) => member.id !== currentUserId && member.first_name)
+    .sort(
+      (a, b) =>
+        memberSeed(`${day}:${currentUserId}:${a.id}`) -
+        memberSeed(`${day}:${currentUserId}:${b.id}`),
+    )
+  const membersWithPhotos = eligibleMembers.filter((member) => member.avatar_url)
+  const featured = membersWithPhotos.slice(0, 3)
+
+  if (featured.length < 3) {
+    featured.push(
+      ...eligibleMembers
+        .filter((member) => !featured.some((item) => item.id === member.id))
+        .slice(0, 3 - featured.length),
+    )
+  }
+
+  return featured
+}
+
+function FeaturedMember({ member }: { member: DirectoryMapMember }) {
+  const name = [member.first_name, member.last_name].filter(Boolean).join(" ")
+  const location = [member.city, member.state ?? member.country]
+    .filter(Boolean)
+    .join(", ")
+  const focus = member.persona ?? member.field ?? member.affiliation ?? member.school
+  const interest = member.interest_tags?.[0]
+  const initials = [member.first_name?.[0], member.last_name?.[0]]
+    .filter(Boolean)
+    .join("")
+    .toUpperCase()
+
+  return (
+    <Link
+      href="/dashboard/directory"
+      className="group flex min-w-0 items-center gap-3 rounded-lg p-2 transition hover:bg-ipn-light/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ipn/30"
+    >
+      <span className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-ipn-light">
+        {member.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={member.avatar_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-ipn">
+            {initials}
+          </span>
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-zinc-900 group-hover:text-ipn">
+          {name}
+        </span>
+        {focus && (
+          <span className="mt-0.5 block truncate text-xs text-zinc-500">
+            {focus}
+          </span>
+        )}
+        {(location || interest) && (
+          <span className="mt-1 block truncate text-[11px] text-zinc-400">
+            {[location, interest].filter(Boolean).join(" · ")}
+          </span>
+        )}
+      </span>
+    </Link>
+  )
+}
+
 function DirectoryPreview({
   memberCount,
   mapCities,
+  featuredMembers,
 }: {
   memberCount: number | null
   mapCities: DirectoryMapCity[]
+  featuredMembers: DirectoryMapMember[]
 }) {
   const countryCount = new Set(
     mapCities.map((city) => city.country).filter(Boolean),
   ).size
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+      <div>
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">
-            Find IPN members
+            Meet members across IPN
           </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Connect with students and professionals across our global network.
+          </p>
         </div>
-        <Link
-          href="/dashboard/directory?view=map"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
-        >
-          Search
-        </Link>
       </div>
 
-      <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
-        <div className="min-w-0">
-          <p className="text-sm leading-6 text-zinc-500">
-            Search by school, field, location, and interests to find collaborators
-            and peers across the network.
-          </p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3 sm:divide-x sm:divide-zinc-100">
+        {featuredMembers.map((member) => (
+          <FeaturedMember key={member.id} member={member} />
+        ))}
+      </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-zinc-50 px-3 py-3">
-            <span>
-              <span className="block text-lg font-semibold text-zinc-900">
-                {memberCount?.toLocaleString() ?? "-"}
-              </span>
-              <span className="text-[11px] text-zinc-400">Members</span>
+      <div className="mt-4 flex flex-col gap-4 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid grid-cols-3 gap-8 sm:min-w-[28rem]">
+          <span>
+            <span className="block text-2xl font-semibold text-ipn">
+              {memberCount?.toLocaleString() ?? "-"}
             </span>
-            <span>
-              <span className="block text-lg font-semibold text-zinc-900">
-                {mapCities.length.toLocaleString()}
-              </span>
-              <span className="text-[11px] text-zinc-400">Cities</span>
+            <span className="text-xs text-zinc-500">Members</span>
+          </span>
+          <span>
+            <span className="block text-2xl font-semibold text-ipn">
+              {mapCities.length.toLocaleString()}
             </span>
-            <span>
-              <span className="block text-lg font-semibold text-zinc-900">
-                {countryCount.toLocaleString()}
-              </span>
-              <span className="text-[11px] text-zinc-400">Countries</span>
+            <span className="text-xs text-zinc-500">Cities</span>
+          </span>
+          <span>
+            <span className="block text-2xl font-semibold text-ipn">
+              {countryCount.toLocaleString()}
             </span>
-          </div>
+            <span className="text-xs text-zinc-500">Countries</span>
+          </span>
         </div>
-        <Link href="/dashboard/directory?view=map" className="block">
-          <MiniDirectoryMapPreview cities={mapCities} />
+        <Link
+          href="/dashboard/directory"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ipn/30 px-4 py-2 text-sm font-semibold text-ipn transition hover:bg-ipn-light"
+        >
+          Explore community
         </Link>
       </div>
     </section>
@@ -339,7 +245,7 @@ export default async function DashboardPage() {
     const legacyResult = await supabase
       .from("member_onboarding_progress")
       .select(
-        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, product_tour_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
+        "profile_completed_at, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
       )
       .eq("user_id", user!.id)
       .maybeSingle()
@@ -347,11 +253,28 @@ export default async function DashboardPage() {
     return {
       ...legacyResult,
       data: legacyResult.data
-        ? { ...legacyResult.data, getting_started_completed_at: null, getting_started_success_seen_at: null }
+        ? {
+            ...legacyResult.data,
+            whatsapp_current_step: null,
+            product_tour_completed_at: null,
+            getting_started_completed_at: null,
+            getting_started_success_seen_at: null,
+          }
         : null,
     }
   })()
-  const [profileResult, educationResult, upcomingResult, conferenceResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
+  const [
+    profileResult,
+    educationResult,
+    upcomingResult,
+    conferenceResult,
+    memberCountResult,
+    mapRowsResult,
+    onboardingResult,
+    eventParticipationResult,
+    conferenceParticipationResult,
+    connectionParticipationResult,
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags, role_and_goals, inspiration, linkedin_url")
@@ -359,7 +282,7 @@ export default async function DashboardPage() {
       .single(),
     supabase
       .from("member_education")
-      .select("institution")
+      .select("institution, degree_credential, area_of_study")
       .eq("user_id", user!.id),
     supabase
       .from("events")
@@ -393,6 +316,18 @@ export default async function DashboardPage() {
       .order("first_name", { ascending: true })
       .limit(500),
     onboardingResultPromise,
+    supabase
+      .from("event_registrations")
+      .select("event_id", { count: "exact", head: true })
+      .eq("user_id", user!.id),
+    supabase
+      .from("conference_rsvps")
+      .select("conference_id", { count: "exact", head: true })
+      .eq("user_id", user!.id),
+    supabase
+      .from("connections")
+      .select("id", { count: "exact", head: true })
+      .eq("requester_id", user!.id),
   ])
 
   const profile = profileResult.data as MemberProfile | null
@@ -401,9 +336,13 @@ export default async function DashboardPage() {
     avatarUrl: profile?.avatar_url ?? null,
     bio: profile?.bio ?? "",
     role: profile?.persona ?? "",
+    requiresEducation: STUDENT_BACKGROUNDS.has(profile?.persona ?? ""),
     affiliation: profile?.affiliation ?? "",
-    legacySchool: profile?.school ?? "",
-    educationInstitutions: (educationResult.data ?? []).map((entry) => entry.institution ?? ""),
+    education: (educationResult.data ?? []).map((entry) => ({
+      institution: entry.institution ?? "",
+      degreeCredential: entry.degree_credential ?? "",
+      areaOfStudy: entry.area_of_study ?? "",
+    })),
     interests: profile?.interest_tags ?? [],
     roleAndGoals: profile?.role_and_goals ?? "",
     inspiration: profile?.inspiration ?? "",
@@ -418,6 +357,11 @@ export default async function DashboardPage() {
     profileCompletion.completedCount,
     profileCompletion.totalCount,
   )
+  const participationCompleted = [
+    eventParticipationResult.count,
+    conferenceParticipationResult.count,
+    connectionParticipationResult.count,
+  ].some((count) => (count ?? 0) > 0)
   const gettingStartedSummary = activationSummary({
     whatsapp_completed_at: onboardingProgress?.whatsapp_completed_at ?? null,
     whatsapp_current_step: onboardingProgress?.whatsapp_current_step ?? null,
@@ -425,16 +369,24 @@ export default async function DashboardPage() {
     product_tour_completed_at: onboardingProgress?.product_tour_completed_at ?? null,
     event_rsvp_completed_at: onboardingProgress?.event_rsvp_completed_at ?? null,
     connection_request_completed_at: onboardingProgress?.connection_request_completed_at ?? null,
+    participation_completed: participationCompleted,
   })
   const gettingStartedComplete = gettingStartedSummary.completedCount === gettingStartedSummary.totalCount
   const showGettingStarted = !gettingStartedComplete || !onboardingProgress?.getting_started_success_seen_at
   const mapCities = buildDirectoryMapCities(
     (mapRowsResult.data ?? []) as DirectoryMapMember[],
   )
+  const featuredMembers = selectFeaturedMembers(
+    (mapRowsResult.data ?? []) as DirectoryMapMember[],
+    user!.id,
+  )
   const rawUpcomingEvents = (upcomingResult.data ?? []) as EventRecord[]
+  const conferenceRecords = (conferenceResult.data ?? []) as ConferenceRecord[]
   const eventIds = rawUpcomingEvents.map((event) => event.id)
+  const conferenceIds = conferenceRecords.map((conference) => conference.id)
   let registrations: { event_id: string }[] = []
   let tickets: { event_id: string }[] = []
+  let registeredMeetupIds: string[] = []
 
   if (eventIds.length) {
     const [registrationResult, ticketResult] = await Promise.all([
@@ -454,6 +406,16 @@ export default async function DashboardPage() {
 
     registrations = (registrationResult.data ?? []) as { event_id: string }[]
     tickets = (ticketResult.data ?? []) as { event_id: string }[]
+  }
+
+  if (conferenceIds.length) {
+    const { data: meetupRsvps } = await supabase
+      .from("conference_meetup_rsvps")
+      .select("meetup_id")
+      .eq("user_id", user!.id)
+      .in("conference_id", conferenceIds)
+
+    registeredMeetupIds = (meetupRsvps ?? []).map((row) => row.meetup_id)
   }
 
   const registeredIds = new Set(
@@ -497,36 +459,37 @@ export default async function DashboardPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ProductTourLauncher />
+          <div className="hidden sm:block">
+            <ProductTourLauncher />
+          </div>
           <div className="hidden sm:block">
             <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
           </div>
         </div>
       </div>
 
+      {showGettingStarted && (
+        <ActivationChecklist
+          userId={user!.id}
+          progress={onboardingProgress}
+          profileCompletedCount={profileCompletion.completedCount}
+          profileTotalCount={profileCompletion.totalCount}
+          participationCompleted={participationCompleted}
+        />
+      )}
+
       <UpcomingEventsCarousel
         events={upcomingEvents}
-        conferences={(conferenceResult.data ?? []) as ConferenceRecord[]}
+        conferences={conferenceRecords}
         totalCount={upcomingResult.count ?? upcomingEvents.length}
+        registeredMeetupIds={registeredMeetupIds}
       />
 
-      <div className={`grid grid-cols-1 items-start gap-4 ${showGettingStarted ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}>
-        {showGettingStarted && (
-          <div className="xl:order-2">
-            <ActivationChecklist
-              progress={onboardingProgress}
-              profileCompletedCount={profileCompletion.completedCount}
-              profileTotalCount={profileCompletion.totalCount}
-            />
-          </div>
-        )}
-        <div className={showGettingStarted ? "xl:order-1" : ""}>
-          <DirectoryPreview
-            memberCount={memberCountResult.count}
-            mapCities={mapCities}
-          />
-        </div>
-      </div>
+      <DirectoryPreview
+        memberCount={memberCountResult.count}
+        mapCities={mapCities}
+        featuredMembers={featuredMembers}
+      />
     </div>
   )
 }

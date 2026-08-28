@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { readFile } from "node:fs/promises"
 
 import {
   getProfileCompletion,
@@ -11,9 +12,9 @@ function profile(overrides = {}) {
     avatarUrl: null,
     bio: "",
     role: "",
+    requiresEducation: false,
     affiliation: "",
-    legacySchool: "",
-    educationInstitutions: [],
+    education: [],
     interests: [],
     roleAndGoals: "",
     inspiration: "",
@@ -23,6 +24,21 @@ function profile(overrides = {}) {
     ...overrides,
   }
 }
+
+test("profile form offers save controls beneath the checklist and at the end", async () => {
+  const profileForm = await readFile(
+    new URL("../src/app/dashboard/profile/ProfileForm.tsx", import.meta.url),
+    "utf8",
+  )
+
+  const mainProfileForm = profileForm.slice(profileForm.indexOf("export default function ProfileForm"))
+
+  assert.equal(mainProfileForm.match(/onClick=\{handleSave\}/g)?.length, 2)
+  assert.match(
+    mainProfileForm,
+    /<ProfileCompletionStatus[\s\S]*?<\/div>\s*<\/div>\s*\{saved &&/,
+  )
+})
 
 test("profile completion has seven stable, member-facing criteria", () => {
   const completion = getProfileCompletion(profile())
@@ -50,8 +66,13 @@ test("profile completion ignores whitespace and counts each criterion once", () 
     avatarUrl: " https://example.com/avatar.jpg ",
     bio: " A short bio ",
     role: "Graduate student (Master's or PhD)",
+    requiresEducation: true,
     affiliation: "  ",
-    educationInstitutions: ["  Princeton University  ", "Another school"],
+    education: [{
+      institution: "  Princeton University  ",
+      degreeCredential: " BA ",
+      areaOfStudy: " Neuroscience ",
+    }],
     interests: ["  ", "Neuroscience"],
     roleAndGoals: " Research and policy ",
     inspiration: " Community ",
@@ -96,23 +117,36 @@ test("LinkedIn is complete with a URL or an intentional opt-out", () => {
   assert.equal(optedOut?.completedLabel, "Not used")
 })
 
-test("school or organization supports affiliation, legacy school, and education records", () => {
-  for (const candidate of [
-    { affiliation: "MAPS" },
-    { legacySchool: "Brown University" },
-    { educationInstitutions: ["UC Berkeley"] },
-  ]) {
-    const organization = getProfileCompletion(profile(candidate)).items.find(
-      (item) => item.field === "organization",
-    )
-    assert.equal(organization?.complete, true)
-  }
+test("school or organization requires affiliation or complete education details", () => {
+  const affiliation = getProfileCompletion(profile({ affiliation: "MAPS" }))
+  assert.equal(affiliation.items.find((item) => item.field === "organization")?.complete, true)
 
-  const educationDetailsOnly = getProfileCompletion(profile({
-    educationInstitutions: ["  "],
+  const studentAffiliationOnly = getProfileCompletion(profile({
+    role: "Undergraduate student",
+    requiresEducation: true,
+    affiliation: "University of Pennsylvania",
   }))
   assert.equal(
-    educationDetailsOnly.items.find((item) => item.field === "organization")?.complete,
+    studentAffiliationOnly.items.find((item) => item.field === "organization")?.complete,
     false,
   )
+
+  for (const education of [
+    [{ institution: "UC Berkeley", degreeCredential: "", areaOfStudy: "" }],
+    [{ institution: "UC Berkeley", degreeCredential: "BA", areaOfStudy: "" }],
+    [{ institution: "UC Berkeley", degreeCredential: "", areaOfStudy: "Psychology" }],
+  ]) {
+    const incomplete = getProfileCompletion(profile({ education, requiresEducation: true }))
+    assert.equal(incomplete.items.find((item) => item.field === "organization")?.complete, false)
+  }
+
+  const complete = getProfileCompletion(profile({
+    education: [{
+      institution: "UC Berkeley",
+      degreeCredential: "BA",
+      areaOfStudy: "Psychology",
+    }],
+    requiresEducation: true,
+  }))
+  assert.equal(complete.items.find((item) => item.field === "organization")?.complete, true)
 })

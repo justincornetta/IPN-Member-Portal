@@ -374,13 +374,11 @@ function MapFallback({
 
 export default function MapDirectoryView({
   cities,
-  totalMemberCount,
   connectionMap,
   currentUserId,
   onOpenMember,
 }: {
   cities: DirectoryMapCity[]
-  totalMemberCount: number
   connectionMap: Record<string, ConnectionEntry>
   currentUserId: string
   onOpenMember: (member: DirectoryMember) => void
@@ -393,10 +391,6 @@ export default function MapDirectoryView({
   const [mapError, setMapError] = useState<string | null>(null)
 
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  const countryCount = useMemo(
-    () => new Set(cities.map((city) => city.country).filter(Boolean)).size,
-    [cities],
-  )
   const resolvedSelectedGroup = useMemo(() => {
     if (!selectedGroup) return null
 
@@ -716,21 +710,7 @@ export default function MapDirectoryView({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-zinc-900 shadow-sm sm:hidden">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Live membership map</p>
-        <p className="mt-1 text-sm font-semibold">
-          {totalMemberCount} member{totalMemberCount === 1 ? "" : "s"} · {cities.length} cit{cities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
-        </p>
-      </div>
-
       <div className="directory-map-shell relative h-[360px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm sm:h-[680px]" data-testid="directory-map-shell">
-        <div className="absolute left-4 top-4 z-10 hidden max-w-[calc(100%-2rem)] rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-lg backdrop-blur sm:block">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Live membership map</p>
-          <p className="mt-1 text-sm font-semibold">
-            {totalMemberCount} member{totalMemberCount === 1 ? "" : "s"} · {cities.length} cit{cities.length === 1 ? "y" : "ies"} · {countryCount} countr{countryCount === 1 ? "y" : "ies"}
-          </p>
-        </div>
-
         {mapboxToken && !mapError ? (
           <div
             ref={mapContainerRef}

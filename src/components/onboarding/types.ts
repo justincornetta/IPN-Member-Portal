@@ -5,6 +5,10 @@ export type WhatsAppChannel = {
   name: string
   shortName: string
   description: string
+  previewDescription: string
+  previewMessages: [string, string]
+  promptLabel: string
+  prompt: string
   redirectPath: string
   recommended?: boolean
 }
