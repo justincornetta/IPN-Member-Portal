@@ -1,4 +1,4 @@
-export const PROFILE_COMPLETION_TOTAL = 7
+export const PROFILE_COMPLETION_TOTAL = 8
 
 export type ProfileCompletionField =
   | "avatar"
@@ -8,6 +8,7 @@ export type ProfileCompletionField =
   | "interests"
   | "about"
   | "linkedin"
+  | "whatsapp"
 
 export type ProfileCompletionInput = {
   avatarUrl: string | null
@@ -26,6 +27,8 @@ export type ProfileCompletionInput = {
   supportNeeds: string
   linkedinUrl: string
   linkedinOptOut: boolean
+  whatsappUrl: string | null
+  whatsappOptOut: boolean
 }
 
 export type ProfileCompletionItem = {
@@ -99,6 +102,13 @@ export function getProfileCompletion(input: ProfileCompletionInput) {
       actionLabel: "Add or opt out",
       complete: hasText(input.linkedinUrl) || input.linkedinOptOut,
       completedLabel: input.linkedinOptOut && !hasText(input.linkedinUrl) ? "Not used" : "Complete",
+    },
+    {
+      field: "whatsapp",
+      label: "WhatsApp",
+      actionLabel: "Add or opt out",
+      complete: hasText(input.whatsappUrl) || input.whatsappOptOut,
+      completedLabel: input.whatsappOptOut && !hasText(input.whatsappUrl) ? "Not used" : "Complete",
     },
   ]
 

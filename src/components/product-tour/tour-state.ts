@@ -42,7 +42,7 @@ export const PRODUCT_TOUR_STEPS = [
   {
     id: "resources",
     title: "Use member resources",
-    description: "Explore member benefits, articles, and partner organizations.",
+    description: "Explore member benefits, IPN blog posts, newsletters, and partner organizations.",
     route: "/dashboard/resources",
   },
   {

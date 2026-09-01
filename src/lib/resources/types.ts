@@ -1,6 +1,7 @@
 export type ResourceType =
   | "affiliate_benefit"
   | "blog_post"
+  | "newsletter"
   | "partner"
 
 export type ResourceRecord = {

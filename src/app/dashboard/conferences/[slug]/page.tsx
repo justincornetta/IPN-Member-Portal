@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import ConferenceDetailOverview from "@/components/conferences/ConferenceDetailOverview"
 import ConferenceInteractive from "@/components/conferences/ConferenceInteractive"
-import { getConferenceAttendeeState, getConferenceBySlug, getMeetupRsvpIds } from "@/lib/conferences/queries"
+import { getConferenceAttendeeState, getConferenceBySlug, getMeetupAttendeeStates } from "@/lib/conferences/queries"
 import type { ConferenceAttendee } from "@/lib/conferences/types"
 import type { ConnectionEntry } from "@/lib/directory/types"
 import { createClient } from "@/lib/supabase/server"
@@ -22,9 +22,9 @@ export default async function ConferenceDetailPage({ params }: Props) {
   const conference = await getConferenceBySlug(slug)
   if (!conference) notFound()
 
-  const [{ isGoing, isVisible, visibleAttendees }, meetupRsvpIds, { data: connRows }] = await Promise.all([
+  const [{ isGoing, isVisible, visibleAttendees }, meetupAttendance, { data: connRows }] = await Promise.all([
     getConferenceAttendeeState(conference.id, user.id),
-    getMeetupRsvpIds(conference.id, user.id),
+    getMeetupAttendeeStates(conference.id, user.id, conference.meetups.map((meetup) => meetup.id)),
     supabase.from("connections").select("requester_id, addressee_id, status").or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
   ])
 
@@ -36,8 +36,13 @@ export default async function ConferenceDetailPage({ params }: Props) {
     if (row.status === "accepted") acceptedConnectionIds.push(otherId)
   }
 
-  const { data: contacts } = acceptedConnectionIds.length > 0
-    ? await supabase.from("member_contacts").select("user_id, email, whatsapp_url").in("user_id", acceptedConnectionIds)
+  const attendeeIds = new Set([
+    ...visibleAttendees.map((attendee) => attendee.id),
+    ...Object.values(meetupAttendance).flatMap((state) => state.visibleAttendees.map((attendee) => attendee.id)),
+  ])
+  const contactIds = acceptedConnectionIds.filter((id) => attendeeIds.has(id))
+  const { data: contacts } = contactIds.length > 0
+    ? await supabase.from("member_contacts").select("user_id, email, whatsapp_url").in("user_id", contactIds)
     : { data: [] }
   const contactMap = new Map((contacts ?? []).map((contact) => [
     contact.user_id as string,
@@ -47,6 +52,15 @@ export default async function ConferenceDetailPage({ params }: Props) {
     ...attendee,
     contact: contactMap.get(attendee.id) ?? null,
   }))
+  const meetupAttendanceWithContact = Object.fromEntries(
+    Object.entries(meetupAttendance).map(([meetupId, state]) => [meetupId, {
+      ...state,
+      visibleAttendees: state.visibleAttendees.map((attendee) => ({
+        ...attendee,
+        contact: contactMap.get(attendee.id) ?? null,
+      })),
+    }]),
+  )
 
   const currentMemberProfile: ConferenceAttendee = {
     id: user.id,
@@ -72,7 +86,7 @@ export default async function ConferenceDetailPage({ params }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link href="/dashboard/conferences" className="text-sm font-medium text-ipn hover:underline">Back to conferences</Link>
       </div>
-      <ConferenceDetailOverview conference={conference} />
+      <ConferenceDetailOverview conference={conference} withAttendance />
       <ConferenceInteractive
         conferenceId={conference.id}
         conferenceSlug={conference.slug}
@@ -85,7 +99,7 @@ export default async function ConferenceDetailPage({ params }: Props) {
         connectionMap={connectionMap}
         meetups={conference.meetups}
         timezone={conference.timezone}
-        initialMeetupRsvpIds={[...meetupRsvpIds]}
+        initialMeetupAttendance={meetupAttendanceWithContact}
       />
     </div>
   )

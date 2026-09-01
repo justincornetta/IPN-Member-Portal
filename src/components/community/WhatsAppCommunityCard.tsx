@@ -11,10 +11,10 @@ type WhatsAppCommunityCardProps = {
 export const WHATSAPP_COMMUNITY_COPY =
   "Join the IPN WhatsApp Community to connect with other members and stay up to date on the latest IPN events and news."
 
-function WhatsAppIcon() {
+export function WhatsAppIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
-      className="h-4 w-4"
+      className={className}
       viewBox="0 0 24 24"
       fill="currentColor"
       aria-hidden="true"

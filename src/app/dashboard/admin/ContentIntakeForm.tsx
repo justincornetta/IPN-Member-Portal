@@ -661,7 +661,7 @@ function RecordingForm({ initial, onSubmit, pending }: {
 // ─── Resource form (2 steps) ──────────────────────────────────────────────────
 
 type ResourceFields = {
-  resourceType: "blog_post" | "partner" | "member_resource"
+  resourceType: "blog_post" | "newsletter" | "partner" | "member_resource"
   title: string; url: string; publishedAt: string; category: string; author: string
   summary: string; detailBody: string; benefitNote: string; imageUrl: string; slug: string
 }
@@ -672,7 +672,7 @@ const RESOURCE_DEFAULTS: ResourceFields = {
 }
 
 const RESOURCE_TYPE_LABELS: Record<ResourceFields["resourceType"], string> = {
-  blog_post: "Blog post", partner: "Partner", member_resource: "Member benefit",
+  blog_post: "Blog post", newsletter: "Newsletter", partner: "Partner", member_resource: "Member benefit",
 }
 
 function ResourceForm({ initial, onSubmit, pending }: {
@@ -716,6 +716,7 @@ function ResourceForm({ initial, onSubmit, pending }: {
             <Field label="Resource type" hint="Determines how this item is displayed and categorized in the member portal">
               <select value={f.resourceType} onChange={(e) => set("resourceType", e.target.value as ResourceFields["resourceType"])} className={`cursor-pointer ${inputCls()}`}>
                 <option value="blog_post">Blog post: IPN Substack articles</option>
+                <option value="newsletter">Newsletter: monthly Mailchimp member issues</option>
                 <option value="partner">Partner: organizations IPN works with</option>
                 <option value="member_resource">Member benefit: perks and discounts for IPN members</option>
               </select>
@@ -724,16 +725,16 @@ function ResourceForm({ initial, onSubmit, pending }: {
               <input value={f.title} onChange={(e) => set("title", e.target.value)} className={inputCls()} />
               {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
             </Field>
-            <Field label="URL" required hint={f.resourceType === "blog_post" ? "Link to the Substack post" : f.resourceType === "partner" ? "Partner website or landing page" : "Link to where members redeem this benefit"}>
+            <Field label="URL" required hint={f.resourceType === "blog_post" ? "Link to the Substack post" : f.resourceType === "newsletter" ? "Link to the hosted Mailchimp issue" : f.resourceType === "partner" ? "Partner website or landing page" : "Link to where members redeem this benefit"}>
               <input value={f.url} onChange={(e) => set("url", e.target.value)} className={inputCls()} placeholder="https://..." />
               {errors.url && <p className="text-xs text-red-600">{errors.url}</p>}
             </Field>
-            {f.resourceType === "blog_post" && (
+            {["blog_post", "newsletter"].includes(f.resourceType) && (
               <>
                 <Field label="Published date" hint="Publication date of the article">
                   <input type="datetime-local" value={f.publishedAt} onChange={(e) => set("publishedAt", e.target.value)} className={inputCls()} />
                 </Field>
-                <Field label="Author" hint="Full name, shown below the article title.">
+                <Field label="Author" hint="Full name or team, shown with the publication.">
                   <input value={f.author} onChange={(e) => set("author", e.target.value)} className={inputCls()} placeholder="e.g. Intercollegiate Psychedelics Network" />
                 </Field>
               </>
@@ -774,7 +775,7 @@ function ResourceForm({ initial, onSubmit, pending }: {
 
 // ─── Conference form (4 steps) ────────────────────────────────────────────────
 
-type ConferenceMeetupRow = { id?: string; title: string; startsAt: string; endsAt: string; location: string; description: string; notificationMessage: string }
+type ConferenceMeetupRow = { id?: string; title: string; imageUrl: string; startsAt: string; endsAt: string; location: string; description: string; notificationMessage: string }
 type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; notificationMessage: string; howToApply: string; expiresAt: string }
 
 type ConferenceFields = {
@@ -833,6 +834,7 @@ function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | n
         id: meetup.id ?? `preview-meetup-${index}`,
         title: meetup.title.trim(),
         type: "IPN Meetup",
+        imageUrl: meetup.imageUrl.trim() || null,
         startsAt: toIsoInTimeZone(meetup.startsAt, timezone) ?? startsAt,
         endsAt: toIsoInTimeZone(meetup.endsAt, timezone),
         location: meetup.location.trim() || null,
@@ -1295,6 +1297,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
       .map((m) => ({
         id: m.id,
         title: m.title.trim(),
+        imageUrl: m.imageUrl.trim() || undefined,
         startsAt: m.startsAt,
         endsAt: m.endsAt || undefined,
         location: m.location.trim() || undefined,
@@ -1465,6 +1468,9 @@ function ConferenceForm({ initial, onSubmit, pending }: {
                     </Field>
                     <button type="button" onClick={() => set("meetups", f.meetups.filter((_, j) => j !== i))} className="min-h-11 cursor-pointer self-end rounded-lg border border-zinc-200 px-3 text-zinc-400 transition hover:border-red-200 hover:text-red-500">✕</button>
                   </div>
+                  <Field label="Meetup cover photo" hint="Optional 16:9 image shown above the meetup details. The standard IPN meetup artwork is used when blank.">
+                    <ImageUploadField value={meetup.imageUrl} onChange={(url) => { const next = [...f.meetups]; next[i] = { ...next[i], imageUrl: url }; set("meetups", next) }} />
+                  </Field>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Field label="Start date & time" required>
                       <input type="datetime-local" required value={meetup.startsAt} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], startsAt: e.target.value }; set("meetups", next) }} className={inputCls()} />
@@ -1485,7 +1491,7 @@ function ConferenceForm({ initial, onSubmit, pending }: {
                 </div>
               ))}
               <p className="text-[11px] text-zinc-400">Members RSVP to meetups in-app — no registration link needed.</p>
-              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", startsAt: "", endsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", imageUrl: "", startsAt: "", endsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add meetup
               </button>
             </div>
@@ -1793,6 +1799,7 @@ function recordingTimestamp(event: AdminEventSummary) {
 function resourceToFields(r: AdminResourceSummary): ResourceFields {
   const resourceType: ResourceFields["resourceType"] =
     r.resource_type === "blog_post" ? "blog_post"
+    : r.resource_type === "newsletter" ? "newsletter"
     : r.resource_type === "partner" ? "partner"
     : "member_resource"
   return {
@@ -1815,7 +1822,7 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
     status: c.status,
     summary: c.summary ?? "", description: c.description ?? "", slug: c.slug,
     meetups: c.meetups.map((m) => ({
-      id: m.id, title: m.title, startsAt: isoToLocal(m.startsAt, timezone),
+      id: m.id, title: m.title, imageUrl: m.imageUrl ?? "", startsAt: isoToLocal(m.startsAt, timezone),
       endsAt: m.endsAt ? isoToLocal(m.endsAt, timezone) : "",
       location: m.location ?? "", description: m.description ?? "",
       notificationMessage: m.notificationMessage ?? "",
@@ -2087,7 +2094,7 @@ function ResourceGroup({
       </p>
       {items.map((r) => {
         const date = r.published_at ? formatDate(r.published_at) : "—"
-        const typeLabel = r.resource_type === "blog_post" ? "Blog" : r.resource_type === "partner" ? "Partner" : "Benefit"
+        const typeLabel = r.resource_type === "blog_post" ? "Blog" : r.resource_type === "newsletter" ? "Newsletter" : r.resource_type === "partner" ? "Partner" : "Benefit"
         return (
           <ContentRow
             key={r.id}
@@ -2165,8 +2172,9 @@ export default function ContentIntakeForm() {
 
   // Resources grouped by type (no pagination — grouping is more useful)
   const blogResources = resources.filter((r) => r.resource_type === "blog_post")
+  const newsletterResources = resources.filter((r) => r.resource_type === "newsletter")
   const partnerResources = resources.filter((r) => r.resource_type === "partner")
-  const benefitResources = resources.filter((r) => !["blog_post", "partner"].includes(r.resource_type))
+  const benefitResources = resources.filter((r) => !["blog_post", "newsletter", "partner"].includes(r.resource_type))
 
   function openNew() {
     setEditTarget(null)
@@ -2413,6 +2421,12 @@ export default function ContentIntakeForm() {
                       <ResourceGroup
                         label="Blog posts"
                         items={blogResources}
+                        onEdit={(resource) => openEdit({ type: "resource", fields: resourceToFields(resource) })}
+                        onDelete={(id) => handleDelete(id, "resources")}
+                      />
+                      <ResourceGroup
+                        label="Newsletters"
+                        items={newsletterResources}
                         onEdit={(resource) => openEdit({ type: "resource", fields: resourceToFields(resource) })}
                         onDelete={(id) => handleDelete(id, "resources")}
                       />

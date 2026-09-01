@@ -5,7 +5,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   CalendarDaysIcon,
-  CheckIcon,
   GlobeAltIcon,
   UserPlusIcon,
 } from "@heroicons/react/24/outline"
@@ -62,8 +61,10 @@ export default function ActivationChecklist({
     profileCompletedCount,
     profileTotalCount,
   )
-  const participationMilestoneComplete = participationCompleted ?? Boolean(
-    progress?.event_rsvp_completed_at || progress?.connection_request_completed_at,
+  const participationMilestoneComplete = Boolean(
+    participationCompleted
+    || progress?.event_rsvp_completed_at
+    || progress?.connection_request_completed_at,
   )
 
   const items: ActivationItem[] = [
@@ -114,8 +115,6 @@ export default function ActivationChecklist({
   const allCompleted = summary.completedCount === summary.totalCount
   const nextItem = items.find((item) => !item.completed) ?? items[items.length - 1]
   const displayedItem = nextItem
-  const displayedItemIndex = items.findIndex((item) => item.id === displayedItem.id)
-  const displayedItemNumber = displayedItemIndex + 1
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -219,106 +218,95 @@ export default function ActivationChecklist({
   }
 
   const actionClass =
-    "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ipn px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ipn-dark sm:w-auto"
+    "inline-flex min-h-11 w-auto items-center justify-center rounded-lg bg-ipn px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn sm:px-5"
 
   return (
-      <section
-        className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+    <section
+      className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm sm:px-5 lg:rounded-none lg:border-x-0 lg:py-2.5 lg:shadow-none"
       aria-labelledby="activation-heading"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2
-          id="activation-heading"
-          className="text-lg font-semibold text-zinc-900 sm:text-xl"
-        >
-          Continue getting started
-        </h2>
-        <p className="text-sm text-zinc-500">
-          <span className="font-semibold text-ipn">{summary.completedCount}</span>
-          {" "}of {items.length} complete
-        </p>
-      </div>
-
-      <div
-        className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#EDE5F7]"
-        role="progressbar"
-        aria-label="Getting started progress"
-        aria-valuemin={0}
-        aria-valuemax={items.length}
-        aria-valuenow={summary.completedCount}
-      >
-        <div
-          className="h-full rounded-full bg-ipn transition-[width]"
-          style={{ width: `${(summary.completedCount / items.length) * 100}%` }}
-        />
-      </div>
-
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span
-            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-              displayedItem.completed ? "bg-ipn text-white" : "bg-ipn-light text-ipn"
-            }`}
-            aria-label={`${displayedItemNumber}. ${displayedItem.title}: ${displayedItem.completed ? "completed" : "current"}`}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 lg:grid-cols-[11rem_7rem_minmax(12rem,1fr)_minmax(10rem,max-content)_auto] lg:gap-5">
+        <div className="col-span-full flex items-center justify-between gap-3 lg:col-span-1 lg:block">
+          <h2
+            id="activation-heading"
+            className="text-base font-semibold text-zinc-900"
+            aria-label="Continue getting started"
           >
-            {displayedItem.completed ? (
-              <CheckIcon className="h-5 w-5" aria-hidden="true" />
-            ) : (
-              displayedItemNumber
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-zinc-900">{displayedItem.title}</h3>
-            <p className="mt-0.5 text-xs leading-5 text-zinc-500 sm:text-sm">
-              {displayedItem.description}
-            </p>
-          </div>
+            <span className="sm:hidden">Getting started</span>
+            <span className="hidden sm:inline">Finish getting started</span>
+          </h2>
+          <p className="text-sm text-zinc-500 lg:hidden">
+            {summary.completedCount} of {items.length} complete
+          </p>
         </div>
-        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            {displayedItem.id === "tour" ? (
-              <button type="button" onClick={startOrResume} className={actionClass}>
-                Continue setup
-              </button>
-            ) : displayedItem.id === "participate" ? (
-              <button
-                type="button"
-                onClick={() => setParticipationExpanded((expanded) => !expanded)}
-                aria-expanded={participationExpanded}
-                aria-controls="participation-options"
-                className={actionClass}
-              >
-                {participationExpanded ? "Hide options" : "Continue setup"}
-              </button>
-            ) : (
-              <Link href={displayedItem.href ?? "/dashboard"} className={actionClass}>
-                Continue setup
-              </Link>
-            )}
-          </div>
-          {displayedItem.id === "whatsapp" && !displayedItem.completed && (
-            <div className="flex min-h-9 items-center justify-center gap-3 text-xs font-semibold sm:justify-end">
-              <button
-                type="button"
-                onClick={() => completeWhatsAppChoice("self_attested")}
-                disabled={isConfirmingWhatsApp}
-                className="text-ipn hover:underline disabled:opacity-60"
-              >
-                {isConfirmingWhatsApp ? "Saving…" : "I’m already in"}
-              </button>
-              <span className="text-zinc-300" aria-hidden="true">·</span>
-              <button
-                type="button"
-                onClick={() => completeWhatsAppChoice("not_interested")}
-                disabled={isConfirmingWhatsApp}
-                className="text-zinc-500 hover:text-ipn hover:underline disabled:opacity-60"
-              >
-                Not interested
-              </button>
-            </div>
-          )}
+
+        <p className="hidden text-sm text-zinc-500 lg:block">
+          {summary.completedCount} of {items.length} complete
+        </p>
+
+        <div
+          className="col-span-full h-2 overflow-hidden rounded-full bg-[#EDE5F7] lg:col-span-1"
+          role="progressbar"
+          aria-label="Getting started progress"
+          aria-valuemin={0}
+          aria-valuemax={items.length}
+          aria-valuenow={summary.completedCount}
+        >
+          <div
+            className="h-full rounded-full bg-ipn transition-[width]"
+            style={{ width: `${(summary.completedCount / items.length) * 100}%` }}
+          />
         </div>
+
+        <p className="min-w-0 text-xs leading-5 text-zinc-600 sm:text-sm lg:whitespace-nowrap lg:text-right">
+          <span className="lg:hidden">Next: </span>
+          <span className="hidden lg:inline">Next: </span>
+          {displayedItem.title.replace(/^Take the /, "Take ")}
+        </p>
+
+        {displayedItem.id === "tour" ? (
+          <button type="button" onClick={startOrResume} className={actionClass}>
+            Continue <span aria-hidden="true" className="ml-3">→</span>
+          </button>
+        ) : displayedItem.id === "participate" ? (
+          <button
+            type="button"
+            onClick={() => setParticipationExpanded((expanded) => !expanded)}
+            aria-expanded={participationExpanded}
+            aria-controls="participation-options"
+            className={actionClass}
+          >
+            {participationExpanded ? "Hide options" : "Continue"}
+            {!participationExpanded && <span aria-hidden="true" className="ml-3">→</span>}
+          </button>
+        ) : (
+          <Link href={displayedItem.href ?? "/dashboard"} className={actionClass}>
+            Continue <span aria-hidden="true" className="ml-3">→</span>
+          </Link>
+        )}
       </div>
+
+      {displayedItem.id === "whatsapp" && !displayedItem.completed && (
+        <div className="mt-2 flex min-h-9 items-center justify-center gap-3 text-xs font-semibold lg:justify-end">
+          <button
+            type="button"
+            onClick={() => completeWhatsAppChoice("self_attested")}
+            disabled={isConfirmingWhatsApp}
+            className="text-ipn hover:underline disabled:opacity-60"
+          >
+            {isConfirmingWhatsApp ? "Saving…" : "I’m already in"}
+          </button>
+          <span className="text-zinc-300" aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => completeWhatsAppChoice("not_interested")}
+            disabled={isConfirmingWhatsApp}
+            className="text-zinc-500 hover:text-ipn hover:underline disabled:opacity-60"
+          >
+            Not interested
+          </button>
+        </div>
+      )}
       {displayedItem.id === "participate" && participationExpanded && (
         <div
           id="participation-options"

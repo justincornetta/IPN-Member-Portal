@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { MapPinIcon } from "@heroicons/react/24/outline"
+import { ArrowRightIcon, CheckIcon, MapPinIcon } from "@heroicons/react/24/outline"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
 import { meetupDisplayDetails } from "@/lib/conferences/meetup-display"
@@ -11,7 +11,6 @@ import type { EventWithRegistration } from "@/lib/events/types"
 type Props = {
   events: EventWithRegistration[]
   conferences: ConferenceRecord[]
-  totalCount: number
   registeredMeetupIds?: string[]
   className?: string
 }
@@ -25,8 +24,15 @@ type DashboardActivity =
       isRegistered: boolean
     }
 
-function ActivityCard({ activity }: { activity: DashboardActivity }) {
+function startsAt(activity: DashboardActivity) {
+  return activity.kind === "event"
+    ? activity.event.starts_at
+    : activity.meetup.startsAt
+}
+
+function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
   const isCommunity = activity.kind === "community"
+  const isRegistered = isCommunity ? activity.isRegistered : activity.event.is_registered
   const href = isCommunity
     ? `/dashboard/conferences/${activity.conference.slug}#ipn-meetups`
     : `/dashboard/events/${activity.event.slug}`
@@ -46,9 +52,6 @@ function ActivityCard({ activity }: { activity: DashboardActivity }) {
         timezone: activity.event.timezone,
         description: activity.event.summary ?? activity.event.description,
       }
-  const isRegistered = isCommunity
-    ? activity.isRegistered
-    : activity.event.is_registered
   const calendarEvent = isCommunity
     ? {
         id: `community-${activity.conference.id}-${activity.meetup.id}`,
@@ -65,29 +68,28 @@ function ActivityCard({ activity }: { activity: DashboardActivity }) {
     : activity.event
 
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm lg:grid lg:grid-cols-[13rem_minmax(0,1fr)_12.5rem] lg:items-stretch">
       <Link
         href={href}
-        className="relative block aspect-video overflow-hidden bg-ipn-light"
+        className="relative block aspect-video overflow-hidden bg-ipn-light sm:aspect-[2.1/1] lg:aspect-auto lg:min-h-52"
+        aria-label={`View ${title}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl || "/purple_icon.png"}
           alt=""
-          className={`h-full w-full ${imageUrl ? "object-cover" : "object-contain p-12"}`}
+          className={`h-full w-full ${
+            imageUrl
+              ? `object-cover ${isCommunity ? "object-left" : "object-center"}`
+              : "object-contain p-12"
+          }`}
         />
       </Link>
 
-      <div className="flex flex-1 flex-col p-4">
-        <Link href={href} className="group">
-          <h3 className="text-base font-semibold leading-snug text-zinc-900 group-hover:text-ipn sm:text-lg">
-            {title}
-          </h3>
-        </Link>
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-zinc-500">
+      <div className="min-w-0 p-5 lg:flex lg:flex-col lg:justify-center lg:px-7">
+        <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
+            className={`w-fit rounded-md px-2.5 py-1 text-xs font-semibold ${
               isCommunity
                 ? "bg-[#E4F6F1] text-[#176B5B]"
                 : "bg-ipn-light text-ipn"
@@ -95,42 +97,56 @@ function ActivityCard({ activity }: { activity: DashboardActivity }) {
           >
             {label}
           </span>
-          <EventDateTime
-            startsAt={schedule.startsAt}
-            endsAt={schedule.endsAt}
-            timezone={schedule.timezone}
-          />
-        </div>
-
-        {location && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
-            <MapPinIcon className="h-4 w-4 flex-none" aria-hidden="true" />
-            <span>{location}</span>
-          </p>
-        )}
-
-        <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <span
-            className={`inline-flex min-h-9 items-center rounded-md px-3 text-xs font-semibold ${
+            className={`inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold ${
               isRegistered
                 ? "bg-[#E4F6F1] text-[#176B5B]"
                 : "bg-zinc-100 text-zinc-600"
             }`}
           >
+            {isRegistered && <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />}
             {isRegistered ? "You’re registered" : "Not registered"}
           </span>
-
-          <div className="flex flex-col-reverse gap-2 min-[420px]:flex-row min-[420px]:justify-end">
-            <AddToCalendarButton event={calendarEvent} compact />
-            <Link
-              href={href}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-semibold text-white transition hover:bg-ipn-dark sm:min-h-0"
-            >
-              View event
-              <span aria-hidden="true" className="ml-3 text-lg leading-none">→</span>
-            </Link>
-          </div>
         </div>
+        <Link href={href} className="group mt-3 block">
+          <h3 className="text-xl font-semibold leading-tight text-zinc-950 group-hover:text-ipn lg:text-2xl">
+            {title}
+          </h3>
+        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-zinc-600">
+          <EventDateTime
+            startsAt={schedule.startsAt}
+            endsAt={schedule.endsAt}
+            timezone={schedule.timezone}
+          />
+          {location && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPinIcon className="h-5 w-5 flex-none" aria-hidden="true" />
+              <span>{location}</span>
+            </span>
+          )}
+        </div>
+        {schedule.description && (
+          <p className="mt-4 line-clamp-2 text-sm leading-6 text-zinc-600">
+            {schedule.description}
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-zinc-100 p-5 lg:justify-center lg:border-l lg:border-t-0">
+        <Link
+          href={href}
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-ipn px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
+        >
+          View event
+          <ArrowRightIcon className="ml-4 h-4 w-4" aria-hidden="true" />
+        </Link>
+        <AddToCalendarButton
+          event={calendarEvent}
+          appearance="ipn"
+          label="Add to calendar"
+          className="w-full"
+        />
       </div>
     </article>
   )
@@ -139,7 +155,6 @@ function ActivityCard({ activity }: { activity: DashboardActivity }) {
 export default function UpcomingEventsCarousel({
   events,
   conferences = [],
-  totalCount,
   registeredMeetupIds = [],
   className = "",
 }: Props) {
@@ -149,57 +164,33 @@ export default function UpcomingEventsCarousel({
     )
     .sort((a, b) => a.meetup.startsAt.localeCompare(b.meetup.startsAt))[0]
 
-  const activities: DashboardActivity[] = []
-  if (events[0]) activities.push({ kind: "event", event: events[0] })
+  const candidates: DashboardActivity[] = events.slice(0, 2).map((event) => ({
+    kind: "event",
+    event,
+  }))
   if (communityActivity) {
-    activities.push({
+    candidates.push({
       kind: "community",
       ...communityActivity,
       isRegistered: registeredMeetupIds.includes(communityActivity.meetup.id),
     })
   }
-  if (!communityActivity && events[1]) {
-    activities.push({ kind: "event", event: events[1] })
-  }
+  const nextActivity = candidates.sort((a, b) =>
+    startsAt(a).localeCompare(startsAt(b)),
+  )[0]
 
   return (
-    <section
-      className={`rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}
-      aria-labelledby="upcoming-events-at-ipn"
-    >
-      <div className="flex items-center justify-between gap-4">
-        <h2
-          id="upcoming-events-at-ipn"
-          className="text-lg font-semibold text-zinc-900 sm:text-xl"
-        >
-          Upcoming Events at IPN
+    <section className={className} aria-labelledby="your-next-event">
+      <div className="mb-3">
+        <h2 id="your-next-event" className="text-lg font-semibold text-ipn sm:text-xl">
+          Your next event
         </h2>
-        <Link
-          href="/dashboard/events"
-          aria-label={`View all ${totalCount + (communityActivity ? 1 : 0)} upcoming events`}
-          className="inline-flex min-h-11 shrink-0 items-center text-xs font-medium text-ipn hover:underline sm:min-h-0 sm:text-sm"
-        >
-          <span className="sm:hidden">View all</span>
-          <span className="hidden sm:inline">View all events</span>
-          <span aria-hidden="true" className="ml-2">→</span>
-        </Link>
       </div>
 
-      {activities.length ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {activities.map((activity) => (
-            <ActivityCard
-              key={
-                activity.kind === "event"
-                  ? `event:${activity.event.id}`
-                  : `community:${activity.conference.id}:${activity.meetup.id}`
-              }
-              activity={activity}
-            />
-          ))}
-        </div>
+      {nextActivity ? (
+        <ActivitySpotlight activity={nextActivity} />
       ) : (
-        <div className="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
           <h3 className="font-semibold text-zinc-900">New events are coming soon</h3>
           <p className="mt-2 text-sm text-zinc-500">
             IPN Labs and community meetups will appear here when they are announced.

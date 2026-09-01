@@ -95,18 +95,23 @@ function resourcesByType(resources: ResourceRecord[], type: ResourceType) {
 
 function resourceTabFromParam(value: string | null): ResourceType {
   if (value === "blog") return "blog_post"
+  if (value === "newsletters") return "newsletter"
   if (value === "partners") return "partner"
   return "affiliate_benefit"
 }
 
 function resourceTabToParam(value: ResourceType) {
   if (value === "blog_post") return "blog"
+  if (value === "newsletter") return "newsletters"
   if (value === "partner") return "partners"
   return "benefits"
 }
 
 function ResourceMedia({ resource }: { resource: ResourceRecord }) {
-  const image = resourceImage(resource)
+  const image =
+    resource.resource_type === "newsletter"
+      ? resource.image_url ?? resource.thumbnail_url
+      : resourceImage(resource)
   const isBenefit = resource.resource_type === "affiliate_benefit"
   const isPartner = resource.resource_type === "partner"
   const showContain = isBenefit || isPartner
@@ -151,6 +156,7 @@ function ResourceMeta({ resource }: { resource: ResourceRecord }) {
 
 function ResourceCard({ resource }: { resource: ResourceRecord }) {
   const isBlog = resource.resource_type === "blog_post"
+  const isNewsletter = resource.resource_type === "newsletter"
   const isBenefit = resource.resource_type === "affiliate_benefit"
   const isPartner = resource.resource_type === "partner"
   const descriptionClamp = isPartner ? "line-clamp-2" : "line-clamp-2 sm:line-clamp-3"
@@ -207,6 +213,11 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
               Read More
               <ArrowIcon />
             </span>
+          ) : isNewsletter ? (
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-ipn">
+              Read issue
+              <ExternalLinkIcon />
+            </span>
           ) : isBenefit ? (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-ipn">
               View details
@@ -242,6 +253,22 @@ function ResourceCard({ resource }: { resource: ResourceRecord }) {
       >
         {body}
       </Link>
+    )
+  }
+
+  if (isNewsletter) {
+    return (
+      <a
+        href={resource.url}
+        target="_blank"
+        rel="noreferrer"
+        data-analytics-event="curated_click"
+        data-analytics-id={`newsletter-${resource.slug}`}
+        data-analytics-label="Newsletter issue"
+        className="block h-full"
+      >
+        {body}
+      </a>
     )
   }
 
@@ -327,6 +354,7 @@ export default function ResourcesHub({ resources }: Props) {
 
   const benefits = resourcesByType(resources, "affiliate_benefit")
   const blogs = resourcesByType(resources, "blog_post")
+  const newsletters = resourcesByType(resources, "newsletter")
   const partners = resourcesByType(resources, "partner")
 
   const tabs: ResourceTab[] = [
@@ -339,6 +367,11 @@ export default function ResourcesHub({ resources }: Props) {
       id: "blog_post",
       label: "IPN Blog",
       countLabel: `${blogs.length} articles`,
+    },
+    {
+      id: "newsletter",
+      label: "Newsletters",
+      countLabel: `${newsletters.length} ${newsletters.length === 1 ? "issue" : "issues"}`,
     },
     {
       id: "partner",
@@ -355,6 +388,7 @@ export default function ResourcesHub({ resources }: Props) {
   }, [blogQuery, blogs])
   const visibleBenefits = isCompactMobile ? benefits.slice(0, visibleResourceCount) : benefits
   const visibleBlogs = isCompactMobile ? filteredBlogs.slice(0, visibleResourceCount) : filteredBlogs
+  const visibleNewsletters = isCompactMobile ? newsletters.slice(0, visibleResourceCount) : newsletters
   const visiblePartners = isCompactMobile ? partners.slice(0, visibleResourceCount) : partners
 
   useEffect(() => {
@@ -382,14 +416,14 @@ export default function ResourcesHub({ resources }: Props) {
           <div>
             <p className="text-sm font-medium text-ipn">What is included</p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">
-              Benefits, writing, and partner links in one member-only hub.
+              Newsletters, benefits, writing, and partner links in one member-only hub.
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600">
-              Browse approved member benefits, search IPN Blog articles, and
-              learn more about partner and sponsor organizations supporting IPN.
+              Catch up on monthly member newsletters, browse approved benefits,
+              search IPN Blog articles, and learn about IPN partners.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-2 text-center sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 text-center lg:grid-cols-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -409,7 +443,7 @@ export default function ResourcesHub({ resources }: Props) {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+      <div className="grid grid-cols-4 gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -422,7 +456,7 @@ export default function ResourcesHub({ resources }: Props) {
             }`}
           >
             <span className="sm:hidden">
-              {tab.id === "affiliate_benefit" ? "Benefits" : tab.id === "blog_post" ? "Blog" : "Partners"}
+              {tab.id === "affiliate_benefit" ? "Benefits" : tab.id === "blog_post" ? "Blog" : tab.id === "newsletter" ? "News" : "Partners"}
             </span>
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
@@ -526,6 +560,43 @@ export default function ResourcesHub({ resources }: Props) {
             <p className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-500">
               No blog posts match that title search.
             </p>
+          )}
+        </section>
+      )}
+
+      {activeTab === "newsletter" && (
+        <section className="flex flex-col gap-4">
+          <div className="hidden sm:block">
+            <p className="text-sm font-medium text-ipn">Member updates</p>
+            <h2 className="mt-1 text-xl font-semibold text-zinc-900">
+              IPN Members Newsletter
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+              Monthly Mailchimp issues with community news, opportunities, and upcoming programs.
+            </p>
+          </div>
+          {newsletters.length ? (
+            <div className="flex flex-col gap-3 sm:block">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleNewsletters.map((resource) => (
+                  <ResourceCard key={resource.id} resource={resource} />
+                ))}
+              </div>
+              {isCompactMobile && visibleResourceCount < newsletters.length && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleResourceCount((count) => count + 3)}
+                  className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm"
+                >
+                  Show more issues
+                </button>
+              )}
+            </div>
+          ) : (
+            <EmptyTab
+              title="No newsletters published yet"
+              body="Monthly Mailchimp issues will appear here once they are added in the admin content form."
+            />
           )}
         </section>
       )}

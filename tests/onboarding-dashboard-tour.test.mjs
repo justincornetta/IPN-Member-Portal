@@ -123,7 +123,7 @@ test("activation checklist supports explicit WhatsApp self-attestation", async (
   assert.match(checklist, /I’m already in/)
   assert.match(checklist, /Not interested/)
   assert.match(checklist, /completeWhatsAppChoice\("self_attested"\)/)
-  assert.match(checklist, /CheckIcon/)
+  assert.match(checklist, /Finish getting started/)
   assert.match(checklist, /Getting started progress/)
   assert.match(checklist, /currentStep: choice/)
   assert.match(checklist, /"not_interested"/)
@@ -139,13 +139,16 @@ test("activation checklist foregrounds the next getting-started action", async (
 
   assert.match(checklist, /Continue getting started/)
   assert.match(checklist, /nextItem/)
-  assert.match(checklist, /Continue setup/)
+  assert.match(checklist, /Continue <span aria-hidden="true"/)
   assert.match(checklist, /productTourProgress\?\.status === "completed"/)
   assert.match(checklist, /productTourProgress\?\.status === "active"\) return null/)
   assert.match(checklist, /participationCompleted/)
+  assert.match(checklist, /participationCompleted\s+\|\|\s+progress\?\.event_rsvp_completed_at/)
   assert.match(checklist, /role="progressbar"/)
   assert.match(checklist, /summary\.completedCount \/ items\.length/)
-  assert.match(checklist, /displayedItem\.completed \? \(/)
+  assert.match(checklist, /Next: /)
+  assert.match(checklist, /minmax\(10rem,max-content\)/)
+  assert.match(checklist, /col-span-full h-2[^"]*lg:col-span-1/)
   assert.doesNotMatch(checklist, /Back to/)
   assert.doesNotMatch(checklist, /goBack/)
   assert.doesNotMatch(checklist, /resetWhatsAppOnboardingChoice/)
@@ -178,7 +181,7 @@ test("participation completion accepts any active member action", () => {
   }
 })
 
-test("dashboard derives participation from event, conference, or connection records", async () => {
+test("dashboard derives participation from event, ticket, conference, meetup, or connection records", async () => {
   const dashboard = await readFile(
     new URL("../src/app/dashboard/page.tsx", import.meta.url),
     "utf8",
@@ -189,8 +192,12 @@ test("dashboard derives participation from event, conference, or connection reco
   )
 
   assert.match(dashboard, /from\("event_registrations"\)/)
+  assert.match(dashboard, /from\("event_ticket_access"\)/)
   assert.match(dashboard, /from\("conference_rsvps"\)/)
+  assert.match(dashboard, /from\("conference_meetup_rsvps"\)/)
   assert.match(dashboard, /from\("connections"\)/)
+  assert.match(dashboard, /ticketParticipationResult\.count/)
+  assert.match(dashboard, /meetupParticipationResult\.count/)
   assert.match(dashboard, /participation_completed: participationCompleted/)
   assert.match(conferenceActions, /markOnboardingStepsComplete\(supabase, user\.id, \["event_rsvp"\]\)/)
 })
@@ -243,30 +250,47 @@ test("a semantically complete profile satisfies the activation milestone", () =>
   assert.equal(isProfileMilestoneComplete(null, 0, 0), false)
 })
 
-test("dashboard surfaces matching 16:9 IPN and community event cards", async () => {
+test("dashboard surfaces one responsive next-event spotlight and supporting member content", async () => {
   const upcoming = await readFile(
     new URL("../src/app/dashboard/UpcomingEventsCarousel.tsx", import.meta.url),
     "utf8",
   )
-  const dashboard = await readFile(
-    new URL("../src/app/dashboard/page.tsx", import.meta.url),
-    "utf8",
-  )
+  const [dashboard, featuredMembers] = await Promise.all([
+    readFile(new URL("../src/app/dashboard/page.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/app/dashboard/FeaturedMembersPreview.tsx", import.meta.url),
+      "utf8",
+    ),
+  ])
 
   assert.match(upcoming, /className="relative block aspect-video/)
-  assert.match(upcoming, /Upcoming Events at IPN/)
+  assert.match(upcoming, /Your next event/)
   assert.match(upcoming, /Community/)
-  assert.match(upcoming, /horizons-community-meetup\.png/)
+  assert.match(upcoming, /activity\.event\.is_registered/)
+  assert.match(upcoming, /You’re registered/)
   assert.match(upcoming, /Not registered/)
-  assert.match(upcoming, /AddToCalendarButton event=\{calendarEvent\}/)
+  assert.match(upcoming, /CheckIcon/)
+  assert.match(upcoming, /horizons-community-meetup\.png/)
+  assert.match(upcoming, /isCommunity \? "object-left" : "object-center"/)
+  assert.match(upcoming, /appearance="ipn"/)
   assert.match(upcoming, /View event/)
   assert.match(upcoming, /MapPinIcon/)
-  assert.match(upcoming, /sm:flex-row sm:items-center sm:justify-between/)
+  assert.match(upcoming, /lg:grid-cols-\[13rem_minmax\(0,1fr\)_12\.5rem\]/)
   assert.match(dashboard, /from\("conferences"\)/)
   assert.match(dashboard, /conferences=\{/)
-  assert.match(dashboard, /Meet members across IPN/)
+  assert.match(featuredMembers, /Members to know/)
   assert.match(dashboard, /featuredMembers/)
-  assert.match(dashboard, /Connect with students and professionals across our global network\./)
+  assert.match(dashboard, /FeaturedMembersPreview/)
+  assert.match(dashboard, /recommendFeaturedMembers/)
+  assert.match(dashboard, /connection\.status === "accepted"/)
+  assert.match(featuredMembers, /MemberProfileModal/)
+  assert.match(featuredMembers, /aria-label=\{`Open \$\{name \|\| "member"\} profile`\}/)
+  assert.match(featuredMembers, /setSelectedMemberId\(member\.id\)/)
+  assert.match(featuredMembers, /href="\/dashboard\/directory"/)
+  assert.doesNotMatch(featuredMembers, /<Link[\s\S]*?aria-label=\{`Open/)
+  assert.match(dashboard, /Latest from IPN/)
+  assert.match(dashboard, /lg:grid-cols-\[0\.92fr_1\.08fr\]/)
+  assert.match(dashboard, /Conferences to plan for/)
   assert.doesNotMatch(dashboard, /Go to Community/)
   assert.doesNotMatch(dashboard, /Search by school, field, location/)
 })
@@ -319,6 +343,10 @@ test("product tour visits only active portal routes in the required sequence", (
   assert.equal(
     PRODUCT_TOUR_STEPS.find((step) => step.id === "events")?.description,
     "Learn more, join upcoming events, and find past event recordings.",
+  )
+  assert.equal(
+    PRODUCT_TOUR_STEPS.find((step) => step.id === "resources")?.description,
+    "Explore member benefits, IPN blog posts, newsletters, and partner organizations.",
   )
   assert.deepEqual(
     PRODUCT_TOUR_STEPS.map((step) => step.id),

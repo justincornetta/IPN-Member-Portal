@@ -39,6 +39,7 @@ export default async function ProfilePage() {
         userEmail={user.email ?? ""}
         mailchimpStatus={mailchimpStatus}
         linkedinOptOut={user.user_metadata?.linkedin_opt_out === true}
+        whatsappOptOut={user.user_metadata?.whatsapp_opt_out === true}
         supportNeedsFallback={
           typeof user.user_metadata?.support_needs === "string"
             ? user.user_metadata.support_needs

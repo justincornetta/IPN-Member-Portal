@@ -21,6 +21,8 @@ function profile(overrides = {}) {
     supportNeeds: "",
     linkedinUrl: "",
     linkedinOptOut: false,
+    whatsappUrl: null,
+    whatsappOptOut: false,
     ...overrides,
   }
 }
@@ -40,11 +42,26 @@ test("profile form offers save controls beneath the checklist and at the end", a
   )
 })
 
-test("profile completion has seven stable, member-facing criteria", () => {
+test("profile form persists and restores the WhatsApp opt-out choice", async () => {
+  const [profileForm, profilePage, profileActions] = await Promise.all([
+    readFile(new URL("../src/app/dashboard/profile/ProfileForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/dashboard/profile/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/dashboard/profile/actions.ts", import.meta.url), "utf8"),
+  ])
+
+  assert.match(profileForm, /I don&apos;t use WhatsApp/)
+  assert.match(profileForm, /whatsappOptOut: data\.whatsapp_opt_out/)
+  assert.match(profileForm, /disabled=\{data\.whatsapp_opt_out\}/)
+  assert.match(profilePage, /whatsappOptOut=\{user\.user_metadata\?\.whatsapp_opt_out === true\}/)
+  assert.match(profileActions, /whatsapp_opt_out: details\.whatsappOptOut/)
+  assert.match(profileActions, /whatsAppOptOut: details\.whatsappOptOut/)
+})
+
+test("profile completion has eight stable, member-facing criteria", () => {
   const completion = getProfileCompletion(profile())
 
-  assert.equal(PROFILE_COMPLETION_TOTAL, 7)
-  assert.equal(completion.totalCount, 7)
+  assert.equal(PROFILE_COMPLETION_TOTAL, 8)
+  assert.equal(completion.totalCount, 8)
   assert.deepEqual(
     completion.items.map(({ field, label }) => ({ field, label })),
     [
@@ -55,6 +72,7 @@ test("profile completion has seven stable, member-facing criteria", () => {
       { field: "interests", label: "Interests" },
       { field: "about", label: "About you" },
       { field: "linkedin", label: "LinkedIn" },
+      { field: "whatsapp", label: "WhatsApp" },
     ],
   )
   assert.equal(completion.completedCount, 0)
@@ -78,9 +96,10 @@ test("profile completion ignores whitespace and counts each criterion once", () 
     inspiration: " Community ",
     supportNeeds: " Mentorship ",
     linkedinUrl: " https://linkedin.com/in/member ",
+    whatsappUrl: " https://wa.me/15551234567 ",
   }))
 
-  assert.equal(completion.completedCount, 7)
+  assert.equal(completion.completedCount, 8)
   assert.equal(completion.isComplete, true)
 })
 
@@ -113,6 +132,20 @@ test("LinkedIn is complete with a URL or an intentional opt-out", () => {
   const optedOut = getProfileCompletion(profile({
     linkedinOptOut: true,
   })).items.find((item) => item.field === "linkedin")
+  assert.equal(optedOut?.complete, true)
+  assert.equal(optedOut?.completedLabel, "Not used")
+})
+
+test("WhatsApp is complete with a phone link or an intentional opt-out", () => {
+  const withNumber = getProfileCompletion(profile({
+    whatsappUrl: "https://wa.me/15551234567",
+  })).items.find((item) => item.field === "whatsapp")
+  assert.equal(withNumber?.complete, true)
+  assert.equal(withNumber?.completedLabel, "Complete")
+
+  const optedOut = getProfileCompletion(profile({
+    whatsappOptOut: true,
+  })).items.find((item) => item.field === "whatsapp")
   assert.equal(optedOut?.complete, true)
   assert.equal(optedOut?.completedLabel, "Not used")
 })

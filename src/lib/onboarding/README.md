@@ -17,7 +17,7 @@ inline “I’m already in” action completes the WhatsApp flow with
 still not treated as proof of membership; join-intent analytics and member
 self-attestation remain distinguishable by the stored current step.
 
-Profile onboarding uses the approved seven-item denominator:
+Profile onboarding uses the approved eight-item denominator:
 
 1. profile photo;
 2. short bio;
@@ -26,33 +26,38 @@ Profile onboarding uses the approved seven-item denominator:
    `profiles.school`, or any nonblank `member_education.institution`);
 5. at least one interest;
 6. grouped About you (`role_and_goals`, `inspiration`, and `support_needs` must
-   all be answered); and
+   all be answered);
 7. LinkedIn (`linkedin_url` is present or the member explicitly selects “I
-   don't use LinkedIn”).
+   don't use LinkedIn”); and
+8. WhatsApp contact (`whatsapp_url` is present or the member explicitly selects
+   “I don't use WhatsApp”).
 
-WhatsApp is not part of profile completion. UI code may call
-`profileCompletionFieldsFromRecord()` and `isProfileOnboardingComplete()`, or
-use the profile branch's equivalent authoritative seven-item helper. The record
-adapter deliberately maps current role to `profiles.persona`; `role_and_goals`
-belongs only to grouped About you. Pass loaded `member_education` rows and the
-explicit LinkedIn opt-out state through the adapter options.
+The WhatsApp contact item is separate from the community-joining WhatsApp
+onboarding milestone. UI code may call `profileCompletionFieldsFromRecord()`
+and `isProfileOnboardingComplete()`, or use the profile branch's equivalent
+authoritative eight-item helper. The record adapter deliberately maps current
+role to `profiles.persona`; `role_and_goals` belongs only to grouped About you.
+Pass loaded `member_education` rows and both explicit opt-out states through the
+adapter options.
 
 Integration requirement: existing auth/ProfileForm completion callers pass
 only the legacy photo, bio, and interests fields. Those callers must be rewired
-to supply all seven semantic items before they call the milestone writer; the
+to supply all eight semantic items before they call the milestone writer; the
 legacy three-field shape remains accepted only so integration does not break at
-compile time, and `missingProfileOnboardingFields()` makes its four missing
+compile time, and `missingProfileOnboardingFields()` makes its five missing
 items explicit. Until rewired, those saves cannot newly complete the profile
 milestone. Already populated `profile_completed_at` values remain authoritative
 and are never cleared or replaced. The SQL backfill safely handles members with
 a LinkedIn URL; the profile integration must handle the explicit-opt-out branch.
 
-For compatibility, `support_needs` and the LinkedIn opt-out remain in Supabase
-Auth user metadata. The profile page, dashboard, authoritative completion
-synchronizer, and foundation backfill all read those metadata values and accept
-`linkedin_opt_out === true`. A future schema normalization can move both values
-to dedicated profile columns after a separate migration/RLS review; this
-integration deliberately adds no such production migration.
+For compatibility, `support_needs`, the LinkedIn opt-out, and the WhatsApp
+opt-out remain in Supabase Auth user metadata. The profile page, dashboard, and
+authoritative completion synchronizer read those metadata values and accept
+`linkedin_opt_out === true` or `whatsapp_opt_out === true`. A future schema
+normalization can move these values to dedicated profile columns after a
+separate migration/RLS review; this integration deliberately adds no such
+production migration. Historical seven-item completion timestamps remain
+authoritative and are not cleared.
 
 ## WhatsApp channels and join intent
 

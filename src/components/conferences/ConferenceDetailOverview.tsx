@@ -25,15 +25,17 @@ export default function ConferenceDetailOverview({
   conference,
   preview = false,
   compact = false,
+  withAttendance = false,
 }: {
   conference: ConferenceRecord
   preview?: boolean
   compact?: boolean
+  withAttendance?: boolean
 }) {
   const location = [conference.city, conference.state, conference.country].filter(Boolean).join(", ")
 
   return (
-    <article className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+    <article className={`overflow-hidden border border-zinc-200 bg-white shadow-sm ${withAttendance ? "rounded-t-lg border-b-0" : "rounded-lg"}`}>
       <ConferenceCover
         imageUrl={conference.cover_image_url}
         category={conference.category}

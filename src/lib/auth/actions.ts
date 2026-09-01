@@ -453,6 +453,7 @@ export async function updateProfile(
         ? user.user_metadata.support_needs
         : null,
       linkedInOptOut: user.user_metadata?.linkedin_opt_out === true,
+      whatsAppOptOut: user.user_metadata?.whatsapp_opt_out === true,
     })
   } catch (completionError) {
     // The profile and education writes above are authoritative even if a newly

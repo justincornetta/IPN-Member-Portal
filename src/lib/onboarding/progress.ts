@@ -63,6 +63,10 @@ export type ProfileCompletionFields = {
     url?: string | null
     optedOut?: boolean
   } | null
+  whatsApp?: {
+    url?: string | null
+    optedOut?: boolean
+  } | null
   /** @deprecated UI compatibility only; migrate callers to photoUrl. */
   avatar_url?: string | null
   /** @deprecated UI compatibility only; migrate callers to shortBio. */
@@ -82,6 +86,7 @@ export type ProfileCompletionRecord = {
   inspiration: string | null
   support_needs: string | null
   linkedin_url: string | null
+  whatsapp_url: string | null
 }
 
 export type ProfileCompletionEducationRecord = {
@@ -96,6 +101,7 @@ export type ProfileCompletionField =
   | "interests"
   | "aboutYou"
   | "linkedIn"
+  | "whatsApp"
 
 const STEP_COLUMNS: Record<OnboardingStep, keyof OnboardingProgress> = {
   welcome: "welcome_completed_at",
@@ -128,6 +134,9 @@ export function missingProfileOnboardingFields(
   if (!(profile.linkedIn?.url?.trim() || profile.linkedIn?.optedOut === true)) {
     missing.push("linkedIn")
   }
+  if (!(profile.whatsApp?.url?.trim() || profile.whatsApp?.optedOut === true)) {
+    missing.push("whatsApp")
+  }
 
   return missing
 }
@@ -141,6 +150,7 @@ export function profileCompletionFieldsFromRecord(
   options: {
     education?: readonly ProfileCompletionEducationRecord[]
     linkedInOptOut?: boolean
+    whatsAppOptOut?: boolean
   } = {},
 ): ProfileCompletionFields {
   const educationInstitution = options.education?.find(
@@ -165,6 +175,10 @@ export function profileCompletionFieldsFromRecord(
     linkedIn: {
       url: profile.linkedin_url,
       optedOut: options.linkedInOptOut === true,
+    },
+    whatsApp: {
+      url: profile.whatsapp_url,
+      optedOut: options.whatsAppOptOut === true,
     },
   }
 }
@@ -292,12 +306,16 @@ export async function advanceOnboardingFlow(
 export async function syncProfileOnboardingCompletion(
   supabase: SupabaseClient,
   userId: string,
-  compatibility: { supportNeeds?: string | null; linkedInOptOut?: boolean } = {},
+  compatibility: {
+    supportNeeds?: string | null
+    linkedInOptOut?: boolean
+    whatsAppOptOut?: boolean
+  } = {},
 ) {
   const [profileResult, educationResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("avatar_url, bio, persona, affiliation, school, interest_tags, role_and_goals, inspiration, linkedin_url")
+      .select("avatar_url, bio, persona, affiliation, school, interest_tags, role_and_goals, inspiration, linkedin_url, whatsapp_url")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -319,6 +337,7 @@ export async function syncProfileOnboardingCompletion(
     {
       education: (educationResult.data ?? []) as ProfileCompletionEducationRecord[],
       linkedInOptOut: compatibility.linkedInOptOut === true,
+      whatsAppOptOut: compatibility.whatsAppOptOut === true,
     },
   )
 

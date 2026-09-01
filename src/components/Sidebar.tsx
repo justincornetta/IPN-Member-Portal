@@ -4,7 +4,13 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
+import {
+  Bars3Icon,
+  UserCircleIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline"
 import icon from "../../assets/purple_icon.png"
+import { WhatsAppIcon } from "@/components/community/WhatsAppCommunityCard"
 import { signOut } from "@/lib/auth/actions"
 
 const NAV = [
@@ -52,6 +58,18 @@ const NAV = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
       </svg>
     ),
+  },
+]
+
+const MOBILE_NAV = [
+  { ...NAV[0], label: "Home" },
+  NAV[1],
+  NAV[2],
+  NAV[3],
+  {
+    href: "/dashboard/profile",
+    label: "Profile",
+    icon: <UserCircleIcon className="h-6 w-6" aria-hidden="true" />,
   },
 ]
 
@@ -257,32 +275,36 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
   return (
     <>
       {/* ── Mobile: top header bar ───────────────────── */}
-      <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-
-        <Link href="/dashboard" className="inline-flex items-center justify-center rounded-lg">
-          <Image src={icon} alt="IPN" width={28} height={28} />
+      <header className="flex h-[4.5rem] flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 shadow-sm md:hidden">
+        <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2.5 rounded-lg">
+          <Image src={icon} alt="IPN" width={38} height={38} />
+          <span className="text-lg font-semibold text-zinc-950">IPN Member Portal</span>
         </Link>
 
-        <Link href="/dashboard/profile" className="inline-flex h-11 w-11 items-center justify-center rounded-lg">
-          <AvatarCircle avatarUrl={avatarUrl} initials={initials} />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/onboarding/whatsapp?motion=editorial"
+            aria-label="Join IPN on WhatsApp"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-ipn transition hover:bg-ipn-light"
+          >
+            <WhatsAppIcon className="h-7 w-7" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-ipn-light text-ipn transition hover:bg-ipn/10"
+          >
+            <Bars3Icon className="h-7 w-7" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       {/* ── Desktop: sidebar ─────────────────────────── */}
-      <aside className="hidden md:flex md:w-56 md:flex-shrink-0 md:flex-col border-r border-zinc-200 bg-white">
+      <aside className="hidden md:flex md:w-64 md:flex-shrink-0 md:flex-col border-r border-zinc-200 bg-white">
         <div className="flex items-center gap-2.5 border-b border-zinc-100 px-5 py-4">
           <Image src={icon} alt="IPN" width={28} height={28} />
-          <span className="text-sm font-semibold text-zinc-800">Member Portal</span>
+          <span className="text-sm font-semibold text-zinc-800">IPN Member Portal</span>
         </div>
         <NavContent {...sharedProps} />
       </aside>
@@ -298,7 +320,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
             <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
               <div className="flex items-center gap-2.5">
                 <Image src={icon} alt="IPN" width={28} height={28} />
-                <span className="text-sm font-semibold text-zinc-800">Member Portal</span>
+                <span className="text-sm font-semibold text-zinc-800">IPN Member Portal</span>
               </div>
               <button
                 type="button"
@@ -306,9 +328,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
                 aria-label="Close navigation"
                 className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-600"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
+                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
             <NavContent {...sharedProps} onClose={() => setMobileOpen(false)} />
@@ -322,7 +342,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
       >
         <div className="mx-auto grid max-w-md grid-cols-5 gap-0.5">
-          {NAV.map((item) => {
+          {MOBILE_NAV.map((item) => {
             const active = item.href === "/dashboard"
               ? pathname === "/dashboard"
               : pathname === item.href || pathname.startsWith(item.href + "/")

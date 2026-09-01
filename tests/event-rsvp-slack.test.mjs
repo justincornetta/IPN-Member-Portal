@@ -18,7 +18,9 @@ const CONFERENCE_ACTIONS_SOURCE = readFileSync(
 test("event RSVP notifications include the requested Slack fields", () => {
   assert.match(SLACK_SOURCE, /SLACK_EVENT_RSVPS_WEBHOOK_URL/)
   for (const label of [
+    "RSVP type",
     "Event",
+    "Conference",
     "Notification detail",
     "Member",
     "Email",
@@ -26,6 +28,14 @@ test("event RSVP notifications include the requested Slack fields", () => {
   ]) {
     assert.match(SLACK_SOURCE, new RegExp(`field\\(\"${label}\"`))
   }
+})
+
+test("meetup RSVP notifications are explicitly labeled for Slack", () => {
+  assert.match(SLACK_SOURCE, /notification\.kind === "meetup"/)
+  assert.match(SLACK_SOURCE, /"New IPN meetup RSVP"/)
+  assert.match(SLACK_SOURCE, /rsvpType: meetup\.type \|\| "IPN Meetup"/)
+  assert.match(SLACK_SOURCE, /parentConference: conference\.name/)
+  assert.match(SLACK_SOURCE, /detail: "Conference meetup"/)
 })
 
 test("all three RSVP creation paths schedule non-blocking notifications", () => {

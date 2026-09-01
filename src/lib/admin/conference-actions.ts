@@ -23,6 +23,7 @@ import type {
 export type AdminConferenceMeetupInput = {
   id?: string
   title: string
+  imageUrl?: string
   startsAt: string
   endsAt?: string
   location?: string
@@ -136,6 +137,7 @@ export async function publishAdminConference(
         id: meetup.id ?? `${slug}-meetup-${randomUUID()}`,
         title: clean(meetup.title)!,
         type: "IPN Meetup",
+        imageUrl: clean(meetup.imageUrl),
         startsAt: meetupStartsAt,
         endsAt: meetupEndsAt,
         location: clean(meetup.location),

@@ -104,6 +104,7 @@ type FormState = {
   interest_tags: string[]
   linkedin_url: string
   linkedin_opt_out: boolean
+  whatsapp_opt_out: boolean
   whatsapp_country_code: string
   whatsapp_country_iso: string
   whatsapp_number: string
@@ -417,6 +418,7 @@ function toFormState(
   contact: Contact | null,
   education: EducationRecord[],
   linkedinOptOut: boolean,
+  whatsappOptOut: boolean,
   supportNeedsFallback: string,
 ): FormState {
   const { countryCode, number } = parseWhatsappUrl(
@@ -446,6 +448,7 @@ function toFormState(
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
     linkedin_opt_out: linkedinOptOut && !profile?.linkedin_url?.trim(),
+    whatsapp_opt_out: whatsappOptOut && !contact?.whatsapp_url?.trim(),
     whatsapp_country_code: countryCode,
     whatsapp_country_iso: countryIso,
     whatsapp_number: number,
@@ -805,10 +808,12 @@ function TagPickerModal({
 function CountryDialCodeCombobox({
   dialCode,
   countryIso,
+  disabled = false,
   onChange,
 }: {
   dialCode: string
   countryIso: string
+  disabled?: boolean
   onChange: (dialCode: string, iso: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -851,11 +856,12 @@ function CountryDialCodeCombobox({
     <div ref={containerRef} className="relative">
       <button
         type="button"
+        disabled={disabled}
         onClick={() => {
           setOpen((o) => !o)
           if (!open) setTimeout(() => inputRef.current?.focus(), 0)
         }}
-        className="flex min-h-11 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+        className="flex min-h-11 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 disabled:hover:border-zinc-300"
       >
         {selected ? (
           <>
@@ -958,6 +964,7 @@ export default function ProfileForm({
   userEmail,
   mailchimpStatus,
   linkedinOptOut,
+  whatsappOptOut,
   supportNeedsFallback,
 }: {
   profile: Profile | null
@@ -967,11 +974,12 @@ export default function ProfileForm({
   userEmail: string
   mailchimpStatus: MailchimpStatus
   linkedinOptOut: boolean
+  whatsappOptOut: boolean
   supportNeedsFallback: string
 }) {
   const router = useRouter()
   const [data, setData] = useState<FormState>(() => (
-    toFormState(profile, contact, education, linkedinOptOut, supportNeedsFallback)
+    toFormState(profile, contact, education, linkedinOptOut, whatsappOptOut, supportNeedsFallback)
   ))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -990,6 +998,13 @@ export default function ProfileForm({
   const topRef = useRef<HTMLDivElement>(null)
   const cropDialogRef = useModalFocus(Boolean(cropSrc), () => setCropSrc(null))
 
+  const whatsappNumberError = validateWhatsappNumber(
+    data.whatsapp_country_iso,
+    data.whatsapp_number,
+  )
+  const whatsappUrl = whatsappNumberError
+    ? null
+    : buildWhatsappUrl(data.whatsapp_country_code, data.whatsapp_number)
   const profileCompletion = getProfileCompletion({
     avatarUrl: data.avatar_url,
     bio: data.bio,
@@ -1007,6 +1022,8 @@ export default function ProfileForm({
     supportNeeds: data.support_needs,
     linkedinUrl: data.linkedin_url,
     linkedinOptOut: data.linkedin_opt_out,
+    whatsappUrl,
+    whatsappOptOut: data.whatsapp_opt_out,
   })
 
   useEffect(() => {
@@ -1106,6 +1123,10 @@ export default function ProfileForm({
     }
     if (field === "linkedin") {
       document.getElementById("linkedin_url")?.focus({ preventScroll: false })
+      return
+    }
+    if (field === "whatsapp") {
+      document.getElementById("whatsapp_number")?.focus({ preventScroll: false })
       return
     }
     if (field === "organization" && !isProfessional) {
@@ -1251,6 +1272,7 @@ export default function ProfileForm({
         inspiration: data.inspiration,
         supportNeeds: data.support_needs,
         linkedinOptOut: data.linkedin_opt_out,
+        whatsappOptOut: data.whatsapp_opt_out,
       })
 
       if (completionDetailsResult?.error) {
@@ -1468,6 +1490,7 @@ export default function ProfileForm({
               <CountryDialCodeCombobox
                 dialCode={data.whatsapp_country_code}
                 countryIso={data.whatsapp_country_iso}
+                disabled={data.whatsapp_opt_out}
                 onChange={(code, iso) => {
                   setData((prev) => ({ ...prev, whatsapp_country_code: code, whatsapp_country_iso: iso }))
                   setSaved(false)
@@ -1479,20 +1502,49 @@ export default function ProfileForm({
                 name="whatsapp_number"
                 type="tel"
                 value={data.whatsapp_number}
-                onChange={(e) => update("whatsapp_number", e.target.value)}
+                disabled={data.whatsapp_opt_out}
+                aria-describedby="whatsapp-help"
+                onChange={(event) => {
+                  setData((previous) => ({
+                    ...previous,
+                    whatsapp_number: event.target.value,
+                    whatsapp_opt_out: event.target.value.trim()
+                      ? false
+                      : previous.whatsapp_opt_out,
+                  }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
                 placeholder="555 123 4567"
-                className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
               />
             </div>
             {(() => {
-              const err = validateWhatsappNumber(data.whatsapp_country_iso, data.whatsapp_number)
               const hasDigits = data.whatsapp_number.replace(/\D/g, "").length > 0
               if (!hasDigits) return null
-              if (err) return <p className="text-xs text-red-600">{err}</p>
+              if (whatsappNumberError) return <p className="text-xs text-red-600">{whatsappNumberError}</p>
               return <p className="text-xs text-emerald-600">Looks good</p>
             })()}
-            <p className="text-xs text-zinc-400">
-              Shown only to accepted connections, alongside your email.
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-zinc-600">
+              <input
+                type="checkbox"
+                checked={data.whatsapp_opt_out}
+                onChange={(event) => {
+                  const checked = event.target.checked
+                  setData((previous) => ({
+                    ...previous,
+                    whatsapp_opt_out: checked,
+                    whatsapp_number: checked ? "" : previous.whatsapp_number,
+                  }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
+                className="h-4 w-4 rounded border-zinc-300 accent-ipn"
+              />
+              I don&apos;t use WhatsApp
+            </label>
+            <p id="whatsapp-help" className="text-xs text-zinc-400">
+              Add your number or let us know you don&apos;t use WhatsApp. Either choice completes this item. Your number is shown only to accepted connections.
             </p>
           </div>
 

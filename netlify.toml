@@ -4,3 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+[functions."newsletter-sync-background"]
+  included_files = [
+    "public/onboarding/ipn-logo.png",
+    "public/newsletters/brand/Geist-Regular.ttf",
+  ]

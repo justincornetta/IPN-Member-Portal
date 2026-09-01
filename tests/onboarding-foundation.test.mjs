@@ -21,7 +21,7 @@ import {
 } from "../src/lib/whatsapp/channels.ts"
 import { issueWhatsAppHandoff } from "../src/lib/whatsapp/client.ts"
 
-test("profile completion requires all seven approved semantic items", () => {
+test("profile completion requires all eight approved semantic items", () => {
   const complete = {
     photoUrl: "https://example.test/photo.jpg",
     shortBio: "Short bio",
@@ -34,6 +34,7 @@ test("profile completion requires all seven approved semantic items", () => {
       supportNeeds: "Mentorship",
     },
     linkedIn: { url: "https://linkedin.com/in/member", optedOut: false },
+    whatsApp: { url: "https://wa.me/15551234567", optedOut: false },
   }
 
   assert.equal(isProfileOnboardingComplete(complete), true)
@@ -54,6 +55,10 @@ test("profile completion requires all seven approved semantic items", () => {
     ...complete,
     linkedIn: { url: null, optedOut: true },
   }), true)
+  assert.equal(isProfileOnboardingComplete({
+    ...complete,
+    whatsApp: { url: null, optedOut: true },
+  }), true)
 })
 
 test("legacy three-field profile calls cannot mark the stricter milestone", () => {
@@ -68,6 +73,7 @@ test("legacy three-field profile calls cannot mark the stricter milestone", () =
     "schoolOrOrganization",
     "aboutYou",
     "linkedIn",
+    "whatsApp",
   ])
 })
 
@@ -83,13 +89,16 @@ test("profile records map onto the semantic completion contract", () => {
     inspiration: "Community research",
     support_needs: "Collaborators",
     linkedin_url: null,
+    whatsapp_url: null,
   }, {
     education: [{ institution: "Example Institute" }],
     linkedInOptOut: true,
+    whatsAppOptOut: true,
   })
   assert.equal(fields.schoolOrOrganization, "Example Institute")
   assert.equal(fields.currentRole, "Research coordinator")
   assert.equal(fields.linkedIn.optedOut, true)
+  assert.equal(fields.whatsApp.optedOut, true)
   assert.equal(isProfileOnboardingComplete(fields), true)
 })
 
