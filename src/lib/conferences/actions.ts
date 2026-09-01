@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendEventRsvpSlackNotification } from "@/lib/slack/event-rsvp"
+import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 
 export async function rsvpToConference(
   conferenceId: string,
@@ -44,6 +45,7 @@ export async function rsvpToConference(
   }
 
   if (isNewRsvp) {
+    await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
     after(() => sendEventRsvpSlackNotification({
       kind: "conference",
       conferenceId,
@@ -84,6 +86,7 @@ export async function rsvpToMeetup(
   conferenceId: string,
   meetupId: string,
   conferenceSlug: string,
+  isVisible = true,
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const {
@@ -94,12 +97,23 @@ export async function rsvpToMeetup(
 
   const { error } = await supabase
     .from("conference_meetup_rsvps")
-    .insert({ conference_id: conferenceId, meetup_id: meetupId, user_id: user.id })
+    .insert({ conference_id: conferenceId, meetup_id: meetupId, user_id: user.id, is_visible: isVisible })
 
   const isNewRsvp = !error
   if (error && error.code !== "23505") return { error: error.message }
+  if (error?.code === "23505") {
+    const { error: updateError } = await supabase
+      .from("conference_meetup_rsvps")
+      .update({ is_visible: isVisible })
+      .eq("conference_id", conferenceId)
+      .eq("meetup_id", meetupId)
+      .eq("user_id", user.id)
+
+    if (updateError) return { error: updateError.message }
+  }
 
   if (isNewRsvp) {
+    await markOnboardingStepsComplete(supabase, user.id, ["event_rsvp"])
     after(() => sendEventRsvpSlackNotification({
       kind: "meetup",
       conferenceId,
@@ -109,6 +123,9 @@ export async function rsvpToMeetup(
   }
 
   revalidatePath(`/dashboard/conferences/${conferenceSlug}`)
+  revalidatePath("/dashboard/conferences")
+  revalidatePath("/dashboard/events")
+  revalidatePath("/dashboard")
   return {}
 }
 
@@ -134,6 +151,9 @@ export async function cancelMeetupRsvp(
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/conferences/${conferenceSlug}`)
+  revalidatePath("/dashboard/conferences")
+  revalidatePath("/dashboard/events")
+  revalidatePath("/dashboard")
   return {}
 }
 
@@ -153,6 +173,32 @@ export async function updateConferenceRsvpVisibility(
     .from("conference_rsvps")
     .update({ is_visible: isVisible })
     .eq("conference_id", conferenceId)
+    .eq("user_id", user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/dashboard/conferences/${conferenceSlug}`)
+  return {}
+}
+
+export async function updateMeetupRsvpVisibility(
+  conferenceId: string,
+  meetupId: string,
+  conferenceSlug: string,
+  isVisible: boolean,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("conference_meetup_rsvps")
+    .update({ is_visible: isVisible })
+    .eq("conference_id", conferenceId)
+    .eq("meetup_id", meetupId)
     .eq("user_id", user.id)
 
   if (error) return { error: error.message }

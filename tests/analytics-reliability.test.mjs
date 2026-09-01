@@ -162,6 +162,14 @@ test("registration persona values match the database constraint", () => {
 
 test("education validation enforces profile education requirements", () => {
   assert.match(validateEducationEntries([], { required: true }), /at least one/i)
+  assert.match(validateEducationEntries([{
+    institution: "Princeton University",
+    education_level: "undergraduate",
+    degree_credential: "BA",
+    area_of_study: "",
+    status: "completed",
+    graduation_year: 2024,
+  }], { required: true }), /area of study/i)
   assert.equal(validateEducationEntries([{
     institution: "Princeton University",
     education_level: "undergraduate",

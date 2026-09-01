@@ -45,6 +45,7 @@ export function validateEducationEntries(
   for (const entry of populated) {
     if (!entry.institution.trim()) return "Every education entry needs a school or university."
     if (!entry.degree_credential.trim()) return "Every education entry needs a degree or credential."
+    if (!entry.area_of_study.trim()) return "Every education entry needs an area of study."
     if (!entry.status) return "Every education entry needs an enrollment or completion status."
     if (entry.graduation_year != null && (entry.graduation_year < 1900 || entry.graduation_year > 2200)) {
       return "Graduation year must be between 1900 and 2200."
@@ -62,7 +63,7 @@ export function compactEducationEntries(entries: MemberEducationInput[]) {
       institution: entry.institution.trim(),
       education_level: entry.education_level || null,
       degree_credential: entry.degree_credential.trim(),
-      area_of_study: entry.area_of_study.trim() || null,
+      area_of_study: entry.area_of_study.trim(),
       status: entry.status,
       graduation_year: entry.graduation_year,
     }))

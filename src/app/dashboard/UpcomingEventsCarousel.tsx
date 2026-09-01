@@ -1,302 +1,199 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
+import { ArrowRightIcon, CheckIcon, MapPinIcon } from "@heroicons/react/24/outline"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
-import { registrationBand } from "@/lib/events/calendar"
+import { meetupDisplayDetails } from "@/lib/conferences/meetup-display"
+import type { ConferenceRecord } from "@/lib/conferences/types"
 import type { EventWithRegistration } from "@/lib/events/types"
 
 type Props = {
   events: EventWithRegistration[]
-  totalCount: number
+  conferences: ConferenceRecord[]
+  registeredMeetupIds?: string[]
   className?: string
 }
 
-function ArrowIcon({ direction }: { direction: "left" | "right" }) {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.8}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      {direction === "left" ? (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-        />
-      ) : (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-        />
-      )}
-    </svg>
-  )
+type DashboardActivity =
+  | { kind: "event"; event: EventWithRegistration }
+  | {
+      kind: "community"
+      conference: ConferenceRecord
+      meetup: ConferenceRecord["meetups"][number]
+      isRegistered: boolean
+    }
+
+function startsAt(activity: DashboardActivity) {
+  return activity.kind === "event"
+    ? activity.event.starts_at
+    : activity.meetup.startsAt
 }
 
-function EventArtwork({ event }: { event: EventWithRegistration }) {
-  return (
-    <Link
-      href={`/dashboard/events/${event.slug}`}
-      data-analytics-event="curated_click"
-      data-analytics-id={`dashboard-event-artwork-${event.slug}`}
-      data-analytics-label="Dashboard event artwork"
-      className="relative block aspect-[4/3] min-h-32 overflow-hidden rounded-lg bg-zinc-950 sm:aspect-auto sm:h-full"
-    >
-      {event.thumbnail_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={event.thumbnail_url}
-          alt=""
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="h-full w-full bg-[radial-gradient(circle_at_25%_25%,#a78bfa_0,#664fa1_35%,#18181b_75%)]" />
-      )}
-      <span className="absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-zinc-800">
-        {event.event_type}
-      </span>
-    </Link>
-  )
-}
+function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
+  const isCommunity = activity.kind === "community"
+  const isRegistered = isCommunity ? activity.isRegistered : activity.event.is_registered
+  const href = isCommunity
+    ? `/dashboard/conferences/${activity.conference.slug}#ipn-meetups`
+    : `/dashboard/events/${activity.event.slug}`
+  const title = isCommunity ? activity.meetup.title : activity.event.title
+  const imageUrl = isCommunity
+    ? "/events/horizons-community-meetup.png"
+    : activity.event.thumbnail_url
+  const label = isCommunity ? "Community" : activity.event.event_type
+  const location = isCommunity
+    ? activity.meetup.location || activity.conference.venue
+    : activity.event.location_label
+  const schedule = activity.kind === "community"
+    ? meetupDisplayDetails(activity.meetup, activity.conference)
+    : {
+        startsAt: activity.event.starts_at,
+        endsAt: activity.event.ends_at,
+        timezone: activity.event.timezone,
+        description: activity.event.summary ?? activity.event.description,
+      }
+  const calendarEvent = isCommunity
+    ? {
+        id: `community-${activity.conference.id}-${activity.meetup.id}`,
+        title,
+        starts_at: schedule.startsAt,
+        ends_at: schedule.endsAt,
+        timezone: schedule.timezone,
+        summary: schedule.description,
+        description: schedule.description,
+        join_url: null,
+        location_label: location,
+        location_details: null,
+      }
+    : activity.event
 
-function EventCta({ event }: { event: EventWithRegistration }) {
-  if (event.registration_url && event.requires_verified_ticket && !event.has_verified_ticket) {
-    return (
-      <a
-        href={event.registration_url}
-        target="_blank"
-        rel="noreferrer"
-        data-analytics-event="curated_click"
-        data-analytics-id={`dashboard-eventbrite-registration-${event.slug}`}
-        data-analytics-label="Dashboard Eventbrite registration"
-        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
+  return (
+    <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm lg:grid lg:grid-cols-[13rem_minmax(0,1fr)_12.5rem] lg:items-stretch">
+      <Link
+        href={href}
+        className="relative block aspect-video overflow-hidden bg-ipn-light sm:aspect-[2.1/1] lg:aspect-auto lg:min-h-52"
+        aria-label={`View ${title}`}
       >
-        Register
-      </a>
-    )
-  }
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl || "/purple_icon.png"}
+          alt=""
+          className={`h-full w-full ${
+            imageUrl
+              ? `object-cover ${isCommunity ? "object-left" : "object-center"}`
+              : "object-contain p-12"
+          }`}
+        />
+      </Link>
 
-  return (
-    <Link
-      href={`/dashboard/events/${event.slug}`}
-      data-analytics-event="curated_click"
-      data-analytics-id={`dashboard-event-cta-${event.slug}`}
-      data-analytics-label="Dashboard event CTA"
-      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-3 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
-    >
-      {event.is_registered ? "View event" : "Details"}
-    </Link>
-  )
-}
-
-function CompactEventCard({ event }: { event: EventWithRegistration }) {
-  const countLabel = registrationBand(event.registration_count)
-
-  return (
-    <article className="grid h-full w-full gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:gap-4 sm:grid-cols-[210px_1fr]">
-      <EventArtwork event={event} />
-
-      <div className="flex min-w-0 flex-col">
+      <div className="min-w-0 p-5 lg:flex lg:flex-col lg:justify-center lg:px-7">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
-            {event.event_type}
+          <span
+            className={`w-fit rounded-md px-2.5 py-1 text-xs font-semibold ${
+              isCommunity
+                ? "bg-[#E4F6F1] text-[#176B5B]"
+                : "bg-ipn-light text-ipn"
+            }`}
+          >
+            {label}
           </span>
-          <span className="line-clamp-1 text-xs text-zinc-400">
-            <EventDateTime
-              startsAt={event.starts_at}
-              endsAt={event.ends_at}
-              timezone={event.timezone}
-            />
+          <span
+            className={`inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold ${
+              isRegistered
+                ? "bg-[#E4F6F1] text-[#176B5B]"
+                : "bg-zinc-100 text-zinc-600"
+            }`}
+          >
+            {isRegistered && <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+            {isRegistered ? "You’re registered" : "Not registered"}
           </span>
-          {countLabel && (
-            <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
-              {countLabel}
+        </div>
+        <Link href={href} className="group mt-3 block">
+          <h3 className="text-xl font-semibold leading-tight text-zinc-950 group-hover:text-ipn lg:text-2xl">
+            {title}
+          </h3>
+        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-zinc-600">
+          <EventDateTime
+            startsAt={schedule.startsAt}
+            endsAt={schedule.endsAt}
+            timezone={schedule.timezone}
+          />
+          {location && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPinIcon className="h-5 w-5 flex-none" aria-hidden="true" />
+              <span>{location}</span>
             </span>
           )}
         </div>
-
-        <Link
-          href={`/dashboard/events/${event.slug}`}
-          data-analytics-event="curated_click"
-          data-analytics-id={`dashboard-event-title-${event.slug}`}
-          data-analytics-label="Dashboard event title"
-          className="group mt-2"
-        >
-          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-zinc-900 group-hover:text-ipn">
-            {event.title}
-          </h3>
-        </Link>
-
-        {event.summary && (
-          <p className="mt-2 line-clamp-2 text-sm leading-5 text-zinc-500 sm:leading-6">
-            {event.summary}
+        {schedule.description && (
+          <p className="mt-4 line-clamp-2 text-sm leading-6 text-zinc-600">
+            {schedule.description}
           </p>
         )}
+      </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:flex sm:flex-wrap sm:items-center sm:pt-4">
-          <EventCta event={event} />
-          <AddToCalendarButton event={event} compact />
-        </div>
+      <div className="flex flex-col gap-3 border-t border-zinc-100 p-5 lg:justify-center lg:border-l lg:border-t-0">
+        <Link
+          href={href}
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-ipn px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
+        >
+          View event
+          <ArrowRightIcon className="ml-4 h-4 w-4" aria-hidden="true" />
+        </Link>
+        <AddToCalendarButton
+          event={calendarEvent}
+          appearance="ipn"
+          label="Add to calendar"
+          className="w-full"
+        />
       </div>
     </article>
   )
 }
 
-export default function UpcomingEventsCarousel({ events, totalCount, className = "" }: Props) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [touchStartX, setTouchStartX] = useState<number | null>(null)
-  const activeEvent = events[activeIndex]
-  const hasMultiple = events.length > 1
-  const countLabel = `${totalCount} upcoming event${totalCount === 1 ? "" : "s"}`
+export default function UpcomingEventsCarousel({
+  events,
+  conferences = [],
+  registeredMeetupIds = [],
+  className = "",
+}: Props) {
+  const communityActivity = conferences
+    .flatMap((conference) =>
+      conference.meetups.map((meetup) => ({ conference, meetup })),
+    )
+    .sort((a, b) => a.meetup.startsAt.localeCompare(b.meetup.startsAt))[0]
 
-  function goTo(index: number) {
-    if (!events.length) return
-    setActiveIndex((index + events.length) % events.length)
+  const candidates: DashboardActivity[] = events.slice(0, 2).map((event) => ({
+    kind: "event",
+    event,
+  }))
+  if (communityActivity) {
+    candidates.push({
+      kind: "community",
+      ...communityActivity,
+      isRegistered: registeredMeetupIds.includes(communityActivity.meetup.id),
+    })
   }
-
-  function handleTouchEnd(x: number) {
-    if (touchStartX === null || !hasMultiple) return
-
-    const distance = touchStartX - x
-    if (Math.abs(distance) > 40) {
-      goTo(activeIndex + (distance > 0 ? 1 : -1))
-    }
-    setTouchStartX(null)
-  }
+  const nextActivity = candidates.sort((a, b) =>
+    startsAt(a).localeCompare(startsAt(b)),
+  )[0]
 
   return (
-    <section className={`flex flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:rounded-xl sm:p-4 ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm font-medium text-ipn">Upcoming Events</p>
-            <span className="rounded-full bg-ipn-light px-2.5 py-1 text-xs font-medium text-ipn">
-              {countLabel}
-            </span>
-          </div>
-          <h2 className="mt-1 hidden text-lg font-semibold text-zinc-900 sm:block">
-            What&apos;s coming up at IPN
-          </h2>
-        </div>
-        <Link
-          href="/dashboard/events"
-          data-analytics-event="curated_click"
-          data-analytics-id="dashboard-view-all-events"
-          data-analytics-label="View all events"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
-        >
-          View all events
-        </Link>
+    <section className={className} aria-labelledby="your-next-event">
+      <div className="mb-3">
+        <h2 id="your-next-event" className="text-lg font-semibold text-ipn sm:text-xl">
+          Your next event
+        </h2>
       </div>
 
-      {activeEvent ? (
-        <>
-          <div
-            className="mt-3 flex flex-1 sm:mt-4"
-            onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
-            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
-          >
-            <CompactEventCard key={activeEvent.id} event={activeEvent} />
-          </div>
-
-          {hasMultiple && (
-            <div className="mt-auto pt-4">
-              <div className="hidden gap-2 sm:grid sm:grid-cols-2">
-                {events.slice(0, 4).map((event, index) => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    onClick={() => goTo(index)}
-                    className={`flex min-h-11 min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
-                      index === activeIndex
-                        ? "border-ipn/30 bg-ipn-light"
-                        : "border-zinc-200 bg-zinc-50 hover:border-ipn/20"
-                    }`}
-                  >
-                    <span
-                      className={`h-2 w-2 flex-shrink-0 rounded-full ${
-                        index === activeIndex ? "bg-ipn" : "bg-zinc-300"
-                      }`}
-                    />
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold text-zinc-800">
-                        {event.title}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-zinc-400">
-                        <EventDateTime
-                          startsAt={event.starts_at}
-                          endsAt={event.ends_at}
-                          timezone={event.timezone}
-                        />
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="hidden text-xs font-medium text-zinc-500 sm:inline">
-                    Event {activeIndex + 1} of {events.length}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {events.map((event, index) => (
-                      <button
-                        key={event.id}
-                        type="button"
-                        onClick={() => goTo(index)}
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-lg transition hover:bg-zinc-50 sm:h-6 sm:w-6"
-                        aria-label={`Show event ${index + 1}`}
-                        aria-current={index === activeIndex ? "true" : undefined}
-                      >
-                        <span
-                          className={`h-2.5 rounded-full transition ${
-                            index === activeIndex
-                              ? "w-7 bg-ipn"
-                              : "w-2.5 bg-zinc-200"
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => goTo(activeIndex - 1)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:w-8"
-                    aria-label="Previous event"
-                  >
-                    <ArrowIcon direction="left" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => goTo(activeIndex + 1)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:w-8"
-                    aria-label="Next event"
-                  >
-                    <ArrowIcon direction="right" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+      {nextActivity ? (
+        <ActivitySpotlight activity={nextActivity} />
       ) : (
-        <div className="mt-4 flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center">
-          <h3 className="text-base font-semibold text-zinc-900">
-            New events are coming soon
-          </h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
-            When IPN Labs, PsychedelX, or community events are published, they
-            will appear here first.
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
+          <h3 className="font-semibold text-zinc-900">New events are coming soon</h3>
+          <p className="mt-2 text-sm text-zinc-500">
+            IPN Labs and community meetups will appear here when they are announced.
           </p>
         </div>
       )}

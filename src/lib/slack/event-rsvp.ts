@@ -24,7 +24,9 @@ export type EventRsvpNotification =
 
 type NotificationDetails = {
   eventName: string
-  detail: string
+  rsvpType: string
+  parentConference: string | null
+  detail: string | null
   rsvpCount: number
 }
 
@@ -102,7 +104,9 @@ async function getNotificationDetails(
 
     return {
       eventName: event.title,
-      detail: event.event_type,
+      rsvpType: event.event_type || "IPN Event",
+      parentConference: null,
+      detail: null,
       rsvpCount: count ?? 0,
     }
   }
@@ -128,8 +132,9 @@ async function getNotificationDetails(
     const hasMemberDiscount = parseDiscounts(conference.discounts).length > 0
     return {
       eventName: conference.name,
+      rsvpType: "Conference",
+      parentConference: null,
       detail: [
-        "Conference",
         conference.category,
         hasMemberDiscount ? "Member discount available" : null,
       ].filter(Boolean).join(" · "),
@@ -151,7 +156,9 @@ async function getNotificationDetails(
 
   return {
     eventName: meetup.title,
-    detail: [meetup.type || "IPN Meetup", conference.name].join(" · "),
+    rsvpType: meetup.type || "IPN Meetup",
+    parentConference: conference.name,
+    detail: "Conference meetup",
     rsvpCount: count ?? 0,
   }
 }
@@ -208,25 +215,35 @@ export async function sendEventRsvpSlackNotification(
       .filter(Boolean)
       .join(" ")
 
+    const notificationLabel = notification.kind === "meetup"
+      ? "New IPN meetup RSVP"
+      : notification.kind === "conference"
+        ? "New conference RSVP"
+        : "New event RSVP"
+
+    const payloadFields = [
+      field("RSVP type", details.rsvpType),
+      field("Event", details.eventName),
+      details.parentConference ? field("Conference", details.parentConference) : null,
+      details.detail ? field("Notification detail", details.detail) : null,
+      field("Member", fullName),
+      field("Email", email ?? ""),
+      field("Cumulative RSVPs", String(details.rsvpCount)),
+    ].filter((item): item is ReturnType<typeof field> => Boolean(item))
+
     const payload = {
-      text: `New event RSVP: ${details.eventName} — ${fullName || email || "Member"}`,
+      text: `${notificationLabel}: ${details.eventName} — ${fullName || email || "Member"}`,
       blocks: [
         {
           type: "header",
           text: {
             type: "plain_text",
-            text: "New event RSVP",
+            text: notificationLabel,
           },
         },
         {
           type: "section",
-          fields: [
-            field("Event", details.eventName),
-            field("Notification detail", details.detail),
-            field("Member", fullName),
-            field("Email", email ?? ""),
-            field("Cumulative RSVPs", String(details.rsvpCount)),
-          ],
+          fields: payloadFields,
         },
       ],
     }

@@ -1,15 +1,34 @@
 import Link from "next/link"
-import type { ReactNode } from "react"
+import {
+  ArrowRightIcon,
+  CalendarDaysIcon,
+  MapPinIcon,
+} from "@heroicons/react/24/outline"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
-import { FeedbackForm } from "@/components/FeedbackFooter"
+import { WhatsAppIcon } from "@/components/community/WhatsAppCommunityCard"
 import { createClient } from "@/lib/supabase/server"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
-import type { DirectoryMapCity, DirectoryMapMember } from "@/lib/directory/types"
-import { resolveDirectoryMapState } from "@/lib/directory/location"
+import type { ConnectionEntry, DirectoryMapMember } from "@/lib/directory/types"
+import {
+  getContactMapForMembers,
+  getEducationMapForMembers,
+} from "@/lib/directory/queries"
+import type { ConferenceRecord } from "@/lib/conferences/types"
+import type { ResourceRecord } from "@/lib/resources/types"
+import {
+  latestPublishedDefaultNewsletter,
+  withNewsletterCoverImage,
+} from "@/lib/resources/newsletters"
+import { STUDENT_BACKGROUNDS } from "@/lib/constants/registration"
 import type { OnboardingProgress } from "@/lib/onboarding/progress"
-import WelcomeModal from "./WelcomeModal"
+import { activationSummary, isProfileMilestoneComplete } from "./activation-model"
 import UpcomingEventsCarousel from "./UpcomingEventsCarousel"
+import ActivationChecklist from "./ActivationChecklist"
+import FeaturedMembersPreview from "./FeaturedMembersPreview"
+import { recommendFeaturedMembers } from "./featured-member-recommendations"
+import ProductTourLauncher from "@/components/product-tour/ProductTourLauncher"
+import { getProfileCompletion } from "./profile/profile-completion"
 
 type MemberProfile = {
   first_name: string | null
@@ -20,691 +39,257 @@ type MemberProfile = {
   avatar_url: string | null
   bio: string | null
   interest_tags: string[] | null
+  role_and_goals: string | null
+  inspiration: string | null
+  linkedin_url: string | null
+  whatsapp_url: string | null
 }
 
-type ChecklistItemProps = {
-  number: number
-  title: string
-  body: string
-  href: string
-  icon: ReactNode
-  completed?: boolean
-  external?: boolean
-  analyticsId?: string
-  analyticsLabel?: string
-  analyticsEvent?: "curated_click" | "whatsapp_cta_clicked"
-}
+function formatConferenceDate(conference: ConferenceRecord) {
+  const startsAt = new Date(conference.starts_at)
+  const endsAt = new Date(conference.ends_at)
+  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(startsAt)
+  const startDay = startsAt.getDate()
+  const endDay = endsAt.getDate()
+  const year = endsAt.getFullYear()
 
-type PortalFeature = {
-  title: string
-  body: string
-  href: string
-  icon: ReactNode
-}
-
-function ResourceIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-      />
-    </svg>
-  )
-}
-
-function DirectoryIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-      />
-    </svg>
-  )
-}
-
-function ProfileIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-      />
-    </svg>
-  )
-}
-
-function CalendarIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-      />
-    </svg>
-  )
-}
-
-function WhatsAppIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M19.05 4.91A9.8 9.8 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.27-1.38a9.9 9.9 0 0 0 4.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91a9.86 9.86 0 0 0-2.9-7.01ZM12.04 20.15h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.26-4.39c0-4.54 3.69-8.23 8.24-8.23a8.2 8.2 0 0 1 5.82 2.41 8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.23 8.24Z" />
-    </svg>
-  )
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.7}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-      />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      className="h-3.5 w-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2.4}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-    </svg>
-  )
-}
-
-function ChecklistItem({
-  number,
-  title,
-  body,
-  href,
-  icon,
-  completed = false,
-  external = false,
-  analyticsId,
-  analyticsLabel,
-  analyticsEvent = "curated_click",
-}: ChecklistItemProps) {
-  const content = (
-    <>
-      <span
-        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-          completed ? "bg-emerald-100 text-emerald-700" : "bg-ipn-light text-ipn"
-        }`}
-        aria-label={completed ? "Completed" : `Step ${number}`}
-      >
-        {completed ? <CheckIcon /> : number}
-      </span>
-      <span className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 sm:inline-flex">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold leading-tight text-zinc-900">{title}</span>
-        </span>
-        <span className="mt-0.5 hidden line-clamp-2 text-xs leading-snug text-zinc-500 sm:block">{body}</span>
-      </span>
-      <ArrowIcon />
-    </>
-  )
-
-  const className =
-    "flex min-h-9 items-center gap-3 rounded-lg border border-transparent bg-white px-0 py-1 transition hover:border-ipn/30 hover:bg-zinc-50 sm:min-h-0 sm:border-zinc-200 sm:px-3 sm:py-2"
-
-  if (external) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        data-analytics-event={analyticsId ? analyticsEvent : undefined}
-        data-analytics-id={analyticsId}
-        data-analytics-label={analyticsLabel}
-        className={className}
-      >
-        {content}
-      </a>
-    )
+  if (startsAt.toDateString() === endsAt.toDateString()) {
+    return `${month} ${startDay}, ${year}`
   }
 
-  return (
-    <Link
-      href={href}
-      data-analytics-event={analyticsId ? analyticsEvent : undefined}
-      data-analytics-id={analyticsId}
-      data-analytics-label={analyticsLabel}
-      className={className}
-    >
-      {content}
-    </Link>
-  )
+  return `${month} ${startDay} – ${endDay}, ${year}`
 }
 
-function MemberOnboarding({ progress }: { progress: OnboardingProgress | null }) {
-  const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL?.trim()
-    || (process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.trim()
-      ? `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE!.trim().replace(/\D/g, "")}`
-      : undefined)
-  const completedCount = [
-    progress?.profile_completed_at,
-    progress?.whatsapp_completed_at,
-    progress?.event_rsvp_completed_at,
-    progress?.connection_request_completed_at,
-    progress?.invite_completed_at,
-  ].filter(Boolean).length
-  const totalCount = 5
-
-  if (completedCount === totalCount) {
-    return (
-      <section className="h-full rounded-lg border border-ipn/20 bg-white p-4 shadow-sm sm:rounded-xl sm:p-5">
-        <p className="text-sm font-medium text-ipn">Questions or feedback?</p>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-900">Share it with IPN Leadership</h2>
-        <p className="mt-1 text-xs leading-5 text-zinc-500">
-          Tell us what is working, what needs attention, or what would make the member portal more useful.
-        </p>
-        <div className="mt-4 border-t border-zinc-100 pt-4">
-          <FeedbackForm embedded />
-        </div>
-      </section>
-    )
-  }
-
+function ConferencesPreview({ conferences }: { conferences: ConferenceRecord[] }) {
   return (
-    <section className="h-full rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:rounded-xl">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="hidden text-sm font-medium text-ipn sm:block">Get involved</p>
-          <h2 className="text-base font-semibold text-zinc-900 sm:mt-1 sm:text-lg">
-          Make the most of your membership
-          </h2>
-        </div>
-        <p className="text-xs font-medium text-zinc-500 sm:hidden">
-          {completedCount} of {totalCount} completed
-        </p>
-      </div>
-
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 sm:hidden">
-        <div
-          className="h-full rounded-full bg-ipn"
-          style={{ width: `${(completedCount / totalCount) * 100}%` }}
-        />
-      </div>
-
-      <div className="mt-3 flex flex-col gap-1.5 sm:mt-4 sm:gap-2">
-        <ChecklistItem
-          number={1}
-          title="Complete your profile"
-          body="Add profile picture, bio, and interests."
-          href="/dashboard/profile"
-          icon={<ProfileIcon />}
-          completed={Boolean(progress?.profile_completed_at)}
-          analyticsId="dashboard-onboarding-complete-profile"
-          analyticsLabel="Complete your profile"
-        />
-        <ChecklistItem
-          number={2}
-          title="Join WhatsApp Community"
-          body="Stay updated and connect with members."
-          href={whatsappUrl || "/dashboard/directory?tab=connections"}
-          icon={<WhatsAppIcon />}
-          completed={Boolean(progress?.whatsapp_completed_at)}
-          external={Boolean(whatsappUrl)}
-          analyticsId={whatsappUrl ? "dashboard-onboarding-whatsapp" : undefined}
-          analyticsLabel="Join WhatsApp Community"
-          analyticsEvent="whatsapp_cta_clicked"
-        />
-        <ChecklistItem
-          number={3}
-          title="Register for an event"
-          body="Join the next IPN gathering or webinar."
-          href="/dashboard/events"
-          icon={<CalendarIcon />}
-          completed={Boolean(progress?.event_rsvp_completed_at)}
-          analyticsId="dashboard-onboarding-register-event"
-          analyticsLabel="Register for an event"
-        />
-        <ChecklistItem
-          number={4}
-          title="Connect with a member"
-          body="Send a request to start a connection."
-          href="/dashboard/directory"
-          icon={<DirectoryIcon />}
-          completed={Boolean(progress?.connection_request_completed_at)}
-          analyticsId="dashboard-onboarding-connect-member"
-          analyticsLabel="Connect with a member"
-        />
-        <InviteFriendsCard
-          variant="checklist"
-          checklistNumber={5}
-          checklistCompleted={Boolean(progress?.invite_completed_at)}
-          trackOnboardingInvite
-        />
-      </div>
-    </section>
-  )
-}
-
-function MiniDirectoryMapPreview({ cities }: { cities: DirectoryMapCity[] }) {
-  const projectCity = (city: DirectoryMapCity) => {
-    const lng = Math.max(-180, Math.min(180, city.lng))
-    const lat = Math.max(-70, Math.min(70, city.lat))
-    const rawX = 110 + (lng / 180) * 56
-    const rawY = 76 - (lat / 70) * 44
-    const dx = rawX - 110
-    const dy = rawY - 76
-    const distance = Math.hypot(dx, dy)
-    const maxDistance = 52
-    const scale = distance > maxDistance ? maxDistance / distance : 1
-
-    return {
-      x: 110 + dx * scale,
-      y: 76 + dy * scale,
-      memberCount: city.memberCount,
-      cityCount: 1,
-      label: city.city,
-    }
-  }
-
-  const clusters = cities
-    .map(projectCity)
-    .reduce<Array<ReturnType<typeof projectCity>>>((grouped, point) => {
-      const nearby = grouped.find(
-        (cluster) => Math.hypot(cluster.x - point.x, cluster.y - point.y) < 18,
-      )
-
-      if (!nearby) {
-        grouped.push(point)
-        return grouped
-      }
-
-      const nextMemberCount = nearby.memberCount + point.memberCount
-      nearby.x =
-        (nearby.x * nearby.memberCount + point.x * point.memberCount) /
-        nextMemberCount
-      nearby.y =
-        (nearby.y * nearby.memberCount + point.y * point.memberCount) /
-        nextMemberCount
-      nearby.memberCount = nextMemberCount
-      nearby.cityCount += 1
-      nearby.label = `${nearby.cityCount} cities`
-
-      return grouped
-    }, [])
-    .sort((a, b) => b.memberCount - a.memberCount)
-    .slice(0, 8)
-
-  return (
-    <div className="relative flex min-h-36 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 220 150"
-        role="img"
-        aria-label="IPN member locations preview"
-      >
-        <defs>
-          <radialGradient id="mini-directory-globe" cx="40%" cy="28%" r="70%">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="58%" stopColor="#f1f5f9" />
-            <stop offset="100%" stopColor="#dfe5ee" />
-          </radialGradient>
-          <clipPath id="mini-directory-globe-clip">
-            <circle cx="110" cy="76" r="60" />
-          </clipPath>
-        </defs>
-        <rect width="220" height="150" fill="#fafafa" />
-        <circle
-          cx="110"
-          cy="76"
-          r="60"
-          fill="url(#mini-directory-globe)"
-          stroke="#d7dce5"
-          strokeWidth="1"
-        />
-        <g clipPath="url(#mini-directory-globe-clip)">
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="60"
-            ry="20"
-            fill="none"
-            stroke="#cfd6e1"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="60"
-            ry="40"
-            fill="none"
-            stroke="#d8dee8"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="40"
-            ry="60"
-            fill="none"
-            stroke="#d8dee8"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <ellipse
-            cx="110"
-            cy="76"
-            rx="20"
-            ry="60"
-            fill="none"
-            stroke="#d8dee8"
-            strokeWidth="1"
-            opacity="0.72"
-          />
-          <path d="M50 76h120M110 16v120" stroke="#cfd6e1" strokeWidth="1" opacity="0.7" />
-          <g fill="#dce2eb" stroke="#ffffff" strokeLinejoin="round" strokeWidth="0.9">
-            <path
-              d="M53 55c3-11 12-18 25-21 11-3 25-1 33 6 5 5 3 12-5 15-7 3-11 8-17 13-7 6-17 6-27 1-7-4-11-8-9-14Z"
-              opacity="0.9"
-            />
-            <path
-              d="M79 75c8 0 16 4 19 11 3 8-1 16-6 24-4 6-6 13-9 19-8-6-11-15-9-25 2-8-4-16 0-23 1-3 2-5 5-6Z"
-              opacity="0.82"
-            />
-            <path
-              d="M114 46c7-6 18-8 29-5 5 1 9 4 13 8-8 6-19 6-29 5-6-1-10-2-13-8Z"
-              opacity="0.86"
-            />
-            <path
-              d="M122 60c10-4 22 0 29 9 8 11 5 25-2 37-7 2-17-3-22-11-5-7-11-13-9-23 1-5 1-9 4-12Z"
-              opacity="0.82"
-            />
-            <path
-              d="M145 50c11-14 30-17 46-8 14 8 19 21 13 35-12 3-24-1-36-8-10-6-18-5-28-4-1-6 0-11 5-15Z"
-              opacity="0.8"
-            />
-            <path
-              d="M159 103c8-5 21-4 28 2 3 3 2 7-2 10-8 5-19 5-28 1-5-3-4-9 2-13Z"
-              opacity="0.8"
-            />
-            <path
-              d="M191 111c3-2 7-1 9 1-1 4-4 6-8 5-3-1-3-4-1-6Z"
-              opacity="0.75"
-            />
-          </g>
-          <g fill="none" stroke="#c6cedb" strokeWidth="0.8" opacity="0.55">
-            <path d="M92 41c-5 7-5 14 0 21" />
-            <path d="M134 56c-4 15-2 29 8 42" />
-            <path d="M166 48c4 9 4 16-1 23" />
-          </g>
-        </g>
-        {clusters.map((cluster) => {
-          const radius = Math.min(13, 7 + Math.sqrt(cluster.memberCount) * 1.8)
-          const label = `${cluster.label}: ${cluster.memberCount} member${cluster.memberCount === 1 ? "" : "s"}`
-          return (
-            <g
-              key={`${cluster.x}-${cluster.y}`}
-              transform={`translate(${cluster.x} ${cluster.y})`}
-              role="img"
-              aria-label={label}
-            >
-              <circle r={radius + 4} fill="rgba(102,79,161,0.22)" />
-              <circle r={radius} fill="#664fa1" stroke="white" strokeWidth="2" />
-              <text
-                y="4"
-                textAnchor="middle"
-                className="select-none fill-white text-[9px] font-bold"
-              >
-                {cluster.memberCount}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-function buildDirectoryMapCities(rows: DirectoryMapMember[]) {
-  const cityMap = new Map<string, DirectoryMapCity>()
-
-  for (const row of rows) {
-    if (!row.city || row.city_lat == null || row.city_lng == null) continue
-
-    const lat = Number(row.city_lat)
-    const lng = Number(row.city_lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-
-    const member = {
-      ...row,
-      city_lat: lat,
-      city_lng: lng,
-    }
-    const displayState = resolveDirectoryMapState(member)
-
-    const id = [
-      row.city.trim().toLowerCase(),
-      row.country?.trim().toLowerCase() ?? "",
-      lat.toFixed(2),
-      lng.toFixed(2),
-    ].join(":")
-
-    const existing = cityMap.get(id)
-    if (existing) {
-      existing.members.push({ ...member, state: existing.state })
-      existing.memberCount += 1
-    } else {
-      cityMap.set(id, {
-        id,
-        city: row.city,
-        state: displayState,
-        country: row.country,
-        lat,
-        lng,
-        memberCount: 1,
-        members: [{ ...member, state: displayState }],
-      })
-    }
-  }
-
-  return [...cityMap.values()].sort((a, b) => b.memberCount - a.memberCount)
-}
-
-function DirectoryPreview({
-  memberCount,
-  mapCities,
-}: {
-  memberCount: number | null
-  mapCities: DirectoryMapCity[]
-}) {
-  const countryCount = new Set(
-    mapCities.map((city) => city.country).filter(Boolean),
-  ).size
-
-  return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-ipn">Directory</p>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-900">
-            Find IPN members
-          </h2>
-        </div>
-        <Link
-          href="/dashboard/directory?view=map"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-ipn hover:underline sm:min-h-0"
-        >
-          Search
-        </Link>
-      </div>
-
-      <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)]">
-        <div className="min-w-0">
-          <p className="text-sm leading-6 text-zinc-500">
-            Search by school, field, location, and interests to find collaborators
-            and peers across the network.
-          </p>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-zinc-50 px-3 py-3">
-            <span>
-              <span className="block text-lg font-semibold text-zinc-900">
-                {memberCount?.toLocaleString() ?? "-"}
-              </span>
-              <span className="text-[11px] text-zinc-400">Members</span>
-            </span>
-            <span>
-              <span className="block text-lg font-semibold text-zinc-900">
-                {mapCities.length.toLocaleString()}
-              </span>
-              <span className="text-[11px] text-zinc-400">Cities</span>
-            </span>
-            <span>
-              <span className="block text-lg font-semibold text-zinc-900">
-                {countryCount.toLocaleString()}
-              </span>
-              <span className="text-[11px] text-zinc-400">Countries</span>
-            </span>
-          </div>
-        </div>
-        <Link href="/dashboard/directory?view=map" className="block">
-          <MiniDirectoryMapPreview cities={mapCities} />
-        </Link>
-      </div>
-    </section>
-  )
-}
-
-function ExplorePortal() {
-  const features: PortalFeature[] = [
-    {
-      title: "Member Benefits",
-      body: "Training discounts and member-only resources.",
-      href: "/dashboard/resources?tab=benefits",
-      icon: <ResourceIcon />,
-    },
-    {
-      title: "Event Recordings",
-      body: "Past IPN Labs and PsychedelX sessions.",
-      href: "/dashboard/events?tab=recordings",
-      icon: <CalendarIcon />,
-    },
-    {
-      title: "IPN Blog",
-      body: "Writing from the IPN network.",
-      href: "/dashboard/resources?tab=blog",
-      icon: <ResourceIcon />,
-    },
-    {
-      title: "IPN Partners",
-      body: "Organizations connected to the network.",
-      href: "/dashboard/resources?tab=partners",
-      icon: <DirectoryIcon />,
-    },
-  ]
-
-  return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div>
-        <p className="text-sm font-medium text-ipn">Portal</p>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-900">
-          Explore the member portal
+    <section className="border-b border-zinc-200 pb-4" aria-labelledby="conferences-to-plan-for">
+      <div className="flex items-center justify-between gap-4">
+        <h2 id="conferences-to-plan-for" className="text-lg font-semibold text-ipn sm:text-xl">
+          Conferences to plan for
         </h2>
+        <Link
+          href="/dashboard/conferences"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline"
+        >
+          <span className="sm:hidden">View all</span>
+          <span className="hidden sm:inline">View all conferences</span>
+          <ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {features.map((feature) => (
-          <Link
-            key={feature.title}
-            href={feature.href}
-            data-analytics-event="curated_click"
-            data-analytics-id={`dashboard-explore-${feature.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`}
-            data-analytics-label={feature.title}
-            className="flex items-start gap-3 rounded-lg border border-zinc-200 px-3 py-3 transition hover:border-ipn/30 hover:bg-zinc-50"
-          >
-            <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-ipn-light text-ipn">
-              {feature.icon}
+      {conferences.length ? (
+        <div className="mt-1 overflow-hidden rounded-2xl border border-zinc-200 bg-white sm:mt-2 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-zinc-200 sm:rounded-none sm:border-x-0 sm:border-b-0 sm:border-t-0">
+          {conferences.slice(0, 2).map((conference) => {
+            const location = [conference.city, conference.state ?? conference.country]
+              .filter(Boolean)
+              .join(", ")
+
+            return (
+              <Link
+                key={conference.id}
+                href={`/dashboard/conferences/${conference.slug}`}
+                className="group flex min-h-24 items-center gap-4 border-b border-zinc-100 px-4 py-3 last:border-b-0 hover:bg-ipn-light/30 sm:border-b-0 sm:px-0 sm:first:pr-7 sm:last:pl-7"
+              >
+                <span className="h-14 w-14 flex-none overflow-hidden rounded-full bg-ipn-light sm:h-16 sm:w-16">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={conference.cover_image_url || "/purple_icon.png"}
+                    alt=""
+                    className={`h-full w-full ${conference.cover_image_url ? "object-cover" : "object-contain p-2"}`}
+                  />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-zinc-950 group-hover:text-ipn">
+                    {conference.name}
+                  </span>
+                  <span className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 sm:text-sm">
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarDaysIcon className="h-4 w-4" aria-hidden="true" />
+                      {formatConferenceDate(conference)}
+                    </span>
+                    {location && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <MapPinIcon className="h-4 w-4" aria-hidden="true" />
+                        {location}
+                      </span>
+                    )}
+                  </span>
+                </span>
+                <ArrowRightIcon className="h-5 w-5 flex-none text-ipn" aria-hidden="true" />
+              </Link>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-xl border border-dashed border-zinc-200 p-5 text-sm text-zinc-500">
+          New conference listings are coming soon.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function LatestFromIpn({ resource }: { resource: ResourceRecord | null }) {
+  const published = resource?.published_at
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(resource.published_at))
+    : null
+  const href = resource?.url ?? "/dashboard/resources?tab=newsletters"
+  const externalLinkProps = resource
+    ? { target: "_blank" as const, rel: "noreferrer" }
+    : {}
+
+  return (
+    <section aria-labelledby="latest-from-ipn">
+      <div className="flex items-center justify-between gap-4">
+        <h2 id="latest-from-ipn" className="text-lg font-semibold text-ipn sm:text-xl">
+          Latest from IPN
+        </h2>
+        <Link
+          href="/dashboard/resources?tab=newsletters"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline sm:hidden"
+        >
+          Browse all
+          <ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+
+      <div className="mt-2 grid grid-cols-[8rem_minmax(0,1fr)] gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
+        <a
+          href={href}
+          {...externalLinkProps}
+          className="relative aspect-square overflow-hidden rounded-lg bg-gradient-to-br from-[#122271] to-[#8f2792]"
+        >
+          {resource?.thumbnail_url || resource?.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={resource.thumbnail_url || resource.image_url || ""}
+              alt={resource.image_alt || ""}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="flex h-full items-center justify-center px-3 text-center text-base font-semibold text-white">
+              IPN INSIGHTS
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-zinc-900">
-                {feature.title}
-              </span>
-              <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-zinc-500">
-                {feature.body}
-              </span>
-            </span>
-          </Link>
-        ))}
+          )}
+        </a>
+        <div className="min-w-0 py-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            <span className="rounded-md bg-ipn-light px-2 py-1 font-semibold text-ipn">Newsletter</span>
+            {published && <span>{published}</span>}
+          </div>
+          <a href={href} {...externalLinkProps} className="group mt-3 block">
+            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-zinc-950 group-hover:text-ipn sm:text-lg">
+              {resource?.title ?? "Discover the latest news and insights from IPN"}
+            </h3>
+          </a>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
+            {resource?.description ?? "Research, community updates, and new opportunities for members."}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 hidden items-center gap-8 sm:flex">
+        <a
+          href={href}
+          {...externalLinkProps}
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline"
+        >
+          Read latest
+          <ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
+        </a>
+        <Link
+          href="/dashboard/resources?tab=newsletters"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn hover:underline"
+        >
+          Browse archive
+          <ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
     </section>
   )
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
-  const params = await searchParams
-  const showOnboarding = params.onboarding === "1"
+function greetingForDate(date: Date) {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: "America/New_York",
+    }).format(date),
+  )
+  if (hour < 12) return "Good morning"
+  if (hour < 18) return "Good afternoon"
+  return "Good evening"
+}
+
+export default async function DashboardPage() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
-  const [profileResult, upcomingResult, memberCountResult, mapRowsResult, onboardingResult] = await Promise.all([
+  const onboardingResultPromise = (async () => {
+    const fullResult = await supabase
+      .from("member_onboarding_progress")
+      .select(
+        "profile_completed_at, whatsapp_current_step, whatsapp_completed_at, product_tour_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at, getting_started_completed_at, getting_started_success_seen_at",
+      )
+      .eq("user_id", user!.id)
+      .maybeSingle()
+
+    if (!fullResult.error || (fullResult.error.code !== "42703" && !fullResult.error.message.includes("does not exist"))) {
+      return fullResult
+    }
+
+    const legacyResult = await supabase
+      .from("member_onboarding_progress")
+      .select(
+        "profile_completed_at, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
+      )
+      .eq("user_id", user!.id)
+      .maybeSingle()
+
+    return {
+      ...legacyResult,
+      data: legacyResult.data
+        ? {
+            ...legacyResult.data,
+            whatsapp_current_step: null,
+            product_tour_completed_at: null,
+            getting_started_completed_at: null,
+            getting_started_success_seen_at: null,
+          }
+        : null,
+    }
+  })()
+  const [
+    profileResult,
+    educationResult,
+    upcomingResult,
+    conferenceResult,
+    latestResourceResult,
+    mapRowsResult,
+    onboardingResult,
+    eventParticipationResult,
+    ticketParticipationResult,
+    conferenceParticipationResult,
+    meetupParticipationResult,
+    connectionParticipationResult,
+  ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags")
+      .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags, role_and_goals, inspiration, linkedin_url, whatsapp_url")
       .eq("id", user!.id)
       .single(),
+    supabase
+      .from("member_education")
+      .select("institution, degree_credential, area_of_study")
+      .eq("user_id", user!.id),
     supabase
       .from("events")
       .select("*", { count: "exact" })
@@ -714,39 +299,160 @@ export default async function DashboardPage({
       .order("starts_at", { ascending: true })
       .limit(5),
     supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("is_discoverable", true),
+      .from("conferences")
+      .select("id, slug, name, organizer, category, cover_image_url, summary, description, starts_at, ends_at, timezone, city, state, country, venue, website_url, registration_url, whatsapp_url, meetups, discounts, rsvp_count, status")
+      .eq("status", "published")
+      .gte("ends_at", now)
+      .order("starts_at", { ascending: true })
+      .limit(5),
+    supabase
+      .from("resources")
+      .select("*")
+      .eq("status", "published")
+      .eq("resource_type", "newsletter")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("profiles")
       .select(
         "id, first_name, last_name, persona, school, affiliation, field, city, state, country, city_lat, city_lng, bio, interest_tags, linkedin_url, avatar_url, admin_role, team",
       )
       .eq("is_discoverable", true)
-      .eq("share_location", true)
-      .not("city", "is", null)
-      .not("city_lat", "is", null)
-      .not("city_lng", "is", null)
       .order("first_name", { ascending: true })
       .limit(500),
+    onboardingResultPromise,
     supabase
-      .from("member_onboarding_progress")
-      .select(
-        "profile_completed_at, whatsapp_completed_at, connection_request_completed_at, invite_completed_at, event_rsvp_completed_at",
-      )
-      .eq("user_id", user!.id)
-      .maybeSingle(),
+      .from("event_registrations")
+      .select("event_id", { count: "exact", head: true })
+      .eq("user_id", user!.id),
+    user?.email
+      ? supabase
+          .from("event_ticket_access")
+          .select("event_id", { count: "exact", head: true })
+          .eq("attendee_email_normalized", user.email.trim().toLowerCase())
+      : Promise.resolve({ count: 0 }),
+    supabase
+      .from("conference_rsvps")
+      .select("conference_id", { count: "exact", head: true })
+      .eq("user_id", user!.id),
+    supabase
+      .from("conference_meetup_rsvps")
+      .select("meetup_id", { count: "exact", head: true })
+      .eq("user_id", user!.id),
+    supabase
+      .from("connections")
+      .select("id", { count: "exact", head: true })
+      .eq("requester_id", user!.id),
   ])
 
   const profile = profileResult.data as MemberProfile | null
   const onboardingProgress = onboardingResult.data as OnboardingProgress | null
-  const mapCities = buildDirectoryMapCities(
-    (mapRowsResult.data ?? []) as DirectoryMapMember[],
+  const profileCompletion = getProfileCompletion({
+    avatarUrl: profile?.avatar_url ?? null,
+    bio: profile?.bio ?? "",
+    role: profile?.persona ?? "",
+    requiresEducation: STUDENT_BACKGROUNDS.has(profile?.persona ?? ""),
+    affiliation: profile?.affiliation ?? "",
+    education: (educationResult.data ?? []).map((entry) => ({
+      institution: entry.institution ?? "",
+      degreeCredential: entry.degree_credential ?? "",
+      areaOfStudy: entry.area_of_study ?? "",
+    })),
+    interests: profile?.interest_tags ?? [],
+    roleAndGoals: profile?.role_and_goals ?? "",
+    inspiration: profile?.inspiration ?? "",
+    supportNeeds: typeof user?.user_metadata?.support_needs === "string"
+      ? user.user_metadata.support_needs
+      : "",
+    linkedinUrl: profile?.linkedin_url ?? "",
+    linkedinOptOut: user?.user_metadata?.linkedin_opt_out === true,
+    whatsappUrl: profile?.whatsapp_url ?? null,
+    whatsappOptOut: user?.user_metadata?.whatsapp_opt_out === true,
+  })
+  const profileMilestoneComplete = isProfileMilestoneComplete(
+    onboardingProgress?.profile_completed_at,
+    profileCompletion.completedCount,
+    profileCompletion.totalCount,
   )
+  const participationCompleted = [
+    eventParticipationResult.count,
+    ticketParticipationResult.count,
+    conferenceParticipationResult.count,
+    meetupParticipationResult.count,
+    connectionParticipationResult.count,
+  ].some((count) => (count ?? 0) > 0)
+  const gettingStartedSummary = activationSummary({
+    whatsapp_completed_at: onboardingProgress?.whatsapp_completed_at ?? null,
+    whatsapp_current_step: onboardingProgress?.whatsapp_current_step ?? null,
+    profile_completed_at: profileMilestoneComplete ? "complete" : null,
+    product_tour_completed_at: onboardingProgress?.product_tour_completed_at ?? null,
+    event_rsvp_completed_at: onboardingProgress?.event_rsvp_completed_at ?? null,
+    connection_request_completed_at: onboardingProgress?.connection_request_completed_at ?? null,
+    participation_completed: participationCompleted,
+  })
+  const gettingStartedComplete = gettingStartedSummary.completedCount === gettingStartedSummary.totalCount
+  const showGettingStarted = !gettingStartedComplete || !onboardingProgress?.getting_started_success_seen_at
+  const { data: featuredConnectionRows } = await supabase
+    .from("connections")
+    .select("requester_id, addressee_id, status")
+    .or(`requester_id.eq.${user!.id},addressee_id.eq.${user!.id}`)
+  const acceptedConnectionIds = new Set(
+    (featuredConnectionRows ?? [])
+      .filter((connection) => connection.status === "accepted")
+      .map((connection) =>
+        connection.requester_id === user!.id
+          ? connection.addressee_id
+          : connection.requester_id,
+      ),
+  )
+  const featuredMembers = recommendFeaturedMembers(
+    (mapRowsResult.data ?? []) as DirectoryMapMember[],
+    user!.id,
+    {
+      persona: profile?.persona ?? null,
+      school: profile?.school ?? null,
+      affiliation: profile?.affiliation ?? null,
+      field: profile?.field ?? null,
+      interest_tags: profile?.interest_tags ?? null,
+      educationInstitutions: (educationResult.data ?? [])
+        .map((entry) => entry.institution)
+        .filter((institution): institution is string => Boolean(institution)),
+    },
+    acceptedConnectionIds,
+  )
+  const featuredMemberIds = featuredMembers.map((member) => member.id)
+  const [featuredEducationMap, featuredContactMap] = await Promise.all([
+      getEducationMapForMembers(supabase, featuredMemberIds),
+      getContactMapForMembers(supabase, featuredMemberIds),
+    ])
+  const featuredMembersWithDetails = featuredMembers.map((member) => ({
+    ...member,
+    education: featuredEducationMap.get(member.id) ?? [],
+    contact: featuredContactMap.get(member.id) ?? null,
+  }))
+  const featuredConnectionMap: Record<string, ConnectionEntry> = {}
+  for (const connection of featuredConnectionRows ?? []) {
+    const otherId = connection.requester_id === user!.id
+      ? connection.addressee_id
+      : connection.requester_id
+    if (!featuredMemberIds.includes(otherId)) continue
+    featuredConnectionMap[otherId] = {
+      status: connection.status as ConnectionEntry["status"],
+      amRequester: connection.requester_id === user!.id,
+    }
+  }
   const rawUpcomingEvents = (upcomingResult.data ?? []) as EventRecord[]
+  const conferenceRecords = (conferenceResult.data ?? []) as ConferenceRecord[]
+  const latestResource = withNewsletterCoverImage(
+    (latestResourceResult.data as ResourceRecord | null) ??
+      latestPublishedDefaultNewsletter(),
+  )
   const eventIds = rawUpcomingEvents.map((event) => event.id)
+  const conferenceIds = conferenceRecords.map((conference) => conference.id)
   let registrations: { event_id: string }[] = []
   let tickets: { event_id: string }[] = []
+  let registeredMeetupIds: string[] = []
 
   if (eventIds.length) {
     const [registrationResult, ticketResult] = await Promise.all([
@@ -768,61 +474,103 @@ export default async function DashboardPage({
     tickets = (ticketResult.data ?? []) as { event_id: string }[]
   }
 
+  if (conferenceIds.length) {
+    const { data: meetupRsvps } = await supabase
+      .from("conference_meetup_rsvps")
+      .select("meetup_id")
+      .eq("user_id", user!.id)
+      .in("conference_id", conferenceIds)
+
+    registeredMeetupIds = (meetupRsvps ?? []).map((row) => row.meetup_id)
+  }
+
   const registeredIds = new Set(
     registrations.map((registration) => registration.event_id),
   )
   const ticketIds = new Set(tickets.map((ticket) => ticket.event_id))
-  const upcomingEvents: EventWithRegistration[] = rawUpcomingEvents.map((event) =>
-    withTicketRegistrationState(
+  const upcomingEvents: EventWithRegistration[] = rawUpcomingEvents.map((event) => {
+    const withRegistration = withTicketRegistrationState(
       event,
       registeredIds.has(event.id),
       ticketIds.has(event.id),
-    ),
-  )
+    )
+    return {
+      ...withRegistration,
+      chat_external_url:
+        withRegistration.chat_platform === "whatsapp"
+        && withRegistration.chat_status === "active"
+        && withRegistration.chat_external_url
+          ? "available"
+          : null,
+    }
+  })
 
   const firstName = profile?.first_name ?? user!.email?.split("@")[0] ?? "there"
-  const subtitle = [profile?.persona, profile?.affiliation ?? profile?.school]
-    .filter(Boolean)
-    .join(" · ")
+  const today = new Date()
+  const briefingDate = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York",
+  }).format(today)
+
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-6">
-      <WelcomeModal userId={user!.id} show={showOnboarding} />
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">
-            Welcome, {firstName}
-          </h1>
-          {subtitle ? (
-            <p className="mt-1 line-clamp-1 text-sm text-zinc-500">{subtitle}</p>
-          ) : (
-            <p className="mt-1 text-sm text-zinc-500">
-              Thanks for being part of IPN.
+    <div className="shrink-0 bg-white">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-7 sm:py-7 lg:gap-6 lg:px-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h1
+              data-tour-page="dashboard"
+              className="text-3xl font-semibold tracking-tight text-[#11142D] sm:text-4xl"
+            >
+              {greetingForDate(today)}, {firstName}
+            </h1>
+            <p className="mt-2 text-base text-zinc-600">
+              Here&apos;s your weekly briefing for{" "}
+              <span className="font-semibold text-ipn">{briefingDate}.</span>
             </p>
-          )}
+          </div>
+          <div className="hidden flex-wrap items-center justify-end gap-3 md:flex">
+            <Link
+              href="/onboarding/whatsapp?motion=editorial"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ipn/20 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:border-ipn/40 hover:bg-ipn-light"
+            >
+              <WhatsAppIcon className="h-5 w-5" />
+              Join IPN on WhatsApp
+            </Link>
+            <ProductTourLauncher />
+            <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
+          </div>
         </div>
-        <div className="hidden sm:block">
-          <InviteFriendsCard id="invite-friends" variant="header" trackOnboardingInvite />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,0.85fr)]">
+        {showGettingStarted && (
+          <ActivationChecklist
+            userId={user!.id}
+            progress={onboardingProgress}
+            profileCompletedCount={profileCompletion.completedCount}
+            profileTotalCount={profileCompletion.totalCount}
+            participationCompleted={participationCompleted}
+          />
+        )}
+
         <UpcomingEventsCarousel
-          className="order-1 h-full"
           events={upcomingEvents}
-          totalCount={upcomingResult.count ?? upcomingEvents.length}
+          conferences={conferenceRecords}
+          registeredMeetupIds={registeredMeetupIds}
         />
-        <div className="order-2 h-full">
-          <MemberOnboarding progress={onboardingProgress} />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DirectoryPreview
-          memberCount={memberCountResult.count}
-          mapCities={mapCities}
-        />
-        <ExplorePortal />
+        <ConferencesPreview conferences={conferenceRecords} />
+
+        <div className="grid gap-7 lg:grid-cols-[0.92fr_1.08fr] lg:divide-x lg:divide-zinc-200">
+          <LatestFromIpn resource={latestResource} />
+          <div className="border-t border-zinc-200 pt-6 lg:border-t-0 lg:pl-7 lg:pt-0">
+            <FeaturedMembersPreview
+              featuredMembers={featuredMembersWithDetails}
+              currentUserId={user!.id}
+              connectionMap={featuredConnectionMap}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

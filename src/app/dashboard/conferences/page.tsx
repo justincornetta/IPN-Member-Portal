@@ -25,8 +25,7 @@ export default async function ConferencesPage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-10">
       <div>
-        <p className="hidden text-sm font-medium text-ipn sm:block">Conferences</p>
-        <h1 className="text-2xl font-semibold text-zinc-900 sm:mt-1">Conferences</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900">Conferences</h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500 sm:mt-2">
           Upcoming external conferences with IPN meetups and member discounts. Click on each
           module to sign up for IPN-sponsored events, see who&apos;s attending, and connect

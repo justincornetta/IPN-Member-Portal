@@ -12,9 +12,7 @@ import { sendMemberRegistrationSlackNotification } from "@/lib/slack/member-regi
 import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
 import type { PortalAnalyticsEventName } from "@/lib/portal-analytics/events"
 import {
-  isProfileOnboardingComplete,
-  markOnboardingStepsComplete,
-  type OnboardingStep,
+  syncProfileOnboardingCompletion,
 } from "@/lib/onboarding/progress"
 import { STUDENT_BACKGROUNDS } from "@/lib/constants/registration"
 import {
@@ -449,18 +447,20 @@ export async function updateProfile(
     if (educationDeleteError) return { error: educationDeleteError.message }
   }
 
-  const completedSteps: OnboardingStep[] = []
-  if (isProfileOnboardingComplete({
-    avatar_url: data.avatar_url,
-    bio: data.bio,
-    interest_tags: data.interest_tags,
-  })) {
-    completedSteps.push("profile")
+  try {
+    await syncProfileOnboardingCompletion(supabase, user.id, {
+      supportNeeds: typeof user.user_metadata?.support_needs === "string"
+        ? user.user_metadata.support_needs
+        : null,
+      linkedInOptOut: user.user_metadata?.linkedin_opt_out === true,
+      whatsAppOptOut: user.user_metadata?.whatsapp_opt_out === true,
+    })
+  } catch (completionError) {
+    // The profile and education writes above are authoritative even if a newly
+    // deployed onboarding table is temporarily unavailable. A later profile or
+    // avatar update will retry synchronization without rolling back user data.
+    console.error("[profile] onboarding completion sync failed:", completionError)
   }
-  if (whatsappUrl) {
-    completedSteps.push("whatsapp")
-  }
-  await markOnboardingStepsComplete(supabase, user.id, completedSteps)
   revalidatePath("/dashboard")
 
   if (updatedProfile?.mailchimp_status === "subscribed" && updatedProfile.email) {

@@ -10,11 +10,7 @@ import { sendEventRegistrationConfirmation } from "./email-service"
 
 type EventRegistrationResult = {
   error?: string
-  event?: {
-    chat_platform: string | null
-    chat_external_url: string | null
-    chat_status: string | null
-  }
+  eventChatAvailable?: boolean
 }
 
 type AnalyticsContext = {
@@ -79,11 +75,9 @@ export async function registerForEvent(
   revalidatePath(`/dashboard/events/${eventSlug}`)
 
   return {
-    event: {
-      chat_platform: event.chat_platform,
-      chat_external_url: event.chat_external_url,
-      chat_status: event.chat_status,
-    },
+    eventChatAvailable: event.chat_platform === "whatsapp"
+      && event.chat_status === "active"
+      && Boolean(event.chat_external_url),
   }
 }
 
@@ -99,13 +93,18 @@ export async function unregisterFromEvent(
 
   if (!user) return { error: "Not authenticated" }
 
-  const { error } = await supabase
+  const { data: deletedRegistration, error } = await supabase
     .from("event_registrations")
     .delete()
     .eq("event_id", eventId)
     .eq("user_id", user.id)
+    .select("event_id")
+    .maybeSingle()
 
   if (error) return { error: error.message }
+  if (!deletedRegistration) {
+    return { error: "We couldn't update your registration. Please try again." }
+  }
 
   if (analytics?.sessionId) {
     await recordPortalAnalyticsEvent({

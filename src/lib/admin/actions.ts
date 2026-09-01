@@ -28,6 +28,7 @@ export type AdminContentType =
   | "past_recording"
   | "member_resource"
   | "blog_post"
+  | "newsletter"
   | "partner"
 
 export type AdminContentPayload = {
@@ -474,6 +475,8 @@ export async function publishAdminContent(
   const resourceType =
     payload.contentType === "blog_post"
       ? "blog_post"
+      : payload.contentType === "newsletter"
+        ? "newsletter"
       : payload.contentType === "partner"
         ? "partner"
         : "affiliate_benefit"
@@ -488,6 +491,8 @@ export async function publishAdminContent(
       clean(payload.category) ??
       (resourceType === "blog_post"
         ? "IPN Blog"
+        : resourceType === "newsletter"
+          ? "IPN Members Newsletter"
         : resourceType === "partner"
           ? "Partner"
           : "Member benefits"),
@@ -498,9 +503,9 @@ export async function publishAdminContent(
     detail_body: clean(payload.detailBody),
     author: clean(payload.author),
     published_at: toIso(payload.publishedAt) ?? now,
-    source_id: clean(payload.sourceId) ?? (resourceType === "blog_post" ? url : null),
+    source_id: clean(payload.sourceId) ?? (["blog_post", "newsletter"].includes(resourceType) ? url : null),
     source_name:
-      clean(payload.sourceName) ?? (resourceType === "blog_post" ? "IPN Blog" : null),
+      clean(payload.sourceName) ?? (resourceType === "blog_post" ? "IPN Blog" : resourceType === "newsletter" ? "Mailchimp" : null),
     status: "published",
   }
 
@@ -510,6 +515,7 @@ export async function publishAdminContent(
   if (error) return { error: error.message }
 
   revalidatePath("/dashboard/resources")
+  revalidatePath("/dashboard")
   revalidatePath(`/dashboard/resources/${slug}`)
   return { slug }
 }
@@ -599,6 +605,7 @@ export async function deleteAdminContent(
     revalidatePath("/dashboard")
     revalidatePath("/dashboard/events")
   } else {
+    revalidatePath("/dashboard")
     revalidatePath("/dashboard/resources")
   }
   return {}

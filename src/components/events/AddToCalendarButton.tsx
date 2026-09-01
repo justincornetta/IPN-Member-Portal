@@ -1,24 +1,34 @@
 "use client"
 
 import { useState } from "react"
+import { CalendarDaysIcon } from "@heroicons/react/24/outline"
 import {
   buildGoogleCalendarUrl,
   buildIcsContent,
   buildOutlookCalendarUrl,
+  type CalendarEvent,
 } from "@/lib/events/calendar"
 import EventDateTime from "@/components/events/EventDateTime"
-import type { EventRecord } from "@/lib/events/types"
 
 type Props = {
-  event: EventRecord
+  event: CalendarEvent & { timezone: string }
   compact?: boolean
+  className?: string
+  appearance?: "default" | "ipn"
+  label?: string
 }
 
 function openInNewTab(url: string) {
   window.open(url, "_blank", "noopener,noreferrer")
 }
 
-export default function AddToCalendarButton({ event, compact = false }: Props) {
+export default function AddToCalendarButton({
+  event,
+  compact = false,
+  className = "",
+  appearance = "default",
+  label = "Add to Calendar",
+}: Props) {
   const [open, setOpen] = useState(false)
 
   function openAppleCalendar() {
@@ -35,11 +45,18 @@ export default function AddToCalendarButton({ event, compact = false }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-200 bg-white font-medium text-zinc-600 transition hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900 sm:min-h-0 ${
+        className={`inline-flex min-h-11 items-center justify-center rounded-lg border bg-white font-medium transition ${
+          appearance === "ipn"
+            ? "border-ipn/40 text-ipn hover:border-ipn hover:bg-ipn-light"
+            : "border-zinc-200 text-zinc-600 hover:border-ipn/30 hover:bg-zinc-50 hover:text-zinc-900"
+        } ${
           compact ? "px-3 py-2 text-xs sm:px-2.5 sm:py-1.5" : "px-3 py-2 text-sm"
-        }`}
+        } ${className}`}
       >
-        Add to Calendar
+        {appearance === "ipn" && (
+          <CalendarDaysIcon className="mr-2 h-5 w-5" aria-hidden="true" />
+        )}
+        {label}
       </button>
 
       {open && (

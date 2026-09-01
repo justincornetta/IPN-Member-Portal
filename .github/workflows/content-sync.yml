@@ -2,7 +2,8 @@ name: Content sync
 
 on:
   schedule:
-    # Runs every 6 hours
+    # Runs every 6 hours. Mailchimp newsletter ingestion is internally limited
+    # to days 1-5 of each month; the other content sources continue year-round.
     - cron: "0 */6 * * *"
   workflow_dispatch: # allow manual trigger from GitHub UI
 
@@ -23,5 +24,18 @@ jobs:
           echo "HTTP status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "Error: sync-content returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Trigger monthly newsletter background sync
+        run: |
+          SITE_URL="${{ secrets.SITE_URL }}"
+          SITE_URL="${SITE_URL%/}"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${SITE_URL}/api/background/sync-newsletters" \
+            -H "x-content-sync-secret: ${{ secrets.CONTENT_SYNC_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Newsletter background trigger HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "202" ] && [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: newsletter background sync returned HTTP $HTTP_STATUS"
             exit 1
           fi

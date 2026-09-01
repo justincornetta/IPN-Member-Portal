@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EventCard from "@/components/events/EventCard"
 import EventDateTime from "@/components/events/EventDateTime"
+import WhatsAppHandoffAction from "@/components/whatsapp/WhatsAppHandoffAction"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type {
   EventRecord,
@@ -568,10 +569,14 @@ export default async function EventDetailPage({ params }: Props) {
     Boolean(registration),
     hasVerifiedTicket,
   )
-  const eventChatUrl =
+  const eventChatAvailable =
     eventWithRegistration.chat_status === "active" && eventWithRegistration.is_registered
-      ? eventWithRegistration.chat_external_url
-      : null
+      && eventWithRegistration.chat_platform === "whatsapp"
+      && Boolean(eventWithRegistration.chat_external_url)
+  const clientEvent = {
+    ...eventWithRegistration,
+    chat_external_url: eventChatAvailable ? "available" : null,
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -582,9 +587,9 @@ export default async function EventDetailPage({ params }: Props) {
         Back to events
       </Link>
 
-      <EventCard event={eventWithRegistration} />
+      <EventCard event={clientEvent} variant="full" />
 
-      {eventChatUrl && (
+      {eventChatAvailable && (
         <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -596,17 +601,13 @@ export default async function EventDetailPage({ params }: Props) {
                 registered IPN members before and after the session.
               </p>
             </div>
-            <a
-              href={eventChatUrl}
-              target="_blank"
-              rel="noreferrer"
-              data-analytics-event="whatsapp_cta_clicked"
-              data-analytics-id={`event-detail-chat-${eventWithRegistration.slug}`}
-              data-analytics-label="Join event chat"
-              className="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
-            >
-              Join chat
-            </a>
+            <WhatsAppHandoffAction
+              kind="event"
+              slug={eventWithRegistration.slug}
+              source="event-detail"
+              label="Join chat"
+              className="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark"
+            />
           </div>
         </section>
       )}

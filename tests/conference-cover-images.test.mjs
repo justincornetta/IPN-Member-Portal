@@ -42,6 +42,28 @@ test("conference cards and detail pages share a responsive 16:9 renderer", () =>
   assert.match(detailOverview, /conference\.cover_image_url/)
 })
 
+test("conference meetup cards preserve the 16:9 cover beside their metadata", () => {
+  const interactive = read("src/components/conferences/ConferenceInteractive.tsx")
+  const image = 'src={meetup.imageUrl || "/events/horizons-community-meetup.png"}'
+  const communityLabel = ">\n                          Community\n                        </span>"
+
+  assert.match(interactive, /aspect-video overflow-hidden rounded-lg bg-ipn-light/)
+  assert.match(interactive, /className="h-full w-full object-cover[^"]*"/)
+  assert.equal(interactive.indexOf(image) < interactive.indexOf(communityLabel), true)
+})
+
+test("leadership can upload and preview a dedicated meetup cover image", () => {
+  const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
+  const actions = read("src/lib/admin/conference-actions.ts")
+  const types = read("src/lib/conferences/types.ts")
+
+  assert.match(form, /label="Meetup cover photo"/)
+  assert.match(form, /value=\{meetup\.imageUrl\}/)
+  assert.match(form, /imageUrl: meetup\.imageUrl\.trim\(\) \|\| null/)
+  assert.match(actions, /imageUrl: clean\(meetup\.imageUrl\)/)
+  assert.match(types, /imageUrl\?: string \| null/)
+})
+
 test("conference admin previews reuse member portal cards and detail content", () => {
   const form = read("src/app/dashboard/admin/ContentIntakeForm.tsx")
   const interactive = read("src/components/conferences/ConferenceInteractive.tsx")
@@ -50,7 +72,7 @@ test("conference admin previews reuse member portal cards and detail content", (
   assert.match(form, /<ConferenceDetailOverview conference=\{conference\} preview/)
   assert.match(form, /<ConferenceInteractivePreview/)
   assert.match(form, /<PastConferenceCard conference=\{conference\} preview/)
-  assert.match(interactive, /preview \|\| meetupPendingId === meetup\.id/)
+  assert.match(interactive, /disabled=\{preview \|\| isPending\}/)
   assert.match(form, /label: "Member portal"/)
   assert.match(form, /label: "Member email"/)
   assert.match(form, /label: "Conference card"/)

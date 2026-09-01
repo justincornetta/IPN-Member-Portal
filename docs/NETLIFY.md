@@ -31,7 +31,9 @@ Add these in Netlify project settings:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Same value | Public anon client config |
 | `NEXT_PUBLIC_SITE_URL` | `https://members.intercollegiatepsychedelics.net` | Leave unset | Netlify provides the active deploy URL through `URL` / `DEPLOY_PRIME_URL`; set this only for production so deploy previews keep their own callback URL |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox public access token | Same value | Public token for the Directory Map; restrict by domain in Mapbox |
-| `NEXT_PUBLIC_WHATSAPP_COMMUNITY_URL` | WhatsApp Community invite link | Optional / same value when available | Public link used by dashboard, welcome modal, and Community page CTAs |
+| `WHATSAPP_GENERAL_INVITE_URL` | Final General group invite | Required | Server-only; resolved only by the WhatsApp handoff routes |
+| `WHATSAPP_LABS_INVITE_URL` | Final Labs Events group invite | Required | Server-only; resolved only by the WhatsApp handoff routes |
+| `WHATSAPP_CONFERENCES_INVITE_URL` | Final Conferences group invite | Required | Server-only; resolved only by the WhatsApp handoff routes |
 | `CONTENT_SYNC_SECRET` | Random long secret | Optional / same value when testing automation | Server-only shared secret for GitHub scheduled automation calls, including content sync and Portal analytics refresh when no dedicated analytics secret is set |
 | `PORTAL_ANALYTICS_MAINTENANCE_SECRET` | Optional random long secret | Optional / same value when manually testing | Server-only bearer/header secret for invoking the Portal analytics rollup and 90-day raw-event retention function. If unset, the function accepts `CONTENT_SYNC_SECRET` so the GitHub scheduled workflow can use the existing automation secret |
 | `SLACK_FEEDBACK_WEBHOOK_URL` | Feedback webhook URL | Optional / same value when testing feedback notifications | Server-only incoming webhook for portal feedback submissions |

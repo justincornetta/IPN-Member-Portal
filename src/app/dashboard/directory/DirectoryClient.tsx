@@ -788,9 +788,18 @@ export default function DirectoryClient({
             </svg>
             Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
           </button>
-          <p className={`${isMapView ? "text-xs" : "text-sm"} text-right text-zinc-500 transition-opacity sm:text-left ${isPending ? "opacity-50" : ""}`}>
-          {displayedMemberCount} member{displayedMemberCount !== 1 ? "s" : ""} · {displayedCityCount} cit{displayedCityCount === 1 ? "y" : "ies"} · {displayedCountryCount} countr{displayedCountryCount === 1 ? "y" : "ies"}
-          </p>
+          {isMapView ? (
+            <div className={`rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-zinc-900 shadow-sm transition-opacity ${isPending ? "opacity-50" : ""}`}>
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Live membership map</p>
+              <p className="mt-1 text-sm font-semibold">
+                {displayedMemberCount} member{displayedMemberCount !== 1 ? "s" : ""} · {displayedCityCount} cit{displayedCityCount === 1 ? "y" : "ies"} · {displayedCountryCount} countr{displayedCountryCount === 1 ? "y" : "ies"}
+              </p>
+            </div>
+          ) : (
+            <p className={`text-right text-sm text-zinc-500 transition-opacity sm:text-left ${isPending ? "opacity-50" : ""}`}>
+              {displayedMemberCount} member{displayedMemberCount !== 1 ? "s" : ""} · {displayedCityCount} cit{displayedCityCount === 1 ? "y" : "ies"} · {displayedCountryCount} countr{displayedCountryCount === 1 ? "y" : "ies"}
+            </p>
+          )}
         </div>
         <div className="grid w-full grid-cols-2 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:self-auto">
           {(["list", "map"] as const).map((option) => (
@@ -815,7 +824,6 @@ export default function DirectoryClient({
           <MapDirectoryView
             key={mapRenderKey}
             cities={filteredMapCities}
-            totalMemberCount={displayedMemberCount}
             connectionMap={connMap}
             currentUserId={currentUserId}
             onOpenMember={openMember}

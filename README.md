@@ -30,6 +30,13 @@ cp .env.example .env.local
 npm run dev
 ```
 
+`npm run dev` checks for the public Supabase URL and key before Next.js starts,
+so an incomplete local environment fails with an actionable terminal message
+instead of a browser runtime overlay. Because `.env.local` is intentionally
+gitignored, every clone or worktree needs its own file. On a trusted development
+machine, multiple worktrees can safely symlink `.env.local` to one canonical,
+untracked environment file rather than copying secrets between checkouts.
+
 Open [http://localhost:3000](http://localhost:3000).
 
 The landing page shows a Supabase configuration indicator — green if `.env.local` is wired up correctly, amber otherwise.
@@ -69,3 +76,55 @@ Netlify is the active deployment target. Pull requests get Netlify Deploy Previe
 - Deployment notes: [`docs/NETLIFY.md`](docs/NETLIFY.md)
 
 Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Netlify project settings.
+
+## Mailchimp newsletter sync
+
+The protected content-sync workflow also triggers a Netlify background function
+during the first five days of each month. It imports the newest sent campaign
+whose title or subject contains both `IPN` and `newsletter`, fetches the issue
+content, creates a one-sentence member-portal summary, and upserts a monthly
+`newsletter-<month>-<year>` resource. Repeated runs and Mailchimp resend
+shortcuts do not create duplicate portal cards.
+
+Cover creation follows the `ipn-newsletter-cover-photo-generator` system: the
+image model creates only a content- and season-specific 3:2 community photo;
+the application then adds the exact IPN logo, Geist typography, deep-plum
+scrim, title, month, and square crop deterministically. The 900 x 600 cover and
+300 x 300 thumbnail are stored at campaign-specific paths in the public
+`content-images` Supabase Storage bucket. Existing completed issues and existing
+cover exports are reused instead of regenerated.
+
+Required server-only environment variables:
+
+- `MAILCHIMP_API_KEY`
+- `MAILCHIMP_AUDIENCE_ID`
+- `MAILCHIMP_SERVER_PREFIX` (optional when the API key includes its `-usXX` suffix)
+- `MAILCHIMP_NEWSLETTER_FOLDER_ID` (optional but recommended)
+- `OPENAI_API_KEY`
+- `OPENAI_NEWSLETTER_TEXT_MODEL` (optional; defaults to `gpt-5-mini`)
+- `OPENAI_NEWSLETTER_IMAGE_MODEL` (optional; defaults to `gpt-image-1`)
+- `CONTENT_SYNC_SECRET`
+
+The GitHub Actions workflow invokes the production content-sync route and the
+newsletter background endpoint every six hours. Mailchimp polling is internally
+limited to days 1–5; Substack, YouTube, Eventbrite, and event cleanup keep their
+existing schedule. Configure the Mailchimp, OpenAI, Supabase, and sync-secret
+values in Netlify; GitHub only needs `SITE_URL` and `CONTENT_SYNC_SECRET` to
+trigger the deployed functions.
+
+For a protected preview that makes no database changes, call:
+
+```text
+GET /api/admin/sync-newsletters?dryRun=true&force=true
+Authorization: Bearer <CONTENT_SYNC_SECRET>
+```
+
+To queue the full background workflow manually, call:
+
+```text
+POST /api/background/sync-newsletters?force=true
+Authorization: Bearer <CONTENT_SYNC_SECRET>
+```
+
+The endpoint returns `202` when Netlify accepts the job. `force=true` allows a
+manual run outside the normal monthly window.

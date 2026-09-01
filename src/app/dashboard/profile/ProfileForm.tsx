@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { createClient } from "@/lib/supabase/client"
 import { updateProfile } from "@/lib/auth/actions"
-import { completeOnboardingStep } from "@/lib/onboarding/actions"
-import { isProfileOnboardingComplete } from "@/lib/onboarding/progress"
 import { setCurrentUserMailchimpSubscription } from "@/lib/mailchimp/actions"
 import type { MailchimpStatus } from "@/lib/mailchimp/status"
 import CityVerificationField from "@/components/location/CityVerificationField"
@@ -33,6 +32,12 @@ import {
   validateEducationEntries,
   type MemberEducationInput,
 } from "@/lib/members/education"
+import ProfileCompletionStatus from "./ProfileCompletionStatus"
+import { refreshProfileOnboardingCompletion, updateProfileCompletionDetails } from "./actions"
+import {
+  getProfileCompletion,
+  type ProfileCompletionField,
+} from "./profile-completion"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +55,8 @@ type Profile = {
   field: string | null
   psychedelic_field_status: string | null
   role_and_goals: string | null
+  inspiration: string | null
+  support_needs: string | null
   bio: string | null
   interest_tags: string[] | null
   linkedin_url: string | null
@@ -91,9 +98,13 @@ type FormState = {
   field: string
   psychedelic_field_status: string
   role_and_goals: string
+  inspiration: string
+  support_needs: string
   bio: string
   interest_tags: string[]
   linkedin_url: string
+  linkedin_opt_out: boolean
+  whatsapp_opt_out: boolean
   whatsapp_country_code: string
   whatsapp_country_iso: string
   whatsapp_number: string
@@ -406,6 +417,9 @@ function toFormState(
   profile: Profile | null,
   contact: Contact | null,
   education: EducationRecord[],
+  linkedinOptOut: boolean,
+  whatsappOptOut: boolean,
+  supportNeedsFallback: string,
 ): FormState {
   const { countryCode, number } = parseWhatsappUrl(
     contact?.whatsapp_url ?? null,
@@ -428,9 +442,13 @@ function toFormState(
     field: profile?.field ?? "",
     psychedelic_field_status: profile?.psychedelic_field_status ?? "",
     role_and_goals: profile?.role_and_goals ?? "",
+    inspiration: profile?.inspiration ?? "",
+    support_needs: profile?.support_needs ?? supportNeedsFallback,
     bio: profile?.bio ?? "",
     interest_tags: profile?.interest_tags ?? [],
     linkedin_url: profile?.linkedin_url ?? "",
+    linkedin_opt_out: linkedinOptOut && !profile?.linkedin_url?.trim(),
+    whatsapp_opt_out: whatsappOptOut && !contact?.whatsapp_url?.trim(),
     whatsapp_country_code: countryCode,
     whatsapp_country_iso: countryIso,
     whatsapp_number: number,
@@ -565,15 +583,15 @@ function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
 }
 
 function TextInput({
-  id, name, type = "text", value, onChange, placeholder, autoComplete,
+  id, name, type = "text", value, onChange, placeholder, autoComplete, required = false,
 }: {
   id: string; name: string; type?: string; value: string
-  onChange: (v: string) => void; placeholder?: string; autoComplete?: string
+  onChange: (v: string) => void; placeholder?: string; autoComplete?: string; required?: boolean
 }) {
   return (
     <input
       id={id} name={name} type={type} value={value}
-      autoComplete={autoComplete} placeholder={placeholder}
+      autoComplete={autoComplete} placeholder={placeholder} required={required}
       onChange={(e) => onChange(e.target.value)}
       className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
     />
@@ -599,6 +617,61 @@ function Select({
   )
 }
 
+function useModalFocus(active: boolean, onClose: () => void) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!active) return
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const dialog = dialogRef.current
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    const focusInitial = window.requestAnimationFrame(() => {
+      const initial = dialog?.querySelector<HTMLElement>("[data-dialog-initial-focus]")
+        ?? dialog?.querySelector<HTMLElement>(focusableSelector)
+      initial?.focus({ preventScroll: true })
+    })
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        closeRef.current()
+        return
+      }
+      if (event.key !== "Tab" || !dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
+      if (!focusable.length) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusInitial)
+      document.removeEventListener("keydown", handleKeyDown)
+      previouslyFocused?.focus({ preventScroll: true })
+    }
+  }, [active])
+
+  return dialogRef
+}
+
 function TagPickerModal({
   selected,
   onChange,
@@ -610,17 +683,12 @@ function TagPickerModal({
 }) {
   const [local, setLocal] = useState<string[]>(selected)
   const [search, setSearch] = useState("")
+  const dialogRef = useModalFocus(true, onClose)
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
     return () => { document.body.style.overflow = "" }
   }, [])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onClose])
 
   function toggle(tag: string) {
     setLocal((prev) =>
@@ -645,16 +713,21 @@ function TagPickerModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="interest-picker-title"
+        tabIndex={-1}
         className="w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <div>
-            <p className="text-sm font-semibold text-zinc-900">Pick your interests</p>
+            <p id="interest-picker-title" className="text-sm font-semibold text-zinc-900">Pick your interests</p>
             <p className="mt-0.5 text-xs text-zinc-400">{local.length} / 3 selected</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600">
+          <button type="button" onClick={onClose} aria-label="Close interest picker" className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
@@ -665,11 +738,12 @@ function TagPickerModal({
         <div className="border-b border-zinc-100 px-5 py-3">
           <input
             type="text"
+            aria-label="Search interests"
+            data-dialog-initial-focus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search interests…"
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn"
-            autoFocus
           />
         </div>
 
@@ -734,10 +808,12 @@ function TagPickerModal({
 function CountryDialCodeCombobox({
   dialCode,
   countryIso,
+  disabled = false,
   onChange,
 }: {
   dialCode: string
   countryIso: string
+  disabled?: boolean
   onChange: (dialCode: string, iso: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -780,11 +856,12 @@ function CountryDialCodeCombobox({
     <div ref={containerRef} className="relative">
       <button
         type="button"
+        disabled={disabled}
         onClick={() => {
           setOpen((o) => !o)
           if (!open) setTimeout(() => inputRef.current?.focus(), 0)
         }}
-        className="flex min-h-11 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+        className="flex min-h-11 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 disabled:hover:border-zinc-300"
       >
         {selected ? (
           <>
@@ -886,6 +963,9 @@ export default function ProfileForm({
   userId,
   userEmail,
   mailchimpStatus,
+  linkedinOptOut,
+  whatsappOptOut,
+  supportNeedsFallback,
 }: {
   profile: Profile | null
   contact: Contact | null
@@ -893,9 +973,14 @@ export default function ProfileForm({
   userId: string
   userEmail: string
   mailchimpStatus: MailchimpStatus
+  linkedinOptOut: boolean
+  whatsappOptOut: boolean
+  supportNeedsFallback: string
 }) {
   const router = useRouter()
-  const [data, setData] = useState<FormState>(() => toFormState(profile, contact, education))
+  const [data, setData] = useState<FormState>(() => (
+    toFormState(profile, contact, education, linkedinOptOut, whatsappOptOut, supportNeedsFallback)
+  ))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
@@ -911,6 +996,35 @@ export default function ProfileForm({
   const [subscriptionMsg, setSubscriptionMsg] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
+  const cropDialogRef = useModalFocus(Boolean(cropSrc), () => setCropSrc(null))
+
+  const whatsappNumberError = validateWhatsappNumber(
+    data.whatsapp_country_iso,
+    data.whatsapp_number,
+  )
+  const whatsappUrl = whatsappNumberError
+    ? null
+    : buildWhatsappUrl(data.whatsapp_country_code, data.whatsapp_number)
+  const profileCompletion = getProfileCompletion({
+    avatarUrl: data.avatar_url,
+    bio: data.bio,
+    role: data.persona,
+    requiresEducation: STUDENT_BACKGROUNDS.has(data.persona),
+    affiliation: data.affiliation,
+    education: data.education.map((entry) => ({
+      institution: entry.institution,
+      degreeCredential: entry.degree_credential,
+      areaOfStudy: entry.area_of_study,
+    })),
+    interests: data.interest_tags,
+    roleAndGoals: data.role_and_goals,
+    inspiration: data.inspiration,
+    supportNeeds: data.support_needs,
+    linkedinUrl: data.linkedin_url,
+    linkedinOptOut: data.linkedin_opt_out,
+    whatsappUrl,
+    whatsappOptOut: data.whatsapp_opt_out,
+  })
 
   useEffect(() => {
     if (!isDirty) return
@@ -989,6 +1103,78 @@ export default function ProfileForm({
     update("education", next)
   }
 
+  function focusProfileField(field: ProfileCompletionField) {
+    if (field === "avatar") {
+      fileInputRef.current?.click()
+      return
+    }
+    if (field === "interests") {
+      setTagPickerOpen(true)
+      return
+    }
+    if (field === "about") {
+      const id = !data.role_and_goals.trim()
+        ? "role_and_goals"
+        : !data.inspiration.trim()
+          ? "inspiration"
+          : "support_needs"
+      document.getElementById(id)?.focus({ preventScroll: false })
+      return
+    }
+    if (field === "linkedin") {
+      document.getElementById("linkedin_url")?.focus({ preventScroll: false })
+      return
+    }
+    if (field === "whatsapp") {
+      document.getElementById("whatsapp_number")?.focus({ preventScroll: false })
+      return
+    }
+    if (field === "organization" && !isProfessional) {
+      if (data.education.length === 0) {
+        update("education", [{
+          id: crypto.randomUUID(),
+          institution: "",
+          education_level: "",
+          degree_credential: "",
+          area_of_study: "",
+          status: "",
+          graduation_year: null,
+        }])
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            document.getElementById("education_institution_0")?.focus({ preventScroll: false })
+          })
+        })
+        return
+      }
+
+      const incompleteIndex = data.education.findIndex((entry) => (
+        !entry.institution.trim()
+        || !entry.degree_credential.trim()
+        || !entry.area_of_study.trim()
+      ))
+      const index = incompleteIndex === -1 ? 0 : incompleteIndex
+      const entry = data.education[index]
+      const id = !entry.institution.trim()
+        ? `education_institution_${index}`
+        : !entry.degree_credential.trim()
+          ? `education_degree_${index}`
+          : `education_area_${index}`
+      document.getElementById(id)?.focus({ preventScroll: false })
+      return
+    }
+
+    const id = field === "bio"
+      ? "bio"
+      : field === "role"
+        ? "persona"
+        : isProfessional
+          ? "affiliation"
+          : "education_institution_0"
+
+    document.getElementById(id)?.focus({ preventScroll: false })
+  }
+
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1021,16 +1207,20 @@ export default function ProfileForm({
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(userId)
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
-      if (isProfileOnboardingComplete({
-        avatar_url: publicUrl,
-        bio: data.bio,
-        interest_tags: data.interest_tags,
-      })) {
-        await completeOnboardingStep("profile")
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId)
+      if (profileUpdateError) {
+        setError(profileUpdateError.message)
+        return
       }
       update("avatar_url", publicUrl)
+      const completionResult = await refreshProfileOnboardingCompletion()
+      if (completionResult.error) setError(completionResult.error)
       router.refresh()
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "The photo could not be saved. Please try again.")
     } finally {
       setAvatarUploading(false)
     }
@@ -1048,7 +1238,8 @@ export default function ProfileForm({
     setError(null)
     setSaved(false)
 
-    const result = await updateProfile({
+    try {
+      const result = await updateProfile({
       first_name: data.first_name,
       last_name: data.last_name,
       country: data.country,
@@ -1070,15 +1261,32 @@ export default function ProfileForm({
       share_location: data.share_location,
       avatar_url: data.avatar_url,
       education: data.education,
-    })
+      })
 
-    setSaving(false)
-    if (result?.error) {
-      setError(result.error)
-    } else {
+      if (result?.error) {
+        setError(result.error)
+        return
+      }
+
+      const completionDetailsResult = await updateProfileCompletionDetails({
+        inspiration: data.inspiration,
+        supportNeeds: data.support_needs,
+        linkedinOptOut: data.linkedin_opt_out,
+        whatsappOptOut: data.whatsapp_opt_out,
+      })
+
+      if (completionDetailsResult?.error) {
+        setError(completionDetailsResult.error)
+        return
+      }
+
       setSaved(true)
       setIsDirty(false)
       topRef.current?.scrollIntoView({ behavior: "smooth" })
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Your profile could not be saved. Please try again.")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -1091,14 +1299,39 @@ export default function ProfileForm({
     : userId[0].toUpperCase()
 
   return (
-    <div ref={topRef} className="flex flex-col gap-10">
+    <div ref={topRef} className="flex flex-col gap-10 pb-28 sm:pb-0">
+
+      <div className="flex flex-col gap-3">
+        <ProfileCompletionStatus
+          completedCount={profileCompletion.completedCount}
+          totalCount={profileCompletion.totalCount}
+          items={profileCompletion.items}
+          onFocusField={focusProfileField}
+        />
+        <div className="hidden items-center justify-end gap-3 sm:flex">
+          {error && <span className="text-sm text-red-600" role="alert">{error}</span>}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="min-h-11 w-full rounded-lg bg-ipn px-6 py-2.5 text-sm font-medium text-white transition hover:bg-ipn-dark disabled:opacity-50 sm:w-auto sm:min-h-0"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
 
       {saved && (
-        <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <svg className="h-4 w-4 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-          Profile saved successfully.
+        <div role="status" aria-live="polite" className="flex flex-wrap items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <span className="flex flex-1 items-center gap-3">
+            <svg className="h-4 w-4 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            Profile saved successfully.
+          </span>
+          <Link href="/dashboard" className="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-ipn hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn sm:min-h-0">
+            Return to dashboard <span aria-hidden="true" className="ml-1">→</span>
+          </Link>
         </div>
       )}
 
@@ -1207,9 +1440,48 @@ export default function ProfileForm({
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="linkedin_url">LinkedIn</Label>
-            <TextInput id="linkedin_url" name="linkedin_url" value={data.linkedin_url}
-              onChange={(v) => update("linkedin_url", v)}
-              placeholder="https://linkedin.com/in/yourname" />
+            <input
+              id="linkedin_url"
+              name="linkedin_url"
+              type="url"
+              value={data.linkedin_url}
+              disabled={data.linkedin_opt_out}
+              onChange={(event) => {
+                setData((previous) => ({
+                  ...previous,
+                  linkedin_url: event.target.value,
+                  linkedin_opt_out: event.target.value.trim()
+                    ? false
+                    : previous.linkedin_opt_out,
+                }))
+                setSaved(false)
+                setIsDirty(true)
+              }}
+              placeholder="https://linkedin.com/in/yourname"
+              aria-describedby="linkedin-help"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+            />
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-zinc-600">
+              <input
+                type="checkbox"
+                checked={data.linkedin_opt_out}
+                onChange={(event) => {
+                  const checked = event.target.checked
+                  setData((previous) => ({
+                    ...previous,
+                    linkedin_opt_out: checked,
+                    linkedin_url: checked ? "" : previous.linkedin_url,
+                  }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
+                className="h-4 w-4 rounded border-zinc-300 accent-ipn"
+              />
+              I don&apos;t use LinkedIn
+            </label>
+            <p id="linkedin-help" className="text-xs text-zinc-400">
+              Add a profile link or let us know you don&apos;t use LinkedIn. Either choice completes this item.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1218,6 +1490,7 @@ export default function ProfileForm({
               <CountryDialCodeCombobox
                 dialCode={data.whatsapp_country_code}
                 countryIso={data.whatsapp_country_iso}
+                disabled={data.whatsapp_opt_out}
                 onChange={(code, iso) => {
                   setData((prev) => ({ ...prev, whatsapp_country_code: code, whatsapp_country_iso: iso }))
                   setSaved(false)
@@ -1229,25 +1502,54 @@ export default function ProfileForm({
                 name="whatsapp_number"
                 type="tel"
                 value={data.whatsapp_number}
-                onChange={(e) => update("whatsapp_number", e.target.value)}
+                disabled={data.whatsapp_opt_out}
+                aria-describedby="whatsapp-help"
+                onChange={(event) => {
+                  setData((previous) => ({
+                    ...previous,
+                    whatsapp_number: event.target.value,
+                    whatsapp_opt_out: event.target.value.trim()
+                      ? false
+                      : previous.whatsapp_opt_out,
+                  }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
                 placeholder="555 123 4567"
-                className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
               />
             </div>
             {(() => {
-              const err = validateWhatsappNumber(data.whatsapp_country_iso, data.whatsapp_number)
               const hasDigits = data.whatsapp_number.replace(/\D/g, "").length > 0
               if (!hasDigits) return null
-              if (err) return <p className="text-xs text-red-600">{err}</p>
+              if (whatsappNumberError) return <p className="text-xs text-red-600">{whatsappNumberError}</p>
               return <p className="text-xs text-emerald-600">Looks good</p>
             })()}
-            <p className="text-xs text-zinc-400">
-              Shown only to accepted connections, alongside your email.
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-zinc-600">
+              <input
+                type="checkbox"
+                checked={data.whatsapp_opt_out}
+                onChange={(event) => {
+                  const checked = event.target.checked
+                  setData((previous) => ({
+                    ...previous,
+                    whatsapp_opt_out: checked,
+                    whatsapp_number: checked ? "" : previous.whatsapp_number,
+                  }))
+                  setSaved(false)
+                  setIsDirty(true)
+                }}
+                className="h-4 w-4 rounded border-zinc-300 accent-ipn"
+              />
+              I don&apos;t use WhatsApp
+            </label>
+            <p id="whatsapp-help" className="text-xs text-zinc-400">
+              Add your number or let us know you don&apos;t use WhatsApp. Either choice completes this item. Your number is shown only to accepted connections.
             </p>
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="persona">What best describes you?</Label>
+            <Label htmlFor="persona">Current role</Label>
             <select
               id="persona"
               name="persona"
@@ -1323,13 +1625,13 @@ export default function ProfileForm({
                   <Label htmlFor={`education_degree_${index}`}>Degree or credential</Label>
                   <TextInput id={`education_degree_${index}`} name={`education_degree_${index}`}
                     value={entry.degree_credential} onChange={(value) => updateEducation(index, "degree_credential", value)}
-                    placeholder="BA, PhD, certificate…" />
+                    placeholder="BA, PhD, certificate…" required />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Label htmlFor={`education_area_${index}`}>Area of study (optional)</Label>
+                  <Label htmlFor={`education_area_${index}`}>Area of study</Label>
                   <TextInput id={`education_area_${index}`} name={`education_area_${index}`}
                     value={entry.area_of_study} onChange={(value) => updateEducation(index, "area_of_study", value)}
-                    placeholder="Neuroscience, psychology, law…" />
+                    placeholder="Neuroscience, psychology, law…" required />
                 </div>
                 <div className="flex flex-col gap-1 sm:col-span-2">
                   <Label htmlFor={`education_year_${index}`}>Graduation year (optional)</Label>
@@ -1341,7 +1643,7 @@ export default function ProfileForm({
               </div>
             </div>
           ))}
-          <button type="button" onClick={() => update("education", [...data.education, {
+          <button id="add_education" type="button" onClick={() => update("education", [...data.education, {
             id: crypto.randomUUID(),
             institution: "",
             education_level: "",
@@ -1445,7 +1747,7 @@ export default function ProfileForm({
           <div className="mt-1 rounded-lg border border-zinc-100 bg-zinc-50 p-4 flex flex-col gap-3 text-xs">
             <div className="flex flex-col gap-0.5">
               <p className="font-semibold text-zinc-500">Directory members see</p>
-              <p className="text-zinc-400">Bio, interests, LinkedIn, stage, school or affiliation</p>
+              <p className="text-zinc-400">Bio, interests, LinkedIn, current role, school or affiliation</p>
             </div>
             <div className="h-px bg-zinc-200" />
             <div className="flex flex-col gap-0.5">
@@ -1459,11 +1761,31 @@ export default function ProfileForm({
       {/* ── About You ── */}
       <section>
         <SectionHeading>About You</SectionHeading>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="role_and_goals">Current role and professional goals</Label>
-          <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
-            onChange={(v) => update("role_and_goals", v)} rows={4}
-            placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
+        <div className="mb-4 rounded-xl border border-[#E0D4F0] bg-[#FAF7FF] px-4 py-3">
+          <p className="text-sm font-medium text-[#1A1034]">Private to the IPN team</p>
+          <p className="mt-1 text-xs leading-5 text-[#6E6287]">
+            These answers help us understand and support members. They are not shown on your public profile.
+          </p>
+        </div>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="role_and_goals">Your direction and professional goals</Label>
+            <Textarea id="role_and_goals" name="role_and_goals" value={data.role_and_goals}
+              onChange={(v) => update("role_and_goals", v)} rows={4}
+              placeholder="Your current area of focus, roles you hope to pursue, and the types of organizations or impact areas you're most drawn to…" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="inspiration">What inspired you to get involved with IPN?</Label>
+            <Textarea id="inspiration" name="inspiration" value={data.inspiration}
+              onChange={(v) => update("inspiration", v)} rows={3}
+              placeholder="Share what drew you to the community…" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="support_needs">What resource or support would help you most right now?</Label>
+            <Textarea id="support_needs" name="support_needs" value={data.support_needs}
+              onChange={(v) => update("support_needs", v)} rows={3}
+              placeholder="For example: mentorship, collaborators, career guidance, research opportunities…" />
+          </div>
         </div>
       </section>
 
@@ -1549,7 +1871,7 @@ export default function ProfileForm({
 
       {/* ── Save ── */}
       <div
-        className="fixed inset-x-4 z-40 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-lg shadow-zinc-900/10 backdrop-blur sm:static sm:inset-auto sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:shadow-none sm:backdrop-blur-0"
+        className="fixed inset-x-4 z-40 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-lg shadow-zinc-900/10 backdrop-blur sm:hidden"
         style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
       >
         <button
@@ -1560,55 +1882,83 @@ export default function ProfileForm({
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        {error && <span className="text-sm text-red-600">{error}</span>}
+        {error && <span className="text-sm text-red-600" role="alert">{error}</span>}
       </div>
 
       {/* ── Crop modal ── */}
       {cropSrc && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/80">
-          <div className="relative flex-1">
-            <Cropper
-              image={cropSrc}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              cropShape="round"
-              showGrid={false}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-            />
-          </div>
-          <div className="flex flex-col gap-3 bg-zinc-900 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full accent-ipn"
-              />
-            </div>
-            <div className="flex gap-3">
+        <div
+          ref={cropDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="crop-dialog-title"
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4"
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-zinc-900 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
+              <div>
+                <h2 id="crop-dialog-title" className="text-base font-semibold text-white">Crop profile photo</h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-300">Move and zoom your photo to frame it.</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setCropSrc(null)}
-                className="flex-1 rounded-lg border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 transition"
+                aria-label="Close photo cropper"
+                className="-mr-2 -mt-2 inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg text-zinc-300 transition hover:bg-white/10 hover:text-white"
               >
-                Cancel
+                <span aria-hidden="true">×</span>
               </button>
-              <button
-                type="button"
-                onClick={handleCropConfirm}
-                className="flex-1 rounded-lg bg-ipn py-2.5 text-sm font-medium text-white hover:bg-ipn/90 transition"
-              >
-                Save photo
-              </button>
+            </div>
+            <div className="relative aspect-square w-full flex-none bg-zinc-950">
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div
+              className="flex flex-col gap-3 bg-zinc-900 px-5 py-4"
+              style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            >
+              <div className="flex min-h-11 items-center gap-3">
+                <svg className="h-4 w-4 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                <input
+                  type="range"
+                  aria-label="Photo zoom"
+                  data-dialog-initial-focus
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="w-full accent-ipn"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCropSrc(null)}
+                  className="min-h-11 flex-1 rounded-lg border border-zinc-600 px-3 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCropConfirm}
+                  className="min-h-11 flex-1 rounded-lg bg-ipn px-3 py-2.5 text-sm font-medium text-white transition hover:bg-ipn/90"
+                >
+                  Save photo
+                </button>
+              </div>
             </div>
           </div>
         </div>

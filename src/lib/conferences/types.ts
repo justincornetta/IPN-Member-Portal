@@ -10,6 +10,7 @@ export type ConferenceMeetup = {
   id: string
   title: string
   type: string
+  imageUrl?: string | null
   startsAt: string
   endsAt?: string | null
   location: string | null
@@ -57,6 +58,13 @@ export type ConferenceRecord = {
 // directory (see components/directory/MemberProfileModal.tsx), so this is
 // the full directory member shape rather than a conference-specific subset.
 export type ConferenceAttendee = DirectoryMember
+
+export type ConferenceMeetupAttendanceState = {
+  isGoing: boolean
+  isVisible: boolean
+  totalCount: number
+  visibleAttendees: ConferenceAttendee[]
+}
 
 export type PastConferenceRecord = {
   id: string

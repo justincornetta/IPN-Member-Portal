@@ -31,8 +31,9 @@ test("admins can search leadership while only superadmins can assign access", ()
   const searchSource = exportedFunctionSource("searchMembersForAdmin", "getMemberDetail")
   const assignmentSource = exportedFunctionSource("assignAdminAccess", "publishAdminContent")
   assert.match(searchSource, /await verifyAdmin\(\)/)
-  assert.doesNotMatch(searchSource, /verifySuperadminUser\(\)/)
+  assert.doesNotMatch(searchSource, /verifySuperadmin(?:User)?\(\)/)
   assert.match(assignmentSource, /await verifySuperadminUser\(\)/)
+  assert.doesNotMatch(assignmentSource, /await verifyAdmin\(\)/)
 })
 
 test("leadership assignments use the database's canonical team names", () => {
