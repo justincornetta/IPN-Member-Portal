@@ -188,6 +188,10 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
     new URL("../supabase/migrations/20260825203017_whatsapp_qr_handoffs.sql", import.meta.url),
     "utf8",
   )
+  const analyticsSql = await readFile(
+    new URL("../supabase/migrations/20260915033056_analytics_member_eligibility_and_participation.sql", import.meta.url),
+    "utf8",
+  )
   assert.match(onboardingSql, /profile_completed_at = coalesce\(/)
   assert.match(onboardingSql, /btrim\(profiles\.persona\)/)
   assert.match(onboardingSql, /from public\.member_education/)
@@ -206,6 +210,19 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
   assert.match(handoffSql, /token_hash text not null unique/)
   assert.match(handoffSql, /for update/)
   assert.match(handoffSql, /create or replace function public\.consume_whatsapp_handoff/)
+  assert.match(analyticsSql, /exclude_from_analytics boolean not null default false/)
+  assert.match(analyticsSql, /create table if not exists public\.member_participation_activities/)
+  assert.match(analyticsSql, /check \(action in \('completed', 'cancelled'\)\)/)
+  assert.match(analyticsSql, /revoke all on table public\.member_participation_activities from anon, authenticated, public/)
+  assert.match(analyticsSql, /revoke update, delete, truncate on table public\.member_participation_activities from service_role/)
+  assert.match(analyticsSql, /after insert or delete on public\.event_registrations/)
+  assert.match(analyticsSql, /after insert or delete on public\.conference_rsvps/)
+  assert.match(analyticsSql, /after insert or delete on public\.conference_meetup_rsvps/)
+  assert.match(analyticsSql, /after insert or delete on public\.connections/)
+  assert.match(analyticsSql, /after insert or delete on public\.event_ticket_access/)
+  assert.match(analyticsSql, /create table if not exists public\.analytics_excluded_subjects/)
+  assert.match(analyticsSql, /normalized_email := nullif\(lower\(btrim\(old\.email\)\), ''\)/)
+  assert.match(analyticsSql, /extensions\.digest\(normalized_email, 'sha256'\)/)
   assert.match(handoffSql, /from public\.event_registrations as registrations/)
   assert.match(handoffSql, /insert into public\.member_whatsapp_join_intents/)
   assert.match(handoffSql, /'whatsapp_anonymous_redirect'/)
@@ -216,6 +233,15 @@ test("migration preserves milestone timestamps and locks the intent ledger", asy
   )
   assert.match(analyticsSource, /"whatsapp_join_intent"/)
   assert.match(analyticsSource, /"whatsapp_anonymous_redirect"/)
+})
+
+test("future portal event rollups exclude suspended and explicitly excluded profiles", async () => {
+  const source = await readFile(
+    new URL("../src/lib/portal-analytics/rollup.ts", import.meta.url),
+    "utf8",
+  )
+  assert.match(source, /select\("id,is_banned,exclude_from_analytics"\)/)
+  assert.match(source, /excludedUserIds\.has\(event\.user_id\)/)
 })
 
 test("one redirect authority separates tokenized member intent from anonymous fallback", async () => {

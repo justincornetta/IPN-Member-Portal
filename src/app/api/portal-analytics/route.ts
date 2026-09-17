@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV !== "production") {
+    return NextResponse.json({ ok: true, skipped: true })
+  }
+
   let body: unknown
   try {
     body = await request.json()

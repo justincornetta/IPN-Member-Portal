@@ -387,6 +387,178 @@ async function upsertSocialSnapshots(rows) {
   return rows.length
 }
 
+function buildMailchimpContacts() {
+  const payload = readJson("mailchimp_contacts.json", null)
+  if (!payload || !Array.isArray(payload.contacts)) return null
+  const pulledAt = isoOrNull(payload.pulled_at) ?? new Date().toISOString()
+  const audiences = Array.isArray(payload.audiences) ? payload.audiences : []
+  const contacts = payload.contacts
+    .map((row) => ({
+      audience_id: cleanString(row.audience_id),
+      audience_name: cleanString(row.audience_name) ?? "Unnamed audience",
+      subscriber_hash: cleanString(row.subscriber_hash)?.toLowerCase() ?? null,
+      mailchimp_member_id: cleanString(row.mailchimp_member_id),
+      status: cleanString(row.status)?.toLowerCase() ?? "unknown",
+      subscribed_at: isoOrNull(row.subscribed_at),
+      unsubscribed_at: isoOrNull(row.unsubscribed_at),
+      last_changed_at: isoOrNull(row.last_changed_at),
+      source_pulled_at: isoOrNull(row.source_pulled_at) ?? pulledAt,
+      last_seen_at: pulledAt,
+    }))
+    .filter((row) => row.audience_id && row.subscriber_hash)
+  return { audiences, contacts, pulledAt }
+}
+
+async function fetchAllMailchimpContacts(supabase) {
+  const rows = []
+  for (let start = 0; ; start += 1000) {
+    const { data, error } = await supabase
+      .from("mailchimp_audience_contacts")
+      .select("audience_id,audience_name,subscriber_hash,mailchimp_member_id,status,subscribed_at,unsubscribed_at,last_changed_at,source_pulled_at,first_seen_at,last_seen_at")
+      .range(start, start + 999)
+    if (error) throw new Error(`Unable to read prior Mailchimp contacts: ${error.message}`)
+    rows.push(...(data ?? []))
+    if (!data || data.length < 1000) break
+  }
+  return rows
+}
+
+function mailchimpEvent({ contact, previousStatus, source, occurredAt }) {
+  const timestamp = occurredAt ?? contact.last_changed_at ?? contact.source_pulled_at
+  return {
+    audience_id: contact.audience_id,
+    audience_name: contact.audience_name,
+    subscriber_hash: contact.subscriber_hash,
+    previous_status: previousStatus,
+    new_status: contact.status,
+    occurred_at: timestamp,
+    observed_at: contact.source_pulled_at,
+    source,
+    source_event_key: hashId([
+      contact.audience_id,
+      contact.subscriber_hash,
+      previousStatus,
+      contact.status,
+      timestamp,
+      source,
+    ]),
+    details: {},
+  }
+}
+
+async function syncMailchimpContacts() {
+  const snapshot = buildMailchimpContacts()
+  if (!snapshot) {
+    return { available: false, contactsUpserted: 0, statusEventsAdded: 0 }
+  }
+
+  const supabase = createServiceClient()
+  const { data: run, error: runError } = await supabase
+    .from("mailchimp_sync_runs")
+    .insert({
+      audiences_count: snapshot.audiences.length,
+      contacts_seen: snapshot.contacts.length,
+      details: { sourcePulledAt: snapshot.pulledAt },
+    })
+    .select("id")
+    .single()
+  if (runError) throw new Error(`Unable to start Mailchimp sync: ${runError.message}`)
+
+  try {
+    const existing = await fetchAllMailchimpContacts(supabase)
+    const existingByKey = new Map(existing.map((row) => [`${row.audience_id}:${row.subscriber_hash}`, row]))
+    const incomingByKey = new Map(snapshot.contacts.map((row) => [`${row.audience_id}:${row.subscriber_hash}`, row]))
+    const includedAudienceIds = new Set(snapshot.audiences.map((row) => cleanString(row.id)).filter(Boolean))
+    const events = []
+
+    for (const contact of snapshot.contacts) {
+      const prior = existingByKey.get(`${contact.audience_id}:${contact.subscriber_hash}`)
+      if (!prior && ["subscribed", "unsubscribed"].includes(contact.status)) {
+        events.push(mailchimpEvent({
+          contact,
+          previousStatus: null,
+          source: "initial_backfill",
+          occurredAt: contact.status === "subscribed"
+            ? contact.subscribed_at ?? contact.last_changed_at
+            : contact.unsubscribed_at ?? contact.last_changed_at,
+        }))
+      } else if (prior && prior.status !== contact.status) {
+        events.push(mailchimpEvent({
+          contact,
+          previousStatus: prior.status,
+          source: "daily_reconciliation",
+        }))
+      }
+    }
+
+    for (const prior of existing) {
+      const key = `${prior.audience_id}:${prior.subscriber_hash}`
+      if (!includedAudienceIds.has(prior.audience_id) || incomingByKey.has(key) || prior.status === "archived") continue
+      const archived = {
+        ...prior,
+        status: "archived",
+        source_pulled_at: snapshot.pulledAt,
+        last_seen_at: snapshot.pulledAt,
+      }
+      delete archived.first_seen_at
+      incomingByKey.set(key, archived)
+      events.push(mailchimpEvent({
+        contact: archived,
+        previousStatus: prior.status,
+        source: "daily_reconciliation",
+        occurredAt: snapshot.pulledAt,
+      }))
+    }
+
+    const contacts = Array.from(incomingByKey.values())
+    for (let index = 0; index < contacts.length; index += chunkSize) {
+      const { error } = await supabase
+        .from("mailchimp_audience_contacts")
+        .upsert(contacts.slice(index, index + chunkSize), {
+          onConflict: "audience_id,subscriber_hash",
+        })
+      if (error) throw new Error(`Unable to upsert Mailchimp contacts: ${error.message}`)
+    }
+
+    for (let index = 0; index < events.length; index += chunkSize) {
+      const { error } = await supabase
+        .from("mailchimp_subscription_events")
+        .upsert(events.slice(index, index + chunkSize), {
+          onConflict: "source_event_key",
+          ignoreDuplicates: true,
+        })
+      if (error) throw new Error(`Unable to append Mailchimp status events: ${error.message}`)
+    }
+
+    const { error: finishError } = await supabase
+      .from("mailchimp_sync_runs")
+      .update({
+        finished_at: new Date().toISOString(),
+        status: "success",
+        contacts_upserted: contacts.length,
+        status_events_added: events.length,
+      })
+      .eq("id", run.id)
+    if (finishError) throw new Error(`Unable to finish Mailchimp sync: ${finishError.message}`)
+
+    return {
+      available: true,
+      contactsUpserted: contacts.length,
+      statusEventsAdded: events.length,
+    }
+  } catch (error) {
+    await supabase
+      .from("mailchimp_sync_runs")
+      .update({
+        finished_at: new Date().toISOString(),
+        status: "failed",
+        error_message: error instanceof Error ? error.message.slice(0, 1000) : String(error).slice(0, 1000),
+      })
+      .eq("id", run.id)
+    throw error
+  }
+}
+
 async function main() {
   loadEnvFile(resolve(projectDir, ".env"))
   loadEnvFile(resolve(projectDir, ".env.local"))
@@ -413,12 +585,19 @@ async function main() {
     }, {}),
     upserted: 0,
     socialSnapshotsUpserted: 0,
+    mailchimpContactsUpserted: 0,
+    mailchimpStatusEventsAdded: 0,
     previousCumulativeBySource,
     cumulativeBySource: {},
   }
 
   summary.upserted = records.length ? await upsertRecords(records) : 0
   summary.socialSnapshotsUpserted = await upsertSocialSnapshots(buildSocialSnapshots())
+  if (!socialOnly) {
+    const mailchimp = await syncMailchimpContacts()
+    summary.mailchimpContactsUpserted = mailchimp.contactsUpserted
+    summary.mailchimpStatusEventsAdded = mailchimp.statusEventsAdded
+  }
   summary.cumulativeBySource = await countSourceRecords(cumulativeSources)
   writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`)
 

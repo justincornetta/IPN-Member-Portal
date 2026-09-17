@@ -74,6 +74,7 @@ export function ProductTourProvider({
   const cardRef = useRef<HTMLDivElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const tourWasActiveRef = useRef(false)
+  const legacyTransferAttemptedRef = useRef(false)
   const [ready, setReady] = useState(false)
   const [progress, setProgress] = useState<ProductTourProgress | null>(null)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
@@ -104,8 +105,24 @@ export function ProductTourProvider({
       })
       const storageKey = productTourStorageKey(userId)
       if (serverStateAvailable) {
-        window.localStorage.removeItem(storageKey)
-        setProgress(durable)
+        const legacy = parseProductTourProgress(window.localStorage.getItem(storageKey))
+        const serverHasProgress = Boolean(serverStartedAt || serverCurrentStep || serverCompletedAt)
+        if (!serverHasProgress && legacy) {
+          setProgress(legacy)
+          if (!legacyTransferAttemptedRef.current) {
+            legacyTransferAttemptedRef.current = true
+            void saveOnboardingFlowProgress({
+              flow: "product_tour",
+              currentStep: productTourServerStep(legacy),
+              complete: legacy.status === "completed",
+            }).then((result) => {
+              if (!result.error && !result.fallback) window.localStorage.removeItem(storageKey)
+            }).catch(() => undefined)
+          }
+        } else {
+          window.localStorage.removeItem(storageKey)
+          setProgress(durable)
+        }
       } else {
         setProgress(parseProductTourProgress(window.localStorage.getItem(storageKey)))
       }

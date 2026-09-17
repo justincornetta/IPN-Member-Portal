@@ -14,11 +14,13 @@ function pathEvent(pathname: string): PortalAnalyticsEventName | null {
 function InnerPortalAnalyticsTracker() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const trackingDisabled = process.env.NODE_ENV !== "production"
   const currentPathRef = useRef("")
   const pageStartedAtRef = useRef<number | null>(null)
   const clickCountRef = useRef(0)
 
   useEffect(() => {
+    if (trackingDisabled) return
     const search = searchParams.toString()
     const pagePath = `${pathname}${search ? `?${search}` : ""}`
     const previousPath = currentPathRef.current
@@ -44,9 +46,10 @@ function InnerPortalAnalyticsTracker() {
     trackPortalEvent("page_view", { pagePath })
     const funnelEvent = pathEvent(pathname)
     if (funnelEvent) trackPortalEvent(funnelEvent, { pagePath })
-  }, [pathname, searchParams])
+  }, [pathname, searchParams, trackingDisabled])
 
   useEffect(() => {
+    if (trackingDisabled) return
     function flush(beacon = false) {
       if (!currentPathRef.current) return
       const durationSeconds = Math.max(0, Math.round((Date.now() - (pageStartedAtRef.current ?? Date.now())) / 1000))
@@ -102,7 +105,7 @@ function InnerPortalAnalyticsTracker() {
       window.removeEventListener("pagehide", onPageHide)
       document.removeEventListener("click", onClick, true)
     }
-  }, [])
+  }, [trackingDisabled])
 
   return null
 }

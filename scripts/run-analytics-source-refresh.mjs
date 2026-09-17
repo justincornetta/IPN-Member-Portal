@@ -31,7 +31,7 @@ export const sourceGroups = [
     command: ["python3", "scripts/mailchimp_pull.py"],
     timeoutSeconds: 300,
     requiredEnv: ["MAILCHIMP_API_KEY"],
-    lastPullFiles: ["mailchimp_last_pull.json", "mailchimp_campaigns.json", "mailchimp_lists.json", "mailchimp_account.json"],
+    lastPullFiles: ["mailchimp_last_pull.json", "mailchimp_contacts.json", "mailchimp_campaigns.json", "mailchimp_lists.json", "mailchimp_account.json"],
   },
   {
     id: "instagram",

@@ -389,6 +389,35 @@ async function rollupPortalAnalyticsEvents(admin: AdminClient) {
   const cutoff = dateDaysAgo(RAW_RETENTION_DAYS).toISOString()
   const rollups = new Map<string, RollupAccumulator>()
 
+  // Apply eligibility before aggregation so test, suspended, and explicitly
+  // excluded accounts cannot be preserved in future deidentified rollups.
+  const { data: eligibilityRows, error: eligibilityError } = await admin
+    .from("profiles")
+    .select("id,is_banned,exclude_from_analytics")
+
+  let profileRows = (eligibilityRows ?? []) as Array<{
+    id: string
+    is_banned: boolean | null
+    exclude_from_analytics: boolean | null
+  }>
+
+  if (eligibilityError) {
+    const { data: fallbackRows, error: fallbackError } = await admin
+      .from("profiles")
+      .select("id,is_banned")
+    if (fallbackError) throw new Error(fallbackError.message)
+    profileRows = ((fallbackRows ?? []) as Array<{ id: string; is_banned: boolean | null }>).map((row) => ({
+      ...row,
+      exclude_from_analytics: false,
+    }))
+  }
+
+  const excludedUserIds = new Set(
+    profileRows
+      .filter((row) => row.is_banned === true || row.exclude_from_analytics === true)
+      .map((row) => row.id),
+  )
+
   let from = 0
   while (true) {
     const { data, error } = await admin
@@ -403,6 +432,7 @@ async function rollupPortalAnalyticsEvents(admin: AdminClient) {
     if (rows.length === 0) break
 
     for (const event of rows) {
+      if (event.user_id && excludedUserIds.has(event.user_id)) continue
       const key = rollupKey(event)
       const current = rollups.get(key) ?? {
         rollup_date: event.occurred_at.slice(0, 10),
