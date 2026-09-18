@@ -197,6 +197,12 @@ function sanitizedSnapshot(): LegacyAnalyticsSnapshot {
   const review = JSON.parse(JSON.stringify(snapshot)) as LegacyAnalyticsSnapshot
   review.generatedAt = "2026-09-15T12:00:00Z"
   review.members.formRows = []
+  review.social.instagramPosts = Array.from({ length: 32 }, (_, index) => ({
+    id: `review-instagram-${index}`, date: new Date(Date.UTC(2025, 0, index + 1, 12)).toISOString(),
+    type: "IMAGE", caption: `Synthetic Instagram archive post ${index + 1}`, likes: index + 1,
+    comments: index % 3, engagement: index + 1 + index % 3, permalink: "", lastObservedAt: "2026-09-15T12:00:00Z",
+  }))
+  review.social.instagramArchive = { accountId: "synthetic", backfillComplete: true, backfilledAt: "2026-09-15T12:00:00Z", oldestPostAt: "2025-01-01T12:00:00Z" }
   review.events.zoom.topAttendees = review.events.zoom.topAttendees.map((row, index) => ({
     ...row,
     ...syntheticIdentity(index),

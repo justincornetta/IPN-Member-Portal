@@ -4101,12 +4101,19 @@ function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapsh
   const social = snapshot.social
   const socialSource = snapshot.dataSources.find((source) => source.id === "instagram")
     ?? snapshot.dataSources.find((source) => source.id === "facebook")
-  const historyDates = social.history.map((row) => toInputDate(row.date) || websiteDateToInput(row.month)).filter(Boolean).sort()
+  const historyDates = [...social.history.map((row) => toInputDate(row.date) || websiteDateToInput(row.month)),
+    ...social.instagramPosts.map((post) => toInputDate(post.date))].filter(Boolean).sort()
   const [fromDate, setFromDate] = useUrlFilterState("sm_from", historyDates[0] ?? "")
   const [toDate, setToDate] = useUrlFilterState("sm_to", historyDates.at(-1) ?? "")
   const [platform, setPlatform] = useUrlFilterState("sm_platform", "all")
   const [metric, setMetric] = useUrlFilterState<SocialMetric>("sm_metric", "followers")
   const [granularity, setGranularity] = useUrlFilterState<Granularity>("sm_granularity", "monthly")
+  const postFilterKey = `${fromDate}:${toDate}`
+  const [postPagination, setPostPagination] = useState({ filterKey: postFilterKey, page: 0 })
+  const filteredPosts = social.instagramPosts.filter((post) => isWithinDateRange(post.date, fromDate, toDate))
+    .slice().sort((a, b) => Date.parse(b.date ?? "") - Date.parse(a.date ?? ""))
+  const postTotalPages = Math.max(1, Math.ceil(filteredPosts.length / 25))
+  const currentPostPage = postPagination.filterKey === postFilterKey ? Math.min(postPagination.page, postTotalPages - 1) : 0
   const platformOptions = social.platforms.map((item) => ({ value: item.id, label: item.label }))
   const trendPoints = social.history
     .filter((row) => {
@@ -4216,9 +4223,9 @@ function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapsh
             }))}
           />
         </Panel>
-        <Panel title="Instagram post engagement" subtitle="Posts are ordered oldest to newest so recent dates appear on the right">
-          <ResponsiveChart height={280}>
-            <BarChart data={social.instagramPosts.slice().sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime()).map((post) => ({ ...post, label: formatShortDate(post.date) }))}>
+        <Panel title="Instagram post engagement" subtitle="Posts published in the selected date range, oldest to newest. Likes/comments are latest observed totals, not historical daily activity.">
+          {filteredPosts.length === 0 ? <p className="py-10 text-center text-sm text-zinc-500">No archived Instagram posts in the selected date range.</p> : <ResponsiveChart height={280}>
+            <BarChart data={filteredPosts.slice().reverse().map((post) => ({ ...post, label: formatShortDate(post.date) }))}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -4227,11 +4234,18 @@ function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapsh
               <Bar dataKey="likes" fill="#db2777" radius={[6, 6, 0, 0]} />
               <Bar dataKey="comments" fill="#7c3aed" radius={[6, 6, 0, 0]} />
             </BarChart>
-          </ResponsiveChart>
+          </ResponsiveChart>}
         </Panel>
       </div>
 
-      <Panel title="Instagram post detail">
+      <Panel title="Instagram post detail" subtitle="Publication-date filters apply to this table and the post engagement chart. Headline engagement metrics remain based on posts published in the last 30 days.">
+        <p className="mb-4 text-xs text-zinc-500">
+          {social.instagramArchive?.backfillComplete ? "Backfill reached the end of the accessible Instagram feed." : "Historical backfill is incomplete; this is not an all-time post count."}
+          {" "}{social.instagramPosts.length} archived posts; {filteredPosts.length} in the selected range.
+          {social.instagramArchive?.oldestPostAt ? ` Oldest archived post: ${formatDate(social.instagramArchive.oldestPostAt)}.` : ""}
+          {" "}Likes/comments are latest observed totals and older posts may not refresh daily. No images or videos are stored.
+        </p>
+        {filteredPosts.length === 0 && <p className="mb-4 text-sm text-zinc-500">No archived Instagram posts in the selected date range.</p>}
         <SimpleTable
           columns={[
             { key: "post", label: "Post" },
@@ -4241,8 +4255,9 @@ function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapsh
             { key: "comments", label: "Comments", align: "right" },
             { key: "engagement", label: "Engagement", align: "right" },
             { key: "link", label: "Link" },
+            { key: "observed", label: "Counts checked" },
           ]}
-          rows={social.instagramPosts.map((post) => ({
+          rows={filteredPosts.slice(currentPostPage * 25, (currentPostPage + 1) * 25).map((post) => ({
             post: truncate(post.caption || "Untitled post", 72),
             date: formatShortDate(post.date),
             type: post.type,
@@ -4250,8 +4265,10 @@ function SocialMediaPanel({ snapshot, analyticsRefresh, isSuperadmin }: { snapsh
             comments: formatNumber(post.comments),
             engagement: formatNumber(post.engagement),
             link: post.permalink ? <a className="text-ipn hover:underline" href={post.permalink} target="_blank" rel="noreferrer">Open</a> : "-",
+            observed: post.lastObservedAt ? formatDate(post.lastObservedAt) : "Unknown",
           }))}
         />
+        <PaginationControls page={currentPostPage} totalPages={postTotalPages} onPageChange={(page) => setPostPagination({ filterKey: postFilterKey, page })} />
       </Panel>
     </div>
   )

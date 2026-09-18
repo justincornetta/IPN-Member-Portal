@@ -9,6 +9,7 @@
     "test": "node --test --experimental-strip-types tests/*.test.mjs",
     "start": "next start",
     "analytics:refresh-sources": "node scripts/run-analytics-source-refresh.mjs",
+    "analytics:instagram-backfill": "python3 scripts/instagram_pull.py --platform instagram --backfill --max-pages 200 && node scripts/build-instagram-archive-snapshot.mjs",
     "analytics:upload-source-details": "node scripts/upload-analytics-source-details.mjs",
     "analytics:build-snapshot": "node scripts/build-legacy-analytics-snapshot.mjs",
     "analytics:import-legacy-sot": "node scripts/import-legacy-member-sot.mjs",

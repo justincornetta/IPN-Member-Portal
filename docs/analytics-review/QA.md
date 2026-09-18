@@ -1,5 +1,17 @@
 # Analytics dashboard review
 
+## Approved Instagram archive update for PR #63 (2026-09-18)
+
+- Added an Instagram-only full-feed backfill command with bounded cursor pagination, per-page atomic checkpoints, ID-keyed retention, account checks, and credential-free diagnostics. Removed the Instagram 100-post truncation; page-budget exhaustion and later-page errors are explicit, never silent success.
+- Routine refresh and snapshot generation both preserve archived IDs; fresh CI jobs seed posts from the published snapshot. Failed source validation restores both posts and coverage metadata. Private cursors/token-bearing URLs are not included in published snapshots. Full backfill does not rely on the recent loader's existing reverse-chronological cutoff assumption.
+- Thirty-day headline calculations still use recent publication dates rather than the entire archive. Corrected the Instagram percentage-unit conversion path (0.54% remains 0.54%, not 54%); existing published/history data is not retroactively rewritten by this local change.
+- Social Media dates now filter both the Instagram post chart and detail table. Publication order is oldest-first in the chart and newest-first in the 25-row paginated table. Coverage, oldest archived date, latest-observed count semantics, and per-post Counts checked dates are explicit; missing observation dates show Unknown.
+- In-app-browser synthetic QA verified 32 archived posts, first/second-page sizes of 25/7, January 10–12 filtering to the same three chart/table posts, page reset, and empty-range messages. Console warnings/errors: none; no framework overlay observed.
+- Final verification: `npm ci`, `npm run lint`, `npm test` (170 passed, including Python archive tests), `npm run build`, `git diff --check`, and workflow YAML syntax check passed. No dependency versions changed; existing dependency advisories, middleware deprecation and Node test-runner module notices remain.
+- Justin approved publishing this code/workflow update to PR #63 after local verification. No live history pull was run: local Instagram credentials are absent. Added an optional Instagram-only GitHub workflow job using existing stored secrets, with read-only repository permissions and seven-day candidate/checkpoint artifacts. It skips normal publishing, other loaders, Supabase maintenance and Slack notifications. The separate backfill job remains unrun; production data and Supabase storage are unchanged. Older posts will appear only after backfill results are reviewed and the candidate snapshot is published. See [run instructions and limitations](instagram-backfill.md).
+
+![Instagram archive date filtering, synthetic posts](screenshots/instagram-archive.png)
+
 ## Approved PR #63 integration (2026-09-18)
 
 - Justin approved publishing the completed analytics updates to the existing PR. Merged the branch's registration-barrier commits without conflicts and confirmed latest main was already included; neither main nor production deployment was changed.
