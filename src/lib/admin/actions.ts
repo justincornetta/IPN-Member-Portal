@@ -771,7 +771,7 @@ export type AnalyticsEventLabelOverride = {
   event_id: string
   event_topic: string | null
   event_date: string | null
-  program_label: "IPN Labs" | "PsychedelX" | "Other"
+  program_label: "IPN Labs" | "PsychedelX" | "Community" | "Other"
   event_type: "public" | "internal"
   include_in_analytics: boolean
   note: string | null
@@ -796,7 +796,7 @@ export async function saveAnalyticsEventLabelOverride(payload: {
   eventId: string
   eventTopic: string
   eventDate: string | null
-  programLabel: "IPN Labs" | "PsychedelX" | "Other"
+  programLabel: "IPN Labs" | "PsychedelX" | "Community" | "Other"
   eventType: "public" | "internal"
   includeInAnalytics: boolean
   note?: string | null
@@ -806,6 +806,10 @@ export async function saveAnalyticsEventLabelOverride(payload: {
 
   const eventId = clean(payload.eventId)
   if (!eventId) return { error: "Missing event ID" }
+  if (!["IPN Labs", "PsychedelX", "Community", "Other"].includes(payload.programLabel)
+    || !["public", "internal"].includes(payload.eventType) || typeof payload.includeInAnalytics !== "boolean") {
+    return { error: "Invalid event labeling values" }
+  }
 
   const admin = createAdminClient()
   const row = {

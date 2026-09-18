@@ -17,7 +17,7 @@ export default function AnalyticsReviewPage() {
           {...fixture}
           analyticsRefresh={null}
           eventLabelOverrides={[]}
-          isSuperadmin={false}
+          isSuperadmin={true}
         />
       </div>
     </main>

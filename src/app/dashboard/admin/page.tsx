@@ -14,6 +14,8 @@ import {
   type ParticipationActivityInput,
 } from "@/lib/admin/analytics/onboarding"
 import type { MailchimpContactAnalytics } from "@/lib/admin/analytics/mailchimp"
+import { fetchCommunityInventoryRows } from "@/lib/admin/analytics/community-fetch"
+import { buildCommunityAnalyticsEvents, type CommunityConferenceInput, type CommunityRsvpInput } from "@/lib/admin/analytics/community-events"
 import { getLatestPortalAnalyticsRefresh } from "@/lib/portal-analytics/rollup"
 import {
   assembleServerEventAnalytics,
@@ -633,6 +635,7 @@ export default async function AdminPage() {
     analyticsSourceRecordsResult,
     connectionsResult,
     participationResult,
+    communityResult,
   ] = await Promise.all([
     fetchPortalAnalyticsEvents(admin, ninetyDaysAgo),
     fetchOnboardingProgress(admin),
@@ -659,6 +662,7 @@ export default async function AdminPage() {
       .select("id, user_id, activity_type, action, source_system, source_record_id, occurred_at, metadata")
       .order("occurred_at", { ascending: true })
       .limit(10000),
+    fetchCommunityInventoryRows(admin),
   ])
   const eventRegistrations = (eventRegistrationsResult.data ?? []) as EventRegistrationRow[]
   const eventRows = (eventRowsResult.data ?? []) as EventLookupRow[]
@@ -720,6 +724,15 @@ export default async function AdminPage() {
     profiles: allProfiles,
     participationRows,
   })
+  const communityEvents = communityResult.error ? [] : buildCommunityAnalyticsEvents({
+    conferences: communityResult.conferences.rows as unknown as CommunityConferenceInput[],
+    historicalConferences: communityResult.historical.rows as unknown as { id: string; name: string; starts_at: string | null; ends_at: string | null }[],
+    conferenceRsvps: communityResult.conferenceRsvps.rows as unknown as CommunityRsvpInput[],
+    meetupRsvps: communityResult.meetupRsvps.rows as unknown as CommunityRsvpInput[],
+    profiles: enrichedProfiles,
+    participationRows,
+  })
+  if (communityResult.error) console.warn("Conference inventory data unavailable", communityResult.error)
   const assembledAnalyticsSnapshot = assembleServerEventAnalytics({
     snapshot: analyticsSnapshot,
     portalEvents,
@@ -755,6 +768,8 @@ export default async function AdminPage() {
       analyticsRefresh={analyticsRefresh}
       eventLabelOverrides={eventLabelOverrides}
       portalEvents={portalEvents}
+      communityEvents={communityEvents}
+      communityEventsError={communityResult.error ? "Conference and meetup inventory data could not be loaded; their counts are unavailable." : null}
       teamPermissions={teamPermissions}
       feedback={feedback}
       bannedMembers={bannedMembers}

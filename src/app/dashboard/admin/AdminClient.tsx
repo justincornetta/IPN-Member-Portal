@@ -10,6 +10,7 @@ import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
 import type { OnboardingAnalyticsData } from "@/lib/admin/analytics/onboarding"
 import type { MailchimpContactAnalytics } from "@/lib/admin/analytics/mailchimp"
+import type { CommunityAnalyticsEvent } from "@/lib/admin/analytics/community-events"
 import {
   LEADERSHIP_TEAMS,
   roleAfterLeadershipAssignment,
@@ -312,6 +313,8 @@ type Props = {
   analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
+  communityEvents: CommunityAnalyticsEvent[]
+  communityEventsError: string | null
   teamPermissions: TeamPermissionsMap
   feedback: FeedbackSubmission[]
   bannedMembers: AdminMemberProfile[]
@@ -925,7 +928,7 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, onboardingAnalytics, analyticsSnapshot, mailchimpAnalytics, analyticsRefresh, eventLabelOverrides, portalEvents, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, onboardingAnalytics, analyticsSnapshot, mailchimpAnalytics, analyticsRefresh, eventLabelOverrides, portalEvents, communityEvents, communityEventsError, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
   const [tab, setTab] = useState<Tab>("analytics")
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
@@ -1009,6 +1012,8 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
           analyticsRefresh={analyticsRefresh}
           eventLabelOverrides={eventLabelOverrides}
           portalEvents={portalEvents}
+          communityEvents={communityEvents}
+          communityEventsError={communityEventsError}
           isSuperadmin={isSuperadmin}
         />
       )}

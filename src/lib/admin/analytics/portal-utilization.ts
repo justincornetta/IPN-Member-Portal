@@ -131,11 +131,14 @@ export type PortalUtilizationData = {
     date: string
     category: "events" | "resources" | "newsletters" | "connections" | "attendance"
     actionId: string
+    occurredAt: string
+    label: string
   }[]
   signInActions: {
     userId: string
     date: string
     sessionId: string
+    occurredAt: string
   }[]
   errors: {
     date: string
@@ -529,6 +532,8 @@ export function buildPortalUtilizationData({
     userId: string,
     actionId: string,
     date: string,
+    occurredAt: string,
+    label: string,
   ) => {
     const members = participationCategoryMembers.get(category) ?? new Set<string>()
     members.add(userId)
@@ -536,7 +541,7 @@ export function buildPortalUtilizationData({
     const actions = participationCategoryActions.get(category) ?? new Set<string>()
     actions.add(actionId)
     participationCategoryActions.set(category, actions)
-    qualifyingActions.set(`${category}:${actionId}`, { userId, date, category, actionId })
+    qualifyingActions.set(`${category}:${actionId}`, { userId, date, category, actionId, occurredAt, label })
   }
 
   const getFunnel = (date: string, device: UtilizationDevice, audience: UtilizationAudience) => {
@@ -568,7 +573,7 @@ export function buildPortalUtilizationData({
     const page = cleanPagePath(event.page_path)
 
     if (userId && event.event_name === "sign_in_success") {
-      signInActions.set(`${userId}:${key}:${date}`, { userId, date, sessionId: key })
+      signInActions.set(`${userId}:${key}:${date}`, { userId, date, sessionId: key, occurredAt: event.occurred_at })
     }
 
     const currentDevice = deviceStats.get(device) ?? { sessions: new Set<string>(), users: new Set<string>() }
@@ -653,7 +658,8 @@ export function buildPortalUtilizationData({
                   ? "connections"
                   : null
             if (category && deviceValue === "all" && audienceValue === "all") {
-              recordParticipationCategory(category, userId, `${key}:${event.occurred_at}:${event.target_id ?? "action"}`, date)
+              const actionLabel = category === "newsletters" ? "Newsletter/blog opened" : category === "resources" ? "Resource opened" : "Connection action"
+              recordParticipationCategory(category, userId, `${key}:${event.occurred_at}:${event.target_id ?? "action"}`, date, event.occurred_at, event.target_label ? `${actionLabel}: ${event.target_label}` : actionLabel)
             }
           }
           addUserSessionDate(activity.sessions, userId, key, date)
@@ -671,7 +677,7 @@ export function buildPortalUtilizationData({
     const audience: UtilizationAudience = profile?.role ? "leadership" : "member"
     const sourceSession = `participation:${participation.source_system ?? "source"}:${participation.source_record_id ?? participation.occurred_at}`
     const category = participation.activity_type === "connection_request_sent" ? "connections" : "events"
-    recordParticipationCategory(category, participation.user_id, sourceSession, date)
+    recordParticipationCategory(category, participation.user_id, sourceSession, date, participation.occurred_at, participation.activity_type.replaceAll("_", " "))
     for (const [device, audienceValue] of [
       ["all", "all"],
       ["all", audience],
@@ -698,7 +704,7 @@ export function buildPortalUtilizationData({
     const profile = profilesById.get(attendance.user_id)
     const audience: UtilizationAudience = profile?.role ? "leadership" : "member"
     const sourceSession = `attendance:${attendance.source_record_id}`
-    recordParticipationCategory("attendance", attendance.user_id, sourceSession, date)
+    recordParticipationCategory("attendance", attendance.user_id, sourceSession, date, attendance.occurred_at, "Event attended")
     for (const [device, audienceValue] of [
       ["all", "all"],
       ["all", audience],

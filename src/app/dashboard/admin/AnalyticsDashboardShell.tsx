@@ -42,6 +42,10 @@ import type {
 } from "@/lib/admin/analytics/member-directory-types"
 import { educationLevelLabel } from "@/lib/members/education"
 import { buildCarriedSocialTrend } from "@/lib/admin/analytics/social-trend"
+import { activeUserIds, type ActiveUserWindow } from "@/lib/admin/analytics/active-users"
+import { ActiveUserDetailsModal } from "./ActiveUserDetailsModal"
+import { inventoryRegistrationCount, isPublicInventoryZoomEvent, mergeInventoryRegistrations, type InventoryRegistration } from "@/lib/admin/analytics/event-inventory"
+import { EventInventoryDetails } from "./EventInventoryDetails"
 import { buildOtherVariantItems } from "@/lib/admin/analytics/other-variants"
 import {
   analyticsGranularityBucket,
@@ -69,10 +73,13 @@ import {
   memberGeographyCoverage,
 } from "@/lib/admin/analytics/membership-geography"
 import {
+  buildFirstParticipationAttribution,
   ONBOARDING_MILESTONES,
   participationLabel,
   type OnboardingAnalyticsData,
 } from "@/lib/admin/analytics/onboarding"
+import { eventLabels, eventLabelCatalog, inventoryProgramMatches, type AnalyticsEventProgram, type LabelableEvent } from "@/lib/admin/analytics/event-labels"
+import type { CommunityAnalyticsEvent } from "@/lib/admin/analytics/community-events"
 
 export type { PortalUtilizationData } from "@/lib/admin/analytics/portal-utilization"
 
@@ -142,7 +149,6 @@ type SocialMetric = "followers" | "engagementRate" | "posts"
 type DeviceFilter = "all" | "desktop" | "mobile" | "tablet" | "unknown"
 type AudienceFilter = UtilizationAudience
 type ParticipationFrequencyMode = "total" | "unique"
-type AnalyticsEventProgram = "IPN Labs" | "PsychedelX" | "Other"
 type AnalyticsEventType = "public" | "internal"
 type LiveConnectionStatus = {
   label: string
@@ -264,6 +270,8 @@ type Props = {
   analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
+  communityEvents?: CommunityAnalyticsEvent[]
+  communityEventsError?: string | null
   isSuperadmin: boolean
 }
 
@@ -2544,11 +2552,13 @@ function MauChartDot({
   cy,
   payload,
   onSelect,
+  window = "monthly",
 }: {
   cx?: number
   cy?: number
   payload?: { date?: string; users?: number }
   onSelect: (date: string) => void
+  window?: ActiveUserWindow
 }) {
   if (cx == null || cy == null || !payload?.date) return <g />
   function selectDate() {
@@ -2558,12 +2568,13 @@ function MauChartDot({
     <g
       role="button"
       tabIndex={0}
-      aria-label={`View ${formatNumber(payload.users ?? 0)} monthly active users for ${formatDate(payload.date)}`}
+      aria-label={`View ${formatNumber(payload.users ?? 0)} ${window} active users for ${formatDate(payload.date)}`}
       className="cursor-pointer"
-      onClick={selectDate}
+      onClick={(event) => { event.currentTarget.focus(); selectDate() }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault()
+          event.currentTarget.focus()
           selectDate()
         }
       }}
@@ -3225,12 +3236,10 @@ function OnboardingPanel({ data }: { data: OnboardingAnalyticsData }) {
     label: milestone.label,
     value: cohort.filter((member) => !member.milestones[milestone.id]).length,
   }))
-  const activityRows = cohort.flatMap((member) => member.participation
-    .filter((activity) => activity.action === "completed" && isWithinDateRange(activity.occurred_at, activityFrom, activityTo))
-    .map((activity) => ({ ...activity, memberId: member.userId })))
-  const attribution = data.participationAttribution.map((row) => ({
+  // Select first participation across all history BEFORE applying activity dates.
+  const attribution = buildFirstParticipationAttribution(cohort, activityFrom, activityTo).map((row) => ({
     label: row.label,
-    value: new Set(activityRows.filter((activity) => activity.activity_type === row.type).map((activity) => activity.memberId)).size,
+    value: row.members,
   }))
   const completionTrend = aggregateByGranularity(cohort
     .filter((member) => member.completedAt && isWithinDateRange(member.completedAt, activityFrom, activityTo))
@@ -3272,7 +3281,7 @@ function OnboardingPanel({ data }: { data: OnboardingAnalyticsData }) {
             </ResponsiveChart>
           ) : <EmptyState title="No completion activity" description="No members completed their fourth milestone in the selected activity range." />}
         </Panel>
-        <Panel title="Participation attribution" subtitle="Nonexclusive: a member may appear in multiple categories"><BarList items={attribution} /></Panel>
+        <Panel title="Participation attribution" subtitle="Each member is counted once, by the first action that completed their participation milestone. Activity dates apply to that first action, not later participation."><BarList items={attribution} /></Panel>
       </div>
 
       <Panel title="Member progress" subtitle="Current status is independent of the activity-date filter. Expand a member for every recorded participation fact.">
@@ -3306,7 +3315,7 @@ function OnboardingPanel({ data }: { data: OnboardingAnalyticsData }) {
 
 type EventInventoryStatus = "live" | "upcoming" | "past"
 type EventInventorySource = "portal" | "zoom" | "eventbrite"
-type EventInventorySort = "recommended" | "date-desc" | "active-rsvps" | "registrations" | "attendance"
+type EventInventorySort = "recommended" | "date-desc" | "registrations"
 
 type EventInventoryRow = {
   id: string
@@ -3315,56 +3324,24 @@ type EventInventoryRow = {
   status: EventInventoryStatus
   source: EventInventorySource
   sourceLabel: string
+  program: string
   activeRsvps: number | null
   totalRegistrations: number | null
   cancellations: number | null
-  attendees: number | null
   lastRsvpAt: string | null
-  trend: number[]
+  registrations: InventoryRegistration[]
+  dailySales?: { date: string; tickets: number }[]
+  coverageNote: string
 }
 
-function eventInventoryStatus(date: string | null, rawStatus: string | null | undefined): EventInventoryStatus {
+function eventInventoryStatus(date: string | null, rawStatus: string | null | undefined, endsAt?: string | null): EventInventoryStatus {
   const status = (rawStatus ?? "").toLowerCase()
   if (status === "live" || status === "started") return "live"
   if (status === "completed" || status === "ended" || status === "past") return "past"
   const parsed = parseDateValue(date)
+  if (parsed && parsed.getTime() <= Date.now() && endsAt && Date.parse(endsAt) >= Date.now()) return "live"
   if (parsed && parsed.getTime() < Date.now()) return "past"
   return "upcoming"
-}
-
-function eventInventoryDailyCounts(values: Array<string | null | undefined>) {
-  const counts = new Map<string, number>()
-  for (const value of values) {
-    const date = value?.slice(0, 10)
-    if (!date) continue
-    counts.set(date, (counts.get(date) ?? 0) + 1)
-  }
-  return Array.from(counts.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, count]) => count)
-}
-
-function EventInventorySparkline({ values, label }: { values: number[]; label: string }) {
-  if (!values.length) return <span className="text-zinc-400">—</span>
-  const points = values.length === 1 ? [0, values[0]] : values
-  const width = 112
-  const height = 30
-  const padding = 3
-  const maximum = Math.max(1, ...points)
-  const coordinates = points.map((value, index) => {
-    const x = padding + (index / Math.max(1, points.length - 1)) * (width - padding * 2)
-    const y = height - padding - (value / maximum) * (height - padding * 2)
-    return `${x},${y}`
-  }).join(" ")
-  const [lastX, lastY] = coordinates.split(" ").at(-1)?.split(",").map(Number) ?? [width - padding, height - padding]
-
-  return (
-    <svg role="img" aria-label={`${label}: ${values.join(", ")}`} viewBox={`0 0 ${width} ${height}`} className="h-8 w-28 overflow-visible">
-      <line x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} stroke="#e4e4e7" strokeWidth="1" />
-      <polyline points={coordinates} fill="none" stroke="#6f51aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="2.5" fill="#18181b" />
-    </svg>
-  )
 }
 
 function eventInventoryStatusClass(status: EventInventoryStatus) {
@@ -3383,10 +3360,16 @@ function EngagementOverviewPanel({
   data,
   events,
   snapshot,
+  eventLabelOverrides,
+  communityEvents,
+  communityEventsError,
 }: {
   data: PortalUtilizationData
   events: PortalAnalyticsEvent[]
   snapshot: LegacyAnalyticsSnapshot
+  eventLabelOverrides: AnalyticsEventLabelOverride[]
+  communityEvents: CommunityAnalyticsEvent[]
+  communityEventsError?: string | null
 }) {
   const endDate = data.dateRange.last ?? new Date().toISOString().slice(0, 10)
   const [registrationFrom, setRegistrationFrom] = useUrlFilterState("en_registration_from", "")
@@ -3395,11 +3378,22 @@ function EngagementOverviewPanel({
   const [activityTo, setActivityTo] = useUrlFilterState("en_activity_to", endDate)
   const [granularity, setGranularity] = useUrlFilterState<Granularity>("en_granularity", "daily")
   const [participationMode, setParticipationMode] = useUrlFilterState<ParticipationFrequencyMode>("en_participation_mode", "total")
+  const [activeWindowFilter, setActiveWindow] = useUrlFilterState<ActiveUserWindow>("en_active_window", "monthly")
+  const activeWindow: ActiveUserWindow = activeWindowFilter === "weekly" ? "weekly" : "monthly"
+  const [selectedActiveDate, setSelectedActiveDate] = useState<string | null>(null)
+  const [activeTriggerLabel, setActiveTriggerLabel] = useState<string | null>(null)
+  function selectActiveDate(date: string) {
+    setActiveTriggerLabel(`View ${formatNumber(activeUserIds(cohortActions, date, activeWindow).size)} ${activeWindow} active users for ${formatDate(date)}`)
+    setSelectedActiveDate(date)
+  }
+  const [detailDate, setDetailDate] = useState("")
+  const closeActiveDetails = useCallback(() => setSelectedActiveDate(null), [])
   const [inventorySearch, setInventorySearch] = useUrlFilterState("en_event_search", "")
-  const [inventorySource, setInventorySource] = useUrlFilterState("en_event_source", "all")
+  const [inventoryProgram, setInventoryProgram] = useUrlFilterState("en_event_program", "all")
   const [inventoryStatus, setInventoryStatus] = useUrlFilterState("en_event_status", "all")
   const [inventorySort, setInventorySort] = useUrlFilterState<EventInventorySort>("en_event_sort", "recommended")
   const [inventoryPage, setInventoryPage] = useState(0)
+  const [expandedInventoryEvent, setExpandedInventoryEvent] = useState<string | null>(null)
   const cohortIds = new Set(data.members
     .filter((member) => isWithinDateRange(member.firstRegisteredAt, registrationFrom, registrationTo))
     .map((member) => member.userId))
@@ -3420,7 +3414,7 @@ function EngagementOverviewPanel({
   const trend = Array.from(trendDates.reduce((map, date) => {
     const bucket = analyticsGranularityBucket(new Date(`${date}T00:00:00.000Z`), granularity)
     const current = map.get(bucket.key)
-    if (!current || date > current.date) map.set(bucket.key, { label: bucket.label, date, users: activeMembers(30, date) })
+    if (!current || date > current.date) map.set(bucket.key, { label: bucket.label, date, users: activeUserIds(cohortActions, date, activeWindow).size })
     return map
   }, new Map<string, { label: string; date: string; users: number }>()).values())
   const selectedActions = cohortActions.filter((action) => isWithinDateRange(action.date, activityFrom, activityTo))
@@ -3532,7 +3526,7 @@ function EngagementOverviewPanel({
   const representedZoomIds = new Set<string>()
   const representedPortalEventIds = new Set<string>()
   const zoomInventoryRows = (snapshot.events.zoom.events as ZoomAnalyticsEvent[])
-    .filter((event) => event.includeInAnalytics !== false && event.inclusionStatus !== "excluded")
+    .filter((event) => isPublicInventoryZoomEvent(event, eventLabelOverrides))
     .flatMap<EventInventoryRow>((event) => {
       if (event.portalExternalEventId) representedZoomIds.add(event.portalExternalEventId)
       representedZoomIds.add(event.id)
@@ -3556,6 +3550,7 @@ function EngagementOverviewPanel({
         status,
         source: portalEvent ? "portal" : "zoom",
         sourceLabel: isPortalAndZoom ? "Portal + Zoom" : portalEvent ? "Member Portal" : "Zoom",
+        program: eventLabels(event, eventLabelOverrides).program,
         activeRsvps: portalEvent
           ? portalEvent.registrations.length
           : status === "past" ? null : event.registrants,
@@ -3563,13 +3558,14 @@ function EngagementOverviewPanel({
           ? Math.max(portalEvent.totalRegistrationsEver, event.registrants ?? 0)
           : event.registrants,
         cancellations: portalEvent ? portalEvent.cancellationCount : null,
-        attendees: event.attendees,
         lastRsvpAt: portalEvent?.lastRsvpAt ?? lastRegistration,
-        trend: eventInventoryDailyCounts(event.registrations.map((registration) => registration.registeredAt)),
+        registrations: mergeInventoryRegistrations(portalEvent?.registrations.map((row) => ({ name: row.memberName, email: row.memberEmail, registeredAt: row.registeredAt })) ?? [], event.registrations),
+        coverageNote: portalEvent ? "Known Portal and linked Zoom registration records, deduplicated by email. Historical counts may exceed available detail." : "Recorded Zoom registrations; historical detail may be incomplete.",
       }]
     })
   const portalInventoryRows = events
-    .filter((event) => event.status !== "draft" && !representedPortalEventIds.has(event.id))
+    .filter((event) => event.status !== "draft" && !representedPortalEventIds.has(event.id)
+      && isPublicInventoryZoomEvent(portalEventToAnalyticsEvent(event), eventLabelOverrides))
     .map<EventInventoryRow>((event) => ({
       id: `portal:${event.id}`,
       title: event.title,
@@ -3577,15 +3573,16 @@ function EngagementOverviewPanel({
       status: eventInventoryStatus(event.startsAt, event.status),
       source: "portal",
       sourceLabel: "Member Portal",
+      program: eventLabels(portalEventToAnalyticsEvent(event), eventLabelOverrides).program,
       activeRsvps: event.registrations.length,
       totalRegistrations: event.totalRegistrationsEver,
       cancellations: event.cancellationCount,
-      attendees: null,
       lastRsvpAt: event.lastRsvpAt,
-      trend: eventInventoryDailyCounts(event.registrations.map((registration) => registration.registeredAt)),
+      registrations: mergeInventoryRegistrations(event.registrations.map((row) => ({ name: row.memberName, email: row.memberEmail, registeredAt: row.registeredAt }))),
+      coverageNote: "Current active Portal RSVPs. Historical reported totals may include registrations no longer active.",
     }))
   const zoomUpcomingInventoryRows = snapshot.events.zoom.upcomingEvents
-    .filter((event) => !representedZoomIds.has(event.id))
+    .filter((event) => !representedZoomIds.has(event.id) && isPublicInventoryZoomEvent(event, eventLabelOverrides))
     .map<EventInventoryRow>((event) => ({
       id: `zoom-upcoming:${event.id}`,
       title: event.topic,
@@ -3593,16 +3590,17 @@ function EngagementOverviewPanel({
       status: eventInventoryStatus(event.date, "upcoming"),
       source: "zoom",
       sourceLabel: "Zoom",
+      program: eventLabels(event, eventLabelOverrides).program,
       activeRsvps: event.registrants,
       totalRegistrations: event.registrants,
       cancellations: null,
-      attendees: null,
       lastRsvpAt: [...event.registrations]
         .map((registration) => registration.registeredAt)
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null,
-      trend: eventInventoryDailyCounts(event.registrations.map((registration) => registration.registeredAt)),
+      registrations: mergeInventoryRegistrations(event.registrations),
+      coverageNote: "Current Zoom registration records.",
     }))
   const eventbriteInventoryRows = snapshot.events.eventbrite.events
     .filter((event) => event.status.toLowerCase() !== "cancelled")
@@ -3613,26 +3611,42 @@ function EngagementOverviewPanel({
       status: eventInventoryStatus(event.date, event.status),
       source: "eventbrite",
       sourceLabel: "Eventbrite",
+      program: eventLabels({ id: `eventbrite:${event.id}`, program: portalEventProgram(event.name) === "Other" ? "Community" : portalEventProgram(event.name), type: "public" }, eventLabelOverrides).program,
       activeRsvps: null,
       totalRegistrations: event.tickets,
       cancellations: null,
-      attendees: event.checkIns,
       lastRsvpAt: event.dailySales.map((sale) => sale.date).filter(Boolean).sort().at(-1) ?? null,
-      trend: event.dailySales.slice().sort((a, b) => a.date.localeCompare(b.date)).map((sale) => sale.tickets),
+      registrations: [],
+      dailySales: event.dailySales,
+      coverageNote: "Eventbrite ticket counts and daily sales. This export does not include named registrant records; tickets are not necessarily unique people.",
     }))
-  const allInventoryRows = [...portalInventoryRows, ...zoomUpcomingInventoryRows, ...zoomInventoryRows, ...eventbriteInventoryRows]
+  const communityInventoryRows = communityEvents
+    .filter((event) => isPublicInventoryZoomEvent(portalEventToAnalyticsEvent(event), eventLabelOverrides))
+    .map<EventInventoryRow>((event) => ({
+      id: event.id, title: event.title, date: event.startsAt,
+      status: eventInventoryStatus(event.startsAt, event.status === "archived" ? "past" : event.status, event.endsAt),
+      source: "portal", sourceLabel: event.kind === "meetup" ? "Conference meetup" : "Conference",
+      program: eventLabels(portalEventToAnalyticsEvent(event), eventLabelOverrides).program,
+      activeRsvps: event.registrationCoverage === "portal" ? event.registrationCount : null,
+      totalRegistrations: event.registrationCoverage === "portal" ? event.totalRegistrationsEver : null,
+      cancellations: event.registrationCoverage === "portal" ? event.cancellationCount : null,
+      lastRsvpAt: event.lastRsvpAt,
+      registrations: event.registrations.map((row) => ({ name: row.memberName, email: row.memberEmail, registeredAt: row.registeredAt })),
+      coverageNote: event.registrationCoverage === "portal"
+        ? "Eligible members’ Portal attendance RSVPs, not official conference ticket registrations. The timeline includes retained RSVP history; current counts exclude withdrawn RSVPs."
+        : "Historical conference directory entry. Registration counts and registrant history were not collected in this source.",
+    }))
+  const allInventoryRows = [...portalInventoryRows, ...zoomUpcomingInventoryRows, ...zoomInventoryRows, ...eventbriteInventoryRows, ...communityInventoryRows]
   const normalizedInventorySearch = inventorySearch.trim().toLowerCase()
   const filteredInventoryRows = allInventoryRows
     .filter((event) => (
       (!normalizedInventorySearch || event.title.toLowerCase().includes(normalizedInventorySearch))
-      && (inventorySource === "all" || event.source === inventorySource)
+      && inventoryProgramMatches(event.program, inventoryProgram)
       && (inventoryStatus === "all" || event.status === inventoryStatus)
     ))
     .sort((a, b) => {
       if (inventorySort === "date-desc") return (b.date ?? "").localeCompare(a.date ?? "") || a.title.localeCompare(b.title)
-      if (inventorySort === "active-rsvps") return (b.activeRsvps ?? -1) - (a.activeRsvps ?? -1) || a.title.localeCompare(b.title)
-      if (inventorySort === "registrations") return (b.totalRegistrations ?? -1) - (a.totalRegistrations ?? -1) || a.title.localeCompare(b.title)
-      if (inventorySort === "attendance") return (b.attendees ?? -1) - (a.attendees ?? -1) || a.title.localeCompare(b.title)
+      if (inventorySort === "registrations") return (inventoryRegistrationCount(b) ?? -1) - (inventoryRegistrationCount(a) ?? -1) || a.title.localeCompare(b.title)
       const rank = (status: EventInventoryStatus) => status === "live" ? 0 : status === "upcoming" ? 1 : 2
       const rankDifference = rank(a.status) - rank(b.status)
       if (rankDifference) return rankDifference
@@ -3662,8 +3676,24 @@ function EngagementOverviewPanel({
         <DualMetricCard label="Successful sign-ins · 7d" total={formatNumber(signIns7Rows.length)} unique={formatNumber(uniqueSignIns7)} helper="Rolling 7 days through the activity end date" />
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.6fr)]">
-        <Panel title="Monthly active users" subtitle="Revised definition begins at the earliest reliable qualifying-action record.">
-          {trend.length ? <ResponsiveChart height={300}><LineChart data={trend}><CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip formatter={tooltipFormatter} /><Line type="monotone" dataKey="users" name="MAU" stroke="#6f51aa" strokeWidth={2.5} dot={false} /></LineChart></ResponsiveChart> : <EmptyState title="No qualifying activity" description="No qualifying member actions match this range." />}
+        <Panel title="Active Users" subtitle={`Rolling ${activeWindow === "monthly" ? "30" : "7"}-day unique members. Click a plotted day to see who is included. Weekly/monthly granularity uses the last plotted day of each period.`}>
+          <div className="mb-3 flex justify-end"><div role="group" aria-label="Active user window" className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-1">
+            {(["monthly", "weekly"] as const).map((window) => <button key={window} type="button" aria-pressed={activeWindow === window} onClick={() => setActiveWindow(window)} className={`rounded-md px-3 py-1.5 text-xs font-medium ${activeWindow === window ? "bg-ipn text-white" : "text-zinc-600 hover:bg-white"}`}>{window === "monthly" ? "Monthly" : "Weekly"}</button>)}
+          </div></div>
+          {trend.length ? <>
+            <ResponsiveChart height={300}><LineChart data={trend} onClick={(state) => {
+              if (state.activeTooltipIndex == null) return
+              const point = trend[Number(state.activeTooltipIndex)]
+              if (point) selectActiveDate(point.date)
+            }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={tooltipFormatter} labelFormatter={(_, payload) => payload[0]?.payload.date ?? ""} />
+              <Line type="monotone" dataKey="users" name={activeWindow === "monthly" ? "MAU" : "WAU"} stroke="#6f51aa" strokeWidth={2.5} dot={<MauChartDot window={activeWindow} onSelect={selectActiveDate} />} activeDot={{ r: 6, pointerEvents: "none" }} />
+            </LineChart></ResponsiveChart>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2"><select aria-label="Active users plotted day" value={trend.some((row) => row.date === detailDate) ? detailDate : trend[trend.length - 1].date} onChange={(event) => setDetailDate(event.target.value)} className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600">{trend.map((row) => <option key={row.date} value={row.date}>{row.date} · {row.users} members</option>)}</select><button type="button" onClick={() => setSelectedActiveDate(trend.some((row) => row.date === detailDate) ? detailDate : trend[trend.length - 1].date)} className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-ipn hover:bg-purple-50">View members</button></div>
+          </> : <EmptyState title="No qualifying activity" description="No qualifying member actions match this range." />}
         </Panel>
         <Panel title="Ways members participate" subtitle="Unique members per category; categories are nonexclusive."><BarList items={participationCategories.map((row) => ({ label: row.label, value: row.members }))} /></Panel>
       </div>
@@ -3739,7 +3769,8 @@ function EngagementOverviewPanel({
           </ResponsiveChart>
         ) : <EmptyState title="No active event RSVPs" description="No currently active Portal event RSVPs were created in this cohort and activity range." />}
       </Panel>
-      <Panel title="Event inventory" subtitle="All historical and upcoming events with registration coverage. Current RSVP counts come from active Portal or upcoming Zoom records; historical external sources show their recorded totals.">
+      <Panel title="Event inventory" subtitle="Public events only. Registrations shows active RSVPs for live/upcoming events and reported registrations or tickets for past events. Click an event for daily/cumulative registrations and its registrant list.">
+        {communityEventsError && <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{communityEventsError}</p>}
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(18rem,1.5fr)_minmax(10rem,0.7fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)]">
           <FilterField label="Search events">
             <input
@@ -3749,12 +3780,12 @@ function EngagementOverviewPanel({
               className={inputClassName}
             />
           </FilterField>
-          <FilterField label="Source">
-            <SelectInput value={inventorySource} onChange={(value) => { setInventorySource(value); setInventoryPage(0) }} options={[
-              { value: "all", label: "All sources" },
-              { value: "portal", label: "Member Portal" },
-              { value: "zoom", label: "Zoom" },
-              { value: "eventbrite", label: "Eventbrite" },
+          <FilterField label="Event type">
+            <SelectInput value={inventoryProgram} onChange={(value) => { setInventoryProgram(value); setInventoryPage(0) }} options={[
+              { value: "all", label: "All event types" },
+              { value: "IPN Labs", label: "IPN Labs" },
+              { value: "PsychedelX", label: "PsychedelX" },
+              { value: "Community", label: "Community" },
             ]} />
           </FilterField>
           <FilterField label="Status">
@@ -3769,9 +3800,7 @@ function EngagementOverviewPanel({
             <SelectInput value={inventorySort} onChange={(value) => { setInventorySort(value as EventInventorySort); setInventoryPage(0) }} options={[
               { value: "recommended", label: "Upcoming, then recent" },
               { value: "date-desc", label: "Newest date" },
-              { value: "active-rsvps", label: "Most active RSVPs" },
               { value: "registrations", label: "Most registrations" },
-              { value: "attendance", label: "Highest attendance" },
             ]} />
           </FilterField>
         </div>
@@ -3781,7 +3810,7 @@ function EngagementOverviewPanel({
           <span className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5"><strong className="font-semibold text-purple-800">{formatNumber(activeInventoryRsvps)}</strong> current active RSVPs</span>
         </div>
         <div className="overflow-x-auto rounded-lg border border-zinc-200">
-          <table className="min-w-[1160px] border-collapse text-sm">
+          <table className="w-full min-w-[850px] table-fixed border-collapse text-sm">
             <thead className="bg-zinc-50/80">
               <tr className="border-b border-zinc-200">
                 {[
@@ -3789,38 +3818,32 @@ function EngagementOverviewPanel({
                   ["Date", "text-left"],
                   ["Status", "text-left"],
                   ["Source", "text-left"],
-                  ["Active RSVPs", "text-right"],
-                  ["Registered / tickets", "text-right"],
+                  ["Registrations", "text-right"],
                   ["Cancellations", "text-right"],
-                  ["Attendance", "text-right"],
                   ["Last RSVP", "text-left"],
-                  ["RSVP pulse", "text-left"],
-                ].map(([label, align]) => <th key={label} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${align}`}>{label}</th>)}
+                ].map(([label, align]) => <th key={label} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 ${align} ${label === "Event" ? "w-[30%]" : ""}`}>{label}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {inventoryPageRows.length ? inventoryPageRows.map((event) => {
-                const attendanceRate = event.attendees != null && event.totalRegistrations
-                  ? (event.attendees / event.totalRegistrations) * 100
-                  : null
+                const registrationCount = inventoryRegistrationCount(event)
+                const expanded = expandedInventoryEvent === event.id
                 return (
-                  <tr key={event.id} className="align-middle transition-colors hover:bg-purple-50/30">
-                    <td className="max-w-[24rem] px-3 py-3 font-medium leading-5 text-zinc-800">{event.title}</td>
+                  <Fragment key={event.id}>
+                  <tr className="align-middle transition-colors hover:bg-purple-50/30">
+                    <td className="max-w-[24rem] px-3 py-3 font-medium leading-5 text-zinc-800"><button type="button" aria-expanded={expanded} aria-controls={`inventory-detail-${event.id}`} onClick={() => setExpandedInventoryEvent(expanded ? null : event.id)} className="flex items-start gap-2 text-left hover:text-ipn"><span aria-hidden="true">{expanded ? "▾" : "▸"}</span>{event.title}</button><span className="mt-1 block text-xs font-normal text-zinc-400">{event.program}</span></td>
                     <td className="whitespace-nowrap px-3 py-3 text-zinc-600">{formatDate(event.date)}</td>
                     <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${eventInventoryStatusClass(event.status)}`}>{event.status}</span></td>
                     <td className="px-3 py-3"><span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${eventInventorySourceClass(event.source)}`}>{event.sourceLabel}</span></td>
-                    <td className="px-3 py-3 text-right font-semibold tabular-nums text-zinc-800">{event.activeRsvps == null ? "—" : formatNumber(event.activeRsvps)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{event.totalRegistrations == null ? "—" : formatNumber(event.totalRegistrations)}</td>
+                    <td className="px-3 py-3 text-right tabular-nums"><span className="font-semibold text-zinc-800">{registrationCount == null ? "—" : formatNumber(registrationCount)}</span><span className="mt-1 block text-[10px] text-zinc-400">{event.source === "eventbrite" ? "tickets" : event.status === "past" ? "recorded registrations" : "active RSVPs"}</span></td>
                     <td className="px-3 py-3 text-right tabular-nums text-zinc-600">{event.cancellations == null ? "—" : formatNumber(event.cancellations)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-zinc-600">
-                      {event.attendees == null ? "—" : <><span className="font-medium text-zinc-700">{formatNumber(event.attendees)}</span>{attendanceRate != null && <span className="ml-1 text-xs text-zinc-400">({formatPercent(attendanceRate, 0)})</span>}</>}
-                    </td>
                     <td className="whitespace-nowrap px-3 py-3 text-zinc-600">{event.lastRsvpAt ? formatShortDate(event.lastRsvpAt) : "—"}</td>
-                    <td className="px-3 py-3"><EventInventorySparkline values={event.trend} label={`${event.title} RSVP activity`} /></td>
                   </tr>
+                  {expanded && <tr id={`inventory-detail-${event.id}`} className="bg-zinc-50/70"><td colSpan={7}><EventInventoryDetails title={event.title} registrations={event.registrations} dailySales={event.dailySales} count={registrationCount} coverageNote={event.coverageNote} /></td></tr>}
+                  </Fragment>
                 )
               }) : (
-                <tr><td colSpan={10} className="px-4 py-8"><EmptyState title="No matching events" description="Change the event search, source, or status filters to see more of the inventory." /></td></tr>
+                <tr><td colSpan={7} className="px-4 py-8"><EmptyState title="No matching events" description="Change the event search, source, or status filters to see more of the inventory." /></td></tr>
               )}
             </tbody>
           </table>
@@ -3830,6 +3853,7 @@ function EngagementOverviewPanel({
           <PaginationControls page={currentInventoryPage} totalPages={inventoryTotalPages} onPageChange={setInventoryPage} />
         </div>
       </Panel>
+      {selectedActiveDate && <ActiveUserDetailsModal data={data} cohortIds={cohortIds} date={selectedActiveDate} window={activeWindow} focusReturnLabel={activeTriggerLabel} onClose={closeActiveDetails} />}
     </div>
   )
 }
@@ -4462,6 +4486,7 @@ type ZoomUpcomingRegistrationEvent = LegacyAnalyticsSnapshot["events"]["zoom"]["
 
 function portalEventProgram(eventType: string | null): AnalyticsEventProgram {
   const text = (eventType ?? "").toLowerCase()
+  if (text.includes("community")) return "Community"
   if (text.includes("psychedelx")) return "PsychedelX"
   if (text.includes("lab")) return "IPN Labs"
   return "Other"
@@ -4577,21 +4602,7 @@ function applyEventLabelOverrides(
   events: ZoomAnalyticsEvent[],
   overrides: AnalyticsEventLabelOverride[],
 ): ZoomAnalyticsEvent[] {
-  const byId = new Map(overrides.map((override) => [override.event_id, override]))
-  return events.map((event) => {
-    const override = byId.get(event.id)
-    return override
-      ? {
-          ...event,
-          program: override.program_label,
-          type: override.event_type,
-          includeInAnalytics: override.include_in_analytics,
-        }
-      : {
-          ...event,
-          includeInAnalytics: event.inclusionStatus !== "excluded",
-        }
-  })
+  return events.map((event) => ({ ...event, ...eventLabels(event, overrides) }))
 }
 
 function ZoomEventLabelControls({
@@ -4599,15 +4610,19 @@ function ZoomEventLabelControls({
   overrides,
   onSaved,
 }: {
-  events: ZoomAnalyticsEvent[]
+  events: LabelableEvent[]
   overrides: AnalyticsEventLabelOverride[]
   onSaved: (override: AnalyticsEventLabelOverride) => void
 }) {
   const overrideById = new Map(overrides.map((override) => [override.event_id, override]))
+  const [search, setSearch] = useState("")
   const sortedEvents = [...events].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+    .filter((event) => event.topic.toLowerCase().includes(search.trim().toLowerCase()))
 
   return (
     <Panel title="Event labeling controls" subtitle="Superadmin-only overrides used before Analytics filters, counts, and tables are calculated.">
+      <input aria-label="Search events to label" placeholder="Search all imported events and meetings" value={search} onChange={(event) => setSearch(event.target.value)} className={`${inputClassName} mb-4 max-w-md`} />
+      <p className="mb-3 text-xs text-zinc-500">Showing {sortedEvents.length} of {events.length} imported events. Internal and excluded records remain editable. Community is a program; Public/Internal separately controls public inventory inclusion.</p>
       <div className="overflow-x-auto">
         <table className="min-w-[980px] border-collapse text-sm">
           <thead>
@@ -4638,7 +4653,7 @@ function ZoomEventLabelControlRow({
   override,
   onSaved,
 }: {
-  event: ZoomAnalyticsEvent
+  event: LabelableEvent
   override: AnalyticsEventLabelOverride | undefined
   onSaved: (override: AnalyticsEventLabelOverride) => void
 }) {
@@ -4672,7 +4687,7 @@ function ZoomEventLabelControlRow({
     <tr className="hover:bg-zinc-50">
       <td className="max-w-[28rem] px-3 py-3 align-top text-zinc-700">{truncate(event.topic, 90)}</td>
       <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-500">{formatShortDate(event.date)}</td>
-      <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-500">{event.source === "portal" ? "Portal RSVP" : "Zoom"}</td>
+      <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-500">{event.sourceLabel ?? (event.source === "portal" ? "Portal RSVP" : "Zoom")}</td>
       <td className="px-3 py-3 align-top">
         <SelectInput
           value={programLabel}
@@ -4680,6 +4695,7 @@ function ZoomEventLabelControlRow({
           options={[
             { value: "IPN Labs", label: "IPN Labs" },
             { value: "PsychedelX", label: "PsychedelX" },
+            { value: "Community", label: "Community" },
             { value: "Other", label: "Other" },
           ]}
         />
@@ -4901,6 +4917,8 @@ function EventsPanel({
   analyticsRefresh,
   eventLabelOverrides,
   portalEvents,
+  communityEvents,
+  onOverrideSaved,
   isSuperadmin,
   forcedView,
   hideViewTabs = false,
@@ -4909,6 +4927,8 @@ function EventsPanel({
   analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
+  communityEvents: CommunityAnalyticsEvent[]
+  onOverrideSaved: (override: AnalyticsEventLabelOverride) => void
   isSuperadmin: boolean
   forcedView?: EventsView
   hideViewTabs?: boolean
@@ -4922,7 +4942,7 @@ function EventsPanel({
   const [granularity, setGranularity] = useUrlFilterState<Granularity>("ev_granularity", "monthly")
   const [attendeesPage, setAttendeesPage] = useState(0)
   const [eventbriteMetric, setEventbriteMetric] = useState<EventbriteMetric>("tickets")
-  const [overrides, setOverrides] = useState(eventLabelOverrides)
+  const overrides = eventLabelOverrides
   const zoom = snapshot.events.zoom
   const eventbrite = snapshot.events.eventbrite
   const zoomSource = snapshot.dataSources.find((source) => source.id === "zoom")
@@ -4948,8 +4968,12 @@ function EventsPanel({
       (type === "all" || event.type === type)
     ))
     .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
-  const labelingEvents = [...upcomingPortalEvents, ...labeledZoomEvents]
-    .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+  const labelingEvents = eventLabelCatalog(
+    upcomingPortalEvents,
+    labeledZoomEvents,
+    zoom.upcomingEvents.map((event) => ({ ...event, ...eventLabels(event, overrides), sourceLabel: "Zoom scheduled" })),
+    communityEvents.map((event) => ({ ...portalEventToAnalyticsEvent(event), ...eventLabels(portalEventToAnalyticsEvent(event), overrides), sourceLabel: event.kind === "meetup" ? "Conference meetup" : "Conference" })),
+  )
   const zoomMonths = aggregateByGranularity(zoomEvents.map((event) => ({
     date: event.date,
     values: {
@@ -4992,10 +5016,7 @@ function EventsPanel({
   const eventbriteTotalTickets = eventbriteEvents.reduce((sum, event) => sum + event.tickets, 0)
   const eventbriteRevenue = eventbriteEvents.reduce((sum, event) => sum + event.grossRevenue, 0)
   function handleOverrideSaved(override: AnalyticsEventLabelOverride) {
-    setOverrides((current) => {
-      const remaining = current.filter((item) => item.event_id !== override.event_id)
-      return [override, ...remaining]
-    })
+    onOverrideSaved(override)
   }
 
   return (
@@ -5571,12 +5592,16 @@ function DataDefinitionsPanel({
   analyticsRefresh,
   eventLabelOverrides,
   portalEvents,
+  communityEvents,
+  onOverrideSaved,
   isSuperadmin,
 }: {
   snapshot: LegacyAnalyticsSnapshot
   analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
+  communityEvents: CommunityAnalyticsEvent[]
+  onOverrideSaved: (override: AnalyticsEventLabelOverride) => void
   isSuperadmin: boolean
 }) {
   return (
@@ -5625,14 +5650,17 @@ function DataDefinitionsPanel({
         <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-ipn">Technical &amp; maintenance</p><h3 id="technical-maintenance" className="mt-1 text-lg font-semibold text-zinc-900">Refresh recovery and restricted controls</h3></div>
         <DataSourcesPanel />
         {isSuperadmin && (
-          <EventsPanel snapshot={snapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} forcedView="labeling" hideViewTabs />
+          <EventsPanel snapshot={snapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={onOverrideSaved} isSuperadmin={isSuperadmin} forcedView="labeling" hideViewTabs />
         )}
       </section>
     </div>
   )
 }
 
-export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, onboardingAnalytics, analyticsSnapshot, mailchimpAnalytics, analyticsRefresh, eventLabelOverrides, portalEvents, isSuperadmin }: Props) {
+export default function AnalyticsDashboardShell({ memberInsights, portalUtilization, onboardingAnalytics, analyticsSnapshot, mailchimpAnalytics, analyticsRefresh, eventLabelOverrides, portalEvents, communityEvents = [], communityEventsError, isSuperadmin }: Props) {
+  const [savedOverrides, setSavedOverrides] = useState<AnalyticsEventLabelOverride[]>([])
+  const sharedOverrides = [...eventLabelOverrides.filter((row) => !savedOverrides.some((saved) => saved.event_id === row.event_id)), ...savedOverrides]
+  const handleOverrideSaved = (override: AnalyticsEventLabelOverride) => setSavedOverrides((current) => [...current.filter((row) => row.event_id !== override.event_id), override])
   const [activeSection, setActiveSection] = useState<AnalyticsSectionId>("registration-membership")
   const [engagementView, setEngagementView] = useState<EngagementView>("overview")
   const [reachView, setReachView] = useState<ReachView>("overview")
@@ -5719,9 +5747,9 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
         {activeSection === "engagement" && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3"><SectionTabs active={engagementView} onChange={changeEngagementView} items={[{ id: "overview", label: "Overview" }, { id: "zoom", label: "Zoom" }, { id: "eventbrite", label: "Eventbrite" }, { id: "portal-activity", label: "Member Portal Activity" }]} />{engagementView === "overview" ? <ReviewBadge status="New" /> : engagementView === "portal-activity" ? <ReviewBadge status="Enhanced" /> : <ReviewBadge status="Production" />}</div>
-            {engagementView === "overview" && <EngagementOverviewPanel data={portalUtilization} events={portalEvents} snapshot={analyticsSnapshot} />}
-            {engagementView === "zoom" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} forcedView="zoom" hideViewTabs />}
-            {engagementView === "eventbrite" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} forcedView="eventbrite" hideViewTabs />}
+            {engagementView === "overview" && <EngagementOverviewPanel data={portalUtilization} events={portalEvents} communityEvents={communityEvents} communityEventsError={communityEventsError} snapshot={analyticsSnapshot} eventLabelOverrides={sharedOverrides} />}
+            {engagementView === "zoom" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={sharedOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={handleOverrideSaved} isSuperadmin={isSuperadmin} forcedView="zoom" hideViewTabs />}
+            {engagementView === "eventbrite" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={sharedOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={handleOverrideSaved} isSuperadmin={isSuperadmin} forcedView="eventbrite" hideViewTabs />}
             {engagementView === "portal-activity" && <PortalUtilizationPanel data={portalUtilization} mode="activity" />}
           </div>
         )}
@@ -5734,7 +5762,7 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
             {reachView === "website" && <WebsitePanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} />}
           </div>
         )}
-        {activeSection === "data-definitions" && <DataDefinitionsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={eventLabelOverrides} portalEvents={portalEvents} isSuperadmin={isSuperadmin} />}
+        {activeSection === "data-definitions" && <DataDefinitionsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={sharedOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={handleOverrideSaved} isSuperadmin={isSuperadmin} />}
       </section>
     </div>
   )

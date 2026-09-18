@@ -294,5 +294,13 @@ export function buildAnalyticsReviewFixture() {
       lastSyncedAt: "2026-09-15T10:00:00Z",
     },
     portalEvents,
+    communityEvents: buildCommunityAnalyticsEvents({
+      conferences: [{ id: "review-conference", name: "Synthetic Community Conference", starts_at: "2026-10-01T12:00:00Z", ends_at: "2026-10-03T18:00:00Z", status: "published", meetups: [{ id: "review-meetup", title: "Synthetic Conference Meetup", startsAt: "2026-10-02T18:00:00Z" }] }],
+      historicalConferences: [{ id: "review-past-conference", name: "Synthetic Historical Conference", starts_at: "2025-06-01", ends_at: "2025-06-03" }],
+      conferenceRsvps: profiles.slice(0, 2).map((profile) => ({ conference_id: "review-conference", user_id: profile.id, created_at: "2026-09-10T12:00:00Z" })),
+      meetupRsvps: [{ conference_id: "review-conference", meetup_id: "review-meetup", user_id: profiles[0].id, created_at: "2026-09-11T14:00:00Z" }],
+      profiles,
+    }),
   }
 }
+import { buildCommunityAnalyticsEvents } from "./community-events"

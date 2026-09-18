@@ -54,7 +54,7 @@ export type OnboardingAnalyticsData = {
   progressDistribution: { completed: number; members: number }[]
   outstandingMilestones: { id: OnboardingMilestoneId; label: string; members: number }[]
   participationAttribution: {
-    type: ParticipationActivityInput["activity_type"]
+    type: ParticipationActivityInput["activity_type"] | "unknown"
     label: string
     members: number
     activities: number
@@ -69,6 +69,7 @@ export type OnboardingAnalyticsData = {
     completedAt: string | null
     lastStepCompletedAt: string | null
     milestone4Activity: string
+    milestone4Type: ParticipationActivityInput["activity_type"] | "unknown" | null
     milestone4OccurredAt: string | null
     whatsappStatus: "already_in" | "not_interested" | "completed" | "pending"
     whatsappContactProvided: boolean
@@ -95,14 +96,14 @@ function earliest(...values: (string | null | undefined)[]) {
   return values
     .map(validTimestamp)
     .filter((value): value is string => Boolean(value))
-    .sort((a, b) => a.localeCompare(b))[0] ?? null
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null
 }
 
 function latest(...values: (string | null | undefined)[]) {
   return values
     .map(validTimestamp)
     .filter((value): value is string => Boolean(value))
-    .sort((a, b) => b.localeCompare(a))[0] ?? null
+    .sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null
 }
 
 function memberName(profile: AnalyticsEligibilityProfile) {
@@ -143,18 +144,25 @@ export function buildOnboardingAnalyticsData({
     participationByUser.set(row.user_id, current)
   }
   for (const rows of participationByUser.values()) {
-    rows.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
+    rows.sort((a, b) => (validTimestamp(a.occurred_at) ? Date.parse(a.occurred_at) : Infinity)
+      - (validTimestamp(b.occurred_at) ? Date.parse(b.occurred_at) : Infinity)
+      || `${a.activity_type}:${a.source_record_id ?? a.id ?? ""}`.localeCompare(`${b.activity_type}:${b.source_record_id ?? b.id ?? ""}`))
   }
 
-  const members: OnboardingAnalyticsData["members"] = eligibleProfiles.map((profile) => {
+  const members = eligibleProfiles.map<OnboardingAnalyticsData["members"][number]>((profile) => {
     const progress = progressByUser.get(profile.id)
     const participation = participationByUser.get(profile.id) ?? []
-    const completedParticipation = participation.filter((row) => row.action === "completed")
-    const firstParticipation = completedParticipation[0]
+    const completedParticipation = participation.filter((row) => row.action === "completed" && validTimestamp(row.occurred_at))
+    const firstRecordedParticipation = completedParticipation[0]
     const fallbackParticipation = earliest(
       progress?.event_rsvp_completed_at,
       progress?.connection_request_completed_at,
     )
+    // An earlier retained milestone timestamp must not be replaced by a later
+    // ledger action when historical source detail is missing.
+    const firstParticipation = fallbackParticipation && firstRecordedParticipation
+      && Date.parse(fallbackParticipation) < Date.parse(firstRecordedParticipation.occurred_at)
+      ? undefined : firstRecordedParticipation
     const milestones: Record<OnboardingMilestoneId, string | null> = {
       whatsapp: validTimestamp(progress?.whatsapp_completed_at),
       profile: validTimestamp(progress?.profile_completed_at),
@@ -180,6 +188,7 @@ export function buildOnboardingAnalyticsData({
       completedAt: completedCount === ONBOARDING_MILESTONES.length ? lastStepCompletedAt : null,
       lastStepCompletedAt,
       milestone4Activity,
+      milestone4Type: firstParticipation?.activity_type ?? (fallbackParticipation ? "unknown" : null),
       milestone4OccurredAt: milestones.participate,
       whatsappStatus: whatsappStatus(progress),
       whatsappContactProvided: Boolean(profile.whatsapp_url?.trim()),
@@ -200,15 +209,7 @@ export function buildOnboardingAnalyticsData({
     ...milestone,
     members: members.filter((member) => !member.milestones[milestone.id]).length,
   }))
-  const participationAttribution = Object.entries(PARTICIPATION_LABELS).map(([type, label]) => {
-    const activities = participationRows.filter((row) => row.action === "completed" && row.activity_type === type)
-    return {
-      type: type as ParticipationActivityInput["activity_type"],
-      label,
-      members: new Set(activities.map((row) => row.user_id)).size,
-      activities: activities.length,
-    }
-  })
+  const attribution = buildFirstParticipationAttribution(members)
 
   return {
     generatedAt: now.toISOString(),
@@ -218,11 +219,27 @@ export function buildOnboardingAnalyticsData({
     completionRate: members.length ? Math.round((completedMembers / members.length) * 1000) / 10 : 0,
     progressDistribution,
     outstandingMilestones,
-    participationAttribution,
+    participationAttribution: attribution,
     members,
   }
 }
 
 export function participationLabel(type: ParticipationActivityInput["activity_type"]) {
   return PARTICIPATION_LABELS[type]
+}
+
+export function buildFirstParticipationAttribution(members: OnboardingAnalyticsData["members"], from = "", to = ""): OnboardingAnalyticsData["participationAttribution"] {
+  const start = from ? Date.parse(`${from}T00:00:00.000Z`) : -Infinity
+  const end = to ? Date.parse(`${to}T23:59:59.999Z`) : Infinity
+  const included = members.filter((member) => member.milestone4OccurredAt
+    && Date.parse(member.milestone4OccurredAt) >= start && Date.parse(member.milestone4OccurredAt) <= end)
+  const rows: OnboardingAnalyticsData["participationAttribution"] = Object.entries(PARTICIPATION_LABELS).map(([type, label]) => {
+    const count = included.filter((member) => member.milestone4Type === type).length
+    return { type: type as ParticipationActivityInput["activity_type"], label, members: count, activities: count }
+  })
+  if (members.some((member) => member.milestone4Type === "unknown")) {
+    const count = included.filter((member) => member.milestone4Type === "unknown").length
+    rows.push({ type: "unknown", label: "Earlier completion · source unavailable", members: count, activities: count })
+  }
+  return rows
 }
