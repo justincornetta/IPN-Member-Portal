@@ -110,3 +110,7 @@ IPN_QA_PLAYWRIGHT_MODULE=/tmp/ipn-barriers-browser-qa/node_modules/playwright/in
 ```
 
 Caveats: production build reports the existing Next.js middleware deprecation. Lockfile installation reports nine existing dependency vulnerabilities; this change does not modify dependencies. Actual external signup/database writes were intentionally replaced by fixtures, with the production trigger inspected read-only. Authenticated profile editing was inspected in code rather than browser-tested against a production account. No push, PR, merge, or deployment was performed.
+
+## Approved PR #63 integration — September 18, 2026
+
+After reviewing the local registration work, Justin authorized adding it to open PR #63. The registration commit was cherry-picked into a separate clean checkout of the published PR head, leaving the analytics task's additional local commits and uncommitted work untouched. The combined branch passes 154 tests, lint, production build, and isolated registration browser QA. This integration changes registration and includes this audit; it does not fix the analytics applicability mismatch identified above. Production records remain unchanged. Publishing updates the PR and its deploy preview; merging remains a separate decision.
