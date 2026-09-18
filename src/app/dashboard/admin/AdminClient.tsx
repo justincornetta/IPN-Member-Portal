@@ -2,12 +2,15 @@
 
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount } from "@/lib/admin/actions"
+import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount, setMemberAnalyticsExclusion } from "@/lib/admin/actions"
 import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission, AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
 import type { MemberInsightsData, PortalAnalyticsEvent, PortalUtilizationData } from "./AnalyticsDashboardShell"
 import type { LegacyAnalyticsSnapshot } from "@/lib/admin/analytics/types"
 import type { PortalAnalyticsRefreshRun } from "@/lib/portal-analytics/types"
+import type { OnboardingAnalyticsData } from "@/lib/admin/analytics/onboarding"
+import type { MailchimpContactAnalytics } from "@/lib/admin/analytics/mailchimp"
+import type { CommunityAnalyticsEvent } from "@/lib/admin/analytics/community-events"
 import {
   LEADERSHIP_TEAMS,
   roleAfterLeadershipAssignment,
@@ -304,10 +307,14 @@ type Props = {
   leadership: AdminMemberProfile[]
   memberInsights: MemberInsightsData | null
   portalUtilization: PortalUtilizationData
+  onboardingAnalytics: OnboardingAnalyticsData
   analyticsSnapshot: LegacyAnalyticsSnapshot
+  mailchimpAnalytics: MailchimpContactAnalytics
   analyticsRefresh: PortalAnalyticsRefreshRun | null
   eventLabelOverrides: AnalyticsEventLabelOverride[]
   portalEvents: PortalAnalyticsEvent[]
+  communityEvents: CommunityAnalyticsEvent[]
+  communityEventsError: string | null
   teamPermissions: TeamPermissionsMap
   feedback: FeedbackSubmission[]
   bannedMembers: AdminMemberProfile[]
@@ -414,6 +421,9 @@ function ModerationMemberModal({
   const [banning, setBanning] = useState(false)
   const [banError, setBanError] = useState<string | null>(null)
   const [isBanned, setIsBanned] = useState(initialMember.is_banned ?? false)
+  const [excludedFromAnalytics, setExcludedFromAnalytics] = useState(initialMember.exclude_from_analytics ?? false)
+  const [savingExclusion, setSavingExclusion] = useState(false)
+  const [exclusionError, setExclusionError] = useState<string | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
@@ -436,6 +446,7 @@ function ModerationMemberModal({
     startTransition(async () => {
       const d = await getMemberDetail(initialMember.id)
       setDetail(d)
+      setExcludedFromAnalytics(d?.exclude_from_analytics ?? false)
       setLoading(false)
     })
   }, [initialMember.id])
@@ -453,6 +464,22 @@ function ModerationMemberModal({
         setIsBanned(newBanned)
         onBanToggle(initialMember, newBanned)
       }
+    })
+  }
+
+  function handleAnalyticsExclusionToggle() {
+    setSavingExclusion(true)
+    setExclusionError(null)
+    startTransition(async () => {
+      const next = !excludedFromAnalytics
+      const result = await setMemberAnalyticsExclusion(initialMember.id, next)
+      setSavingExclusion(false)
+      if (result.error) {
+        setExclusionError(result.error)
+        return
+      }
+      setExcludedFromAnalytics(next)
+      router.refresh()
     })
   }
 
@@ -609,6 +636,28 @@ function ModerationMemberModal({
           >
             {banning ? "…" : isBanned ? "Unban member" : "Ban member"}
           </button>
+          <div className="mt-4 border-t border-zinc-100 pt-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-zinc-800">Exclude from analytics</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  Use for test, QA, duplicate, or nonrepresentative accounts. Suspension also excludes the account automatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={excludedFromAnalytics}
+                aria-label="Exclude member from analytics"
+                onClick={handleAnalyticsExclusionToggle}
+                disabled={savingExclusion || loading}
+                className={`relative mt-0.5 h-6 w-11 flex-none rounded-full transition disabled:opacity-50 ${excludedFromAnalytics ? "bg-ipn" : "bg-zinc-300"}`}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${excludedFromAnalytics ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+            {exclusionError && <p className="mt-2 text-xs text-red-600">{exclusionError}</p>}
+          </div>
         </div>
 
         {detail?.email && (
@@ -879,7 +928,7 @@ function FeedbackTab({
   )
 }
 
-export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, analyticsSnapshot, analyticsRefresh, eventLabelOverrides, portalEvents, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
+export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, onboardingAnalytics, analyticsSnapshot, mailchimpAnalytics, analyticsRefresh, eventLabelOverrides, portalEvents, communityEvents, communityEventsError, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
   const [tab, setTab] = useState<Tab>("analytics")
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
@@ -957,10 +1006,14 @@ export default function AdminClient({ isSuperadmin, leadership, memberInsights, 
         <AnalyticsDashboardShell
           memberInsights={memberInsights}
           portalUtilization={portalUtilization}
+          onboardingAnalytics={onboardingAnalytics}
           analyticsSnapshot={analyticsSnapshot}
+          mailchimpAnalytics={mailchimpAnalytics}
           analyticsRefresh={analyticsRefresh}
           eventLabelOverrides={eventLabelOverrides}
           portalEvents={portalEvents}
+          communityEvents={communityEvents}
+          communityEventsError={communityEventsError}
           isSuperadmin={isSuperadmin}
         />
       )}

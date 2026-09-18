@@ -138,6 +138,12 @@ export type LegacyAnalyticsSnapshot = {
       engagementRate: number
       posts: number
     }[]
+    instagramArchive?: {
+      accountId: string | null
+      backfillComplete: boolean
+      backfilledAt: string | null
+      oldestPostAt: string | null
+    }
     instagramPosts: {
       id: string
       date: string | null
@@ -147,6 +153,7 @@ export type LegacyAnalyticsSnapshot = {
       comments: number
       engagement: number
       permalink: string
+      lastObservedAt?: string | null
     }[]
   }
   website: {

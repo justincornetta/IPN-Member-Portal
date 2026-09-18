@@ -15,12 +15,14 @@ Output files (in ../data/):
     - mailchimp_lists.json      — all lists with subscriber counts
     - mailchimp_growth.json     — monthly subscriber growth history
     - mailchimp_campaigns.json  — recent campaign performance
+    - mailchimp_contacts.json   — privacy-minimized contact status snapshot
     - mailchimp_last_pull.json  — timestamp of last successful pull
 """
 
 import requests
 import json
 import os
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -142,6 +144,70 @@ def pull_growth_history(base_url, auth, lists):
         "pulled_at": datetime.now(timezone.utc).isoformat(),
     })
     return all_growth
+
+def subscriber_hash(member):
+    """Return Mailchimp's stable member hash without retaining an email address."""
+    member_id = str(member.get("id") or "").strip().lower()
+    if member_id:
+        return member_id
+    email = str(member.get("email_address") or "").strip().lower()
+    return hashlib.md5(email.encode("utf-8")).hexdigest() if email else None
+
+def pull_contacts(base_url, auth, lists):
+    """Pull a complete, privacy-minimized status snapshot for every audience."""
+    print("\n3. Pulling audience contact status snapshots...")
+    pulled_at = datetime.now(timezone.utc).isoformat()
+    contacts = []
+    audiences = []
+    page_size = 1000
+
+    for audience in lists:
+        audience_id = audience["id"]
+        audience_name = audience["name"]
+        audiences.append({"id": audience_id, "name": audience_name})
+        offset = 0
+
+        while True:
+            data = api_get(base_url, auth, f"/lists/{audience_id}/members", params={
+                "count": page_size,
+                "offset": offset,
+                "fields": (
+                    "members.id,members.email_address,members.status,"
+                    "members.timestamp_signup,members.timestamp_opt,"
+                    "members.last_changed,total_items"
+                ),
+            })
+            batch = data.get("members", [])
+            for member in batch:
+                contact_hash = subscriber_hash(member)
+                if not contact_hash:
+                    continue
+                status = str(member.get("status") or "unknown").lower()
+                opted_at = member.get("timestamp_opt") or member.get("timestamp_signup")
+                contacts.append({
+                    "audience_id": audience_id,
+                    "audience_name": audience_name,
+                    "subscriber_hash": contact_hash,
+                    "mailchimp_member_id": member.get("id"),
+                    "status": status,
+                    "subscribed_at": opted_at if status == "subscribed" else None,
+                    "unsubscribed_at": member.get("last_changed") if status == "unsubscribed" else None,
+                    "last_changed_at": member.get("last_changed"),
+                    "source_pulled_at": pulled_at,
+                })
+
+            print(f"  {audience_name}: {min(offset + len(batch), data.get('total_items', 0))}/{data.get('total_items', 0)} contacts")
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
+    save_json("mailchimp_contacts.json", {
+        "audiences": audiences,
+        "contacts": contacts,
+        "total_contacts": len(contacts),
+        "pulled_at": pulled_at,
+    })
+    return contacts
 
 def pull_campaigns(base_url, auth):
     """Pull ALL campaign performance data (paginated, up to 1000)."""
@@ -314,6 +380,7 @@ def main():
 
     account = pull_account_info(base_url, auth)
     lists = pull_lists(base_url, auth)
+    contacts = pull_contacts(base_url, auth, lists)
     growth = pull_growth_history(base_url, auth, lists)
     campaigns = pull_campaigns(base_url, auth)
 
@@ -322,6 +389,7 @@ def main():
         "last_pull": datetime.now(timezone.utc).isoformat(),
         "status": "success",
         "total_subscribers": account.get("total_subscribers"),
+        "contacts_pulled": len(contacts),
         "campaigns_pulled": len(campaigns),
     })
 

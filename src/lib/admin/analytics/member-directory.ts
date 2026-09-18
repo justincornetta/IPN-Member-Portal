@@ -280,9 +280,12 @@ export function mergeMemberDirectoryRow(
   const primaryField = canonicalMemberField(firstText(profileField, legacy?.primary_field, "-"))
   const psychedelicFieldStatus = canonicalPsychedelicFieldStatus(firstText(profilePsychedelicFieldStatus, legacy?.psychedelic_field_status))
   const referralSource = canonicalReferralSource(firstText(profileReferralSource, legacy?.referral_source))
-  const psychedelicFieldBarriers = profileBarriers.length
+  const mergedPsychedelicFieldBarriers = profileBarriers.length
     ? profileBarriers
     : splitMultiValue(legacy?.psychedelic_field_barriers)
+  const psychedelicFieldBarriers = psychedelicFieldStatus === "No — I don't plan to work in the field" || psychedelicFieldStatus === "I'm not sure"
+    ? mergedPsychedelicFieldBarriers
+    : []
   const rawCategoryResponses = {
     persona: [profilePersona || rawLegacyValue(legacy, "self_description", legacy?.self_description)].filter(Boolean),
     primaryField: [profileField || rawLegacyValue(legacy, "primary_field", legacy?.primary_field)].filter(Boolean),
@@ -290,9 +293,11 @@ export function mergeMemberDirectoryRow(
       profilePsychedelicFieldStatus
         || rawLegacyValue(legacy, "psychedelic_field_status", legacy?.psychedelic_field_status),
     ].filter(Boolean),
-    psychedelicFieldBarriers: profileBarriers.length
-      ? profileBarriers
-      : rawLegacyMultiValue(legacy, "psychedelic_field_barriers", legacy?.psychedelic_field_barriers),
+    psychedelicFieldBarriers: psychedelicFieldBarriers.length
+      ? profileBarriers.length
+        ? profileBarriers
+        : rawLegacyMultiValue(legacy, "psychedelic_field_barriers", legacy?.psychedelic_field_barriers)
+      : [],
     referralSource: [
       profileReferralSource
         ? profileReferralSource === "Other"
@@ -515,13 +520,9 @@ export function buildMemberDirectoryData({
       return bTime - aTime || a.name.localeCompare(b.name)
     })
 
-  const importMetadata = metadataRecord(latestImport?.metadata)
-  const oldappTotal = Number(importMetadata.oldapp_total)
   const sourceTotals = SOURCE_LABELS.map((source) => ({
     ...source,
-    value: source.id === "oldapp" && Number.isFinite(oldappTotal) && oldappTotal > 0
-      ? oldappTotal
-      : rows.filter((row) => row.sources[source.id]).length,
+    value: rows.filter((row) => row.sources[source.id]).length,
   }))
   const geography = buildGeography(rows, profilesByEmail, geocodes)
   const totalGeographyMembers = rows.filter((row) => row.country).length

@@ -68,7 +68,11 @@ function preserveSourceSection(merged, previous, id) {
       ...(merged.social.history ?? []).filter((row) => !failedChannels.has(row.channel)),
       ...(previous.social.history ?? []).filter((row) => failedChannels.has(row.channel)),
     ].sort((a, b) => String(a.date).localeCompare(String(b.date)))
-    if (id === "instagram") merged.social.instagramPosts = clone(previous.social.instagramPosts)
+    if (id === "instagram") {
+      merged.social.instagramPosts = clone(previous.social.instagramPosts)
+      if (previous.social.instagramArchive) merged.social.instagramArchive = clone(previous.social.instagramArchive)
+      else delete merged.social.instagramArchive
+    }
   }
 }
 
@@ -88,7 +92,9 @@ export function validateAndMergeAnalyticsSnapshot({
     if (sourceById(lastKnownGood, "website")) baseline.dataSources.push(clone(sourceById(lastKnownGood, "website")))
   }
   if (supportedSocialHistory(lastKnownGood).length > supportedSocialHistory(baseline).length) {
-    baseline.social = clone(lastKnownGood.social)
+    baseline.social = { ...clone(lastKnownGood.social), instagramPosts: clone(previous.social.instagramPosts) }
+    if (previous.social.instagramArchive) baseline.social.instagramArchive = clone(previous.social.instagramArchive)
+    else delete baseline.social.instagramArchive
     for (const id of ["instagram", "facebook"]) {
       baseline.dataSources = (baseline.dataSources ?? []).filter((source) => source.id !== id)
       if (sourceById(lastKnownGood, id)) baseline.dataSources.push(clone(sourceById(lastKnownGood, id)))

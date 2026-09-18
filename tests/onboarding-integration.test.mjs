@@ -59,7 +59,9 @@ test("durable tour state wins over local fallback and core profile actions recov
   const tourProvider = await readFile(new URL("../src/components/product-tour/ProductTourProvider.tsx", import.meta.url), "utf8")
   const profileForm = await readFile(new URL("../src/app/dashboard/profile/ProfileForm.tsx", import.meta.url), "utf8")
 
-  assert.match(tourProvider, /if \(serverStateAvailable\) \{\s+window\.localStorage\.removeItem\(storageKey\)\s+setProgress\(durable\)/)
+  assert.match(tourProvider, /const serverHasProgress = Boolean\(serverStartedAt \|\| serverCurrentStep \|\| serverCompletedAt\)/)
+  assert.match(tourProvider, /if \(!serverHasProgress && legacy\)/)
+  assert.match(tourProvider, /window\.localStorage\.removeItem\(storageKey\)\s+setProgress\(durable\)/)
   assert.match(tourProvider, /if \(isEditable\) return/)
   assert.match(tourProvider, /if \(!isActive && tourWasActiveRef\.current\) restoreTourFocus\(\)/)
   assert.match(tourProvider, /target\?\.focus/)

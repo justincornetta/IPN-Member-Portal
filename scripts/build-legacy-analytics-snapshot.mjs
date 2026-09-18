@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { mergeInstagramSnapshot } from "./instagram-snapshot.mjs"
 
 const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const committedOutputPath = resolve(projectDir, "src/lib/admin/analytics/legacy-snapshot.json")
@@ -219,7 +220,7 @@ function buildSocial(base, social, instagramMedia) {
         id: "instagram",
         label: "Instagram",
         followers: number(instagram.followers, null),
-        engagementRate: percent(instagram.avg_engagement_rate),
+        engagementRate: number(instagram.avg_engagement_rate),
         postsThisMonth: number(instagram.posts_this_month, null),
         status: "live",
         updatedAt: instagram.updated_at || null,
@@ -240,19 +241,10 @@ function buildSocial(base, social, instagramMedia) {
       month: row.month || "Unknown",
       channel: row.channel || "",
       followers: number(row.followers),
-      engagementRate: percent(row.avg_engagement_rate),
+      engagementRate: row.channel === "instagram" ? number(row.avg_engagement_rate) : percent(row.avg_engagement_rate),
       posts: number(row.posts_this_month),
     })),
-    instagramPosts: (Array.isArray(instagramMedia.posts) ? instagramMedia.posts : []).map((post) => ({
-      id: String(post.id || post.permalink),
-      date: post.timestamp || null,
-      type: post.media_type || post.media_product_type || "",
-      caption: post.caption || "",
-      likes: number(post.like_count),
-      comments: number(post.comments_count),
-      engagement: number(post.like_count) + number(post.comments_count),
-      permalink: post.permalink || "",
-    })),
+    ...mergeInstagramSnapshot(base.social, instagramMedia),
   }
 }
 

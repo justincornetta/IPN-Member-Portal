@@ -186,6 +186,7 @@ export type AdminMemberProfile = {
   bio: string | null
   whatsapp_url?: string | null
   is_banned?: boolean | null
+  exclude_from_analytics?: boolean | null
 }
 
 export type AdminMemberDetail = AdminMemberProfile & {
@@ -230,7 +231,22 @@ export async function getMemberDetail(userId: string): Promise<AdminMemberDetail
     .select("id, first_name, last_name, email, avatar_url, role, admin_role, team, persona, bio, whatsapp_url, linkedin_url, country, state, city, field, psychedelic_field_status, affiliation, school, interest_tags, role_and_goals, is_banned")
     .eq("id", userId)
     .single()
-  return (data as AdminMemberDetail | null)
+  if (!data) return null
+  const { data: eligibility, error: eligibilityError } = await admin
+    .from("profiles")
+    .select("exclude_from_analytics")
+    .eq("id", userId)
+    .maybeSingle()
+  if (eligibilityError) {
+    console.warn("Analytics exclusion state is unavailable until its migration is applied.", {
+      code: eligibilityError.code,
+      message: eligibilityError.message,
+    })
+  }
+  return {
+    ...(data as AdminMemberDetail),
+    exclude_from_analytics: eligibility?.exclude_from_analytics === true,
+  }
 }
 
 export async function listBannedMembers(): Promise<AdminMemberProfile[]> {
@@ -268,6 +284,22 @@ export async function unbanMember(userId: string): Promise<{ error?: string }> {
   })
   if (authUnbanError) return { error: authUnbanError.message }
   await admin.from("profiles").update({ is_banned: false }).eq("id", userId)
+  revalidatePath("/dashboard/admin")
+  return {}
+}
+
+export async function setMemberAnalyticsExclusion(
+  userId: string,
+  excluded: boolean,
+): Promise<{ error?: string }> {
+  const authError = await verifySuperadmin()
+  if (authError) return authError
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from("profiles")
+    .update({ exclude_from_analytics: excluded })
+    .eq("id", userId)
+  if (error) return { error: error.message }
   revalidatePath("/dashboard/admin")
   return {}
 }
@@ -739,7 +771,7 @@ export type AnalyticsEventLabelOverride = {
   event_id: string
   event_topic: string | null
   event_date: string | null
-  program_label: "IPN Labs" | "PsychedelX" | "Other"
+  program_label: "IPN Labs" | "PsychedelX" | "Community" | "Other"
   event_type: "public" | "internal"
   include_in_analytics: boolean
   note: string | null
@@ -764,7 +796,7 @@ export async function saveAnalyticsEventLabelOverride(payload: {
   eventId: string
   eventTopic: string
   eventDate: string | null
-  programLabel: "IPN Labs" | "PsychedelX" | "Other"
+  programLabel: "IPN Labs" | "PsychedelX" | "Community" | "Other"
   eventType: "public" | "internal"
   includeInAnalytics: boolean
   note?: string | null
@@ -774,6 +806,10 @@ export async function saveAnalyticsEventLabelOverride(payload: {
 
   const eventId = clean(payload.eventId)
   if (!eventId) return { error: "Missing event ID" }
+  if (!["IPN Labs", "PsychedelX", "Community", "Other"].includes(payload.programLabel)
+    || !["public", "internal"].includes(payload.eventType) || typeof payload.includeInAnalytics !== "boolean") {
+    return { error: "Invalid event labeling values" }
+  }
 
   const admin = createAdminClient()
   const row = {

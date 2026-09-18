@@ -5,12 +5,18 @@ on:
     # Runs daily at 10:30 UTC.
     - cron: "30 10 * * *"
   workflow_dispatch:
+    inputs:
+      instagram_backfill:
+        description: "Instagram-only archive backfill; produce private candidate artifacts, no publish/maintenance"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
   refresh:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.instagram_backfill }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -361,3 +367,36 @@ jobs:
           if [ "${SOURCE_STATUS:-}" = "partial_failure" ] || [ "${REFRESH_STATUS:-}" = "partial_failure" ] || [ "${REFRESH_STATUS:-}" = "failed" ]; then
             exit 1
           fi
+
+  instagram-backfill:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.instagram_backfill }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install locked ingestion dependencies
+        run: python -m pip install -r scripts/analytics-requirements.txt
+      - name: Backfill Instagram only
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+        run: npm run analytics:instagram-backfill
+      - name: Retain candidate and resumable checkpoint for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instagram-backfill-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            data/instagram-snapshot-candidate.json
+            data/instagram_media.json

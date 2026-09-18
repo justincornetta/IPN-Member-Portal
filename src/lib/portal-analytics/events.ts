@@ -111,6 +111,7 @@ export function sanitizePortalAnalyticsPayload(payload: unknown) {
 export async function recordPortalAnalyticsEvent(
   payload: PortalAnalyticsPayload & { userId?: string | null },
 ) {
+  if (process.env.NODE_ENV !== "production") return
   const sanitized = sanitizePortalAnalyticsPayload(payload)
   if (!sanitized) return
 

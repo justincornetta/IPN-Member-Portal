@@ -1,11 +1,21 @@
 import { redirect } from "next/navigation"
+import { createHash } from "node:crypto"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { lookupMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { getLegacyAnalyticsSnapshot } from "@/lib/admin/analytics/data"
-import { buildMemberDirectoryData } from "@/lib/admin/analytics/member-directory"
-import { buildPortalUtilizationData } from "@/lib/admin/analytics/portal-utilization"
+import { buildMemberDirectoryData, normalizeMemberEmail } from "@/lib/admin/analytics/member-directory"
+import { buildPortalUtilizationData, type PortalUtilizationAttendanceInput } from "@/lib/admin/analytics/portal-utilization"
+import {
+  buildOnboardingAnalyticsData,
+  isAnalyticsEligible,
+  type OnboardingProgressInput,
+  type ParticipationActivityInput,
+} from "@/lib/admin/analytics/onboarding"
+import type { MailchimpContactAnalytics } from "@/lib/admin/analytics/mailchimp"
+import { fetchCommunityInventoryRows } from "@/lib/admin/analytics/community-fetch"
+import { buildCommunityAnalyticsEvents, type CommunityConferenceInput, type CommunityRsvpInput } from "@/lib/admin/analytics/community-events"
 import { getLatestPortalAnalyticsRefresh } from "@/lib/portal-analytics/rollup"
 import {
   assembleServerEventAnalytics,
@@ -52,6 +62,9 @@ type PortalProfileRow = {
   mailchimp_status: string | null
   role: string | null
   created_at: string | null
+  last_sign_in_at?: string | null
+  is_banned?: boolean | null
+  exclude_from_analytics?: boolean | null
   education?: PortalEducationRow[]
 }
 
@@ -88,10 +101,7 @@ type EventLookupRow = {
 
 const PORTAL_EVENT_REGISTRATION_SOURCE_START = new Date("2026-07-01T00:00:00.000Z")
 
-type OnboardingProgressRow = {
-  user_id: string
-  whatsapp_completed_at: string | null
-}
+type OnboardingProgressRow = OnboardingProgressInput
 
 type PortalAuthUserRow = {
   id: string
@@ -125,9 +135,27 @@ async function fetchPortalProfiles(admin: ReturnType<typeof createAdminClient>) 
   }
 
   const profiles = (data ?? []) as PortalProfileRow[]
-  const { data: referralDetails, error: referralDetailsError } = await admin
+  const referralResult = await admin
     .from("profiles")
-    .select("id, referral_source_other")
+    .select("id, referral_source_other, is_banned, exclude_from_analytics")
+  let referralDetails = (referralResult.data ?? null) as Array<{
+    id: string
+    referral_source_other: string | null
+    is_banned: boolean | null
+    exclude_from_analytics?: boolean | null
+  }> | null
+  let referralDetailsError = referralResult.error
+
+  if (referralDetailsError) {
+    const fallback = await admin
+      .from("profiles")
+      .select("id, referral_source_other, is_banned")
+    referralDetails = (fallback.data ?? null) as typeof referralDetails
+    referralDetailsError = fallback.error
+    if (!fallback.error) {
+      console.warn("The analytics exclusion migration is not applied yet; continuing with suspension filtering only.")
+    }
+  }
 
   if (referralDetailsError) {
     console.warn("Optional referral detail data is unavailable; continuing with core Portal analytics.", {
@@ -137,16 +165,26 @@ async function fetchPortalProfiles(admin: ReturnType<typeof createAdminClient>) 
     return profiles
   }
 
-  const referralDetailsById = new Map(
+  const referralDetailsById = new Map<string, {
+    referral_source_other: string | null
+    is_banned: boolean
+    exclude_from_analytics: boolean
+  }>(
     (referralDetails ?? []).map((profile) => [
       profile.id as string,
-      (profile.referral_source_other as string | null) ?? null,
+      {
+        referral_source_other: (profile.referral_source_other as string | null) ?? null,
+        is_banned: profile.is_banned === true,
+        exclude_from_analytics: profile.exclude_from_analytics === true,
+      },
     ]),
   )
 
   return profiles.map((profile) => ({
     ...profile,
-    referral_source_other: referralDetailsById.get(profile.id) ?? null,
+    referral_source_other: referralDetailsById.get(profile.id)?.referral_source_other ?? null,
+    is_banned: referralDetailsById.get(profile.id)?.is_banned ?? false,
+    exclude_from_analytics: referralDetailsById.get(profile.id)?.exclude_from_analytics ?? false,
   }))
 }
 
@@ -157,6 +195,80 @@ function monthKey(value: string | null | undefined) {
 
 function retentionCutoffIso(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+async function fetchMailchimpContactAnalytics(admin: ReturnType<typeof createAdminClient>): Promise<MailchimpContactAnalytics> {
+  const contacts: MailchimpContactAnalytics["contacts"] = []
+  for (let start = 0; ; start += 1000) {
+    const { data, error } = await admin
+      .from("mailchimp_audience_contacts")
+      .select("audience_id, audience_name, subscriber_hash, status")
+      .range(start, start + 999)
+    if (error) {
+      console.warn("Mailchimp contact-status analytics are unavailable until their migration and first sync complete.", {
+        code: error.code,
+        message: error.message,
+      })
+      return { available: false, contacts: [], events: [], firstSyncedAt: null, lastSyncedAt: null }
+    }
+    contacts.push(...(data ?? []).map((row) => ({
+      audienceId: row.audience_id,
+      audienceName: row.audience_name,
+      subscriberHash: row.subscriber_hash,
+      status: row.status,
+    })))
+    if (!data || data.length < 1000) break
+  }
+
+  const [eventsResult, firstRunResult, lastRunResult] = await Promise.all([
+    admin
+      .from("mailchimp_subscription_events")
+      .select("audience_id, audience_name, subscriber_hash, new_status, occurred_at, source")
+      .gte("occurred_at", retentionCutoffIso(31))
+      .order("occurred_at", { ascending: true }),
+    admin
+      .from("mailchimp_sync_runs")
+      .select("finished_at")
+      .eq("status", "success")
+      .order("finished_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("mailchimp_sync_runs")
+      .select("finished_at")
+      .eq("status", "success")
+      .order("finished_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  if (eventsResult.error || firstRunResult.error || lastRunResult.error) {
+    console.warn("Mailchimp status history is incomplete; hiding rolling counts.", {
+      events: eventsResult.error?.message,
+      firstRun: firstRunResult.error?.message,
+      lastRun: lastRunResult.error?.message,
+    })
+    return { available: false, contacts: [], events: [], firstSyncedAt: null, lastSyncedAt: null }
+  }
+
+  return {
+    available: Boolean(lastRunResult.data?.finished_at),
+    contacts,
+    events: (eventsResult.data ?? []).map((row) => ({
+      audienceId: row.audience_id,
+      audienceName: row.audience_name,
+      subscriberHash: row.subscriber_hash,
+      newStatus: row.new_status,
+      occurredAt: row.occurred_at,
+      source: row.source,
+    })),
+    firstSyncedAt: firstRunResult.data?.finished_at ?? null,
+    lastSyncedAt: lastRunResult.data?.finished_at ?? null,
+  }
+}
+
+function analyticsSubjectHash(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  return normalized ? createHash("sha256").update(normalized).digest("hex") : ""
 }
 
 function memberName(profile: PortalProfileRow | undefined) {
@@ -185,23 +297,52 @@ function buildPortalAnalyticsEvents({
   eventRows,
   eventRegistrations,
   profiles,
+  participationRows,
 }: {
   eventRows: EventLookupRow[]
   eventRegistrations: EventRegistrationRow[]
   profiles: PortalProfileRow[]
+  participationRows: ParticipationActivityInput[]
 }): PortalAnalyticsEvent[] {
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
   const registrationsByEvent = new Map<string, PortalAnalyticsEvent["registrations"]>()
+  const registrationHistoryByEvent = new Map<string, {
+    completed: Set<string>
+    cancelled: Set<string>
+    lastRsvpAt: string | null
+  }>()
 
   for (const registration of eventRegistrations) {
     const profile = profilesById.get(registration.user_id)
     const current = registrationsByEvent.get(registration.event_id) ?? []
     current.push({
+      userId: registration.user_id,
       memberName: memberName(profile),
       memberEmail: profile?.email ?? "",
       registeredAt: registration.created_at,
     })
     registrationsByEvent.set(registration.event_id, current)
+  }
+
+  for (const participation of participationRows) {
+    if (participation.activity_type !== "portal_event_rsvp") continue
+    const eventId = typeof participation.metadata?.event_id === "string"
+      ? participation.metadata.event_id
+      : null
+    if (!eventId) continue
+    const current = registrationHistoryByEvent.get(eventId) ?? {
+      completed: new Set<string>(),
+      cancelled: new Set<string>(),
+      lastRsvpAt: null,
+    }
+    const registrationId = participation.source_record_id ?? participation.id ?? `${participation.user_id}:${participation.occurred_at}`
+    if (participation.action === "completed") {
+      current.completed.add(registrationId)
+      if (!current.lastRsvpAt || participation.occurred_at > current.lastRsvpAt) current.lastRsvpAt = participation.occurred_at
+    } else {
+      current.cancelled.add(registrationId)
+    }
+    registrationHistoryByEvent.set(eventId, current)
   }
 
   return eventRows
@@ -214,6 +355,7 @@ function buildPortalAnalyticsEvents({
     .map((event) => {
       const registrations = (registrationsByEvent.get(event.id) ?? [])
         .sort((a, b) => a.registeredAt.localeCompare(b.registeredAt))
+      const history = registrationHistoryByEvent.get(event.id)
       return {
         id: event.id,
         title: event.title ?? event.slug ?? "Untitled event",
@@ -223,6 +365,9 @@ function buildPortalAnalyticsEvents({
         status: event.status,
         externalEventId: event.external_event_id,
         registrationCount: event.registration_count ?? registrations.length,
+        totalRegistrationsEver: Math.max(registrations.length, history?.completed.size ?? 0),
+        cancellationCount: history?.cancelled.size ?? 0,
+        lastRsvpAt: history?.lastRsvpAt ?? registrations.at(-1)?.registeredAt ?? null,
         registrations,
       }
     })
@@ -283,6 +428,32 @@ async function fetchPortalAuthUsers(admin: ReturnType<typeof createAdminClient>)
     users.push(...pageUsers)
     if (pageUsers.length < perPage) return { users, error: null }
   }
+}
+
+async function fetchOnboardingProgress(admin: ReturnType<typeof createAdminClient>) {
+  const current = await admin
+    .from("member_onboarding_progress")
+    .select("user_id, whatsapp_current_step, whatsapp_completed_at, profile_completed_at, product_tour_completed_at, connection_request_completed_at, event_rsvp_completed_at")
+
+  if (!current.error) return current
+
+  const legacy = await admin
+    .from("member_onboarding_progress")
+    .select("user_id, whatsapp_completed_at, profile_completed_at, connection_request_completed_at, event_rsvp_completed_at")
+
+  if (!legacy.error) {
+    console.warn("The resumable onboarding migration is not applied yet; continuing with legacy milestone timestamps.")
+    return {
+      data: (legacy.data ?? []).map((row) => ({
+        ...row,
+        whatsapp_current_step: null,
+        product_tour_completed_at: null,
+      })),
+      error: null,
+    }
+  }
+
+  return { data: null, error: legacy.error }
 }
 
 export default async function AdminPage() {
@@ -347,12 +518,22 @@ export default async function AdminPage() {
     })
   }
   const authUsersById = new Map(authUsersResult.users.map((user) => [user.id, user]))
-  const allProfiles = profileRows.map((profile) => ({
+  const enrichedProfiles = profileRows.map((profile) => ({
     ...profile,
     created_at: authUsersById.get(profile.id)?.created_at ?? profile.created_at,
     last_sign_in_at: authUsersById.get(profile.id)?.last_sign_in_at ?? null,
     education: educationByUser.get(profile.id) ?? [],
   }))
+  const excludedProfileIds = new Set(
+    enrichedProfiles.filter((profile) => !isAnalyticsEligible(profile)).map((profile) => profile.id),
+  )
+  const excludedEmails = new Set(
+    enrichedProfiles
+      .filter((profile) => !isAnalyticsEligible(profile))
+      .map((profile) => normalizeMemberEmail(profile.email))
+      .filter((email): email is string => Boolean(email)),
+  )
+  const allProfiles = enrichedProfiles.filter(isAnalyticsEligible)
   const total = allProfiles.length
   const discoverable = allProfiles.filter((p) => p.is_discoverable).length
 
@@ -388,13 +569,16 @@ export default async function AdminPage() {
 
   let recent = null
   if (isSuperadmin) {
+    const shouldRefreshMailchimp = process.env.NODE_ENV === "production"
     const { data } = await admin
       .from("profiles")
       .select("id, first_name, last_name, email, persona, created_at, mailchimp_status, mailchimp_last_error_raw, mailchimp_last_error_description")
       .order("created_at", { ascending: false })
       .limit(25)
-    recent = await Promise.all((data ?? []).map(async (profile) => {
-      if (profile.mailchimp_status !== "unknown" || !profile.email) {
+    recent = await Promise.all((data ?? [])
+      .filter((profile) => !excludedProfileIds.has(profile.id))
+      .map(async (profile) => {
+      if (!shouldRefreshMailchimp || profile.mailchimp_status !== "unknown" || !profile.email) {
         return profile
       }
 
@@ -402,27 +586,43 @@ export default async function AdminPage() {
       const fields = profileMailchimpFields(result)
       await admin.from("profiles").update(fields).eq("id", profile.id)
       return { ...profile, ...fields }
-    }))
+      }))
   }
 
   const teamPermissions: TeamPermissionsMap = isSuperadmin ? await getTeamPermissions() : {}
   const feedback: FeedbackSubmission[] = isSuperadmin ? await listFeedbackSubmissions() : []
   const bannedMembers = isSuperadmin ? await listBannedMembers() : []
   const analyticsSnapshot = await getLegacyAnalyticsSnapshot()
+  const mailchimpAnalytics = await fetchMailchimpContactAnalytics(admin)
   const analyticsRefresh = await getLatestPortalAnalyticsRefresh()
   const eventLabelOverrides = await listAnalyticsEventLabelOverrides()
-  const [legacyRowsResult, legacyImportResult] = await Promise.all([
+  const [legacyRowsResult, legacyImportResult, deletedSubjectsResult] = await Promise.all([
     fetchLegacyMemberSotRows(admin),
     admin
       .from("legacy_member_sot_imports")
       .select("created_at, source_pulled_at, imported_row_count, metadata")
       .order("created_at", { ascending: false })
       .limit(1),
+    admin
+      .from("analytics_excluded_subjects")
+      .select("subject_hash"),
   ])
+  if (deletedSubjectsResult.error) {
+    console.warn("Deleted-account analytics tombstones are unavailable until their migration is applied.", {
+      code: deletedSubjectsResult.error.code,
+      message: deletedSubjectsResult.error.message,
+    })
+  }
+  const deletedSubjectHashes = new Set((deletedSubjectsResult.data ?? []).map((row) => row.subject_hash as string))
+  const eligibleLegacyRows = legacyRowsResult.rows.filter((row) => (
+    !excludedEmails.has(row.normalized_email)
+    && !deletedSubjectHashes.has(analyticsSubjectHash(row.normalized_email))
+    && !deletedSubjectHashes.has(analyticsSubjectHash(row.original_email))
+  ))
   const latestLegacyImport = ((legacyImportResult.data ?? [])[0] ?? null) as LegacyMemberSotImportRow | null
   const memberDirectory = buildMemberDirectoryData({
     profiles: allProfiles as PortalDirectoryProfileRow[],
-    legacyRows: legacyRowsResult.rows,
+    legacyRows: eligibleLegacyRows,
     latestImport: latestLegacyImport,
     geocodes: (geocodesRowsResult.data ?? []) as AnalyticsLocationGeocodeRow[],
   })
@@ -434,11 +634,11 @@ export default async function AdminPage() {
     eventRowsResult,
     analyticsSourceRecordsResult,
     connectionsResult,
+    participationResult,
+    communityResult,
   ] = await Promise.all([
     fetchPortalAnalyticsEvents(admin, ninetyDaysAgo),
-    admin
-      .from("member_onboarding_progress")
-      .select("user_id, whatsapp_completed_at"),
+    fetchOnboardingProgress(admin),
     admin
       .from("event_registrations")
       .select("event_id, user_id, created_at")
@@ -453,11 +653,16 @@ export default async function AdminPage() {
     admin
       .from("analytics_source_records")
       .select("source, record_type, source_record_id, event_source_id, event_name, event_started_at, occurred_at, registered_at, name, email, normalized_email, attended, duration_minutes, details")
-      .eq("source", "zoom")
       .limit(10000),
     admin
       .from("connections")
       .select("requester_id, addressee_id, status"),
+    admin
+      .from("member_participation_activities")
+      .select("id, user_id, activity_type, action, source_system, source_record_id, occurred_at, metadata")
+      .order("occurred_at", { ascending: true })
+      .limit(10000),
+    fetchCommunityInventoryRows(admin),
   ])
   const eventRegistrations = (eventRegistrationsResult.data ?? []) as EventRegistrationRow[]
   const eventRows = (eventRowsResult.data ?? []) as EventLookupRow[]
@@ -467,23 +672,71 @@ export default async function AdminPage() {
       message: connectionsResult.error.message,
     })
   }
+  if (participationResult.error) {
+    console.warn("The participation ledger is unavailable; using conservative onboarding timestamps only.", {
+      code: participationResult.error.code,
+      message: participationResult.error.message,
+    })
+  }
+  const participationRows = (participationResult.data ?? []) as ParticipationActivityInput[]
+  const eligibleAnalyticsEvents = analyticsEventsResult.rows.filter((row) => !row.user_id || !excludedProfileIds.has(row.user_id))
+  const allSourceRecords = (analyticsSourceRecordsResult.data ?? []) as AnalyticsSourceRecord[]
+  const eligibleSourceRecords = allSourceRecords
+    .filter((row) => !row.normalized_email || (
+      !excludedEmails.has(row.normalized_email)
+      && !deletedSubjectHashes.has(analyticsSubjectHash(row.normalized_email))
+      && !deletedSubjectHashes.has(analyticsSubjectHash(row.email))
+    ))
+  const eligibleProfilesByEmail = new Map(
+    allProfiles
+      .map((profile) => [normalizeMemberEmail(profile.email), profile] as const)
+      .filter(([email]) => Boolean(email)),
+  )
+  const attendanceRows = eligibleSourceRecords.flatMap<PortalUtilizationAttendanceInput>((row) => {
+    if (row.attended !== true || !row.normalized_email) return []
+    const profile = eligibleProfilesByEmail.get(row.normalized_email)
+    const occurredAt = row.event_started_at ?? row.occurred_at
+    if (!profile || !occurredAt) return []
+    return [{
+      user_id: profile.id,
+      occurred_at: occurredAt,
+      source_record_id: `${row.source}:${row.source_record_id}`,
+    }]
+  })
 
   const portalUtilization = buildPortalUtilizationData({
-    analyticsEvents: analyticsEventsResult.rows,
+    analyticsEvents: eligibleAnalyticsEvents,
     analyticsError: analyticsEventsResult.error?.message ?? null,
     profiles: allProfiles,
     onboardingRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],
     connections: (connectionsResult.data ?? []) as PortalConnectionRow[],
+    participationRows,
+    attendanceRows,
+  })
+  const onboardingAnalytics = buildOnboardingAnalyticsData({
+    profiles: enrichedProfiles,
+    progressRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],
+    participationRows,
   })
   const portalEvents = buildPortalAnalyticsEvents({
     eventRows,
     eventRegistrations,
     profiles: allProfiles,
+    participationRows,
   })
+  const communityEvents = communityResult.error ? [] : buildCommunityAnalyticsEvents({
+    conferences: communityResult.conferences.rows as unknown as CommunityConferenceInput[],
+    historicalConferences: communityResult.historical.rows as unknown as { id: string; name: string; starts_at: string | null; ends_at: string | null }[],
+    conferenceRsvps: communityResult.conferenceRsvps.rows as unknown as CommunityRsvpInput[],
+    meetupRsvps: communityResult.meetupRsvps.rows as unknown as CommunityRsvpInput[],
+    profiles: enrichedProfiles,
+    participationRows,
+  })
+  if (communityResult.error) console.warn("Conference inventory data unavailable", communityResult.error)
   const assembledAnalyticsSnapshot = assembleServerEventAnalytics({
     snapshot: analyticsSnapshot,
     portalEvents,
-    sourceRecords: (analyticsSourceRecordsResult.data ?? []) as AnalyticsSourceRecord[],
+    sourceRecords: allSourceRecords,
   })
 
   const memberInsights: MemberInsightsData = {
@@ -509,10 +762,14 @@ export default async function AdminPage() {
       leadership={leadership}
       memberInsights={memberInsights}
       portalUtilization={portalUtilization}
+      onboardingAnalytics={onboardingAnalytics}
       analyticsSnapshot={assembledAnalyticsSnapshot}
+      mailchimpAnalytics={mailchimpAnalytics}
       analyticsRefresh={analyticsRefresh}
       eventLabelOverrides={eventLabelOverrides}
       portalEvents={portalEvents}
+      communityEvents={communityEvents}
+      communityEventsError={communityResult.error ? "Conference and meetup inventory data could not be loaded; their counts are unavailable." : null}
       teamPermissions={teamPermissions}
       feedback={feedback}
       bannedMembers={bannedMembers}

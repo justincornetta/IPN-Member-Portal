@@ -25,8 +25,11 @@ import argparse
 import json
 import os
 import sys
+import time
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from instagram_archive import fetch_pages, merge_posts, recent_posts
 
 try:
     import requests
@@ -57,7 +60,6 @@ ENV_PATHS = [
 
 GRAPH_BASE_URL = "https://graph.facebook.com/v20.0"
 LOOKBACK_DAYS = 30
-MAX_MEDIA = 100
 MAX_FB_POSTS = 100
 
 
@@ -81,19 +83,35 @@ def api_get(path, token, params=None):
     if params:
         request_params.update(params)
 
-    response = requests.get(f"{GRAPH_BASE_URL}{path}", params=request_params, timeout=30)
-    if response.status_code == 200:
-        return response.json()
-
-    detail = response.text[:400]
-    raise RuntimeError(f"Meta API error {response.status_code} for {path}: {detail}")
+    for attempt in range(3):
+        try:
+            response = requests.get(f"{GRAPH_BASE_URL}{path}", params=request_params, timeout=30)
+        except requests.RequestException:
+            if attempt == 2:
+                raise RuntimeError(f"Meta request failed for {path}; credentials omitted from diagnostics.") from None
+            time.sleep(2 ** attempt)
+            continue
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        error = payload.get("error") or {}
+        if response.status_code == 200 and not error:
+            return payload
+        if response.status_code == 429 or response.status_code >= 500 or error.get("is_transient") or error.get("code") in (4, 17, 32, 613, 80002):
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+        raise RuntimeError(f"Meta API error {response.status_code} (code {error.get('code', 'unknown')}) for {path}; previous data preserved.")
 
 
 def save_json(filename, data):
     DATA_DIR.mkdir(exist_ok=True)
     out_path = DATA_DIR / filename
-    with open(out_path, "w") as f:
-        json.dump(data, f, indent=2)
+    with tempfile.NamedTemporaryFile(mode="w", dir=DATA_DIR, prefix=f".{filename}.", suffix=".tmp", delete=False) as handle:
+        temporary_path = Path(handle.name)
+        json.dump(data, handle, indent=2)
+    os.replace(temporary_path, out_path)
     print(f"  Saved: {out_path}")
 
 
@@ -175,62 +193,36 @@ def pull_instagram_profile(token, ig_account_id):
     )
 
 
-def pull_recent_instagram_media(token, ig_account_id, lookback_days=LOOKBACK_DAYS, max_media=MAX_MEDIA):
+def pull_recent_instagram_media(token, ig_account_id, lookback_days=LOOKBACK_DAYS):
     """Pull recent Instagram media and compute engagement."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
-    endpoint = f"/{ig_account_id}/media"
-    params = {
-        "fields": "id,caption,media_type,media_product_type,timestamp,permalink,like_count,comments_count",
-        "limit": 50,
-    }
+    media, _ = fetch_pages(lambda path, params: api_get(path, token, params), ig_account_id, cutoff=cutoff)
+    return recent_posts(media, datetime.now(timezone.utc), lookback_days)
 
-    media = []
-    next_url = None
-    while len(media) < max_media:
-        if next_url:
-            response = requests.get(next_url, timeout=30)
-            if response.status_code != 200:
-                break
-            data = response.json()
-        else:
-            data = api_get(endpoint, token, params=params)
 
-        batch = data.get("data", [])
-        if not batch:
-            break
-
-        stop_paging = False
-        for item in batch:
-            ts = item.get("timestamp")
-            if not ts:
-                continue
-            dt = _parse_iso(ts)
-            if dt < cutoff:
-                stop_paging = True
-                break
-            media.append(
-                {
-                    "id": item.get("id"),
-                    "timestamp": ts,
-                    "media_type": item.get("media_type"),
-                    "media_product_type": item.get("media_product_type"),
-                    "permalink": item.get("permalink"),
-                    "like_count": item.get("like_count", 0) or 0,
-                    "comments_count": item.get("comments_count", 0) or 0,
-                    "caption": (item.get("caption") or "")[:280],
-                }
-            )
-            if len(media) >= max_media:
-                break
-
-        if stop_paging or len(media) >= max_media:
-            break
-
-        next_url = (data.get("paging") or {}).get("next")
-        if not next_url:
-            break
-
-    return media
+def load_instagram_archive(account_id):
+    path = DATA_DIR / "instagram_media.json"
+    if path.exists():
+        with open(path) as handle:
+            archive = json.load(handle)
+    else:
+        # CI starts with an empty ignored data directory. The published snapshot
+        # is the durable seed, so daily refreshes cannot erase older posts.
+        with open(PROJECT_DIR / "src/lib/admin/analytics/legacy-snapshot.json") as handle:
+            social = json.load(handle).get("social", {})
+        coverage = social.get("instagramArchive") or {}
+        archive = {"account_id": coverage.get("accountId"), "backfill_complete": coverage.get("backfillComplete", False),
+                   "backfilled_at": coverage.get("backfilledAt"), "posts": [
+            {"id": row["id"], "timestamp": row["date"], "caption": row.get("caption"), "media_type": row.get("type"),
+             "permalink": row.get("permalink"), "like_count": row.get("likes"), "comments_count": row.get("comments"),
+             "last_observed_at": row.get("lastObservedAt")}
+            for row in social.get("instagramPosts", []) if row.get("id") and row.get("date")
+        ]}
+    if archive.get("account_id") and str(archive["account_id"]) != str(account_id):
+        raise RuntimeError("Instagram archive belongs to a different account; refusing to mix accounts.")
+    archive["account_id"] = str(account_id)
+    archive["posts"] = merge_posts(archive.get("posts", []), [])
+    return archive
 
 
 def pull_facebook_page_profile(token, page_id):
@@ -456,7 +448,7 @@ def update_facebook_social_stats(fb_profile, fb_posts, pulled_at):
     save_json("social_stats.json", social)
 
 
-def run_instagram():
+def run_instagram(backfill=False, max_pages=20):
     token = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
     if not token:
         raise RuntimeError("INSTAGRAM_ACCESS_TOKEN is required for the Instagram pull.")
@@ -466,6 +458,15 @@ def run_instagram():
     print(f"Using IG account ID: {ig_account_id} ({resolved.get('ig_source')})")
 
     ig_profile = pull_instagram_profile(token, ig_account_id)
+    archive = load_instagram_archive(ig_account_id)
+    if backfill:
+        def checkpoint(batch, after, complete):
+            observed_at = datetime.now(timezone.utc).isoformat()
+            archive["posts"] = merge_posts(archive["posts"], batch, observed_at)
+            archive.update(resume_after=after, backfill_complete=complete, backfilled_at=observed_at)
+            save_json("instagram_media.json", archive)
+        fetch_pages(lambda path, params: api_get(path, token, params), ig_account_id,
+                    max_pages=max_pages, after=archive.get("resume_after"), checkpoint=checkpoint)
     ig_media = pull_recent_instagram_media(token, ig_account_id)
     pulled_at = datetime.now(timezone.utc).isoformat()
     ig_avg_engagement = average_engagement_rate(ig_media, ig_profile.get("followers_count"))
@@ -489,8 +490,10 @@ def run_instagram():
         {
             "account_id": ig_profile.get("id"),
             "username": ig_profile.get("username"),
-            "lookback_days": LOOKBACK_DAYS,
-            "posts": ig_media,
+            **archive,
+            "account_id": str(ig_account_id),
+            "recent_lookback_days": LOOKBACK_DAYS,
+            "posts": merge_posts(archive["posts"], ig_media, pulled_at),
             "pulled_at": pulled_at,
         },
     )
@@ -507,6 +510,7 @@ def run_instagram():
     update_instagram_social_stats(ig_profile, ig_media, pulled_at)
     print(f"Instagram followers: {ig_profile.get('followers_count')}")
     print(f"Instagram recent posts (30d): {len(ig_media)}")
+    print(f"Instagram archived posts: {len(merge_posts(archive['posts'], ig_media))}; accessible-feed backfill complete: {archive.get('backfill_complete', False)}")
     return pulled_at
 
 
@@ -597,7 +601,11 @@ def main():
         choices=("instagram", "facebook", "all"),
         default="all",
     )
+    parser.add_argument("--backfill", action="store_true", help="Archive all accessible Instagram posts; resume local checkpoints.")
+    parser.add_argument("--max-pages", type=int, default=20, help="Backfill page budget per invocation (50 posts/page).")
     args = parser.parse_args()
+    if args.max_pages < 1 or args.max_pages > 200:
+        parser.error("--max-pages must be between 1 and 200")
 
     print("=" * 60)
     print(f"IPN Analytics Dashboard — {args.platform.capitalize()} Data Pull")
@@ -608,7 +616,7 @@ def main():
 
     failures = []
     runners = {
-        "instagram": run_instagram,
+        "instagram": lambda: run_instagram(backfill=args.backfill, max_pages=args.max_pages),
         "facebook": run_facebook,
     }
     platforms = tuple(runners) if args.platform == "all" else (args.platform,)

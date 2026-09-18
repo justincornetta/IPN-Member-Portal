@@ -66,7 +66,7 @@ export function trackPortalEvent(
   payload: Record<string, unknown> = {},
   options: { beacon?: boolean } = {},
 ) {
-  if (typeof window === "undefined") return
+  if (typeof window === "undefined" || process.env.NODE_ENV !== "production") return
 
   const context = getPortalAnalyticsContext()
   const payloadMetadata = payload.metadata && typeof payload.metadata === "object" && !Array.isArray(payload.metadata)

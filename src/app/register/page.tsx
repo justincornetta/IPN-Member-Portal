@@ -21,6 +21,9 @@ import {
   FIELD_OPTIONS,
   FIELD_STATUS_OPTIONS,
   BARRIER_OPTIONS,
+  fieldBarriersApply,
+  applicableFieldBarriers,
+  fieldBarrierError,
   REFERRAL_OPTIONS,
   STEPS,
 } from "@/lib/constants/registration"
@@ -327,8 +330,7 @@ function StepBackground({
   updateBarriers: (v: string[]) => void
   errors: Record<string, string>
 }) {
-  const showBarriers = data.field_status !== "" &&
-    data.field_status !== "Yes — I currently work in the field"
+  const showBarriers = fieldBarriersApply(data.field_status)
 
   function toggleBarrier(option: string) {
     const next = data.barriers.includes(option)
@@ -384,6 +386,7 @@ function StepBackground({
               <span className="text-sm text-zinc-700">{opt}</span>
             </label>
           ))}
+          <FieldError msg={errors.barriers} />
           {data.barriers.includes("Other") && (
             <TextInput id="barriers_other" name="barriers_other"
               value={data.barriers_other} onChange={(v) => update("barriers_other", v)}
@@ -498,8 +501,17 @@ function RegisterPageContent() {
   }, [step])
 
   function update(key: StringFormKey, value: string) {
-    setData((prev) => ({ ...prev, [key]: value }))
-    setErrors((prev) => { const e = { ...prev }; delete e[key]; return e })
+    setData((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === "field_status" && !fieldBarriersApply(value) ? { barriers: [], barriers_other: "" } : {}),
+    }))
+    setErrors((prev) => {
+      const e = { ...prev }
+      delete e[key]
+      if (key === "field_status") delete e.barriers
+      return e
+    })
   }
 
   function handleVerifiedLocation(location: VerifiedLocation | null) {
@@ -516,6 +528,7 @@ function RegisterPageContent() {
 
   function updateBarriers(value: string[]) {
     setData((prev) => ({ ...prev, barriers: value }))
+    setErrors((prev) => { const e = { ...prev }; delete e.barriers; return e })
   }
 
   function validate(s: number): boolean {
@@ -537,6 +550,8 @@ function RegisterPageContent() {
     if (s === 3) {
       if (!data.field) e.field = "Please select one"
       if (!data.field_status) e.field_status = "Please select one"
+      const barrierError = fieldBarrierError(data.field_status, data.barriers)
+      if (barrierError) e.barriers = barrierError
     }
     if (s === 4) {
       if (!data.referral_source) e.referral_source = "Please select one"
@@ -557,11 +572,15 @@ function RegisterPageContent() {
   }
 
   async function submit() {
+    if (!validate(3)) {
+      setStep(3)
+      return
+    }
     if (!validate(4)) return
     setLoading(true)
     setGlobalError(null)
 
-    const barriers = data.barriers.map((b) =>
+    const barriers = applicableFieldBarriers(data.field_status, data.barriers).map((b) =>
       b === "Other" && data.barriers_other ? data.barriers_other : b,
     )
     const analytics = getPortalAnalyticsContext()

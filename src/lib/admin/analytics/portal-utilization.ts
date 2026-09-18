@@ -39,6 +39,21 @@ export type PortalUtilizationConnectionInput = {
   status: string
 }
 
+export type PortalUtilizationParticipationInput = {
+  user_id: string
+  activity_type: string
+  action: "completed" | "cancelled"
+  source_system?: string
+  source_record_id?: string
+  occurred_at: string
+}
+
+export type PortalUtilizationAttendanceInput = {
+  user_id: string
+  occurred_at: string
+  source_record_id: string
+}
+
 export const REGISTRATION_FLOW_STAGES = [
   { id: "home", label: "Home page" },
   { id: "account", label: "Step 1 · Account" },
@@ -98,6 +113,32 @@ export type PortalUtilizationData = {
       email: string
       uniqueSessions: number
     }[]
+  }[]
+  weeklyActiveUsers: {
+    date: string
+    device: UtilizationDevice
+    audience: UtilizationAudience
+    users: number
+  }[]
+  participationCategories: {
+    id: "events" | "resources" | "newsletters" | "connections" | "attendance"
+    label: string
+    members: number
+    actions: number
+  }[]
+  qualifyingActions: {
+    userId: string
+    date: string
+    category: "events" | "resources" | "newsletters" | "connections" | "attendance"
+    actionId: string
+    occurredAt: string
+    label: string
+  }[]
+  signInActions: {
+    userId: string
+    date: string
+    sessionId: string
+    occurredAt: string
   }[]
   errors: {
     date: string
@@ -426,14 +467,17 @@ function sessionCountInWindow(
 function isEngagement(event: PortalUtilizationEventInput) {
   const page = cleanPagePath(event.page_path)
   if (!page.startsWith("/dashboard")) return false
-  if (event.event_name === "curated_click" ||
-      event.event_name === "event_rsvp_created" ||
-      event.event_name === "event_rsvp_cancelled" ||
-      event.event_name === "whatsapp_cta_clicked") {
-    return true
-  }
-  return (event.event_name === "page_duration" || event.event_name === "session_summary") &&
-    (event.click_count ?? 0) > 0
+  if (event.event_name === "event_rsvp_created") return true
+  if (event.event_name !== "curated_click") return false
+  const target = (event.target_id ?? "").toLowerCase()
+  return [
+    "resource-detail-",
+    "resource-external-",
+    "newsletter-",
+    "event-material-",
+    "connection-request-",
+    "connection-accept-",
+  ].some((prefix) => target.startsWith(prefix))
 }
 
 export function buildPortalUtilizationData({
@@ -442,6 +486,8 @@ export function buildPortalUtilizationData({
   profiles,
   onboardingRows,
   connections = [],
+  participationRows = [],
+  attendanceRows = [],
   now = new Date(),
 }: {
   analyticsEvents: PortalUtilizationEventInput[]
@@ -449,6 +495,8 @@ export function buildPortalUtilizationData({
   profiles: PortalUtilizationProfileInput[]
   onboardingRows: PortalUtilizationOnboardingInput[]
   connections?: PortalUtilizationConnectionInput[]
+  participationRows?: PortalUtilizationParticipationInput[]
+  attendanceRows?: PortalUtilizationAttendanceInput[]
   now?: Date
 }): PortalUtilizationData {
   const sortedEvents = analyticsEvents
@@ -475,6 +523,26 @@ export function buildPortalUtilizationData({
   const deviceStats = new Map<Exclude<UtilizationDevice, "all">, { sessions: Set<string>; users: Set<string> }>()
   const activityByKey = new Map<string, ActivityAccumulator>()
   const sessions = new Map<string, SessionAccumulator>()
+  const participationCategoryMembers = new Map<string, Set<string>>()
+  const participationCategoryActions = new Map<string, Set<string>>()
+  const qualifyingActions = new Map<string, PortalUtilizationData["qualifyingActions"][number]>()
+  const signInActions = new Map<string, PortalUtilizationData["signInActions"][number]>()
+  const recordParticipationCategory = (
+    category: PortalUtilizationData["qualifyingActions"][number]["category"],
+    userId: string,
+    actionId: string,
+    date: string,
+    occurredAt: string,
+    label: string,
+  ) => {
+    const members = participationCategoryMembers.get(category) ?? new Set<string>()
+    members.add(userId)
+    participationCategoryMembers.set(category, members)
+    const actions = participationCategoryActions.get(category) ?? new Set<string>()
+    actions.add(actionId)
+    participationCategoryActions.set(category, actions)
+    qualifyingActions.set(`${category}:${actionId}`, { userId, date, category, actionId, occurredAt, label })
+  }
 
   const getFunnel = (date: string, device: UtilizationDevice, audience: UtilizationAudience) => {
     const key = `${date}|${device}|${audience}`
@@ -503,6 +571,10 @@ export function buildPortalUtilizationData({
     const audiences: UtilizationAudience[] = audience === "unknown" ? ["all"] : ["all", audience]
     const devices: UtilizationDevice[] = ["all", device]
     const page = cleanPagePath(event.page_path)
+
+    if (userId && event.event_name === "sign_in_success") {
+      signInActions.set(`${userId}:${key}:${date}`, { userId, date, sessionId: key, occurredAt: event.occurred_at })
+    }
 
     const currentDevice = deviceStats.get(device) ?? { sessions: new Set<string>(), users: new Set<string>() }
     currentDevice.sessions.add(key)
@@ -575,7 +647,21 @@ export function buildPortalUtilizationData({
             sessions: new Map<string, Map<string, Set<string>>>(),
           }
           if (event.event_name === "sign_in_success") addUserDate(activity.signIns, userId, date)
-          if (isEngagement(event)) addUserDate(activity.engagements, userId, date)
+          if (isEngagement(event)) {
+            addUserDate(activity.engagements, userId, date)
+            const target = (event.target_id ?? "").toLowerCase()
+            const category = target.startsWith("newsletter-")
+              ? "newsletters"
+              : target.startsWith("resource-") || target.startsWith("event-material-")
+                ? "resources"
+                : target.startsWith("connection-")
+                  ? "connections"
+                  : null
+            if (category && deviceValue === "all" && audienceValue === "all") {
+              const actionLabel = category === "newsletters" ? "Newsletter/blog opened" : category === "resources" ? "Resource opened" : "Connection action"
+              recordParticipationCategory(category, userId, `${key}:${event.occurred_at}:${event.target_id ?? "action"}`, date, event.occurred_at, event.target_label ? `${actionLabel}: ${event.target_label}` : actionLabel)
+            }
+          }
           addUserSessionDate(activity.sessions, userId, key, date)
           activityByKey.set(activityKey, activity)
         }
@@ -583,9 +669,72 @@ export function buildPortalUtilizationData({
     }
   }
 
+  for (const participation of participationRows) {
+    if (participation.action !== "completed" || !profilesById.has(participation.user_id)) continue
+    const date = dayKey(participation.occurred_at)
+    if (!date) continue
+    const profile = profilesById.get(participation.user_id)
+    const audience: UtilizationAudience = profile?.role ? "leadership" : "member"
+    const sourceSession = `participation:${participation.source_system ?? "source"}:${participation.source_record_id ?? participation.occurred_at}`
+    const category = participation.activity_type === "connection_request_sent" ? "connections" : "events"
+    recordParticipationCategory(category, participation.user_id, sourceSession, date, participation.occurred_at, participation.activity_type.replaceAll("_", " "))
+    for (const [device, audienceValue] of [
+      ["all", "all"],
+      ["all", audience],
+      ["unknown", "all"],
+      ["unknown", audience],
+    ] as [UtilizationDevice, UtilizationAudience][]) {
+      const activityKey = `${device}|${audienceValue}`
+      const activity = activityByKey.get(activityKey) ?? {
+        signIns: new Map<string, Set<string>>(),
+        engagements: new Map<string, Set<string>>(),
+        sessions: new Map<string, Map<string, Set<string>>>(),
+      }
+      addUserDate(activity.engagements, participation.user_id, date)
+      addUserSessionDate(activity.sessions, participation.user_id, sourceSession, date)
+      activityByKey.set(activityKey, activity)
+    }
+  }
+
+
+  for (const attendance of attendanceRows) {
+    if (!profilesById.has(attendance.user_id)) continue
+    const date = dayKey(attendance.occurred_at)
+    if (!date) continue
+    const profile = profilesById.get(attendance.user_id)
+    const audience: UtilizationAudience = profile?.role ? "leadership" : "member"
+    const sourceSession = `attendance:${attendance.source_record_id}`
+    recordParticipationCategory("attendance", attendance.user_id, sourceSession, date, attendance.occurred_at, "Event attended")
+    for (const [device, audienceValue] of [
+      ["all", "all"],
+      ["all", audience],
+      ["unknown", "all"],
+      ["unknown", audience],
+    ] as [UtilizationDevice, UtilizationAudience][]) {
+      const activityKey = `${device}|${audienceValue}`
+      const activity = activityByKey.get(activityKey) ?? {
+        signIns: new Map<string, Set<string>>(),
+        engagements: new Map<string, Set<string>>(),
+        sessions: new Map<string, Map<string, Set<string>>>(),
+      }
+      addUserDate(activity.engagements, attendance.user_id, date)
+      addUserSessionDate(activity.sessions, attendance.user_id, sourceSession, date)
+      activityByKey.set(activityKey, activity)
+    }
+  }
+
   const eventDates = sortedEvents
     .map((event) => dayKey(event.occurred_at))
     .filter((date): date is string => Boolean(date))
+  eventDates.push(...participationRows
+    .filter((row) => row.action === "completed" && profilesById.has(row.user_id))
+    .map((row) => dayKey(row.occurred_at))
+    .filter((date): date is string => Boolean(date)))
+  eventDates.push(...attendanceRows
+    .filter((row) => profilesById.has(row.user_id))
+    .map((row) => dayKey(row.occurred_at))
+    .filter((date): date is string => Boolean(date)))
+  eventDates.sort()
   const firstDate = eventDates[0] ?? null
   const currentDate = dayKey(now.toISOString())
   const lastEventDate = eventDates.at(-1) ?? null
@@ -603,8 +752,7 @@ export function buildPortalUtilizationData({
         const start = new Date(end.getTime() - 29 * DAY_MS).toISOString().slice(0, 10)
         const members: PortalUtilizationData["monthlyActiveUsers"][number]["members"] = []
         for (const userId of users) {
-          if (hasDateInWindow(activity.signIns.get(userId), start, date) &&
-              hasDateInWindow(activity.engagements.get(userId), start, date)) {
+          if (hasDateInWindow(activity.engagements.get(userId), start, date)) {
             const profile = profilesById.get(userId)
             members.push({
               userId,
@@ -620,6 +768,22 @@ export function buildPortalUtilizationData({
           a.email.localeCompare(b.email)
         ))
         monthlyActiveUsers.push({ date, device, audience, users: members.length, members })
+      }
+    }
+  }
+
+
+  const weeklyActiveUsers: PortalUtilizationData["weeklyActiveUsers"] = []
+  if (firstDate && lastDate) {
+    for (const [key, activity] of activityByKey.entries()) {
+      const [device, audience] = key.split("|") as [UtilizationDevice, UtilizationAudience]
+      for (const date of dateSequence(firstDate, lastDate)) {
+        const end = new Date(`${date}T00:00:00.000Z`)
+        const start = new Date(end.getTime() - 6 * DAY_MS).toISOString().slice(0, 10)
+        const users = Array.from(activity.engagements.keys())
+          .filter((userId) => hasDateInWindow(activity.engagements.get(userId), start, date))
+          .length
+        weeklyActiveUsers.push({ date, device, audience, users })
       }
     }
   }
@@ -841,6 +1005,20 @@ export function buildPortalUtilizationData({
         .sort((a, b) => a.date.localeCompare(b.date)),
     },
     monthlyActiveUsers,
+    weeklyActiveUsers,
+    participationCategories: ([
+      { id: "events", label: "Event RSVPs", members: 0, actions: 0 },
+      { id: "resources", label: "Resource opens", members: 0, actions: 0 },
+      { id: "newsletters", label: "Newsletter opens", members: 0, actions: 0 },
+      { id: "connections", label: "Connections", members: 0, actions: 0 },
+      { id: "attendance", label: "Events attended", members: 0, actions: 0 },
+    ] satisfies PortalUtilizationData["participationCategories"]).map((category) => ({
+      ...category,
+      members: participationCategoryMembers.get(category.id)?.size ?? 0,
+      actions: participationCategoryActions.get(category.id)?.size ?? 0,
+    })),
+    qualifyingActions: Array.from(qualifyingActions.values()).sort((a, b) => a.date.localeCompare(b.date)),
+    signInActions: Array.from(signInActions.values()).sort((a, b) => a.date.localeCompare(b.date)),
     errors: Array.from(errorsByKey.values()).sort((a, b) => (
       a.date.localeCompare(b.date) || b.count - a.count
     )),

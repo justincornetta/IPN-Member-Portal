@@ -451,6 +451,9 @@ test("product tour keeps fallback progress across dashboard route changes", asyn
   assert.match(provider, /serverCompletedAt/)
   assert.match(provider, /serverCurrentStep/)
   assert.match(provider, /serverStartedAt/)
+  assert.match(provider, /const legacy = parseProductTourProgress/)
+  assert.match(provider, /!serverHasProgress && legacy/)
+  assert.match(provider, /legacyTransferAttemptedRef/)
   const moveStart = provider.indexOf("const move = useCallback")
   assert.ok(
     provider.indexOf("router.push(PRODUCT_TOUR_STEPS[next.stepIndex].route)", moveStart)

@@ -36,6 +36,7 @@ import {
   membershipGeographyKey,
 } from "../src/lib/admin/analytics/membership-geography.ts"
 import { assembleServerEventAnalytics } from "../src/lib/admin/analytics/events.ts"
+import { buildMailchimpAudienceMetrics } from "../src/lib/admin/analytics/mailchimp.ts"
 import {
   buildOtherVariantItems,
   OTHER_WITHOUT_DETAILS,
@@ -47,6 +48,10 @@ import {
   buildRegistrationStepFlow,
   portalPageCategory,
 } from "../src/lib/admin/analytics/portal-utilization.ts"
+import {
+  buildOnboardingAnalyticsData,
+  isAnalyticsEligible,
+} from "../src/lib/admin/analytics/onboarding.ts"
 import { validateAndMergeAnalyticsSnapshot } from "../scripts/validate-analytics-snapshot.mjs"
 import {
   analyticsGranularityBucket,
@@ -430,6 +435,12 @@ test("portal utilization resolves member type, rolling activity, errors, pages, 
         target_id: "sidebar-feedback-open",
         target_label: "Feedback",
       }),
+      event("curated_click", "member-session", "2026-07-10T10:05:00Z", {
+        page_path: "/dashboard/resources",
+        user_id: memberId,
+        target_id: "resource-detail-guide",
+        target_label: "Research guide",
+      }),
       event("page_view", "leader-session", "2026-07-11T10:00:00Z", { page_path: "/login" }),
       event("sign_in_success", "leader-session", "2026-07-11T10:01:00Z", { page_path: "/login", user_id: leaderId }),
       event("page_view", "leader-session", "2026-07-11T10:02:00Z", { page_path: "/dashboard/directory", user_id: leaderId }),
@@ -438,6 +449,12 @@ test("portal utilization resolves member type, rolling activity, errors, pages, 
         user_id: leaderId,
         click_count: 1,
         duration_seconds: 30,
+      }),
+      event("curated_click", "leader-session", "2026-07-11T10:04:00Z", {
+        page_path: "/dashboard/directory",
+        user_id: leaderId,
+        target_id: `connection-accept-${memberId}`,
+        target_label: "Accept connection request",
       }),
       event("sign_in_error", "failed-session", "2026-07-12T10:00:00Z", { page_path: "/login", error_code: "Invalid login credentials" }),
       event("page_view", "registration-session", "2026-07-13T09:59:00Z", { page_path: "/" }),
@@ -454,6 +471,12 @@ test("portal utilization resolves member type, rolling activity, errors, pages, 
         user_id: memberId,
         duration_seconds: 42,
       }),
+      event("curated_click", "registration-session", "2026-07-13T10:03:00Z", {
+        page_path: "/dashboard/resources",
+        user_id: memberId,
+        target_id: "newsletter-september-2026",
+        target_label: "Newsletter issue",
+      }),
     ],
   })
 
@@ -461,6 +484,7 @@ test("portal utilization resolves member type, rolling activity, errors, pages, 
   assert.equal(result.funnel.find((row) => row.date === "2026-07-11" && row.audience === "leadership" && row.device === "all")?.signInCompleted, 1)
   assert.equal(result.monthlyActiveUsers.find((row) => row.date === "2026-07-15" && row.audience === "all" && row.device === "all")?.users, 2)
   assert.equal(result.monthlyActiveUsers.find((row) => row.date === "2026-07-15" && row.audience === "all" && row.device === "all")?.members.find((member) => member.userId === memberId)?.uniqueSessions, 2)
+  assert.equal(result.weeklyActiveUsers.find((row) => row.date === "2026-07-15" && row.audience === "all" && row.device === "all")?.users, 2)
   assert.equal(result.pageViews.find((row) => row.date === "2026-07-10" && row.page === "Dashboard" && row.audience === "member" && row.device === "all")?.views, 1)
   assert.equal(result.pageViews.find((row) => row.page === "Feedback" && row.audience === "member" && row.device === "all")?.views, 1)
   assert.equal(result.errors.filter((row) => row.audience === "member").length, 0)
@@ -487,7 +511,7 @@ test("portal utilization resolves member type, rolling activity, errors, pages, 
   const registrationStepFlow = buildRegistrationStepFlow(registrationFlowRow)
   assert.equal(registrationStepFlow.nodes.find((node) => node.label === "Registration completed")?.sessions, 1)
   assert.equal(registrationStepFlow.links.length, 5)
-  assert.equal(result.journeys.find((journey) => journey.startType === "registration")?.steps.at(-1)?.label, "Events")
+  assert.equal(result.journeys.find((journey) => journey.startType === "registration")?.steps.at(-1)?.label, "Newsletter issue")
   assert.equal(result.journeys.find((journey) => journey.sessionId === "member-session")?.durationSeconds, 95)
   assert.equal(
     result.journeys
@@ -517,6 +541,64 @@ test("portal utilization resolves member type, rolling activity, errors, pages, 
   assert.equal(signInFlow.nodes.find((node) => node.step === 0)?.sessions, 2)
   assert.equal(signInFlow.nodes.some((node) => node.label === "Dashboard"), true)
   assert.equal(signInFlow.links.reduce((sum, link) => sum + (link.source === 0 ? link.value : 0), 0), 2)
+})
+
+test("member analytics excludes suspended and explicitly excluded accounts", () => {
+  assert.equal(isAnalyticsEligible({ is_banned: false, exclude_from_analytics: false }), true)
+  assert.equal(isAnalyticsEligible({ is_banned: true, exclude_from_analytics: false }), false)
+  assert.equal(isAnalyticsEligible({ is_banned: false, exclude_from_analytics: true }), false)
+})
+
+test("onboarding uses earliest proved participation and never lets cancellation undo completion", () => {
+  const data = buildOnboardingAnalyticsData({
+    now: new Date("2026-09-14T12:00:00Z"),
+    profiles: [{
+      id: "member-1",
+      first_name: "Avery",
+      last_name: "Member",
+      email: "avery@example.com",
+      created_at: "2026-07-01T12:00:00Z",
+      last_sign_in_at: "2026-09-13T12:00:00Z",
+      whatsapp_url: "https://wa.me/15555555555",
+      is_banned: false,
+      exclude_from_analytics: false,
+    }, {
+      id: "test-1",
+      first_name: "Test",
+      last_name: "Account",
+      email: "test@example.com",
+      exclude_from_analytics: true,
+    }],
+    progressRows: [{
+      user_id: "member-1",
+      whatsapp_current_step: "self_attested",
+      whatsapp_completed_at: "2026-07-02T12:00:00Z",
+      profile_completed_at: "2026-07-03T12:00:00Z",
+      product_tour_completed_at: "2026-07-04T12:00:00Z",
+      event_rsvp_completed_at: "2026-07-10T12:00:00Z",
+      connection_request_completed_at: null,
+    }],
+    participationRows: [{
+      user_id: "member-1",
+      activity_type: "portal_event_rsvp",
+      action: "completed",
+      occurred_at: "2026-07-05T12:00:00Z",
+    }, {
+      user_id: "member-1",
+      activity_type: "portal_event_rsvp",
+      action: "cancelled",
+      occurred_at: "2026-07-06T12:00:00Z",
+    }],
+  })
+
+  assert.equal(data.eligibleMembers, 1)
+  assert.equal(data.excludedMembers, 1)
+  assert.equal(data.completedMembers, 1)
+  assert.equal(data.members[0].milestone4OccurredAt, "2026-07-05T12:00:00Z")
+  assert.equal(data.members[0].milestone4Activity, "Portal event RSVP")
+  assert.equal(data.members[0].whatsappStatus, "already_in")
+  assert.equal(data.members[0].whatsappContactProvided, true)
+  assert.equal(data.members[0].participation.length, 2)
 })
 
 test("registration flow exposes step conversion and drop-off branches", () => {
@@ -988,4 +1070,32 @@ test("watch and basic source states are cautions rather than connection errors",
   assert.equal(analyticsSourceIsHealthy("watch", refreshedAt), true)
   assert.equal(analyticsSourceIsHealthy("basic", refreshedAt), true)
   assert.equal(analyticsSourceIsHealthy("error", refreshedAt), false)
+})
+
+test("Mailchimp rolling counts deduplicate the same contact across audiences", () => {
+  const analytics = {
+    available: true,
+    firstSyncedAt: "2026-09-15T10:00:00Z",
+    lastSyncedAt: "2026-09-15T10:00:00Z",
+    contacts: [
+      { audienceId: "members", audienceName: "Members", subscriberHash: "same", status: "subscribed" },
+      { audienceId: "partners", audienceName: "Partners", subscriberHash: "same", status: "subscribed" },
+      { audienceId: "members", audienceName: "Members", subscriberHash: "member-only", status: "subscribed" },
+      { audienceId: "members", audienceName: "Members", subscriberHash: "former", status: "unsubscribed" },
+    ],
+    events: [
+      { audienceId: "members", audienceName: "Members", subscriberHash: "same", newStatus: "subscribed", occurredAt: "2026-09-01T00:00:00Z", source: "initial_backfill" },
+      { audienceId: "partners", audienceName: "Partners", subscriberHash: "same", newStatus: "subscribed", occurredAt: "2026-09-02T00:00:00Z", source: "initial_backfill" },
+      { audienceId: "members", audienceName: "Members", subscriberHash: "former", newStatus: "unsubscribed", occurredAt: "2026-09-10T00:00:00Z", source: "daily_reconciliation" },
+      { audienceId: "members", audienceName: "Members", subscriberHash: "old", newStatus: "subscribed", occurredAt: "2026-08-01T00:00:00Z", source: "initial_backfill" },
+    ],
+  }
+
+  assert.deepEqual(buildMailchimpAudienceMetrics(analytics, "all", "2026-09-15"), {
+    subscribers: 2,
+    newSubscribers30d: 1,
+    unsubscribes30d: 1,
+    includesBackfill: true,
+  })
+  assert.equal(buildMailchimpAudienceMetrics(analytics, "Members", "2026-09-15").subscribers, 2)
 })
