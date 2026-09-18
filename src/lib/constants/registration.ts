@@ -60,8 +60,26 @@ export const BARRIER_OPTIONS = [
   "I'm not ready to commit to this field",
   "I'm interested but feel underqualified",
   "I'm working in a related field for now",
+  "I'm not interested in the field",
   "Other",
 ] as const
+
+export function fieldBarriersApply(status: string) {
+  return FIELD_STATUS_OPTIONS.slice(1).some((option) => option === status)
+}
+
+export function applicableFieldBarriers(status: string, barriers: unknown): string[] {
+  if (!fieldBarriersApply(status) || !Array.isArray(barriers)) return []
+  return barriers
+    .filter((value): value is string => typeof value === "string" && !!value.trim())
+    .map((value) => value.trim())
+}
+
+export function fieldBarrierError(status: string, barriers: unknown): string | undefined {
+  if (fieldBarriersApply(status) && applicableFieldBarriers(status, barriers).length === 0) {
+    return "Please select at least one reason."
+  }
+}
 
 function barrierKey(value: string | null | undefined) {
   return String(value ?? "")
