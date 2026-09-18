@@ -14,7 +14,12 @@ import type { PortalAnalyticsEventName } from "@/lib/portal-analytics/events"
 import {
   syncProfileOnboardingCompletion,
 } from "@/lib/onboarding/progress"
-import { STUDENT_BACKGROUNDS } from "@/lib/constants/registration"
+import {
+  STUDENT_BACKGROUNDS,
+  FIELD_STATUS_OPTIONS,
+  fieldBarrierError,
+  applicableFieldBarriers,
+} from "@/lib/constants/registration"
 import {
   compactEducationEntries,
   educationLevelForPersona,
@@ -145,6 +150,12 @@ export async function signUp(
   next?: string,
   analytics?: AnalyticsContext,
 ): Promise<{ error: string } | void> {
+  if (!FIELD_STATUS_OPTIONS.some((status) => status === data.psychedelic_field_status)) {
+    return { error: "Please select your field status." }
+  }
+  const barrierError = fieldBarrierError(data.psychedelic_field_status, data.psychedelic_field_barriers)
+  if (barrierError) return { error: barrierError }
+
   if (data.referral_source === "Other" && !data.referral_source_other?.trim()) {
     return { error: "Please tell us how you heard about IPN." }
   }
@@ -174,7 +185,7 @@ export async function signUp(
         school: data.school,
         field: data.field,
         psychedelic_field_status: data.psychedelic_field_status,
-        psychedelic_field_barriers: data.psychedelic_field_barriers,
+        psychedelic_field_barriers: applicableFieldBarriers(data.psychedelic_field_status, data.psychedelic_field_barriers),
         role_and_goals: data.role_and_goals,
         inspiration: data.inspiration,
         support_needs: data.support_needs,
