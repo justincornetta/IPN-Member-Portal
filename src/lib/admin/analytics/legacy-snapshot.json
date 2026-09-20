@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T14:02:52.895Z",
+  "generatedAt": "2026-09-20T14:23:18.110Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -9,7 +9,7 @@
       "mode": "Server snapshot",
       "lastPull": "2026-07-06T02:41:21.482864+00:00",
       "note": "2089 deduped records",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
       "lastSuccessfulAt": "2026-07-06T02:41:21.482864+00:00"
     },
     {
@@ -17,60 +17,60 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-09-19T14:00:34.495314+00:00",
+      "lastPull": "2026-09-20T14:21:19.132383+00:00",
       "note": "1901 subscribers",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:00:34.495314+00:00"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:21:19.132383+00:00"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-09-19T14:00:42.660603+00:00",
+      "lastPull": "2026-09-20T14:21:21.097947+00:00",
       "note": "4689 followers",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:00:42.660603+00:00"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:21:21.097947+00:00"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-09-19T14:00:43.117114+00:00",
+      "lastPull": "2026-09-20T14:21:21.393353+00:00",
       "note": "3143 followers",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:00:43.117114+00:00"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:21:21.393353+00:00"
     },
     {
       "id": "website",
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-09-19T14:01:01.300361+00:00",
-      "note": "499 sessions in 30d",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:01:01.300361+00:00"
+      "lastPull": "2026-09-20T14:21:36.433810+00:00",
+      "note": "504 sessions in 30d",
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:21:36.433810+00:00"
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-09-19T14:01:24.756899+00:00",
+      "lastPull": "2026-09-20T14:21:54.538062+00:00",
       "note": "11 events",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:01:24.756899+00:00"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:21:54.538062+00:00"
     },
     {
       "id": "eventbrite",
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-09-19T14:02:39.908601+00:00",
+      "lastPull": "2026-09-20T14:23:09.851055+00:00",
       "note": "10 events",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:02:39.908601+00:00"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:23:09.851055+00:00"
     },
     {
       "id": "webapp",
@@ -79,8 +79,8 @@
       "mode": "Manual/TBD",
       "lastPull": null,
       "note": "Live Supabase portal metrics shown separately",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:02:39.947Z"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:23:09.885Z"
     },
     {
       "id": "whatsapp",
@@ -89,8 +89,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "Community metrics data model pending",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:02:39.947Z"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:23:09.885Z"
     },
     {
       "id": "search-console",
@@ -99,8 +99,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "SEO query metrics pending",
-      "lastAttemptedAt": "2026-09-19T14:02:39.947Z",
-      "lastSuccessfulAt": "2026-09-19T14:02:39.947Z"
+      "lastAttemptedAt": "2026-09-20T14:23:09.885Z",
+      "lastSuccessfulAt": "2026-09-20T14:23:09.885Z"
     }
   ],
   "overview": {
@@ -961,7 +961,7 @@
       "avgOpenRate": 24,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 352,
-      "pulledAt": "2026-09-19T14:00:34.495314+00:00"
+      "pulledAt": "2026-09-20T14:21:19.132383+00:00"
     },
     "lists": [
       {
@@ -15092,7 +15092,7 @@
         "engagementRate": 0.47,
         "postsThisMonth": 1,
         "status": "live",
-        "updatedAt": "2026-09-19T14:00:42.660603+00:00"
+        "updatedAt": "2026-09-20T14:21:21.097947+00:00"
       },
       {
         "id": "facebook",
@@ -15101,7 +15101,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-09-19T14:00:43.117114+00:00"
+        "updatedAt": "2026-09-20T14:21:21.393353+00:00"
       },
       {
         "id": "linkedin",
@@ -15691,7 +15691,7 @@
         "posts": 0
       },
       {
-        "date": "2026-09-19T14:00:42.660603+00:00",
+        "date": "2026-09-20T14:21:21.097947+00:00",
         "month": "2026-09",
         "channel": "instagram",
         "followers": 4689,
@@ -15699,7 +15699,7 @@
         "posts": 1
       },
       {
-        "date": "2026-09-19T14:00:43.117114+00:00",
+        "date": "2026-09-20T14:21:21.393353+00:00",
         "month": "2026-09",
         "channel": "facebook",
         "followers": 3143,
@@ -15717,7 +15717,7 @@
         "comments": 1,
         "engagement": 22,
         "permalink": "https://www.instagram.com/p/Dcy7bqfFIfI/",
-        "lastObservedAt": "2026-09-19T14:00:42.660603+00:00"
+        "lastObservedAt": "2026-09-20T14:21:21.097947+00:00"
       },
       {
         "id": "18136212214584918",
@@ -15740,32 +15740,28 @@
   },
   "website": {
     "overview": {
-      "sessions_30d": 499,
-      "unique_visitors_30d": 407,
-      "pageviews_30d": 669,
+      "sessions_30d": 504,
+      "unique_visitors_30d": 415,
+      "pageviews_30d": 660,
       "bounce_rate": 0.66,
-      "avg_session_duration": 76.27,
-      "new_users_30d": 398,
-      "sessions_prev_30d": 577,
-      "unique_visitors_prev_30d": 520,
-      "sessions_mom_pct": -13.5,
-      "visitors_mom_pct": -21.7,
+      "avg_session_duration": 73.52,
+      "new_users_30d": 406,
+      "sessions_prev_30d": 560,
+      "unique_visitors_prev_30d": 499,
+      "sessions_mom_pct": -10,
+      "visitors_mom_pct": -16.8,
       "new_vs_returning": {
         "new": {
-          "sessions": 396,
-          "users": 395
+          "sessions": 404,
+          "users": 403
         },
         "returning": {
-          "sessions": 81,
+          "sessions": 76,
           "users": 41
         },
         "(not set)": {
-          "sessions": 22,
+          "sessions": 24,
           "users": 0
-        },
-        "": {
-          "sessions": 3,
-          "users": 3
         }
       }
     },
@@ -15826,24 +15822,15 @@
       },
       {
         "month": "2026-09",
-        "sessions": 336,
-        "users": 279,
-        "pageviews": 445,
+        "sessions": 354,
+        "users": 293,
+        "pageviews": 464,
         "bounceRate": 65,
-        "avgDuration": 79.9,
-        "newUsers": 272
+        "avgDuration": 76.14,
+        "newUsers": 286
       }
     ],
     "dailyTrend": [
-      {
-        "date": "2026-06-21",
-        "sessions": 10,
-        "users": 9,
-        "pageviews": 10,
-        "bounceRate": 80,
-        "avgDuration": 13.01,
-        "newUsers": 9
-      },
       {
         "date": "2026-06-22",
         "sessions": 31,
@@ -16638,35 +16625,44 @@
       },
       {
         "date": "2026-09-18",
-        "sessions": 12,
-        "users": 12,
-        "pageviews": 13,
-        "bounceRate": 100,
-        "avgDuration": 2.4,
-        "newUsers": 11
+        "sessions": 13,
+        "users": 13,
+        "pageviews": 14,
+        "bounceRate": 69,
+        "avgDuration": 7.52,
+        "newUsers": 12
+      },
+      {
+        "date": "2026-09-19",
+        "sessions": 17,
+        "users": 14,
+        "pageviews": 18,
+        "bounceRate": 88,
+        "avgDuration": 2.19,
+        "newUsers": 13
       }
     ],
     "devices": [
       {
         "label": "desktop",
-        "sessions": 409,
-        "users": 329
+        "sessions": 417,
+        "users": 338
       },
       {
         "label": "mobile",
-        "sessions": 90,
-        "users": 78
+        "sessions": 87,
+        "users": 77
       }
     ],
     "channels": [
       {
         "label": "Direct",
-        "sessions": 329,
-        "users": 290
+        "sessions": 336,
+        "users": 299
       },
       {
         "label": "Organic Search",
-        "sessions": 109,
+        "sessions": 108,
         "users": 79
       },
       {
@@ -16680,32 +16676,27 @@
         "users": 21
       },
       {
-        "label": "Unassigned",
-        "sessions": 8,
-        "users": 8
-      },
-      {
         "label": "AI Assistant",
         "sessions": 7,
         "users": 3
       },
       {
-        "label": "Cross-network",
-        "sessions": 1,
-        "users": 1
+        "label": "Unassigned",
+        "sessions": 4,
+        "users": 4
       }
     ],
     "sources": [
       {
         "source": "(direct)",
         "medium": "(none)",
-        "sessions": 329,
-        "users": 290
+        "sessions": 336,
+        "users": 299
       },
       {
         "source": "google",
         "medium": "organic",
-        "sessions": 97,
+        "sessions": 96,
         "users": 69
       },
       {
@@ -16727,12 +16718,6 @@
         "users": 9
       },
       {
-        "source": "(not set)",
-        "medium": "(not set)",
-        "sessions": 8,
-        "users": 8
-      },
-      {
         "source": "bing",
         "medium": "organic",
         "sessions": 7,
@@ -16743,6 +16728,12 @@
         "medium": "ai-assistant",
         "sessions": 7,
         "users": 3
+      },
+      {
+        "source": "(not set)",
+        "medium": "(not set)",
+        "sessions": 4,
+        "users": 4
       },
       {
         "source": "duckduckgo",
@@ -16773,12 +16764,6 @@
         "medium": "organic",
         "sessions": 2,
         "users": 2
-      },
-      {
-        "source": "(data not available)",
-        "medium": "(data not available)",
-        "sessions": 1,
-        "users": 1
       },
       {
         "source": "beyondapprovalpsych.substack.com",
@@ -16815,18 +16800,29 @@
         "medium": "referral",
         "sessions": 1,
         "users": 1
+      },
+      {
+        "source": "philadelic.org",
+        "medium": "referral",
+        "sessions": 1,
+        "users": 1
       }
     ],
     "countries": [
       {
         "label": "United States",
-        "sessions": 264,
+        "sessions": 259,
         "users": 189
       },
       {
         "label": "Singapore",
-        "sessions": 133,
-        "users": 133
+        "sessions": 140,
+        "users": 140
+      },
+      {
+        "label": "China",
+        "sessions": 10,
+        "users": 10
       },
       {
         "label": "Germany",
@@ -16834,12 +16830,12 @@
         "users": 10
       },
       {
-        "label": "China",
-        "sessions": 9,
-        "users": 9
+        "label": "Canada",
+        "sessions": 8,
+        "users": 5
       },
       {
-        "label": "Canada",
+        "label": "Sweden",
         "sessions": 8,
         "users": 5
       },
@@ -16850,11 +16846,6 @@
       },
       {
         "label": "Ireland",
-        "sessions": 6,
-        "users": 5
-      },
-      {
-        "label": "Sweden",
         "sessions": 6,
         "users": 5
       },
@@ -16922,28 +16913,28 @@
     "cities": [
       {
         "label": "Singapore",
-        "sessions": 132,
-        "users": 132
+        "sessions": 139,
+        "users": 139
       },
       {
         "label": "(not set)",
-        "sessions": 41,
-        "users": 41
+        "sessions": 46,
+        "users": 45
       },
       {
         "label": "Readington Township",
-        "sessions": 28,
+        "sessions": 24,
         "users": 1
       },
       {
         "label": "New York",
-        "sessions": 16,
-        "users": 14
+        "sessions": 15,
+        "users": 13
       },
       {
         "label": "Ashburn",
-        "sessions": 15,
-        "users": 14
+        "sessions": 14,
+        "users": 13
       },
       {
         "label": "Denver",
@@ -17016,67 +17007,67 @@
         "users": 4
       },
       {
-        "label": "Austin",
+        "label": "Atlanta",
         "sessions": 3,
-        "users": 2
+        "users": 3
       }
     ],
     "pages": [
       {
         "path": "/",
         "title": "Intercollegiate Psychedelics Network | Join the Movement",
-        "pageviews": 331,
-        "users": 253,
-        "avgDuration": 65.12,
+        "pageviews": 329,
+        "users": 256,
+        "avgDuration": 64.53,
         "bounceRate": 61
-      },
-      {
-        "path": "/our-team",
-        "title": "Our Team | Engage with Leaders — Intercollegiate Psychedelics Network",
-        "pageviews": 60,
-        "users": 51,
-        "avgDuration": 85.68,
-        "bounceRate": 23
       },
       {
         "path": "/psychedelx",
         "title": "PsychedelX | Join the Movement — Intercollegiate Psychedelics Network",
-        "pageviews": 58,
-        "users": 42,
-        "avgDuration": 83.22,
-        "bounceRate": 48
+        "pageviews": 59,
+        "users": 43,
+        "avgDuration": 81.86,
+        "bounceRate": 49
+      },
+      {
+        "path": "/our-team",
+        "title": "Our Team | Engage with Leaders — Intercollegiate Psychedelics Network",
+        "pageviews": 56,
+        "users": 49,
+        "avgDuration": 83.55,
+        "bounceRate": 24
       },
       {
         "path": "/about-ipn",
         "title": "About IPN | Empower Your Mind — Intercollegiate Psychedelics Network",
-        "pageviews": 48,
-        "users": 37,
-        "avgDuration": 82.87,
+        "pageviews": 44,
+        "users": 35,
+        "avgDuration": 89.56,
         "bounceRate": 30
       },
       {
         "path": "/become-a-member",
         "title": "Become A Member | Join Our Community — Intercollegiate Psychedelics Network",
-        "pageviews": 33,
-        "users": 29,
-        "avgDuration": 32.73,
+        "pageviews": 30,
+        "users": 27,
+        "avgDuration": 28.95,
         "bounceRate": 42
       },
       {
         "path": "/partners",
         "title": "Partners | Join Forces Today — Intercollegiate Psychedelics Network",
-        "pageviews": 18,
-        "users": 18,
-        "avgDuration": 21.5,
-        "bounceRate": 17
+        "pageviews": 17,
+        "users": 17,
+        "avgDuration": 19.98,
+        "bounceRate": 18
       },
       {
         "path": "/our-board",
         "title": "Board of Advisors | Explore Our Leaders — Intercollegiate Psychedelics Network",
-        "pageviews": 17,
-        "users": 16,
-        "avgDuration": 15.96,
-        "bounceRate": 24
+        "pageviews": 16,
+        "users": 15,
+        "avgDuration": 15.42,
+        "bounceRate": 25
       },
       {
         "path": "/blog/2024/01/05/integrating-psychedelics-and-paralysis",
@@ -17087,36 +17078,36 @@
         "bounceRate": 38
       },
       {
-        "path": "/blog",
-        "title": "Blog 1 — Intercollegiate Psychedelics Network",
-        "pageviews": 12,
-        "users": 12,
-        "avgDuration": 38.37,
-        "bounceRate": 42
-      },
-      {
         "path": "/contact",
         "title": "Contact | Connect with Us — Intercollegiate Psychedelics Network",
-        "pageviews": 11,
-        "users": 10,
-        "avgDuration": 4.34,
-        "bounceRate": 50
+        "pageviews": 12,
+        "users": 11,
+        "avgDuration": 3.94,
+        "bounceRate": 55.00000000000001
       },
       {
         "path": "/psychedelx/",
         "title": "PsychedelX | Join the Movement — Intercollegiate Psychedelics Network",
-        "pageviews": 10,
-        "users": 7,
-        "avgDuration": 19.87,
-        "bounceRate": 70
+        "pageviews": 12,
+        "users": 8,
+        "avgDuration": 23.52,
+        "bounceRate": 55.00000000000001
+      },
+      {
+        "path": "/blog",
+        "title": "Blog 1 — Intercollegiate Psychedelics Network",
+        "pageviews": 11,
+        "users": 11,
+        "avgDuration": 34.57,
+        "bounceRate": 45
       },
       {
         "path": "/cart",
         "title": "Intercollegiate Psychedelics Network",
         "pageviews": 8,
         "users": 8,
-        "avgDuration": 3.25,
-        "bounceRate": 50
+        "avgDuration": 2.68,
+        "bounceRate": 62
       },
       {
         "path": "/donate",
@@ -17125,6 +17116,14 @@
         "users": 7,
         "avgDuration": 5.98,
         "bounceRate": 56.99999999999999
+      },
+      {
+        "path": "/blog/2024/05/31/interview-of-psychedelx-co-founder-haley-dourron",
+        "title": "Interview of PsychedelX Co-Founder, Haley Dourron — Intercollegiate Psychedelics Network",
+        "pageviews": 5,
+        "users": 3,
+        "avgDuration": 4.38,
+        "bounceRate": 80
       },
       {
         "path": "/2023/07/12/what-is-it/",
@@ -17159,14 +17158,6 @@
         "bounceRate": 100
       },
       {
-        "path": "/blog/2024/05/31/interview-of-psychedelx-co-founder-haley-dourron",
-        "title": "Interview of PsychedelX Co-Founder, Haley Dourron — Intercollegiate Psychedelics Network",
-        "pageviews": 3,
-        "users": 3,
-        "avgDuration": 7.3,
-        "bounceRate": 67
-      },
-      {
         "path": "/blog/why-different-psychedelics-feel-different",
         "title": "Why Different Psychedelics Feel Different — Intercollegiate Psychedelics Network",
         "pageviews": 3,
@@ -17179,31 +17170,31 @@
         "title": "Intercollegiate Psychedelics Network",
         "pageviews": 2,
         "users": 2,
-        "avgDuration": 1.29,
-        "bounceRate": 50
+        "avgDuration": 1.72,
+        "bounceRate": 0
       }
     ],
     "funnels": [
       {
         "path": "/become-a-member",
-        "pageviews": 33,
-        "users": 29,
+        "pageviews": 30,
+        "users": 27,
         "bounceRate": 40,
-        "avgDuration": 32.73
+        "avgDuration": 28.95
       },
       {
         "path": "/psychedelx",
-        "pageviews": 68,
-        "users": 49,
-        "bounceRate": 60,
-        "avgDuration": 83.22
+        "pageviews": 71,
+        "users": 51,
+        "bounceRate": 50,
+        "avgDuration": 81.86
       },
       {
         "path": "/contact",
-        "pageviews": 12,
-        "users": 11,
+        "pageviews": 13,
+        "users": 12,
         "bounceRate": 80,
-        "avgDuration": 4.34
+        "avgDuration": 3.94
       }
     ],
     "outboundClicks": [
@@ -17280,10 +17271,18 @@
       {
         "path": "/blog",
         "title": "Blog 1 — Intercollegiate Psychedelics Network",
-        "pageviews": 12,
-        "users": 12,
-        "avgDuration": 38.37,
-        "bounceRate": 42
+        "pageviews": 11,
+        "users": 11,
+        "avgDuration": 34.57,
+        "bounceRate": 45
+      },
+      {
+        "path": "/blog/2024/05/31/interview-of-psychedelx-co-founder-haley-dourron",
+        "title": "Interview of PsychedelX Co-Founder, Haley Dourron — Intercollegiate Psychedelics Network",
+        "pageviews": 5,
+        "users": 3,
+        "avgDuration": 4.38,
+        "bounceRate": 80
       },
       {
         "path": "/blog/2020/08/30/challenges-and-preparation-towards-creating-a-new-paradigm",
@@ -17300,14 +17299,6 @@
         "users": 3,
         "avgDuration": 0,
         "bounceRate": 100
-      },
-      {
-        "path": "/blog/2024/05/31/interview-of-psychedelx-co-founder-haley-dourron",
-        "title": "Interview of PsychedelX Co-Founder, Haley Dourron — Intercollegiate Psychedelics Network",
-        "pageviews": 3,
-        "users": 3,
-        "avgDuration": 7.3,
-        "bounceRate": 67
       },
       {
         "path": "/blog/why-different-psychedelics-feel-different",
@@ -17390,7 +17381,7 @@
         "bounceRate": 0
       }
     ],
-    "pulledAt": "2026-09-19T14:01:01.300361+00:00"
+    "pulledAt": "2026-09-20T14:21:36.433810+00:00"
   },
   "events": {
     "zoom": {
@@ -17403,7 +17394,7 @@
         "avgDurationMin": 29.9,
         "repeatRatePct": 15.3,
         "uniqueAttendees": 59,
-        "pulledAt": "2026-09-19T14:01:24.756899+00:00"
+        "pulledAt": "2026-09-20T14:21:54.538062+00:00"
       },
       "byMonth": [
         {
@@ -18472,7 +18463,7 @@
         "grossRevenue": 6975.08,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-09-19T14:02:39.908601+00:00"
+        "pulledAt": "2026-09-20T14:23:09.851055+00:00"
       },
       "events": [
         {
