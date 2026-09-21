@@ -4,8 +4,10 @@ import { useState, useTransition } from "react"
 import Link from "next/link"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
+import ExternalRegistrationAction from "@/components/events/ExternalRegistrationAction"
 import { registerForEvent, unregisterFromEvent } from "@/lib/events/actions"
 import { canJoinEvent, registrationBand } from "@/lib/events/calendar"
+import { externalRegistrationStatus } from "@/lib/events/external-registration"
 import { getPortalAnalyticsContext } from "@/lib/portal-analytics/client"
 import type { EventWithRegistration } from "@/lib/events/types"
 import WhatsAppHandoffAction from "@/components/whatsapp/WhatsAppHandoffAction"
@@ -176,6 +178,9 @@ export default function EventCard({ event, variant = "full" }: Props) {
   const isExternalRegistration = Boolean(event.registration_url)
   const isLockedTicketedEvent =
     event.requires_verified_ticket && !event.has_verified_ticket
+  const usesExternalRegistration =
+    isExternalRegistration
+    && !(event.requires_verified_ticket && event.has_verified_ticket)
   const canJoin = canJoinEvent(event.starts_at, event.timezone)
 
   function handleRegister() {
@@ -287,12 +292,18 @@ export default function EventCard({ event, variant = "full" }: Props) {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <span
                   className={`inline-flex min-h-9 items-center self-start rounded-md px-3 text-xs font-semibold ${
-                    registered
+                    usesExternalRegistration
+                      ? "bg-ipn-light text-ipn"
+                      : registered
                       ? "bg-[#E4F6F1] text-[#176B5B]"
                       : "bg-zinc-100 text-zinc-600"
                   }`}
                 >
-                  {registered ? "You’re registered" : "Not registered"}
+                  {usesExternalRegistration
+                    ? externalRegistrationStatus(event.registration_provider)
+                    : registered
+                      ? "You’re registered"
+                      : "Not registered"}
                 </span>
                 <div className="flex flex-col-reverse gap-2 min-[420px]:flex-row min-[420px]:justify-end">
                   <AddToCalendarButton event={event} compact />
@@ -305,31 +316,31 @@ export default function EventCard({ event, variant = "full" }: Props) {
                   </Link>
                 </div>
               </div>
-            ) : isLockedTicketedEvent ? (
+            ) : usesExternalRegistration ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <p className="max-w-xl text-xs leading-5 text-zinc-500">
-                  Register on Eventbrite with the same email you use for this
-                  portal. If the email does not match, use the Zoom link from
-                  your Eventbrite confirmation email.
-                </p>
+                {isLockedTicketedEvent ? (
+                  <p className="max-w-xl text-xs leading-5 text-zinc-500">
+                    Register on Eventbrite with the same email you use for this
+                    portal. If the email does not match, use the Zoom link from
+                    your Eventbrite confirmation email.
+                  </p>
+                ) : (
+                  <span className="inline-flex min-h-9 items-center self-start rounded-md bg-ipn-light px-3 text-xs font-semibold text-ipn">
+                    {externalRegistrationStatus(event.registration_provider)}
+                  </span>
+                )}
                 <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                   <AddToCalendarButton event={event} compact />
                   {event.registration_url && (
-                    <a
-                      href={event.registration_url}
-                      target="_blank"
-	                      rel="noreferrer"
-	                      data-analytics-event="curated_click"
-	                      data-analytics-id={`eventbrite-registration-${event.slug}`}
-	                      data-analytics-label="Register on Eventbrite"
-	                      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ipn px-4 py-2 text-sm font-medium text-white transition hover:bg-ipn-dark sm:min-h-0"
-	                    >
-                      Register on Eventbrite
-                    </a>
+                    <ExternalRegistrationAction
+                      url={event.registration_url}
+                      provider={event.registration_provider}
+                      analyticsId={`external-registration-${event.slug}`}
+                    />
                   )}
                 </div>
               </div>
-            ) : !registered && !isExternalRegistration ? (
+            ) : !registered ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-h-8 text-xs font-medium text-zinc-400">
                   {countLabel}

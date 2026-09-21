@@ -32,6 +32,7 @@ import type {
 } from "@/lib/admin/conference-actions"
 import type { EventSpeakerLinkType } from "@/lib/events/types"
 import type { ConferenceCategory, ConferenceRecord, ConferenceStatus, PastConferenceRecord } from "@/lib/conferences/types"
+import { EXTERNAL_REGISTRATION_PROVIDERS } from "@/lib/events/external-registration"
 import { toIsoInTimeZone } from "@/lib/admin/content-utils"
 import {
   buildConferenceDiscountEmailContent,
@@ -345,7 +346,7 @@ function EventForm({ initial, onSubmit, pending }: {
       registrationUrl: f.hasRegistration ? f.registrationUrl || undefined : undefined,
       registrationProvider: f.hasRegistration ? f.registrationProvider || undefined : undefined,
       externalEventId: f.hasRegistration && f.registrationProvider === "Eventbrite" ? f.externalEventId || undefined : undefined,
-      requiresVerifiedTicket: f.hasRegistration ? f.requiresVerifiedTicket : false,
+      requiresVerifiedTicket: f.hasRegistration && f.registrationProvider === "Eventbrite" ? f.requiresVerifiedTicket : false,
       registrationReminderEnabled: f.registrationReminderEnabled,
       summary: f.summary || undefined, description: f.description || undefined,
       speakers: f.speakers || undefined, imageUrl: f.imageUrl || undefined,
@@ -424,28 +425,30 @@ function EventForm({ initial, onSubmit, pending }: {
 
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3.5 transition hover:border-zinc-300">
               <input type="checkbox" checked={f.hasRegistration} onChange={(e) => set("hasRegistration", e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0" />
-              <span className="text-sm text-zinc-700">This event uses external registration (Eventbrite, Lu.ma, etc.)</span>
+              <span className="text-sm text-zinc-700">This event uses external registration (Partiful, Eventbrite, Lu.ma, etc.)</span>
             </label>
 
             {f.hasRegistration && (
               <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-                <Field label="Registration URL" hint="The public Eventbrite / Lu.ma page where people sign up">
+                <Field label="Registration URL" hint="The public Partiful, Eventbrite, Lu.ma, or other page where people sign up">
                   <input value={f.registrationUrl} onChange={(e) => set("registrationUrl", e.target.value)} className={inputCls()} placeholder="https://eventbrite.com/e/..." />
                 </Field>
                 <Field label="Provider">
                   <select value={f.registrationProvider} onChange={(e) => set("registrationProvider", e.target.value)} className={`cursor-pointer ${inputCls()}`}>
-                    {["Eventbrite", "Lu.ma", "Other"].map((p) => <option key={p}>{p}</option>)}
+                    {EXTERNAL_REGISTRATION_PROVIDERS.map((p) => <option key={p}>{p}</option>)}
                   </select>
                 </Field>
                 {f.registrationProvider === "Eventbrite" && (
-                  <Field label="Eventbrite event ID" hint="Numeric ID from the Eventbrite URL, used to automatically sync ticket holders.">
-                    <input value={f.externalEventId} onChange={(e) => set("externalEventId", e.target.value)} className={inputCls()} placeholder="e.g. 1234567890" />
-                  </Field>
+                  <>
+                    <Field label="Eventbrite event ID" hint="Numeric ID from the Eventbrite URL, used to automatically sync ticket holders.">
+                      <input value={f.externalEventId} onChange={(e) => set("externalEventId", e.target.value)} className={inputCls()} placeholder="e.g. 1234567890" />
+                    </Field>
+                    <label className="flex cursor-pointer items-center gap-2.5">
+                      <input type="checkbox" checked={f.requiresVerifiedTicket} onChange={(e) => set("requiresVerifiedTicket", e.target.checked)} className="h-4 w-4 cursor-pointer" />
+                      <span className="text-sm text-zinc-700">Hide Join URL until attendee has a verified Eventbrite ticket</span>
+                    </label>
+                  </>
                 )}
-                <label className="flex cursor-pointer items-center gap-2.5">
-                  <input type="checkbox" checked={f.requiresVerifiedTicket} onChange={(e) => set("requiresVerifiedTicket", e.target.checked)} className="h-4 w-4 cursor-pointer" />
-                  <span className="text-sm text-zinc-700">Hide Join URL until attendee has a verified Eventbrite ticket</span>
-                </label>
               </div>
             )}
           </div>
@@ -775,7 +778,19 @@ function ResourceForm({ initial, onSubmit, pending }: {
 
 // ─── Conference form (4 steps) ────────────────────────────────────────────────
 
-type ConferenceMeetupRow = { id?: string; title: string; imageUrl: string; startsAt: string; endsAt: string; location: string; description: string; notificationMessage: string }
+type ConferenceMeetupRow = {
+  id?: string
+  title: string
+  imageUrl: string
+  startsAt: string
+  endsAt: string
+  location: string
+  description: string
+  notificationMessage: string
+  hasRegistration: boolean
+  registrationUrl: string
+  registrationProvider: string
+}
 type ConferenceDiscountRow = { id?: string; label: string; code: string; url: string; description: string; notificationMessage: string; howToApply: string; expiresAt: string }
 
 type ConferenceFields = {
@@ -840,6 +855,8 @@ function conferencePreviewRecord(fields: ConferenceFields): ConferenceRecord | n
         location: meetup.location.trim() || null,
         description: meetup.description.trim() || null,
         notificationMessage: meetup.notificationMessage.trim() || null,
+        registrationUrl: meetup.hasRegistration ? meetup.registrationUrl.trim() || null : null,
+        registrationProvider: meetup.hasRegistration ? meetup.registrationProvider.trim() || null : null,
       })),
     discounts: fields.discounts
       .filter((discount) => discount.label.trim())
@@ -1303,6 +1320,8 @@ function ConferenceForm({ initial, onSubmit, pending }: {
         location: m.location.trim() || undefined,
         description: m.description.trim() || undefined,
         notificationMessage: m.notificationMessage.trim() || undefined,
+        registrationUrl: m.hasRegistration ? m.registrationUrl.trim() || undefined : undefined,
+        registrationProvider: m.hasRegistration ? m.registrationProvider.trim() || undefined : undefined,
       }))
     const discounts: AdminConferenceDiscountInput[] = f.discounts
       .filter((d) => d.label.trim())
@@ -1488,10 +1507,26 @@ function ConferenceForm({ initial, onSubmit, pending }: {
                   <Field label="Email message" hint="Optional. Written only for the member alert; if blank, the description above is used.">
                     <textarea value={meetup.notificationMessage} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], notificationMessage: e.target.value }; set("meetups", next) }} rows={3} placeholder="Join fellow IPN members for a casual meetup during the conference. Look for the purple lanyard." className={inputCls()} />
                   </Field>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white p-3.5 transition hover:border-zinc-300">
+                    <input type="checkbox" checked={meetup.hasRegistration} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], hasRegistration: e.target.checked }; set("meetups", next) }} className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0" />
+                    <span className="text-sm text-zinc-700">This meetup uses external registration</span>
+                  </label>
+                  {meetup.hasRegistration && (
+                    <div className="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                      <Field label="Registration URL" hint="Partiful, Eventbrite, Lu.ma, or another public registration page">
+                        <input value={meetup.registrationUrl} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], registrationUrl: e.target.value }; set("meetups", next) }} className={inputCls()} placeholder="https://partiful.com/e/..." />
+                      </Field>
+                      <Field label="Provider">
+                        <select value={meetup.registrationProvider} onChange={(e) => { const next = [...f.meetups]; next[i] = { ...next[i], registrationProvider: e.target.value }; set("meetups", next) }} className={`cursor-pointer ${inputCls()}`}>
+                          {EXTERNAL_REGISTRATION_PROVIDERS.map((provider) => <option key={provider}>{provider}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                  )}
                 </div>
               ))}
-              <p className="text-[11px] text-zinc-400">Members RSVP to meetups in-app — no registration link needed.</p>
-              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", imageUrl: "", startsAt: "", endsAt: "", location: "", description: "", notificationMessage: "" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
+              <p className="text-[11px] text-zinc-400">Meetups use portal RSVP by default. Add an external link when registration is managed on another platform.</p>
+              <button type="button" onClick={() => set("meetups", [...f.meetups, { title: "", imageUrl: "", startsAt: "", endsAt: "", location: "", description: "", notificationMessage: "", hasRegistration: false, registrationUrl: "", registrationProvider: "Partiful" }])} className="min-h-11 cursor-pointer rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 transition hover:border-ipn hover:text-ipn sm:self-start">
                 + Add meetup
               </button>
             </div>
@@ -1826,6 +1861,9 @@ function conferenceToFields(c: ConferenceRecord): ConferenceFields {
       endsAt: m.endsAt ? isoToLocal(m.endsAt, timezone) : "",
       location: m.location ?? "", description: m.description ?? "",
       notificationMessage: m.notificationMessage ?? "",
+      hasRegistration: Boolean(m.registrationUrl),
+      registrationUrl: m.registrationUrl ?? "",
+      registrationProvider: m.registrationProvider ?? "Partiful",
     })),
     discounts: c.discounts.map((d) => ({
       id: d.id, label: d.label, code: d.code ?? "", url: d.url ?? "",

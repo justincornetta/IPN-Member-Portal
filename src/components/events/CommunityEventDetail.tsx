@@ -5,12 +5,14 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
+import ExternalRegistrationAction from "@/components/events/ExternalRegistrationAction"
 import WhatsAppHandoffAction from "@/components/whatsapp/WhatsAppHandoffAction"
 import {
   cancelMeetupRsvp,
   rsvpToMeetup,
 } from "@/lib/conferences/actions"
 import { meetupDisplayDetails } from "@/lib/conferences/meetup-display"
+import { externalRegistrationStatus } from "@/lib/events/external-registration"
 import type {
   ConferenceMeetup,
   ConferenceRecord,
@@ -31,6 +33,7 @@ export default function CommunityEventDetail({
   isRegistered?: boolean
 }) {
   const { meetup, conference } = item
+  const isExternalRegistration = Boolean(meetup.registrationUrl)
   const router = useRouter()
   const [registered, setRegistered] = useState(isRegistered)
   const [error, setError] = useState<string | null>(null)
@@ -140,7 +143,11 @@ export default function CommunityEventDetail({
 
           <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              {registered ? (
+              {isExternalRegistration ? (
+                <span className="inline-flex min-h-11 items-center rounded-md bg-ipn-light px-2.5 py-1.5 text-xs font-semibold text-ipn sm:min-h-0">
+                  {externalRegistrationStatus(meetup.registrationProvider)}
+                </span>
+              ) : registered ? (
                 <>
                   <WhatsAppHandoffAction
                     kind="permanent"
@@ -172,7 +179,13 @@ export default function CommunityEventDetail({
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
               <AddToCalendarButton event={calendarEvent} compact />
-              {!registered && (
+              {isExternalRegistration && meetup.registrationUrl ? (
+                <ExternalRegistrationAction
+                  url={meetup.registrationUrl}
+                  provider={meetup.registrationProvider}
+                  analyticsId={`community-event-external-registration-${meetup.id}`}
+                />
+              ) : !registered && (
                 <button
                   type="button"
                   onClick={() => updateRsvp(true)}
@@ -187,7 +200,7 @@ export default function CommunityEventDetail({
               )}
             </div>
           </div>
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          {!isExternalRegistration && error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </div>
       </div>
     </article>

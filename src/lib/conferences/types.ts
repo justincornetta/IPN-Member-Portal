@@ -16,6 +16,8 @@ export type ConferenceMeetup = {
   location: string | null
   description: string | null
   notificationMessage?: string | null
+  registrationUrl?: string | null
+  registrationProvider?: string | null
 }
 
 export type ConferenceDiscount = {

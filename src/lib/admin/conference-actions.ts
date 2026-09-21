@@ -29,6 +29,8 @@ export type AdminConferenceMeetupInput = {
   location?: string
   description?: string
   notificationMessage?: string
+  registrationUrl?: string
+  registrationProvider?: string
 }
 
 export type AdminConferenceDiscountInput = {
@@ -143,6 +145,8 @@ export async function publishAdminConference(
         location: clean(meetup.location),
         description: clean(meetup.description),
         notificationMessage: clean(meetup.notificationMessage),
+        registrationUrl: clean(meetup.registrationUrl),
+        registrationProvider: clean(meetup.registrationProvider),
       }
     })
 
