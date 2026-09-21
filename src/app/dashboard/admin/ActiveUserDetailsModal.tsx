@@ -59,10 +59,30 @@ export function ActiveUserDetailsModal({ data, cohortIds, date, window, focusRet
         </div>
         <div className="overflow-y-auto px-5 py-4">
           <input aria-label="Search active users" placeholder="Search name or email" value={search} onChange={(event) => setSearch(event.target.value)} className="mb-4 w-full max-w-sm rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
-          <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm">
-            <thead><tr className="border-b border-zinc-200">{["Name", "Email", "Last sign-in", "Last qualifying activity"].map((label) => <th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</th>)}</tr></thead>
-            <tbody>{visible.map((member) => <tr key={member.userId} className="border-b border-zinc-100 align-top"><td className="px-3 py-3 font-medium">{member.name}</td><td className="px-3 py-3">{member.email || "—"}</td><td className="px-3 py-3">{member.lastSignIn ? timestamp(member.lastSignIn) : "No retained record"}</td><td className="px-3 py-3">{activityCell(member.lastQualifyingActivity)}</td></tr>)}</tbody>
-          </table></div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[920px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200">
+                  {["Name", "Email", "Registration date", "Last sign-in", "Last qualifying activity"].map((label) => (
+                    <th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((member) => (
+                  <tr key={member.userId} className="border-b border-zinc-100 align-top">
+                    <td className="px-3 py-3 font-medium">{member.name}</td>
+                    <td className="px-3 py-3">{member.email || "—"}</td>
+                    <td className="px-3 py-3">{member.registeredAt ? timestamp(member.registeredAt) : "No retained record"}</td>
+                    <td className="px-3 py-3">{member.lastSignIn ? timestamp(member.lastSignIn) : "No retained record"}</td>
+                    <td className="px-3 py-3">{activityCell(member.lastQualifyingActivity)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {!visible.length && <p className="py-8 text-center text-sm text-zinc-500">{members.length ? "No matching members. Try another name or email." : "No eligible members had a qualifying action in this rolling window."}</p>}
         </div>
       </section>

@@ -37,6 +37,7 @@ test("drill-down matches monthly/weekly counts, cohort and historical activity",
   const monthly = buildActiveUserDetails(data, cohort, "2026-09-18", "monthly")
   assert.equal(monthly.length, activeUserIds(data.qualifyingActions, "2026-09-18", "monthly").size)
   assert.deepEqual(monthly.map((row) => row.userId), ["Ada", "Ben"])
+  assert.equal(monthly[0].registeredAt, "2026-01-01T00:00:00Z")
   assert.equal(monthly[0].lastSignIn, "2026-09-17T10:00:00Z")
   assert.equal(monthly[0].lastQualifyingActivity.occurredAt, "2026-08-20T10:00:00Z")
   assert.match(monthly[0].lastQualifyingActivity.label, /Resource opened: Research library/)

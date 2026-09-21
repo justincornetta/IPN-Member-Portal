@@ -28,6 +28,13 @@ export function buildActiveUserDetails(data: PortalUtilizationData, cohortIds: S
     const authSignIn = member.signInActivity.all.lastSignedInAt
     const lastSignIn = [signIn, authSignIn].filter((value): value is string => Boolean(value && beforeEnd(value)))
       .sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null
-    return { userId: member.userId, name: member.fullName, email: member.email, lastSignIn, lastQualifyingActivity: qualifying }
+    return {
+      userId: member.userId,
+      name: member.fullName,
+      email: member.email,
+      registeredAt: member.firstRegisteredAt,
+      lastSignIn,
+      lastQualifyingActivity: qualifying,
+    }
   }).sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email))
 }
