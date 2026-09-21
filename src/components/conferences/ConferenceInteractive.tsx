@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { MagnifyingGlassPlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import AttendeeAvatar from "./AttendeeAvatar"
 import MemberProfileModal from "@/components/directory/MemberProfileModal"
+import ExternalRegistrationAction from "@/components/events/ExternalRegistrationAction"
 import {
   cancelConferenceRsvp,
   cancelMeetupRsvp,
@@ -14,6 +15,7 @@ import {
   updateMeetupRsvpVisibility,
 } from "@/lib/conferences/actions"
 import { formatMeetupDateTime } from "@/lib/conferences/format"
+import { externalRegistrationStatus } from "@/lib/events/external-registration"
 import type {
   ConferenceAttendee,
   ConferenceMeetup,
@@ -530,7 +532,25 @@ export default function ConferenceInteractive({
                     </div>
                   </div>
 
-                  <div className="mt-5 border-t border-zinc-100 pt-5">
+                  {meetup.registrationUrl ? (
+                    <div className="mt-5 flex flex-col gap-4 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-zinc-900">
+                          {externalRegistrationStatus(meetup.registrationProvider)}
+                        </h3>
+                        <p className="mt-1 text-xs leading-5 text-zinc-500">
+                          RSVPs for this meetup are managed outside the IPN member portal.
+                        </p>
+                      </div>
+                      <ExternalRegistrationAction
+                        url={meetup.registrationUrl}
+                        provider={meetup.registrationProvider}
+                        analyticsId={`conference-meetup-external-registration-${meetup.id}`}
+                        preview={preview}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-5 border-t border-zinc-100 pt-5">
                     <h3 className="text-sm font-semibold text-zinc-900">IPN members going to this meetup</h3>
                     <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                       <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -602,7 +622,8 @@ export default function ConferenceInteractive({
                         onSelect={setSelectedAttendeeId}
                       />
                     )}
-                  </div>
+                    </div>
+                  )}
                 </article>
               )
             })}

@@ -5,6 +5,7 @@ import { ArrowRightIcon, CheckIcon, MapPinIcon } from "@heroicons/react/24/outli
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
 import { meetupDisplayDetails } from "@/lib/conferences/meetup-display"
+import { externalRegistrationStatus } from "@/lib/events/external-registration"
 import type { ConferenceRecord } from "@/lib/conferences/types"
 import type { EventWithRegistration } from "@/lib/events/types"
 
@@ -33,6 +34,15 @@ function startsAt(activity: DashboardActivity) {
 function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
   const isCommunity = activity.kind === "community"
   const isRegistered = isCommunity ? activity.isRegistered : activity.event.is_registered
+  const externalRegistrationProvider = isCommunity
+    ? activity.meetup.registrationProvider
+    : activity.event.registration_provider
+  const usesExternalRegistration = Boolean(
+    isCommunity
+      ? activity.meetup.registrationUrl
+      : activity.event.registration_url
+        && !(activity.event.requires_verified_ticket && activity.event.has_verified_ticket),
+  )
   const href = isCommunity
     ? `/dashboard/conferences/${activity.conference.slug}#ipn-meetups`
     : `/dashboard/events/${activity.event.slug}`
@@ -99,13 +109,19 @@ function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
           </span>
           <span
             className={`inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold ${
-              isRegistered
+              usesExternalRegistration
+                ? "bg-ipn-light text-ipn"
+                : isRegistered
                 ? "bg-[#E4F6F1] text-[#176B5B]"
                 : "bg-zinc-100 text-zinc-600"
             }`}
           >
-            {isRegistered && <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-            {isRegistered ? "You’re registered" : "Not registered"}
+            {!usesExternalRegistration && isRegistered && <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+            {usesExternalRegistration
+              ? externalRegistrationStatus(externalRegistrationProvider)
+              : isRegistered
+                ? "You’re registered"
+                : "Not registered"}
           </span>
         </div>
         <Link href={href} className="group mt-3 block">
