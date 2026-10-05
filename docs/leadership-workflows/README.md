@@ -60,7 +60,7 @@ Only actual movements after a checkpoint date change its account balance, so alr
 
 `npm ci`, `npm run qa:install`, `npm run lint`, `npm run build`, `node --test --experimental-strip-types tests/leadership-workflows.test.mjs`, `npm run qa:local`.
 
-The local preview binds only to localhost, requires the explicit development flag, and is unavailable in production. Start with `npm run workflow:dev`, then visit `http://127.0.0.1:4327/workflow-preview/media` or `/workflow-preview/expenses`. It uses sample people and writes only ignored local JSON. Runtime Slack/Sheets deliveries are disabled.
+The local preview binds only to localhost, requires the explicit development flag, and is unavailable in production. Start with `npm run workflow:dev`, then visit `http://127.0.0.1:4327/workflow-preview/media` or `/workflow-preview/expenses`. It uses sample people and writes only ignored local JSON. No sign-in is needed: use “Preview as” to switch roles. Preview navigation stays within these two workflows; other Admin tabs are disabled because real authentication is intentionally disconnected. Runtime Slack/Sheets deliveries are disabled.
 
 Browser QA covers submit/approve/purchase/receipt, expense privacy and preapproved reimbursement, complete media production/review/publication, mobile event prefill, authentication redirects, CSRF, unauthorized approval, stale revisions and invalid Slack signatures. Database tests apply the actual migration in PGlite and check RLS, server-only mutation access, audit/outbox atomicity and the shared sheet lease. Live Slack delivery and deployed service-account sync remain untested until credentials are configured.
 

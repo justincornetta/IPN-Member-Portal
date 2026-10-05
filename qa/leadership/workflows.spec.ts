@@ -132,14 +132,14 @@ test("general media request, shared assignment, review and posted deliverable", 
   page
 }) => {
   await page.goto("/workflow-preview/media")
-  await page.locator("summary").filter({ hasText: "Admin" }).click()
-  await expect(
-    page.getByRole("link", { name: "Analytics", exact: true })
-  ).toHaveAttribute("href", "/dashboard/admin?tab=analytics")
-  await expect(
-    page.getByRole("link", { name: "Content", exact: true })
-  ).toHaveAttribute("href", "/dashboard/admin?tab=content")
-  await page.locator("summary").filter({ hasText: "Admin" }).click()
+  const previewNav = page.getByRole("navigation", { name: "Preview admin navigation" })
+  await expect(previewNav.getByText("Analytics", { exact: true })).toHaveAttribute("aria-disabled", "true")
+  await expect(previewNav.getByText("Content", { exact: true })).toHaveAttribute("aria-disabled", "true")
+  await expect(page.locator('a[href^="/dashboard"], a[href^="/login"]')).toHaveCount(0)
+  await previewNav.getByRole("link", { name: "Expense Submissions", exact: true }).click()
+  await expect(page).toHaveURL(/\/workflow-preview\/expenses$/)
+  await previewNav.getByRole("link", { name: "Media Requests", exact: true }).click()
+  await expect(page).toHaveURL(/\/workflow-preview\/media$/)
   await page
     .getByRole("button", { name: "New media request", exact: true })
     .click()

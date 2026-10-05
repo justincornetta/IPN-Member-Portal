@@ -230,7 +230,7 @@ export default function WorkflowWorkspace({
       {demo && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
           <span>
-            Local preview · sample people · notifications and tracker writes
+            Local preview · no sign-in needed · sample people · notifications and tracker writes
             disabled
           </span>
           <label className="flex items-center gap-2">

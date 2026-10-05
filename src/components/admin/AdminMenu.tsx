@@ -1,9 +1,17 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-export default function AdminMenu({ onClose }: { onClose?: () => void }) {
+export default function AdminMenu({
+  onClose,
+  preview = false
+}: {
+  onClose?: () => void
+  preview?: boolean
+}) {
   const pathname = usePathname()
-  const active = pathname.startsWith("/dashboard/admin")
+  const active =
+    pathname.startsWith("/dashboard/admin") ||
+    (preview && pathname.startsWith("/workflow-preview/"))
   return (
     <details open={active} className="rounded-lg">
       <summary
@@ -19,16 +27,36 @@ export default function AdminMenu({ onClose }: { onClose?: () => void }) {
           { label: "Media Requests", href: "/dashboard/admin/media" },
           { label: "Expense Submissions", href: "/dashboard/admin/expenses" },
           { label: "Leadership", href: "/dashboard/admin?tab=leadership" }
-        ].map((link) => (
-          <Link
-            key={link.label}
-            href={link.href}
-            onClick={onClose}
-            className={`min-h-11 rounded-lg px-3 py-3 text-sm ${pathname === link.href ? "bg-ipn-light text-ipn" : "text-zinc-600 hover:bg-zinc-50"}`}
-          >
-            {link.label}
-          </Link>
-        ))}
+        ].map((link) => {
+          const previewHref =
+            link.label === "Media Requests"
+              ? "/workflow-preview/media"
+              : link.label === "Expense Submissions"
+                ? "/workflow-preview/expenses"
+                : null
+          if (preview && !previewHref)
+            return (
+              <span
+                key={link.label}
+                aria-disabled="true"
+                title="Unavailable in the local workflow preview"
+                className="min-h-11 rounded-lg px-3 py-3 text-sm text-zinc-400"
+              >
+                {link.label}
+              </span>
+            )
+          const href = preview ? (previewHref ?? link.href) : link.href
+          return (
+            <Link
+              key={link.label}
+              href={href}
+              onClick={onClose}
+              className={`min-h-11 rounded-lg px-3 py-3 text-sm ${pathname === href ? "bg-ipn-light text-ipn" : "text-zinc-600 hover:bg-zinc-50"}`}
+            >
+              {link.label}
+            </Link>
+          )
+        })}
       </div>
     </details>
   )
