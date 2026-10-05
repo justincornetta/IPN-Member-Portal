@@ -472,39 +472,49 @@ export default function WorkflowWorkspace({
             />
           ) : (
             <>
-              <div className="grid gap-3 md:grid-cols-2">
-                {visible.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => {
-                      setSelected(r.id)
-                      setError("")
-                    }}
-                    className="rounded-xl border border-zinc-200 bg-white p-5 text-left transition hover:border-ipn/50 hover:shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge record={r} />
-                      {r.media?.urgent && (
-                        <span className="text-xs font-semibold text-amber-700">
-                          Urgent
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="mt-3 font-semibold">{r.title}</h2>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      {r.requesterName}
-                      {r.media
-                        ? ` · ${r.media.team}`
-                        : ` · ${usd(r.expense!.amountCents)}`}
-                    </p>
-                    <p className="mt-3 text-xs text-zinc-500">
-                      {r.media
-                        ? `Post by ${r.media.postedBy} · ${r.media.deliverables.filter((d) => d.status === "posted").length}/${r.media.deliverables.length} deliverables posted`
-                        : `Submitted ${r.submittedAt.slice(0, 10)}`}
-                    </p>
-                  </button>
-                ))}
-              </div>
+              {kind === "expense" ? (
+                <ExpenseList
+                  records={visible}
+                  open={(id) => {
+                    setSelected(id)
+                    setError("")
+                  }}
+                />
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {visible.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setSelected(r.id)
+                        setError("")
+                      }}
+                      className="rounded-xl border border-zinc-200 bg-white p-5 text-left transition hover:border-ipn/50 hover:shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Badge record={r} />
+                        {r.media?.urgent && (
+                          <span className="text-xs font-semibold text-amber-700">
+                            Urgent
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="mt-3 font-semibold">{r.title}</h2>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {r.requesterName}
+                        {r.media
+                          ? ` · ${r.media.team}`
+                          : ` · ${usd(r.expense!.amountCents)}`}
+                      </p>
+                      <p className="mt-3 text-xs text-zinc-500">
+                        {r.media
+                          ? `Post by ${r.media.postedBy} · ${r.media.deliverables.filter((d) => d.status === "posted").length}/${r.media.deliverables.length} deliverables posted`
+                          : `Submitted ${r.submittedAt.slice(0, 10)}`}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
               {data && visible.length === 0 && (
                 <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-10 text-center">
                   <p className="font-medium">
@@ -544,6 +554,101 @@ export default function WorkflowWorkspace({
         </details>
       )}
     </main>
+  )
+}
+function ExpenseList({
+  records,
+  open
+}: {
+  records: WorkflowRequest[]
+  open: (id: string) => void
+}) {
+  return (
+    <div>
+      <div
+        role="region"
+        aria-label="Expense list"
+        tabIndex={0}
+        className="overflow-x-auto rounded-xl border border-zinc-200 bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ipn"
+      >
+        <table className="w-full min-w-[820px] text-left text-sm">
+          <caption className="sr-only">
+            Expense requests. Select an expense to open its details.
+          </caption>
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <tr>
+              {[
+                "Expense",
+                "Purpose",
+                "Submitter",
+                "Submitted date",
+                "Cost",
+                "Status"
+              ].map((label) => (
+                <th
+                  key={label}
+                  scope="col"
+                  className={`px-4 py-3 ${label === "Cost" ? "text-right" : ""}`}
+                >
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {records.map((r) => (
+              <tr
+                key={r.id}
+                onClick={() => open(r.id)}
+                className="cursor-pointer hover:bg-ipn-light/40 focus-within:bg-ipn-light/40"
+              >
+                <th
+                  scope="row"
+                  className="min-w-44 max-w-60 px-4 py-4 font-medium"
+                >
+                  <button
+                    aria-label={`Open expense: ${r.title}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      open(r.id)
+                    }}
+                    className="w-full break-words text-left text-ipn hover:underline focus:outline-none focus-visible:underline"
+                  >
+                    {r.title}
+                  </button>
+                </th>
+                <td className="min-w-48 max-w-80 whitespace-pre-wrap break-words px-4 py-4 text-zinc-600">
+                  <p className="line-clamp-2" title={r.expense!.purpose}>
+                    {r.expense!.purpose}
+                  </p>
+                </td>
+                <td className="px-4 py-4 text-zinc-600">{r.requesterName}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-zinc-600">
+                  <time dateTime={r.submittedAt}>
+                    {new Date(r.submittedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
+                  </time>
+                </td>
+                <td className="whitespace-nowrap px-4 py-4 text-right font-medium tabular-nums">
+                  {usd(r.expense!.actualAmountCents ?? r.expense!.amountCents)}
+                </td>
+                <td className="whitespace-nowrap px-4 py-4">
+                  <Badge record={r} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-zinc-500">
+        Select a row to open the expense. Cost shows the requested amount until
+        a purchase is recorded, then the actual cost. Scroll sideways on smaller
+        screens to see all columns.
+      </p>
+    </div>
   )
 }
 function Stat({

@@ -23,6 +23,8 @@ Cost inputs show a $45.00 example and accept digits with up to two decimal place
 
 Only preapproval intake is supported: automatic submitter plus Expense, Purpose, Cost (USD), and optional item/expense link. Justin alone approves or rejects, including his own submissions; Justin is the default IPN-card purchaser. Leadership sees its own expenses; Justin sees all.
 
+Both expense tabs use a list with Expense, Purpose, Submitter, Submitted date, Cost and Status columns. Rows open the existing detail view, including keyboard access through the expense title. Cost shows the requested amount until purchase, then the actual amount. Long purposes are limited to two lines in the list; full text remains in the detail. Search/status filters apply to the list, and horizontal scrolling keeps every column available on mobile.
+
 Pending/rejected/cancelled submissions are in **Requests**. Approved commitments and completed expenses are in **Approved expenses**. Approval does not change actual cash. An expected spending month can be set during approval or later; undated commitments are counted and flagged separately from monthly forecasting.
 
 After approval, record the actual purchase amount/date. IPN card payments record the paying account and enter Transactions once. A preapproved personal payment stays Awaiting reimbursement until Justin records the IPN reimbursement date/account. Receipts are linked after purchase and may be added later. No receipt or media file is uploaded to Supabase. Material edits require approval again; actual spending above the approved cap is rejected. Unpaid requests can be cancelled. Existing historic reimbursements remain in the finance model rather than creating retrospective approval requests.
@@ -79,3 +81,7 @@ Full repository suite: 179/180 passed. The unchanged Instagram archive test fixt
 ![Media calendar with sample data](screenshots/calendar.png)
 
 ![Updated media intake form](screenshots/media-form.png)
+
+![Expense list with sample data](screenshots/expense-list.png)
+
+![Expense list on mobile](screenshots/expense-list-mobile.png)

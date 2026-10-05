@@ -405,3 +405,132 @@ test("media copy choice and supplied draft validation", async ({
     )
   ).toBeTruthy()
 })
+
+test("expense list columns, row opening, filters and mobile scrolling", async ({
+  page,
+  request
+}) => {
+  const pendingId = randomUUID(),
+    paidId = randomUUID()
+  for (const item of [
+    {
+      id: pendingId,
+      title: "Workshop materials",
+      purpose: "Materials for the leadership workshop",
+      amount: "45.00"
+    },
+    {
+      id: paidId,
+      title: "Event printing",
+      purpose: "Print materials for the member meetup",
+      amount: "75.00"
+    }
+  ]) {
+    const made = await request.post("/api/admin/workflows", {
+      data: {
+        id: item.id,
+        kind: "expense",
+        title: item.title,
+        expense: { purpose: item.purpose, amountCents: item.amount }
+      }
+    })
+    expect(made.ok()).toBeTruthy()
+  }
+  const approval = await request.patch(`/api/admin/workflows/${paidId}`, {
+    data: { revision: 1, action: "approve" }
+  })
+  expect(approval.ok()).toBeTruthy()
+  const paid = await request.patch(`/api/admin/workflows/${paidId}`, {
+    data: {
+      revision: 2,
+      action: "purchase",
+      paymentMethod: "ipn_card",
+      actualAmountCents: "67.50",
+      purchaseDate: "2026-10-05",
+      account: "Relay"
+    }
+  })
+  expect(paid.ok()).toBeTruthy()
+  await page.goto("/workflow-preview/expenses")
+  const table = page.getByRole("table")
+  await expect(table.getByRole("columnheader")).toHaveText([
+    "Expense",
+    "Purpose",
+    "Submitter",
+    "Submitted date",
+    "Cost",
+    "Status"
+  ])
+  const pendingRow = table.getByRole("row", { name: /Workshop materials/ })
+  await expect(pendingRow).toContainText(
+    "Materials for the leadership workshop"
+  )
+  await expect(pendingRow).toContainText("Justin Cornetta")
+  await expect(pendingRow).toContainText("$45.00")
+  await pendingRow
+    .getByRole("cell", {
+      name: "Materials for the leadership workshop",
+      exact: true
+    })
+    .click()
+  await expect(
+    page.getByRole("heading", { name: "Workshop materials", exact: true })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await table
+    .getByRole("button", {
+      name: "Open expense: Workshop materials",
+      exact: true
+    })
+    .focus()
+  await page.keyboard.press("Enter")
+  await expect(
+    page.getByRole("heading", { name: "Workshop materials", exact: true })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await page.getByLabel("Search requests").fill("no matching entry")
+  await expect(
+    table.getByRole("button", { name: /Open expense:/ })
+  ).toHaveCount(0)
+  await page.getByLabel("Search requests").fill("")
+  await page.getByLabel("Filter by status").selectOption("rejected")
+  await expect(
+    table.getByRole("button", { name: /Open expense:/ })
+  ).toHaveCount(0)
+  await page.getByLabel("Filter by status").selectOption("")
+  await page
+    .getByRole("button", { name: "Approved expenses", exact: true })
+    .click()
+  const paidRow = table.getByRole("row", { name: /Event printing/ })
+  await expect(paidRow).toContainText("$67.50")
+  await expect(paidRow).toContainText("Purchased")
+  await expect(
+    table.getByRole("row", { name: /Workshop materials/ })
+  ).toHaveCount(0)
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-expense-list.png",
+    fullPage: true
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBeTruthy()
+  const region = page.getByRole("region", { name: "Expense list", exact: true })
+  expect(
+    await region.evaluate(
+      (element) => element.scrollWidth > element.clientWidth
+    )
+  ).toBeTruthy()
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-expense-list-mobile.png",
+    fullPage: true
+  })
+  await table
+    .getByRole("button", { name: "Open expense: Event printing", exact: true })
+    .click()
+  await expect(
+    page.getByRole("heading", { name: "Event printing", exact: true })
+  ).toBeVisible()
+})
