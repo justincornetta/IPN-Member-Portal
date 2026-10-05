@@ -4,6 +4,7 @@ create table public.leadership_workflow_settings (
  expense_approver_id uuid not null references public.profiles(id),
  slack_user_ids jsonb not null default '{}'
 );
+create index leadership_settings_approver on public.leadership_workflow_settings(expense_approver_id);
 insert into public.leadership_workflow_settings(singleton, expense_approver_id, slack_user_ids)
 values(true, 'a8be2531-9c64-4cd6-b1cd-1a12f8465609', '{"a8be2531-9c64-4cd6-b1cd-1a12f8465609":"U061Z7YC3DX"}');
 create table public.leadership_requests (
@@ -27,6 +28,7 @@ create table public.leadership_request_activity (
  note text not null default '',
  created_at timestamptz not null default now()
 );
+create index leadership_activity_actor on public.leadership_request_activity(actor_id);
 create index leadership_activity_request on public.leadership_request_activity(request_id, created_at);
 create table public.leadership_integration_jobs (
  id uuid primary key default gen_random_uuid(),
@@ -43,6 +45,8 @@ create table public.leadership_integration_jobs (
  result jsonb,
  created_at timestamptz not null default now()
 );
+create index leadership_jobs_request on public.leadership_integration_jobs(request_id);
+create index leadership_jobs_recipient on public.leadership_integration_jobs(recipient_id);
 create index leadership_jobs_due on public.leadership_integration_jobs(state, next_attempt_at);
 create table public.leadership_bank_activity (
  id text primary key,
@@ -50,6 +54,8 @@ create table public.leadership_bank_activity (
  imported_by uuid not null references public.profiles(id),
  imported_at timestamptz not null default now()
 );
+
+create index leadership_bank_importer on public.leadership_bank_activity(imported_by);
 
 alter table public.leadership_workflow_settings enable row level security;
 alter table public.leadership_requests enable row level security;

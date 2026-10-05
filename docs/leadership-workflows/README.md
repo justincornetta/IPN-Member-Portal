@@ -2,7 +2,7 @@
 
 Branch: `feature/leadership-workflows`. Production routes: `/dashboard/admin/media` and `/dashboard/admin/expenses`. Admin navigation also links to Analytics, Content and Leadership.
 
-The implementation is local and integrations default to **off**. The production database migration has not been applied. No branch has been pushed, PR opened, production release made or live notification sent. Schema, auth and shared navigation touch Luke's ownership areas and need his review before merge.
+The workflow schema was provisioned and verified in the existing Member Portal Supabase project on October 5, 2026. The application remains unmerged, and integrations default to **off**. Slack/Sheets runtime credentials and live notification delivery remain deferred. Schema, server access and shared navigation touch Luke's ownership areas and need his review before merge. See [Supabase setup verification](supabase-setup.md).
 
 ## Media intake and SOP
 
@@ -59,9 +59,9 @@ Balance evidence dates have been retained; cleanup does not refresh bank evidenc
 
 Only actual movements after a checkpoint date change its account balance, so already-included historic transactions are not subtracted twice. Checkpoints represent end-of-day evidence. When updating a checkpoint later, reconcile the forecast anchor as well; the current forecast deliberately retains the September 29 anchor. Manual forecast items must be marked Paid when their payment enters Transactions. Internal transfers require both account sides so combined holdings stay correct. The forecast is bounded through December 2028 and live sync through row 1000; expand deliberately when needed.
 
-## Production setup after local approval
+## Production setup status and remaining rollout
 
-1. Review/apply `supabase/migrations/20261005173140_leadership_requests.sql` to the existing Member Portal project `plgzakxecjlzepzeqiio`. It stores metadata, history, queued deliveries and imported bank metadata; no storage bucket. Verify sole approver profile `a8be2531-9c64-4cd6-b1cd-1a12f8465609`. Reads use RLS; writes use verified server actions with revision checks.
+1. **Completed:** applied `supabase/migrations/20261005221104_leadership_requests.sql` to the existing Member Portal project `plgzakxecjlzepzeqiio`. It stores metadata, history, queued deliveries and imported bank metadata; no storage bucket. Verified Justin as sole approver, RLS expense privacy, shared leadership media reads, server-only writes and audit atomicity. The local filename matches the registered remote migration version; do not apply the schema a second time.
 2. Create/install the Slack app using `config/slack/leadership-workflows-app.json`. Create restricted `#expense-submissions`, invite its bot and Justin, and invite the bot to private `#media-space` (`C088ZJBM0QY`). Ensure Agnes has an eligible portal profile assigned to the Media team through the existing Leadership tab; her Slack identity does not create a portal account. Interactivity URL: `https://members.intercollegiatepsychedelics.net/api/slack/expenses`. Set bot token, signing secret, workspace ID and expense channel ID as server-only environment values. Do not reuse the feedback webhook as an interactive bot credential.
 3. Create a Google service account with Sheets API access and share only the finance tracker with its email as editor. Set its email/private key in server-only environment variables. Connected app credentials are not available to the deployed portal.
 4. Keep `WORKFLOW_INTEGRATION_MODE=off` in deploy previews. Set it to `live` only for the configured production environment, after reviewing a controlled first submission. Explicit Slack mappings live in `leadership_workflow_settings.slack_user_ids` if portal/Slack emails differ.
@@ -75,7 +75,7 @@ The local preview binds only to localhost, requires the explicit development fla
 
 Browser QA covers submit/approve/purchase/receipt, expense privacy and preapproved reimbursement, complete media production/review/publication with a single owner, multi-format and Email selection, required copy choice, decimal-only costs, media calendar dates and leap months, mobile event prefill/calendar, authentication redirects, CSRF, unauthorized approval, stale revisions and invalid Slack signatures. Database tests apply the actual migration in PGlite and check RLS, server-only mutation access, audit/outbox atomicity and the shared sheet lease. Live Slack delivery and deployed service-account sync remain untested until credentials are configured.
 
-Full repository suite: 179/180 passed. The unchanged Instagram archive test fixture uses account `123` against the current snapshot's different account and fails with “Instagram snapshot account mismatch”; unrelated to these workflows. The production build's existing middleware deprecation warning remains.
+Full repository suite: 183/184 passed after syncing with the latest main. The unchanged Instagram archive test fixture uses account `123` against the current snapshot's different account and fails with “Instagram snapshot account mismatch”; unrelated to these workflows. The production build's existing middleware deprecation warning remains. `npm audit` reports 14 vulnerabilities, including a critical Next.js advisory; all affected installed versions match `origin/main`. Dependency remediation is a separate prerequisite for production rollout.
 
 ## Review screenshots
 

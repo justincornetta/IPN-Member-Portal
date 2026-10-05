@@ -250,7 +250,7 @@ test("database RLS isolates expenses, permits shared media reads and denies dire
     await db.exec(
       await readFile(
         new URL(
-          "../supabase/migrations/20261005173140_leadership_requests.sql",
+          "../supabase/migrations/20261005221104_leadership_requests.sql",
           import.meta.url
         ),
         "utf8"
