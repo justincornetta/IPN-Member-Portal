@@ -28,6 +28,13 @@ import {
 } from "@/lib/leadership-workflows/domain"
 
 import MediaCalendar from "./MediaCalendar"
+import MediaList, {
+  MEDIA_COLUMNS,
+  mediaListValue,
+  sortMediaRequests,
+  type MediaSortKey,
+  type SortDirection
+} from "./MediaList"
 
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/15"
@@ -122,7 +129,9 @@ export default function WorkflowWorkspace({
     [search, setSearch] = useState(""),
     [demoUser, setDemoUser] = useState("approver"),
     [expenseTab, setExpenseTab] = useState("requests"),
-    [mediaView, setMediaView] = useState("queue")
+    [mediaView, setMediaView] = useState("queue"),
+    [mediaSort, setMediaSort] = useState<MediaSortKey>("deadline"),
+    [mediaDirection, setMediaDirection] = useState<SortDirection>("asc")
   const headers = useCallback(
     () => ({
       "Content-Type": "application/json",
@@ -236,11 +245,39 @@ export default function WorkflowWorkspace({
           (expenseTab === "approved")) &&
       (!filter || r.status === filter) &&
       (!search ||
-        [r.title, r.requesterName, r.media?.team, r.expense?.purpose]
+        [
+          r.title,
+          r.requesterName,
+          r.media?.team,
+          r.media?.brief,
+          r.expense?.purpose,
+          ...(r.kind === "media"
+            ? MEDIA_COLUMNS.map((column) =>
+                mediaListValue(r, column.key, data?.people ?? [])
+              )
+            : [])
+        ]
           .join(" ")
           .toLowerCase()
-          .includes(search.toLowerCase()))
+          .includes(search.trim().toLowerCase()))
   )
+  const sortedMedia =
+    kind === "media"
+      ? sortMediaRequests(
+          visible,
+          data?.people ?? [],
+          mediaSort,
+          mediaDirection
+        )
+      : []
+  function sortMedia(key: MediaSortKey) {
+    if (key === mediaSort)
+      setMediaDirection((current) => (current === "asc" ? "desc" : "asc"))
+    else {
+      setMediaSort(key)
+      setMediaDirection(key === "submitted" ? "desc" : "asc")
+    }
+  }
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 text-zinc-900 sm:p-8">
       {demo && (
@@ -435,7 +472,7 @@ export default function WorkflowWorkspace({
         </section>
       ) : (
         <section aria-label="Request queue" className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               aria-label="Search requests"
               placeholder="Search requests…"
@@ -458,6 +495,42 @@ export default function WorkflowWorkspace({
                 )
               )}
             </select>
+            {kind === "media" && mediaView === "queue" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-sm text-zinc-600" htmlFor="media-sort">
+                  Sort by
+                </label>
+                <select
+                  id="media-sort"
+                  aria-label="Sort media by"
+                  className={`${input} w-auto`}
+                  style={{ width: "auto" }}
+                  value={mediaSort}
+                  onChange={(e) => {
+                    const key = e.target.value as MediaSortKey
+                    setMediaSort(key)
+                    setMediaDirection(key === "submitted" ? "desc" : "asc")
+                  }}
+                >
+                  {MEDIA_COLUMNS.map((column) => (
+                    <option key={column.key} value={column.key}>
+                      {column.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  aria-label="Toggle media sort direction"
+                  className={secondary}
+                  onClick={() =>
+                    setMediaDirection((current) =>
+                      current === "asc" ? "desc" : "asc"
+                    )
+                  }
+                >
+                  {mediaDirection === "asc" ? "↑ Ascending" : "↓ Descending"}
+                </button>
+              </div>
+            )}
             <button className={secondary} onClick={() => void load()}>
               Refresh
             </button>
@@ -481,39 +554,17 @@ export default function WorkflowWorkspace({
                   }}
                 />
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {visible.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        setSelected(r.id)
-                        setError("")
-                      }}
-                      className="rounded-xl border border-zinc-200 bg-white p-5 text-left transition hover:border-ipn/50 hover:shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Badge record={r} />
-                        {r.media?.urgent && (
-                          <span className="text-xs font-semibold text-amber-700">
-                            Urgent
-                          </span>
-                        )}
-                      </div>
-                      <h2 className="mt-3 font-semibold">{r.title}</h2>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {r.requesterName}
-                        {r.media
-                          ? ` · ${r.media.team}`
-                          : ` · ${usd(r.expense!.amountCents)}`}
-                      </p>
-                      <p className="mt-3 text-xs text-zinc-500">
-                        {r.media
-                          ? `Post by ${r.media.postedBy} · ${r.media.deliverables.filter((d) => d.status === "posted").length}/${r.media.deliverables.length} deliverables posted`
-                          : `Submitted ${r.submittedAt.slice(0, 10)}`}
-                      </p>
-                    </button>
-                  ))}
-                </div>
+                <MediaList
+                  records={sortedMedia}
+                  people={data?.people ?? []}
+                  sortKey={mediaSort}
+                  direction={mediaDirection}
+                  sort={sortMedia}
+                  open={(id) => {
+                    setSelected(id)
+                    setError("")
+                  }}
+                />
               )}
               {data && visible.length === 0 && (
                 <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-10 text-center">

@@ -534,3 +534,179 @@ test("expense list columns, row opening, filters and mobile scrolling", async ({
     page.getByRole("heading", { name: "Event printing", exact: true })
   ).toBeVisible()
 })
+
+test("media list default deadline ordering, column sorting, search and row opening", async ({
+  page,
+  request
+}) => {
+  const ids = [randomUUID(), randomUUID(), randomUUID()]
+  const entries = [
+    {
+      id: ids[0],
+      title: "Alpha Seminar",
+      type: "event",
+      deadline: "2026-10-20",
+      owner: "22222222-2222-4222-8222-222222222222"
+    },
+    {
+      id: ids[1],
+      title: "Beta Education",
+      type: "educational",
+      deadline: "2026-10-09",
+      owner: "11111111-1111-4111-8111-111111111111"
+    },
+    {
+      id: ids[2],
+      title: "Zeta Campaign",
+      type: "campaign",
+      deadline: "2026-10-07",
+      owner: ""
+    }
+  ]
+  for (const entry of entries) {
+    const headers =
+      entry.type === "educational"
+        ? { "x-workflow-demo-user": "member" }
+        : undefined
+    const made = await request.post("/api/admin/workflows", {
+      headers,
+      data: {
+        id: entry.id,
+        kind: "media",
+        title: entry.title,
+        media: {
+          type: entry.type,
+          team: "Media",
+          brief: "Member communications",
+          postedBy: entry.deadline,
+          needsCopyHelp: true,
+          urgent: entry.type === "campaign"
+        }
+      }
+    })
+    expect(made.ok()).toBeTruthy()
+    if (entry.owner) {
+      const assigned = await request.patch(`/api/admin/workflows/${entry.id}`, {
+        data: {
+          revision: 1,
+          action: "production",
+          ownerId: entry.owner,
+          deliverables: []
+        }
+      })
+      expect(assigned.ok()).toBeTruthy()
+    }
+  }
+  const accepted = await request.patch(`/api/admin/workflows/${ids[1]}`, {
+    data: { revision: 2, action: "status", status: "accepted" }
+  })
+  expect(accepted.ok()).toBeTruthy()
+  await page.goto("/workflow-preview/media")
+  const table = page.getByRole("table")
+  const titles = table.getByRole("button", { name: /^Open media request:/ })
+  await expect(table.getByRole("columnheader")).toHaveCount(7)
+  await expect(page.getByLabel("Sort media by")).toHaveValue("deadline")
+  await expect(
+    table.getByRole("columnheader", { name: /Publish by date/ })
+  ).toHaveAttribute("aria-sort", "ascending")
+  await expect(titles).toHaveText([
+    "Zeta Campaign",
+    "Beta Education",
+    "Alpha Seminar"
+  ])
+  await expect(table.getByRole("row", { name: /Alpha Seminar/ })).toContainText(
+    "Agnes Horie"
+  )
+  await expect(table.getByRole("row", { name: /Zeta Campaign/ })).toContainText(
+    "Urgent"
+  )
+  await table
+    .getByRole("button", { name: "Sort by Publish by date", exact: true })
+    .click()
+  await expect(titles).toHaveText([
+    "Alpha Seminar",
+    "Beta Education",
+    "Zeta Campaign"
+  ])
+  await expect(
+    table.getByRole("columnheader", { name: /Publish by date/ })
+  ).toHaveAttribute("aria-sort", "descending")
+  await page.getByLabel("Sort media by").selectOption("title")
+  await expect(titles).toHaveText([
+    "Alpha Seminar",
+    "Beta Education",
+    "Zeta Campaign"
+  ])
+  await page
+    .getByRole("button", { name: "Toggle media sort direction", exact: true })
+    .click()
+  await expect(titles).toHaveText([
+    "Zeta Campaign",
+    "Beta Education",
+    "Alpha Seminar"
+  ])
+  await page.getByLabel("Sort media by").selectOption("type")
+  await expect(titles).toHaveText([
+    "Zeta Campaign",
+    "Beta Education",
+    "Alpha Seminar"
+  ])
+  await page.getByLabel("Sort media by").selectOption("submitter")
+  await expect(titles.first()).toHaveText("Beta Education")
+  await page.getByLabel("Sort media by").selectOption("submitted")
+  await expect(titles.first()).toHaveText("Zeta Campaign")
+  await page.getByLabel("Sort media by").selectOption("status")
+  await expect(titles.first()).toHaveText("Beta Education")
+  await page.getByLabel("Sort media by").selectOption("owner")
+  await expect(titles).toHaveText([
+    "Alpha Seminar",
+    "Beta Education",
+    "Zeta Campaign"
+  ])
+  await page.getByLabel("Search requests").fill("agnes")
+  await expect(titles).toHaveText(["Alpha Seminar"])
+  await page.getByLabel("Search requests").fill("educational")
+  await expect(titles).toHaveText(["Beta Education"])
+  await page.getByLabel("Search requests").fill("2026-10-09")
+  await expect(titles).toHaveText(["Beta Education"])
+  await page.getByLabel("Search requests").fill("")
+  await page.getByLabel("Filter by status").selectOption("accepted")
+  await expect(titles).toHaveText(["Beta Education"])
+  await table
+    .getByRole("cell", { name: "Educational content", exact: true })
+    .click()
+  await expect(
+    page.getByRole("heading", { name: "Beta Education", exact: true })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await expect(page.getByLabel("Sort media by")).toHaveValue("owner")
+  await page.getByLabel("Filter by status").selectOption("")
+  await page.getByLabel("Sort media by").selectOption("deadline")
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-media-list.png",
+    fullPage: true
+  })
+  await titles.first().focus()
+  await page.keyboard.press("Enter")
+  await expect(
+    page.getByRole("heading", { name: "Zeta Campaign", exact: true })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBeTruthy()
+  const list = page.getByRole("region", {
+    name: "Media request list",
+    exact: true
+  })
+  expect(
+    await list.evaluate((element) => element.scrollWidth > element.clientWidth)
+  ).toBeTruthy()
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-media-list-mobile.png",
+    fullPage: true
+  })
+})

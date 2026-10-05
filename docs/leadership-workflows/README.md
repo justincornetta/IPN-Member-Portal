@@ -15,6 +15,8 @@ Added or clarified: event/announcement/campaign/educational request types; event
 3. The team tracks Assigned → In production → Director review → Ready to post → Posted. Each deliverable records its final Drive/Canva URL and publication details.
 4. Posted deliverables retain their final record. Changing a reviewed final asset requires review again. The request cannot become Posted until every deliverable has publication evidence.
 
+The media queue uses a list with Idea Name, Request Type, Submitter, Submitted date, Status, Media Owner and Publish by date. The last column is the requested posting deadline. Default sorting is earliest deadline first; all columns support sorting through headers or the Sort by selector, with an ascending/descending toggle. Text search includes title, type, submitter, status, owner, deadline, team and brief. Status filtering, urgent indicators, row opening and keyboard access remain available; sorting survives opening a detail and returning to the queue. The list scrolls horizontally on mobile.
+
 All eligible leadership can view and edit the queue. Agnes's ownership is an operating convention; separate media editing permissions are deliberately deferred. Urgent does not bypass review. Platforms and formats may be left for Media to advise. Formats use a multi-select dropdown, including Email Campaign; requested platforms include Email. Submission requires selecting copywriting help or providing at least one of headline, body or caption. Field helpers explain the brief, deadlines, copy and ownership. The Media calendar uses portal requests and deliverables, with search/status filters, month navigation and a mobile agenda. Cancelled requests are excluded; it does not connect to an external calendar. Acceptance means the brief is usable for production; Ready to post records final review separately.
 
 ## Expense process
@@ -85,3 +87,7 @@ Full repository suite: 179/180 passed. The unchanged Instagram archive test fixt
 ![Expense list with sample data](screenshots/expense-list.png)
 
 ![Expense list on mobile](screenshots/expense-list-mobile.png)
+
+![Media queue list with sample data](screenshots/media-list.png)
+
+![Media queue list on mobile](screenshots/media-list-mobile.png)
