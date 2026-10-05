@@ -20,8 +20,7 @@ export const EXPENSE_STATUSES = [
   "cancelled"
 ] as const
 export type Status =
-  | (typeof MEDIA_STATUSES)[number]
-  | (typeof EXPENSE_STATUSES)[number]
+  (typeof MEDIA_STATUSES)[number] | (typeof EXPENSE_STATUSES)[number]
 export const STATUS_LABELS: Record<Status, string> = {
   submitted: "Submitted",
   needs_information: "Needs information",
@@ -441,7 +440,39 @@ export function applyChange(
         delete record.media.reviewedAt
         delete record.media.reviewedBy
       }
-    } else if (action === "production") {
+    } else if (action === "production" || action === "publication") {
+      const publication =
+        action === "publication" ? object(v.publication) : null
+      let publicationPosted = false
+      if (publication) {
+        if (m.deliverables.length > 1)
+          throw new WorkflowError(
+            "This older request has several outputs. Retain its records and create separate requests for new work."
+          )
+        const publishedUrl = url(publication.publishedUrl, "Published link")
+        const postedDate = date(publication.postedDate, "Posted date", false)
+        if (Boolean(publishedUrl) !== Boolean(postedDate))
+          throw new WorkflowError(
+            "Add both the published link and actual posting date."
+          )
+        publicationPosted = Boolean(publishedUrl && postedDate)
+        const old = m.deliverables[0]
+        v.deliverables = [
+          {
+            ...publication,
+            id: old?.id || `publication-${record.id}`,
+            name: record.title.slice(0, 150),
+            platform: m.platforms.join(", ").slice(0, 80) || "Media to advise",
+            format: mediaFormats(m).join(", ").slice(0, 80),
+            assigneeId: "",
+            status: publicationPosted
+              ? "posted"
+              : ["director_review", "ready_to_post"].includes(record.status)
+                ? "review"
+                : "planned"
+          }
+        ]
+      }
       m.productionOwnerId = member(
         text(v.ownerId ?? v.productionOwnerId, "Media owner", false, 36)
       )
@@ -539,6 +570,13 @@ export function applyChange(
         delete m.reviewedAt
         delete m.reviewedBy
       }
+      if (publicationPosted) {
+        if (record.status !== "ready_to_post")
+          throw new WorkflowError(
+            "Complete Director review of the final asset before recording publication."
+          )
+        record.status = "posted"
+      }
     } else if (action === "status") {
       const status = text(v.status, "Status", true) as Status
       if (!mediaNextStatuses(record.status).includes(status))
@@ -554,7 +592,7 @@ export function applyChange(
         (!m.deliverables.length || m.deliverables.some((d) => !d.assetUrl))
       )
         throw new WorkflowError(
-          "Each deliverable needs a final Drive or Canva link before it is ready to post."
+          "Add a final Drive or Canva link before the request is ready to post."
         )
       if (
         status === "posted" &&

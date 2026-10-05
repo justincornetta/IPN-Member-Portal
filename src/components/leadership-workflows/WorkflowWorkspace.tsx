@@ -20,7 +20,6 @@ import {
   usd,
   unpaidCents,
   type Bootstrap,
-  type Deliverable,
   type Kind,
   type MediaBrief,
   type Person,
@@ -316,7 +315,7 @@ export default function WorkflowWorkspace({
           </h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-500">
             {kind === "media"
-              ? "Share a brief, coordinate production, and follow each deliverable through posting."
+              ? "Share a brief, coordinate production, and track each request through posting."
               : isApprover
                 ? "Review requests, record purchases, and keep receipts."
                 : "Get approval before spending, then keep the receipt with your request."}
@@ -1024,8 +1023,9 @@ function RequestForm({
                 </div>
               </details>
               <p className="mt-1.5 text-xs text-zinc-500">
-                Select all formats needed. Choose Media to advise if you want
-                the team to recommend a format.
+                Select formats for this content, or choose Media to advise.
+                Submit separate requests for outputs needing their own status or
+                posting date.
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -1222,7 +1222,7 @@ function RequestDetail({
   const name = (id?: string) =>
     data.people.find((p) => p.id === id)?.name || "Unassigned"
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {r.kind === "media" ? (
         <>
           <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
@@ -1256,33 +1256,37 @@ function RequestDetail({
               </div>
             ) : null
           })}
-          <div className="flex flex-wrap gap-3">
-            {r.media!.links.map((l, i) => (
-              <a
-                key={i}
-                href={l.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-ipn underline"
-              >
-                {l.label} {i + 1}
-              </a>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
-            {r.media!.acceptedAt && (
-              <span>
-                Accepted by {name(r.media!.acceptedBy)} ·{" "}
-                {r.media!.acceptedAt.slice(0, 10)}
-              </span>
-            )}
-            {r.media!.reviewedAt && (
-              <span>
-                Final review: {name(r.media!.reviewedBy)} ·{" "}
-                {r.media!.reviewedAt.slice(0, 10)}
-              </span>
-            )}
-          </div>
+          {r.media!.links.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {r.media!.links.map((l, i) => (
+                <a
+                  key={i}
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-ipn underline"
+                >
+                  {l.label} {i + 1}
+                </a>
+              ))}
+            </div>
+          )}
+          {(r.media!.acceptedAt || r.media!.reviewedAt) && (
+            <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
+              {r.media!.acceptedAt && (
+                <span>
+                  Accepted by {name(r.media!.acceptedBy)} ·{" "}
+                  {r.media!.acceptedAt.slice(0, 10)}
+                </span>
+              )}
+              {r.media!.reviewedAt && (
+                <span>
+                  Final review: {name(r.media!.reviewedBy)} ·{" "}
+                  {r.media!.reviewedAt.slice(0, 10)}
+                </span>
+              )}
+            </div>
+          )}
           <Production
             record={r}
             people={data.people}
@@ -1340,8 +1344,18 @@ function RequestDetail({
           Edit request
         </button>
       )}
-      <div className="border-t border-zinc-200 pt-5">
-        <h3 className="font-semibold">Activity history</h3>
+      <details
+        open={r.kind === "expense"}
+        className="border-t border-zinc-200 pt-4"
+      >
+        <summary className="cursor-pointer text-sm">
+          <h3 className="inline font-semibold">
+            Activity history{" "}
+            <span className="ml-1 font-normal text-zinc-500">
+              ({data.activity.filter((a) => a.requestId === r.id).length})
+            </span>
+          </h3>
+        </summary>
         <ol className="mt-3 space-y-3">
           {data.activity
             .filter((a) => a.requestId === r.id)
@@ -1381,7 +1395,7 @@ function RequestDetail({
             </button>
           </form>
         )}
-      </div>
+      </details>
     </div>
   )
 }
@@ -1426,187 +1440,154 @@ function Production({
   busy: boolean
   save: Save
 }) {
-  const [owner, setOwner] = useState(r.media!.productionOwnerId),
-    [items, setItems] = useState(r.media!.deliverables)
-  const update = (i: number, patch: Partial<Deliverable>) =>
-    setItems(items.map((d, j) => (j === i ? { ...d, ...patch } : d)))
+  const [owner, setOwner] = useState(r.media!.productionOwnerId)
+  const publication = r.media!.deliverables[0]
+  const [details, setDetails] = useState({
+    scheduledDate: publication?.scheduledDate || "",
+    assetUrl: publication?.assetUrl || "",
+    publishedUrl: publication?.publishedUrl || "",
+    postedDate: publication?.postedDate || ""
+  })
   const locked = r.status === "posted"
+  const legacyMultiple = r.media!.deliverables.length > 1
+  const update = (patch: Partial<typeof details>) =>
+    setDetails({ ...details, ...patch })
   return (
     <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
       <h3 className="font-semibold">Production and publication</h3>
       <p className="mt-1 text-xs text-zinc-500">
-        The Media owner coordinates this request from production through
-        posting. Agnes leads acceptance, assignment and review. Final assets
-        stay in Google Drive or Canva.
+        One request tracks one piece of content. The Media owner handles
+        production and posting; Agnes leads acceptance, assignment and review.
+        Submit a separate request for an output that needs its own status or
+        posting date.
       </p>
-      <fieldset disabled={busy || locked} className="mt-4 flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <PersonSelect
-            label="Media owner"
-            people={people}
-            value={owner}
-            onChange={setOwner}
-          />
-        </div>
-        {items.map((d, i) => (
-          <fieldset
-            key={d.id}
-            disabled={
-              d.status === "posted" &&
-              r.media!.deliverables.some(
-                (x) => x.id === d.id && x.status === "posted"
-              )
-            }
-            className="rounded-xl border border-zinc-200 bg-white p-4"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field
-                label="Deliverable name"
-                hint="Name one piece of content, such as an Instagram carousel or email campaign."
-              >
-                <input
-                  className={input}
-                  value={d.name}
-                  onChange={(e) => update(i, { name: e.target.value })}
-                />
-              </Field>
-              <Field label="Platform">
-                <input
-                  className={input}
-                  value={d.platform}
-                  onChange={(e) => update(i, { platform: e.target.value })}
-                />
-              </Field>
-              <Field label="Format">
-                <input
-                  className={input}
-                  value={d.format}
-                  onChange={(e) => update(i, { format: e.target.value })}
-                />
-              </Field>
-              <Field label="Deliverable status">
-                <select
-                  className={input}
-                  value={d.status}
-                  onChange={(e) =>
-                    update(i, {
-                      status: e.target.value as Deliverable["status"]
-                    })
-                  }
-                >
-                  {[
-                    "planned",
-                    "in_production",
-                    "review",
-                    "ready",
-                    "posted"
-                  ].map((s) => (
-                    <option key={s} value={s}>
-                      {s.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <PersonSelect
-                label="Deliverable owner (optional)"
-                unassignedLabel="Use Media owner"
-                people={people}
-                value={d.assigneeId}
-                onChange={(value) => update(i, { assigneeId: value })}
-              />
-              <p className="self-center text-xs text-zinc-500">
-                Leave unassigned to use the Media owner. The owner handles
-                production and posting for this deliverable.
+      {legacyMultiple ? (
+        <div className="mt-4 space-y-3 text-sm">
+          <p>
+            This older request contains several outputs. Their saved records are
+            retained below; use separate requests for future work.
+          </p>
+          {r.media!.deliverables.map((item) => (
+            <div key={item.id} className="rounded-lg border bg-white p-3">
+              <p className="font-medium">
+                {item.name} · {item.platform}
               </p>
+              <p className="text-xs text-zinc-500">
+                {item.status.replace(/_/g, " ")}
+              </p>
+              {item.assetUrl && (
+                <a
+                  href={item.assetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mr-3 text-ipn underline"
+                >
+                  Final asset
+                </a>
+              )}
+              {item.publishedUrl && (
+                <a
+                  href={item.publishedUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-ipn underline"
+                >
+                  Published content
+                </a>
+              )}
+              {item.postedDate && <p>Posted {item.postedDate}</p>}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void save({
+              action: "publication",
+              ownerId: owner,
+              publication: details
+            }).catch(() => {})
+          }}
+        >
+          <fieldset
+            disabled={busy || locked}
+            className="mt-4 flex flex-col gap-4"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PersonSelect
+                label="Media owner"
+                people={people}
+                value={owner}
+                onChange={setOwner}
+              />
               <Field
                 label="Scheduled posting date"
-                hint="The planned publication date for this deliverable; shown in the media calendar."
+                hint="The planned posting date, shown in the media calendar. Leave blank until scheduled."
               >
                 <input
                   type="date"
                   className={input}
-                  value={d.scheduledDate}
-                  onChange={(e) => update(i, { scheduledDate: e.target.value })}
+                  value={details.scheduledDate}
+                  onChange={(e) => update({ scheduledDate: e.target.value })}
                 />
               </Field>
-              <Field label="Final asset link (Drive / Canva)">
+              <Field
+                label="Final asset link (Drive / Canva)"
+                hint="Link to the finished content or a folder containing its assets. Required before Ready to post."
+              >
                 <input
                   type="url"
                   className={input}
-                  value={d.assetUrl}
-                  onChange={(e) => update(i, { assetUrl: e.target.value })}
-                />
-              </Field>
-              <Field label="Published link">
-                <input
-                  type="url"
-                  className={input}
-                  value={d.publishedUrl}
-                  onChange={(e) => update(i, { publishedUrl: e.target.value })}
-                />
-              </Field>
-              <Field label="Actual posting date">
-                <input
-                  type="date"
-                  className={input}
-                  value={d.postedDate}
-                  onChange={(e) => update(i, { postedDate: e.target.value })}
+                  value={details.assetUrl}
+                  onChange={(e) => update({ assetUrl: e.target.value })}
                 />
               </Field>
             </div>
-            {d.status !== "posted" && (
-              <button
-                className="mt-3 text-xs text-zinc-500 underline"
-                onClick={() => setItems(items.filter((_, j) => j !== i))}
-              >
-                Remove deliverable
+            <details
+              className="rounded-lg border border-zinc-200 bg-white"
+              open={locked}
+            >
+              <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+                Publication record
+              </summary>
+              <div className="grid gap-4 border-t border-zinc-100 p-4 sm:grid-cols-2">
+                <Field
+                  label="Published link"
+                  hint="Add the live post, video or sent campaign link after publication."
+                >
+                  <input
+                    type="url"
+                    className={input}
+                    value={details.publishedUrl}
+                    onChange={(e) => update({ publishedUrl: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  label="Actual posting date"
+                  hint="Add with the published link after posting. Saving both marks the reviewed request Posted."
+                >
+                  <input
+                    type="date"
+                    className={input}
+                    value={details.postedDate}
+                    onChange={(e) => update({ postedDate: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </details>
+            {!locked && (
+              <button className={`${primary} self-start`}>
+                Save production
               </button>
             )}
           </fieldset>
-        ))}
-        {!locked && (
-          <div className="flex flex-wrap gap-3">
-            <button
-              className={secondary}
-              onClick={() =>
-                setItems([
-                  ...items,
-                  {
-                    id: crypto.randomUUID(),
-                    name: "",
-                    platform: "",
-                    format: mediaFormats(r.media!)[0],
-                    assigneeId: "",
-                    publisherId: owner,
-                    scheduledDate: r.media!.postedBy,
-                    status: "planned",
-                    assetUrl: "",
-                    publishedUrl: "",
-                    postedDate: ""
-                  }
-                ])
-              }
-            >
-              Add deliverable
-            </button>
-            <button
-              className={primary}
-              onClick={() =>
-                void save({
-                  action: "production",
-                  ownerId: owner,
-                  deliverables: items
-                }).catch(() => {})
-              }
-            >
-              Save production
-            </button>
-          </div>
-        )}
-      </fieldset>
+        </form>
+      )}
     </section>
   )
 }
+
 function ExpenseDetail({
   record: r,
   data,

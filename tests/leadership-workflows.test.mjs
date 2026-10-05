@@ -468,3 +468,97 @@ test("one media owner handles production and publication, with per-deliverable o
   })
   assert.equal(delegated.media.deliverables[0].publisherId, other.id)
 })
+
+test("request publication keeps one record, requires review and records Posted atomically", () => {
+  let r = createRequest(
+    {
+      id: randomUUID(),
+      kind: "media",
+      title: "Announcement",
+      media: {
+        type: "announcement",
+        team: "Media",
+        brief: "Introduce our leadership team.",
+        postedBy: "2026-10-20",
+        platforms: ["Instagram", "LinkedIn"],
+        formats: ["Carousel"],
+        needsCopyHelp: true
+      }
+    },
+    member,
+    now
+  )
+  const publication = {
+    scheduledDate: "2026-10-19",
+    assetUrl: "https://www.canva.com/design/example/edit",
+    publishedUrl: "",
+    postedDate: ""
+  }
+  r = change(r, "publication", other, { ownerId: member.id, publication })
+  const id = r.media.deliverables[0].id
+  assert.equal(r.media.deliverables.length, 1)
+  assert.equal(r.media.deliverables[0].platform, "Instagram, LinkedIn")
+  assert.throws(
+    () =>
+      change(r, "publication", member, {
+        ownerId: member.id,
+        publication: {
+          ...publication,
+          publishedUrl: "https://www.instagram.com/p/example/",
+          postedDate: "2026-10-05"
+        }
+      }),
+    /Director review/
+  )
+  assert.throws(
+    () =>
+      change(r, "publication", member, {
+        ownerId: member.id,
+        publication: {
+          ...publication,
+          publishedUrl: "https://www.instagram.com/p/example/"
+        }
+      }),
+    /both/
+  )
+  for (const status of [
+    "accepted",
+    "assigned",
+    "in_production",
+    "director_review",
+    "ready_to_post"
+  ])
+    r = change(r, "status", other, { status })
+  const published = {
+    ...publication,
+    publishedUrl: "https://www.instagram.com/p/example/",
+    postedDate: "2026-10-05"
+  }
+  assert.throws(
+    () =>
+      change(r, "publication", member, {
+        ownerId: member.id,
+        publication: {
+          ...published,
+          assetUrl: "https://www.canva.com/design/revised/edit"
+        }
+      }),
+    /Director review/
+  )
+  const posted = change(r, "publication", member, {
+    ownerId: member.id,
+    publication: published
+  })
+  assert.equal(posted.status, "posted")
+  assert.equal(posted.media.deliverables.length, 1)
+  assert.equal(posted.media.deliverables[0].id, id)
+  assert.equal(posted.media.deliverables[0].publisherId, member.id)
+  assert.throws(
+    () =>
+      change(posted, "publication", member, {
+        ownerId: member.id,
+        publication
+      }),
+    /final record/
+  )
+})

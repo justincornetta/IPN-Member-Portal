@@ -42,9 +42,12 @@ export default function MediaCalendar({
           id: d.id,
           requestId: r.id,
           date: d.status === "posted" ? d.postedDate : d.scheduledDate,
-          title: `${r.title} · ${d.name}`,
+          title:
+            media.deliverables.length === 1
+              ? r.title
+              : `${r.title} · ${d.name}`,
           label: d.status === "posted" ? "Posted" : "Scheduled",
-          status: d.status.replace(/_/g, " ")
+          status: STATUS_LABELS[r.status]
         }))
       ].filter((e) => e.date.startsWith(`${month}-`))
     })
@@ -109,8 +112,8 @@ export default function MediaCalendar({
         </div>
       </div>
       <p className="mt-3 text-xs text-zinc-500">
-        View request deadlines, scheduled deliverables and actual posting dates.
-        Select an entry to open its request. Cancelled requests are excluded.
+        View request deadlines, scheduled posts and actual posting dates. Select
+        an entry to open its request. Cancelled requests are excluded.
       </p>
       <div className="mt-4 hidden grid-cols-7 gap-1 md:grid">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (

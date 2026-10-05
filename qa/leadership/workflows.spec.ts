@@ -2,7 +2,9 @@ import { test, expect, type Page } from "@playwright/test"
 import { randomUUID } from "node:crypto"
 const errors = new WeakMap<Page, string[]>()
 test.beforeEach(async ({ page, request }) => {
-  await request.post("/api/admin/workflows", { data: { action: "reset_demo" } })
+  await request.post("/api/admin/workflows", {
+    data: { action: "reset_demo" }
+  })
   const found: string[] = []
   errors.set(page, found)
   page.on("pageerror", (e) => found.push(e.message))
@@ -66,7 +68,7 @@ test("expense approval, purchase and receipt through the browser", async ({
   )
   await expect(page.getByLabel("Add a comment")).toHaveCount(0)
   await expect(
-    page.getByRole("heading", { name: "Activity history" })
+    page.getByRole("heading", { name: /Activity history/ })
   ).toBeVisible()
   await expect(
     page.getByText("Reconcile bank activity", { exact: true })
@@ -141,7 +143,7 @@ test("leadership expense privacy and preapproved reimbursement", async ({
     page.getByText("Reimbursed", { exact: true }).first()
   ).toBeVisible()
 })
-test("general media request, shared assignment, review and posted deliverable", async ({
+test("general media request, shared assignment, review and request publication", async ({
   page
 }) => {
   await page.goto("/workflow-preview/media")
@@ -205,15 +207,14 @@ test("general media request, shared assignment, review and posted deliverable", 
   await expect(
     page.getByText("Email · Carousel, Email Campaign", { exact: true })
   ).toBeVisible()
-  await page
-    .getByRole("button", { name: "Add deliverable", exact: true })
-    .click()
-  await page.getByLabel("Deliverable name").fill("Instagram announcement")
-  await page.getByLabel("Platform", { exact: true }).fill("Instagram")
+  await expect(
+    page.getByRole("button", { name: "Add content item", exact: true })
+  ).toHaveCount(0)
+  await expect(page.getByLabel("Content status")).toHaveCount(0)
+  await expect(page.getByLabel("Content owner (optional)")).toHaveCount(0)
   await page
     .getByLabel("Final asset link (Drive / Canva)")
     .fill("https://www.canva.com/design/example/edit")
-  await page.getByLabel("Deliverable status").selectOption("ready")
   await page.getByLabel("Scheduled posting date").fill("2026-10-19")
   await page
     .getByRole("button", { name: "Save production", exact: true })
@@ -252,7 +253,10 @@ test("general media request, shared assignment, review and posted deliverable", 
     fullPage: true
   })
   await scheduled.click()
-  await page.getByLabel("Deliverable status").selectOption("posted")
+  await page
+    .locator("summary")
+    .filter({ hasText: "Publication record" })
+    .click()
   await page
     .getByLabel("Published link")
     .fill("https://www.instagram.com/p/example/")
@@ -262,10 +266,11 @@ test("general media request, shared assignment, review and posted deliverable", 
   await page
     .getByRole("button", { name: "Save production", exact: true })
     .click()
-  await page.getByLabel("Move request to").selectOption("posted")
-  await page.getByRole("button", { name: "Update status", exact: true }).click()
   await expect(page.getByText("Posted", { exact: true }).first()).toBeVisible()
-  await page.screenshot({ path: "/tmp/ipn-workflow-media.png", fullPage: true })
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-media.png",
+    fullPage: true
+  })
 })
 test("event prefill, mobile layout and Admin dropdown", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -517,7 +522,10 @@ test("expense list columns, row opening, filters and mobile scrolling", async ({
       () => document.documentElement.scrollWidth <= window.innerWidth
     )
   ).toBeTruthy()
-  const region = page.getByRole("region", { name: "Expense list", exact: true })
+  const region = page.getByRole("region", {
+    name: "Expense list",
+    exact: true
+  })
   expect(
     await region.evaluate(
       (element) => element.scrollWidth > element.clientWidth
@@ -709,4 +717,83 @@ test("media list default deadline ordering, column sorting, search and row openi
     path: "/tmp/ipn-workflow-media-list-mobile.png",
     fullPage: true
   })
+})
+
+test("long media details scroll within the content pane and keep the sidebar full height", async ({
+  page,
+  request
+}) => {
+  const id = randomUUID()
+  const made = await request.post("/api/admin/workflows", {
+    data: {
+      id,
+      kind: "media",
+      title: "Multi-platform campaign",
+      media: {
+        type: "campaign",
+        team: "Media",
+        brief: "Campaign context and reference notes.\n".repeat(60),
+        postedBy: "2026-10-20",
+        platforms: ["Instagram", "Email"],
+        needsCopyHelp: true
+      }
+    }
+  })
+  expect(made.ok()).toBeTruthy()
+  await page.goto("/workflow-preview/media")
+  await page
+    .getByRole("button", {
+      name: "Open media request: Multi-platform campaign",
+      exact: true
+    })
+    .click()
+  const history = page
+    .locator("details")
+    .filter({ has: page.getByRole("heading", { name: /Activity history/ }) })
+  await expect(history).not.toHaveAttribute("open")
+  await expect(
+    page.getByRole("button", { name: "Add content item", exact: true })
+  ).toHaveCount(0)
+  await expect(page.getByLabel("Final asset link (Drive / Canva)")).toHaveValue(
+    ""
+  )
+  const content = page.getByRole("region", {
+    name: "Workflow content",
+    exact: true
+  })
+  expect(
+    await content.evaluate(
+      (element) => element.scrollHeight > element.clientHeight
+    )
+  ).toBeTruthy()
+  await content.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight + 1
+    )
+  ).toBeTruthy()
+  expect(
+    await page.locator("aside").evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      return (
+        Math.abs(bounds.top) < 1 &&
+        Math.abs(bounds.bottom - window.innerHeight) < 1
+      )
+    })
+  ).toBeTruthy()
+  await history.locator("summary").click()
+  await expect(page.getByLabel("Add a comment")).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBeTruthy()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight + 1
+    )
+  ).toBeTruthy()
 })
