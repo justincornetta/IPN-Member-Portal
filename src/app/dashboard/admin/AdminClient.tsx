@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { searchMembersForAdmin, assignAdminAccess, setTeamPermission, updateFeedbackStatus, deleteFeedbackSubmission, banMember, unbanMember, getMemberDetail, deleteMemberAccount, setMemberAnalyticsExclusion } from "@/lib/admin/actions"
 import type { AdminMemberProfile, AdminMemberDetail, AdminContentType, TeamPermissionsMap, FeedbackSubmission, AnalyticsEventLabelOverride } from "@/lib/admin/actions"
 import AnalyticsDashboardShell from "./AnalyticsDashboardShell"
@@ -930,7 +930,12 @@ function FeedbackTab({
 
 export default function AdminClient({ isSuperadmin, leadership, memberInsights, portalUtilization, onboardingAnalytics, analyticsSnapshot, mailchimpAnalytics, analyticsRefresh, eventLabelOverrides, portalEvents, communityEvents, communityEventsError, teamPermissions, feedback: initialFeedback, bannedMembers }: Props) {
   type Tab = "analytics" | "content" | "leadership" | "feedback" | "moderation"
-  const [tab, setTab] = useState<Tab>("analytics")
+  const router = useRouter()
+  const params = useSearchParams()
+  const requestedTab = params.get("tab")
+  const permittedTabs = ["analytics", "content", "leadership", ...(isSuperadmin ? ["feedback", "moderation"] : [])]
+  const tab = (permittedTabs.includes(requestedTab || "") ? requestedTab : "analytics") as Tab
+  const setTab = (next: Tab) => router.replace(`/dashboard/admin?tab=${next}`, { scroll: false })
   const [selectedMember, setSelectedMember] = useState<AdminMemberProfile | null>(null)
   const [feedback, setFeedback] = useState(initialFeedback)
   const [, startTransition] = useTransition()

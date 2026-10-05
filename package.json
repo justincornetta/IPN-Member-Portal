@@ -18,7 +18,11 @@
     "analytics:import-geocodes": "node scripts/import-location-geocodes.mjs",
     "analytics:prepare-social-backfill": "node scripts/prepare-social-history-backfill.mjs",
     "analytics:validate-snapshot": "node scripts/validate-analytics-snapshot.mjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "qa:install": "playwright install chromium",
+    "qa:local": "playwright test -c playwright.workflows.config.ts",
+    "workflow:dev": "node scripts/workflow-dev.mjs",
+    "clean": "node scripts/clean.mjs"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",
@@ -36,6 +40,8 @@
     "sharp": "0.34.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^20",

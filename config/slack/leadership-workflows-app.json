@@ -1,0 +1,24 @@
+{
+  "display_information": {
+    "name": "IPN Leadership Requests",
+    "description": "IPN media briefs and preapproved expense tracking",
+    "background_color": "#5831A0"
+  },
+  "features": {
+    "bot_user": { "display_name": "IPN Requests", "always_online": false }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["chat:write", "im:write", "users:read", "users:read.email"]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://members.intercollegiatepsychedelics.net/api/slack/expenses"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
