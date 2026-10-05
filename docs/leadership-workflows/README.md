@@ -23,6 +23,8 @@ All eligible leadership can view and edit the queue. Agnes's ownership is an ope
 
 Cost inputs show a $45.00 example and accept digits with up to two decimal places, without currency symbols. Expense discussion takes place in Slack; the portal retains automatic activity history and approval/rejection notes.
 
+The approver dashboard combines Relay and Reconsider balances in one Total IPN funds card, with separate amounts, evidence dates and Reconsider estimate labeling. Approved unpaid commitments remain separate and are not deducted from recorded funds.
+
 Only preapproval intake is supported: automatic submitter plus Expense, Purpose, Cost (USD), and optional item/expense link. Justin alone approves or rejects, including his own submissions; Justin is the default IPN-card purchaser. Leadership sees its own expenses; Justin sees all.
 
 Both expense tabs use a list with Expense, Purpose, Submitter, Submitted date, Cost and Status columns. Rows open the existing detail view, including keyboard access through the expense title. Cost shows the requested amount until purchase, then the actual amount. Long purposes are limited to two lines in the list; full text remains in the detail. Search/status filters apply to the list, and horizontal scrolling keeps every column available on mobile.
@@ -93,3 +95,5 @@ Full repository suite: 179/180 passed. The unchanged Instagram archive test fixt
 ![Media queue list on mobile](screenshots/media-list-mobile.png)
 
 ![Compact media detail and full-height sidebar](screenshots/media-detail.png)
+
+![Combined expense funds card](screenshots/expense-funds.png)

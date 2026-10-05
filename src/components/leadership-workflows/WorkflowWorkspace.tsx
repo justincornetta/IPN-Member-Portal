@@ -348,28 +348,50 @@ export default function WorkflowWorkspace({
       )}
       {data && kind === "expense" && isApprover && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <Stat
-            title="Recorded Relay cash"
-            value={data.cash ? usd(data.cash.relayCents) : "Not connected"}
-            note={
-              data.cash
-                ? `As of ${data.cash.relayAsOf}`
-                : "Connect the finance tracker to show dated balances."
-            }
-          />
+          <section
+            aria-label="IPN funds"
+            className="rounded-xl border border-zinc-200 bg-white p-5 sm:col-span-2"
+          >
+            <p className="text-xs text-zinc-500">Total IPN funds</p>
+            <p className="mt-2 text-2xl font-semibold">
+              {data.cash
+                ? usd(data.cash.relayCents + data.cash.reconsiderCents)
+                : "Not connected"}
+            </p>
+            <p className="mt-2 text-xs text-zinc-500">
+              {data.cash
+                ? "Includes estimated Reconsider holdings."
+                : "Connect the finance tracker to show dated balances."}
+            </p>
+            {data.cash && (
+              <dl className="mt-4 grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-zinc-500">Recorded Relay cash</dt>
+                  <dd className="mt-1 text-base font-semibold">
+                    {usd(data.cash.relayCents)}
+                  </dd>
+                  <dd className="mt-1 text-xs text-zinc-500">
+                    As of {data.cash.relayAsOf}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-zinc-500">
+                    Reconsider-held funds
+                  </dt>
+                  <dd className="mt-1 text-base font-semibold">
+                    {usd(data.cash.reconsiderCents)}
+                  </dd>
+                  <dd className="mt-1 text-xs text-zinc-500">
+                    Estimated · as of {data.cash.reconsiderAsOf}
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </section>
           <Stat
             title="Approved unpaid commitments"
             value={usd(records.reduce((n, r) => n + unpaidCents(r), 0))}
             note={`${records.filter((r) => unpaidCents(r) && !r.expense?.expectedMonth).length} without an expected spending month`}
-          />
-          <Stat
-            title="Reconsider-held funds"
-            value={data.cash ? usd(data.cash.reconsiderCents) : "Not connected"}
-            note={
-              data.cash
-                ? `Estimated · as of ${data.cash.reconsiderAsOf}`
-                : "Tracked separately from Relay cash."
-            }
           />
         </div>
       )}
