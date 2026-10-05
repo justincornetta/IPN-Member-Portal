@@ -11,6 +11,8 @@ import {
   type ReactNode
 } from "react"
 import {
+  MEDIA_FORMATS,
+  mediaFormats,
   EXPENSE_STATUSES,
   MEDIA_STATUSES,
   STATUS_LABELS,
@@ -24,6 +26,8 @@ import {
   type Person,
   type WorkflowRequest
 } from "@/lib/leadership-workflows/domain"
+
+import MediaCalendar from "./MediaCalendar"
 
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-ipn focus:ring-2 focus:ring-ipn/15"
@@ -39,6 +43,7 @@ const emptyMedia: MediaBrief = {
   urgent: false,
   platforms: ["Media to advise"],
   format: "Media to advise",
+  formats: ["Media to advise"],
   needsCopyHelp: false,
   headline: "",
   body: "",
@@ -68,15 +73,25 @@ function Field({
       <span>{label}</span>
       {isValidElement(children)
         ? cloneElement(
-            children as ReactElement<{ id?: string; "aria-label"?: string }>,
+            children as ReactElement<{
+              id?: string
+              "aria-label"?: string
+              "aria-describedby"?: string
+            }>,
             {
               id: fieldId,
-              "aria-label": label
+              "aria-label": label,
+              "aria-describedby": hint ? `${fieldId}-hint` : undefined
             }
           )
         : children}
       {hint && (
-        <span className="text-xs font-normal text-zinc-500">{hint}</span>
+        <span
+          id={`${fieldId}-hint`}
+          className="text-xs font-normal text-zinc-500"
+        >
+          {hint}
+        </span>
       )}
     </label>
   )
@@ -106,7 +121,8 @@ export default function WorkflowWorkspace({
     [filter, setFilter] = useState(""),
     [search, setSearch] = useState(""),
     [demoUser, setDemoUser] = useState("approver"),
-    [expenseTab, setExpenseTab] = useState("requests")
+    [expenseTab, setExpenseTab] = useState("requests"),
+    [mediaView, setMediaView] = useState("queue")
   const headers = useCallback(
     () => ({
       "Content-Type": "application/json",
@@ -230,8 +246,8 @@ export default function WorkflowWorkspace({
       {demo && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
           <span>
-            Local preview · no sign-in needed · sample people · notifications and tracker writes
-            disabled
+            Local preview · no sign-in needed · sample people · notifications
+            and tracker writes disabled
           </span>
           <label className="flex items-center gap-2">
             Preview as
@@ -265,7 +281,7 @@ export default function WorkflowWorkspace({
             {kind === "media"
               ? "Share a brief, coordinate production, and follow each deliverable through posting."
               : isApprover
-                ? "Review requests, record purchases, and reconcile payments."
+                ? "Review requests, record purchases, and keep receipts."
                 : "Get approval before spending, then keep the receipt with your request."}
           </p>
         </div>
@@ -351,6 +367,31 @@ export default function WorkflowWorkspace({
           </p>
         </nav>
       )}
+      {data && kind === "media" && (
+        <nav
+          aria-label="Media views"
+          className="flex gap-2 border-b border-zinc-200 pb-3"
+        >
+          {[
+            { id: "queue", label: "Request queue" },
+            { id: "calendar", label: "Media calendar" }
+          ].map((view) => (
+            <button
+              key={view.id}
+              disabled={busy}
+              aria-pressed={mediaView === view.id}
+              className={mediaView === view.id ? primary : secondary}
+              onClick={() => {
+                setMediaView(view.id)
+                setSelected("")
+                setCreating(false)
+              }}
+            >
+              {view.label}
+            </button>
+          ))}
+        </nav>
+      )}
       {creating && data ? (
         <RequestForm
           key={`new-${kind}`}
@@ -421,55 +462,66 @@ export default function WorkflowWorkspace({
               Refresh
             </button>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {visible.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => {
-                  setSelected(r.id)
-                  setError("")
-                }}
-                className="rounded-xl border border-zinc-200 bg-white p-5 text-left transition hover:border-ipn/50 hover:shadow-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Badge record={r} />
-                  {r.media?.urgent && (
-                    <span className="text-xs font-semibold text-amber-700">
-                      Urgent
-                    </span>
-                  )}
+          {kind === "media" && mediaView === "calendar" ? (
+            <MediaCalendar
+              records={visible}
+              open={(id) => {
+                setSelected(id)
+                setError("")
+              }}
+            />
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-2">
+                {visible.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      setSelected(r.id)
+                      setError("")
+                    }}
+                    className="rounded-xl border border-zinc-200 bg-white p-5 text-left transition hover:border-ipn/50 hover:shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Badge record={r} />
+                      {r.media?.urgent && (
+                        <span className="text-xs font-semibold text-amber-700">
+                          Urgent
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="mt-3 font-semibold">{r.title}</h2>
+                    <p className="mt-1 text-sm text-zinc-500">
+                      {r.requesterName}
+                      {r.media
+                        ? ` · ${r.media.team}`
+                        : ` · ${usd(r.expense!.amountCents)}`}
+                    </p>
+                    <p className="mt-3 text-xs text-zinc-500">
+                      {r.media
+                        ? `Post by ${r.media.postedBy} · ${r.media.deliverables.filter((d) => d.status === "posted").length}/${r.media.deliverables.length} deliverables posted`
+                        : `Submitted ${r.submittedAt.slice(0, 10)}`}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              {data && visible.length === 0 && (
+                <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-10 text-center">
+                  <p className="font-medium">
+                    {records.length
+                      ? "No matching requests"
+                      : "No requests yet"}
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    {kind === "media"
+                      ? "Start with an idea or an upcoming event."
+                      : "Submit an expense before making the purchase."}
+                  </p>
                 </div>
-                <h2 className="mt-3 font-semibold">{r.title}</h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {r.requesterName}
-                  {r.media
-                    ? ` · ${r.media.team}`
-                    : ` · ${usd(r.expense!.amountCents)}`}
-                </p>
-                <p className="mt-3 text-xs text-zinc-500">
-                  {r.media
-                    ? `Post by ${r.media.postedBy} · ${r.media.deliverables.filter((d) => d.status === "posted").length}/${r.media.deliverables.length} deliverables posted`
-                    : `Submitted ${r.submittedAt.slice(0, 10)}`}
-                </p>
-              </button>
-            ))}
-          </div>
-          {data && visible.length === 0 && (
-            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-10 text-center">
-              <p className="font-medium">
-                {records.length ? "No matching requests" : "No requests yet"}
-              </p>
-              <p className="mt-2 text-sm text-zinc-500">
-                {kind === "media"
-                  ? "Start with an idea or an upcoming event."
-                  : "Submit an expense before making the purchase."}
-              </p>
-            </div>
+              )}
+            </>
           )}
         </section>
-      )}
-      {data && kind === "expense" && isApprover && !creating && !current && (
-        <BankImport data={data} busy={busy} save={extra} />
       )}
       {data && isApprover && !demo && (
         <details className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
@@ -536,9 +588,18 @@ function RequestForm({
     ),
     [purpose, setPurpose] = useState(record?.expense?.purpose || ""),
     [amount, setAmount] = useState(
-      record?.expense ? String(record.expense.amountCents / 100) : ""
+      record?.expense ? (record.expense.amountCents / 100).toFixed(2) : ""
     ),
-    [itemUrl, setItemUrl] = useState(record?.expense?.itemUrl || "")
+    [itemUrl, setItemUrl] = useState(record?.expense?.itemUrl || ""),
+    [copyChoice, setCopyChoice] = useState(
+      record?.media
+        ? record.media.needsCopyHelp
+          ? "help"
+          : record.media.headline || record.media.body || record.media.caption
+            ? "self"
+            : ""
+        : ""
+    )
   const m = (patch: Partial<MediaBrief>) =>
     setMedia((previous) => ({ ...previous, ...patch }))
   async function submit(e: FormEvent) {
@@ -579,14 +640,24 @@ function RequestForm({
             : "Request approval before spending"}
       </h2>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Submitter">
+        <Field
+          label="Submitter"
+          hint="Filled in automatically from your portal profile."
+        >
           <input
             className={`${input} bg-zinc-50`}
             value={record?.requesterName || data.user.name}
             readOnly
           />
         </Field>
-        <Field label={kind === "media" ? "Idea name" : "Expense"}>
+        <Field
+          label={kind === "media" ? "Idea name" : "Expense"}
+          hint={
+            kind === "media"
+              ? "A short title that will identify this request in the queue and calendar."
+              : "Name the item or service you want to purchase."
+          }
+        >
           <input
             className={input}
             value={title}
@@ -608,14 +679,21 @@ function RequestForm({
                 />
               </Field>
             </div>
-            <Field label="Cost (USD)">
+            <Field
+              label="Cost (USD)"
+              hint="For example, $45.00: enter 45.00 using numbers and up to two decimal places, without the $ sign."
+            >
               <input
-                type="number"
-                min="0.01"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]+([.][0-9]{1,2})?"
+                placeholder="45.00"
                 className={input}
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  if (/^\d*(\.\d{0,2})?$/.test(e.target.value))
+                    setAmount(e.target.value)
+                }}
                 required
               />
             </Field>
@@ -634,7 +712,10 @@ function RequestForm({
           </>
         ) : (
           <>
-            <Field label="Request type">
+            <Field
+              label="Request type"
+              hint="Choose what this content supports: an event, announcement, campaign or educational piece."
+            >
               <select
                 className={input}
                 value={media.type}
@@ -652,7 +733,10 @@ function RequestForm({
                 <option value="educational">Educational content</option>
               </select>
             </Field>
-            <Field label="Team / project">
+            <Field
+              label="Team / project"
+              hint="The IPN team or project requesting this content."
+            >
               <input
                 className={input}
                 value={media.team}
@@ -663,7 +747,10 @@ function RequestForm({
             {media.type === "event" && (
               <>
                 <div className="sm:col-span-2">
-                  <Field label="Existing event">
+                  <Field
+                    label="Existing event"
+                    hint="Select an event to prefill its details, then check and update the brief."
+                  >
                     <select
                       className={input}
                       value={media.eventId}
@@ -692,7 +779,10 @@ function RequestForm({
                   </Field>
                 </div>
                 <div className="sm:col-span-2">
-                  <Field label="Event details">
+                  <Field
+                    label="Event details"
+                    hint="Include date, time, timezone, location, speakers and the registration link."
+                  >
                     <textarea
                       className={input}
                       rows={3}
@@ -718,7 +808,10 @@ function RequestForm({
                 />
               </Field>
             </div>
-            <Field label="When does this need to be posted by?">
+            <Field
+              label="When does this need to be posted by?"
+              hint="The latest date this content should be published, rather than the event date. This appears as a deadline in the calendar."
+            >
               <input
                 type="date"
                 className={input}
@@ -727,27 +820,58 @@ function RequestForm({
                 required
               />
             </Field>
-            <Field label="Media format">
-              <select
-                className={input}
-                value={media.format}
-                onChange={(e) => m({ format: e.target.value })}
-              >
-                {[
-                  "Media to advise",
-                  "Image",
-                  "Carousel",
-                  "Story",
-                  "Short video",
-                  "Long video",
-                  "Blog / article",
-                  "Newsletter",
-                  "Other"
-                ].map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </Field>
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-zinc-700">
+                Media format
+              </p>
+              <details className="relative rounded-lg border border-zinc-300 bg-white">
+                <summary
+                  aria-label="Media format"
+                  className="cursor-pointer px-3 py-2.5 text-sm"
+                >
+                  {mediaFormats(media).join(", ") || "Choose formats"}
+                </summary>
+                <div
+                  role="group"
+                  aria-label="Media format options"
+                  className="flex flex-col gap-3 border-t border-zinc-200 p-3"
+                >
+                  {MEDIA_FORMATS.map((format) => (
+                    <label
+                      key={format}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={mediaFormats(media).includes(format)}
+                        onChange={(e) => {
+                          const current = mediaFormats(media)
+                          const selected = e.target.checked
+                            ? format === "Media to advise"
+                              ? [format]
+                              : [
+                                  ...current.filter(
+                                    (f) => f !== "Media to advise"
+                                  ),
+                                  format
+                                ]
+                            : current.filter((f) => f !== format)
+                          const formats = selected.length
+                            ? selected
+                            : ["Media to advise"]
+                          m({ formats, format: formats.join(", ") })
+                        }}
+                      />
+                      {format}
+                    </label>
+                  ))}
+                </div>
+              </details>
+              <p className="mt-1.5 text-xs text-zinc-500">
+                Select all formats needed. Choose Media to advise if you want
+                the team to recommend a format.
+              </p>
+            </div>
             <div className="sm:col-span-2">
               <p className="mb-2 text-sm font-medium text-zinc-700">
                 Requested platforms
@@ -758,6 +882,7 @@ function RequestForm({
                   "Instagram",
                   "LinkedIn",
                   "Newsletter",
+                  "Email",
                   "Website / blog",
                   "Member portal"
                 ].map((platform) => (
@@ -771,8 +896,18 @@ function RequestForm({
                       onChange={(e) =>
                         m({
                           platforms: e.target.checked
-                            ? [...media.platforms, platform]
+                            ? platform === "Media to advise"
+                              ? [platform]
+                              : [
+                                  ...media.platforms.filter(
+                                    (p) => p !== "Media to advise"
+                                  ),
+                                  platform
+                                ]
                             : media.platforms.filter((p) => p !== platform)
+                                  .length
+                              ? media.platforms.filter((p) => p !== platform)
+                              : ["Media to advise"]
                         })
                       }
                     />
@@ -780,6 +915,11 @@ function RequestForm({
                   </label>
                 ))}
               </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                Where should this content appear? Select all that apply. Email
+                covers direct email campaigns; Newsletter is the regular IPN
+                newsletter.
+              </p>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -789,46 +929,83 @@ function RequestForm({
               />
               Urgent — alert Agnes
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={media.needsCopyHelp}
-                onChange={(e) => m({ needsCopyHelp: e.target.checked })}
-              />
-              Need copywriting help
-            </label>
+            <p className="text-xs text-zinc-500">
+              Use Urgent for time-sensitive requests. Agnes still needs to
+              review and accept the brief.
+            </p>
             <div className="sm:col-span-2">
-              <details
-                className="rounded-xl border border-zinc-200 p-4"
-                open={!!record}
-              >
+              <details className="rounded-xl border border-zinc-200 p-4" open>
                 <summary className="cursor-pointer text-sm font-medium">
-                  Draft copy and supporting materials (optional)
+                  Draft copy and supporting materials
                 </summary>
                 <div className="mt-4 flex flex-col gap-4">
-                  <Field label="Headline">
-                    <input
+                  <Field
+                    label="Draft copy"
+                    hint="Choose copywriting help, or supply at least a headline, body or caption yourself."
+                  >
+                    <select
                       className={input}
-                      value={media.headline}
-                      onChange={(e) => m({ headline: e.target.value })}
-                    />
+                      value={copyChoice}
+                      required
+                      onChange={(e) => {
+                        setCopyChoice(e.target.value)
+                        m({ needsCopyHelp: e.target.value === "help" })
+                      }}
+                    >
+                      <option value="">
+                        Choose how the copy will be written
+                      </option>
+                      <option value="help">Need copywriting help</option>
+                      <option value="self">I will provide the copy</option>
+                    </select>
                   </Field>
-                  <Field label="Body">
-                    <textarea
-                      className={input}
-                      rows={4}
-                      value={media.body}
-                      onChange={(e) => m({ body: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Post caption">
-                    <textarea
-                      className={input}
-                      rows={3}
-                      value={media.caption}
-                      onChange={(e) => m({ caption: e.target.value })}
-                    />
-                  </Field>
+                  {copyChoice === "help" && (
+                    <p className="text-sm text-zinc-500">
+                      The Media team will draft the copy using your brief. Add
+                      any suggested wording or reference material below.
+                    </p>
+                  )}
+                  {copyChoice && (
+                    <>
+                      <Field
+                        label="Headline"
+                        hint="A short opening line or title for the content."
+                      >
+                        <input
+                          className={input}
+                          value={media.headline}
+                          required={
+                            copyChoice === "self" &&
+                            !media.body.trim() &&
+                            !media.caption.trim()
+                          }
+                          onChange={(e) => m({ headline: e.target.value })}
+                        />
+                      </Field>
+                      <Field
+                        label="Body"
+                        hint="The main text, key details or message to include."
+                      >
+                        <textarea
+                          className={input}
+                          rows={4}
+                          value={media.body}
+                          onChange={(e) => m({ body: e.target.value })}
+                        />
+                      </Field>
+                      <Field
+                        label="Post caption"
+                        hint="The text accompanying the post, including a call to action or useful links."
+                      >
+                        <textarea
+                          className={input}
+                          rows={3}
+                          value={media.caption}
+                          onChange={(e) => m({ caption: e.target.value })}
+                        />
+                      </Field>
+                    </>
+                  )}
                   <Field
                     label="Google Drive / Canva links"
                     hint="One link per line. Keep source files in Drive or Canva and give the Media team access."
@@ -1008,7 +1185,7 @@ function RequestDetail({
         </button>
       )}
       <div className="border-t border-zinc-200 pt-5">
-        <h3 className="font-semibold">Activity and feedback</h3>
+        <h3 className="font-semibold">Activity history</h3>
         <ol className="mt-3 space-y-3">
           {data.activity
             .filter((a) => a.requestId === r.id)
@@ -1024,28 +1201,30 @@ function RequestDetail({
               </li>
             ))}
         </ol>
-        <form
-          className="mt-4 flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            run({ action: "comment", note })
-          }}
-        >
-          <Field label="Add a comment">
-            <textarea
-              className={input}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-            />
-          </Field>
-          <button
-            disabled={busy || !note.trim()}
-            className={`${secondary} self-start`}
+        {r.kind === "media" && (
+          <form
+            className="mt-4 flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              run({ action: "comment", note })
+            }}
           >
-            Add comment
-          </button>
-        </form>
+            <Field label="Add a comment">
+              <textarea
+                className={input}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+              />
+            </Field>
+            <button
+              disabled={busy || !note.trim()}
+              className={`${secondary} self-start`}
+            >
+              Add comment
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
@@ -1054,12 +1233,14 @@ function PersonSelect({
   label,
   value,
   people,
-  onChange
+  onChange,
+  unassignedLabel = "Unassigned"
 }: {
   label: string
   value: string
   people: Person[]
   onChange: (value: string) => void
+  unassignedLabel?: string
 }) {
   return (
     <Field label={label}>
@@ -1068,7 +1249,7 @@ function PersonSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">Unassigned</option>
+        <option value="">{unassignedLabel}</option>
         {people.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}
@@ -1090,7 +1271,6 @@ function Production({
   save: Save
 }) {
   const [owner, setOwner] = useState(r.media!.productionOwnerId),
-    [publisher, setPublisher] = useState(r.media!.publisherId),
     [items, setItems] = useState(r.media!.deliverables)
   const update = (i: number, patch: Partial<Deliverable>) =>
     setItems(items.map((d, j) => (j === i ? { ...d, ...patch } : d)))
@@ -1099,22 +1279,17 @@ function Production({
     <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
       <h3 className="font-semibold">Production and publication</h3>
       <p className="mt-1 text-xs text-zinc-500">
-        Final assets stay in Google Drive or Canva. Agnes leads acceptance,
-        assignment, and review.
+        The Media owner coordinates this request from production through
+        posting. Agnes leads acceptance, assignment and review. Final assets
+        stay in Google Drive or Canva.
       </p>
       <fieldset disabled={busy || locked} className="mt-4 flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <PersonSelect
-            label="Production owner"
+            label="Media owner"
             people={people}
             value={owner}
             onChange={setOwner}
-          />
-          <PersonSelect
-            label="Publishing owner"
-            people={people}
-            value={publisher}
-            onChange={setPublisher}
           />
         </div>
         {items.map((d, i) => (
@@ -1129,7 +1304,10 @@ function Production({
             className="rounded-xl border border-zinc-200 bg-white p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Deliverable name">
+              <Field
+                label="Deliverable name"
+                hint="Name one piece of content, such as an Instagram carousel or email campaign."
+              >
                 <input
                   className={input}
                   value={d.name}
@@ -1174,18 +1352,20 @@ function Production({
                 </select>
               </Field>
               <PersonSelect
-                label="Production assignee"
+                label="Deliverable owner (optional)"
+                unassignedLabel="Use Media owner"
                 people={people}
                 value={d.assigneeId}
                 onChange={(value) => update(i, { assigneeId: value })}
               />
-              <PersonSelect
-                label="Publisher"
-                people={people}
-                value={d.publisherId}
-                onChange={(value) => update(i, { publisherId: value })}
-              />
-              <Field label="Scheduled posting date">
+              <p className="self-center text-xs text-zinc-500">
+                Leave unassigned to use the Media owner. The owner handles
+                production and posting for this deliverable.
+              </p>
+              <Field
+                label="Scheduled posting date"
+                hint="The planned publication date for this deliverable; shown in the media calendar."
+              >
                 <input
                   type="date"
                   className={input}
@@ -1239,9 +1419,9 @@ function Production({
                     id: crypto.randomUUID(),
                     name: "",
                     platform: "",
-                    format: r.media!.format,
-                    assigneeId: owner,
-                    publisherId: publisher,
+                    format: mediaFormats(r.media!)[0],
+                    assigneeId: "",
+                    publisherId: owner,
                     scheduledDate: r.media!.postedBy,
                     status: "planned",
                     assetUrl: "",
@@ -1258,8 +1438,7 @@ function Production({
               onClick={() =>
                 void save({
                   action: "production",
-                  productionOwnerId: owner,
-                  publisherId: publisher,
+                  ownerId: owner,
                   deliverables: items
                 }).catch(() => {})
               }
@@ -1289,25 +1468,12 @@ function ExpenseDetail({
     [month, setMonth] = useState(e.expectedMonth),
     [paymentMethod, setMethod] = useState(approver ? "ipn_card" : "personal"),
     [actual, setActual] = useState(
-      String((e.actualAmountCents ?? e.amountCents) / 100)
+      ((e.actualAmountCents ?? e.amountCents) / 100).toFixed(2)
     ),
     [purchaseDate, setDate] = useState(new Date().toISOString().slice(0, 10)),
     [account, setAccount] = useState("Relay"),
-    [receipt, setReceipt] = useState(e.receiptUrl),
-    [match, setMatch] = useState("")
+    [receipt, setReceipt] = useState(e.receiptUrl)
   const run = (body: Record<string, unknown>) => void save(body).catch(() => {})
-  const matched = new Set(
-    data.requests
-      .filter((x) => x.id !== r.id)
-      .map((x) => x.expense?.bankTransactionId)
-      .filter(Boolean)
-  )
-  const matches = data.bankEntries.filter(
-    (b) =>
-      b.amountCents === -e.actualAmountCents! &&
-      b.account === e.account &&
-      !matched.has(b.id)
-  )
   return (
     <div className="flex flex-col gap-5">
       <p className="whitespace-pre-wrap text-sm">{e.purpose}</p>
@@ -1413,15 +1579,21 @@ function ExpenseDetail({
               </option>
             </select>
           </Field>
-          <Field label="Actual cost (USD)">
+          <Field
+            label="Actual cost (USD)"
+            hint="For example, $45.00: enter 45.00 without the $ sign. The amount must stay within the approved cost."
+          >
             <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={e.approvedAmountCents! / 100}
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+([.][0-9]{1,2})?"
+              placeholder="45.00"
               className={input}
               value={actual}
-              onChange={(e) => setActual(e.target.value)}
+              onChange={(e) => {
+                if (/^\d*(\.\d{0,2})?$/.test(e.target.value))
+                  setActual(e.target.value)
+              }}
               required
             />
           </Field>
@@ -1544,40 +1716,6 @@ function ExpenseDetail({
             </button>
           </form>
         )}
-      {approver && ["purchased", "reimbursed"].includes(r.status) && (
-        <div className="rounded-xl border border-zinc-200 p-4">
-          <h3 className="font-semibold">Reconcile bank activity</h3>
-          {e.bankTransactionId && (
-            <p className="mt-2 text-sm text-emerald-700">
-              Matched to imported bank activity.
-            </p>
-          )}
-          <select
-            aria-label="Matching bank transaction"
-            className={`${input} mt-3`}
-            value={match}
-            onChange={(event) => setMatch(event.target.value)}
-          >
-            <option value="">Select a matching bank entry</option>
-            {matches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.date} · {b.description} · {usd(b.amountCents)}
-              </option>
-            ))}
-          </select>
-          <button
-            disabled={busy || !match}
-            className={`${secondary} mt-3`}
-            onClick={() => run({ action: "match", bankTransactionId: match })}
-          >
-            Confirm match
-          </button>
-          <p className="mt-2 text-xs text-zinc-500">
-            Matching links the existing payment; it does not record another
-            expense.
-          </p>
-        </div>
-      )}
       {["pending", "approved", "rejected"].includes(r.status) && (
         <button
           disabled={busy}
@@ -1588,71 +1726,5 @@ function ExpenseDetail({
         </button>
       )}
     </div>
-  )
-}
-function BankImport({
-  data,
-  busy,
-  save
-}: {
-  data: Bootstrap
-  busy: boolean
-  save: Save
-}) {
-  const [account, setAccount] = useState("Relay"),
-    [error, setError] = useState("")
-  async function imported(file: File) {
-    setError("")
-    try {
-      const { parseBankCsv } =
-        await import("@/lib/leadership-workflows/bank-csv")
-      const entries = parseBankCsv(await file.text())
-      await save({ action: "import_bank", account, entries })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to import CSV.")
-    }
-  }
-  return (
-    <details className="rounded-xl border border-zinc-200 bg-white p-5">
-      <summary className="cursor-pointer font-medium">
-        Import bank activity for reconciliation
-      </summary>
-      <p className="mt-3 text-sm text-zinc-500">
-        Import a CSV with Date, Description, and Amount columns (signed USD;
-        expenses negative). Include a Transaction ID when available. Imports
-        suggest matches and do not create expenses or change cash.
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-4">
-        <select
-          aria-label="Bank import account"
-          className={`${input} max-w-xs`}
-          value={account}
-          onChange={(e) => setAccount(e.target.value)}
-        >
-          <option>Relay</option>
-          <option>Reconsider</option>
-        </select>
-        <input
-          aria-label="Import bank CSV"
-          type="file"
-          accept=".csv,text/csv"
-          disabled={busy}
-          className="max-w-full text-sm"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void imported(file)
-            e.target.value = ""
-          }}
-        />
-      </div>
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      <p className="mt-3 text-xs text-zinc-500">
-        {data.bankEntries.length} imported bank entries
-      </p>
-    </details>
   )
 }

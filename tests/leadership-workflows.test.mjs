@@ -9,7 +9,10 @@ import {
   createRequest,
   date,
   unpaidCents,
-  url
+  url,
+  parseMedia,
+  cents,
+  mediaFormats
 } from "../src/lib/leadership-workflows/domain.ts"
 import { parseBankCsv } from "../src/lib/leadership-workflows/bank-csv.ts"
 import { verifySlack } from "../src/lib/leadership-workflows/slack-signature.ts"
@@ -157,7 +160,8 @@ test("media publication requires reviewed linked deliverables and preserves post
         team: "Community",
         brief: "Join us",
         postedBy: "2026-10-06",
-        platforms: ["Instagram"]
+        platforms: ["Instagram"],
+        needsCopyHelp: true
       }
     },
     member,
@@ -266,7 +270,9 @@ test("database RLS isolates expenses, permits shared media reads and denies dire
           type: "announcement",
           team: "Community",
           brief: "Test",
-          postedBy: "2026-10-06"
+          postedBy: "2026-10-06",
+          needsCopyHelp: true,
+          formats: ["Carousel", "Email Campaign"]
         }
       },
       member,
@@ -282,6 +288,11 @@ test("database RLS isolates expenses, permits shared media reads and denies dire
     assert.equal(
       (await db.query("select * from leadership_requests")).rows.length,
       1
+    )
+    assert.deepEqual(
+      (await db.query("select data from leadership_requests")).rows[0].data
+        .media.formats,
+      ["Carousel", "Email Campaign"]
     )
     await assert.rejects(
       db.query("update leadership_requests set revision=99"),
@@ -368,4 +379,92 @@ test("database RLS isolates expenses, permits shared media reads and denies dire
   } finally {
     await db.close()
   }
+})
+
+test("media multi-format briefs require copy help or supplied draft; legacy formats remain readable", () => {
+  const brief = {
+    type: "campaign",
+    team: "Media",
+    brief: "Join our campaign",
+    postedBy: "2026-10-20",
+    platforms: ["Email"],
+    formats: ["Carousel", "Email Campaign"]
+  }
+  assert.throws(() => parseMedia(brief), /copywriting help/)
+  const helped = parseMedia({ ...brief, needsCopyHelp: true })
+  assert.deepEqual(helped.formats, ["Carousel", "Email Campaign"])
+  assert.equal(helped.format, "Carousel, Email Campaign")
+  assert.equal(
+    parseMedia({ ...brief, caption: "Join us" }).needsCopyHelp,
+    false
+  )
+  assert.throws(
+    () => parseMedia({ ...brief, needsCopyHelp: true, formats: [] }),
+    /at least one/
+  )
+  assert.throws(
+    () =>
+      parseMedia({
+        ...brief,
+        needsCopyHelp: true,
+        formats: ["Media to advise", "Carousel"]
+      }),
+    /specific formats/
+  )
+  assert.deepEqual(mediaFormats({ format: "Image" }), ["Image"])
+  assert.equal(cents("45.00"), 4500)
+  assert.throws(() => cents("$45.00"), /positive USD/)
+  assert.throws(
+    () => change(expense(), "comment", member, { note: "Discuss in Slack" }),
+    /Slack/
+  )
+})
+test("one media owner handles production and publication, with per-deliverable overrides", () => {
+  const r = createRequest(
+    {
+      id: randomUUID(),
+      kind: "media",
+      title: "Announcement",
+      media: {
+        type: "announcement",
+        team: "Media",
+        brief: "Announce",
+        postedBy: "2026-10-20",
+        needsCopyHelp: true
+      }
+    },
+    member,
+    now
+  )
+  const d = {
+    id: randomUUID(),
+    name: "Email",
+    platform: "Email",
+    format: "Email Campaign",
+    assigneeId: "",
+    publisherId: other.id,
+    scheduledDate: "2026-10-20",
+    status: "planned",
+    assetUrl: "",
+    publishedUrl: "",
+    postedDate: ""
+  }
+  const assigned = change(r, "production", other, {
+    ownerId: member.id,
+    deliverables: [d]
+  })
+  assert.equal(assigned.media.productionOwnerId, member.id)
+  assert.equal(assigned.media.publisherId, member.id)
+  assert.equal(assigned.media.deliverables[0].assigneeId, "")
+  assert.equal(assigned.media.deliverables[0].publisherId, member.id)
+  const reassigned = change(assigned, "production", other, {
+    ownerId: other.id,
+    deliverables: assigned.media.deliverables
+  })
+  assert.equal(reassigned.media.deliverables[0].publisherId, other.id)
+  const delegated = change(assigned, "production", other, {
+    ownerId: member.id,
+    deliverables: [{ ...d, assigneeId: other.id }]
+  })
+  assert.equal(delegated.media.deliverables[0].publisherId, other.id)
 })

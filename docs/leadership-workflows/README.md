@@ -6,18 +6,20 @@ The implementation is local and integrations default to **off**. The production 
 
 ## Media intake and SOP
 
-Retained from the [original Canva SOP](https://www.canva.com/design/DAGbUiV46dw/-mNispYBjORjmihqzo_IYw/edit): idea name, requester/date, team/project, brief, platform, format, headline/body/caption, supporting material, deadline, acceptance and producer.
+Retained from the [original Canva SOP](https://www.canva.com/design/DAGbUiV46dw/-mNispYBjORjmihqzo_IYw/edit): idea name, requester/date, team/project, brief, platforms, formats, headline/body/caption, supporting material, deadline, acceptance and producer.
 
-Added or clarified: event/announcement/campaign/educational request types; event/meetup prefill; “Media to advise”; copywriting help; urgent flag; a single required **When does this need to be posted by?** date; needs-information notes; named production and publishing owners; individual deliverables; final asset links; review history; published links and actual posting dates. The image generator is outside this scope. The original uncommitted media pilot remains untouched in the brand-guidelines project.
+Added or clarified: event/announcement/campaign/educational request types; event/meetup prefill; “Media to advise”; copywriting help; urgent flag; a single required **When does this need to be posted by?** date; needs-information notes; one Media owner for production through publication; a monthly calendar of deadlines, scheduled posts and actual posting dates; individual deliverables; final asset links; review history; published links and actual posting dates. The image generator is outside this scope. The original uncommitted media pilot remains untouched in the brand-guidelines project.
 
 1. Leadership submits a brief in Admin → Media Requests. A submission notifies private `#media-space` and tags Agnes (`U0C5PPBBEK1`, verified against the Director of Media announcement).
-2. Agnes requests missing information or accepts it, then assigns production and publishing owners.
+2. Agnes requests missing information or accepts it, then assigns the Media owner. Individual deliverables may override that owner; otherwise they inherit the request owner for production and posting.
 3. The team tracks Assigned → In production → Director review → Ready to post → Posted. Each deliverable records its final Drive/Canva URL and publication details.
 4. Posted deliverables retain their final record. Changing a reviewed final asset requires review again. The request cannot become Posted until every deliverable has publication evidence.
 
-All eligible leadership can view and edit the queue. Agnes's ownership is an operating convention; separate media editing permissions are deliberately deferred. Urgent does not bypass review. Platforms and formats may be left for Media to advise. Acceptance means the brief is usable for production; Ready to post records final review separately.
+All eligible leadership can view and edit the queue. Agnes's ownership is an operating convention; separate media editing permissions are deliberately deferred. Urgent does not bypass review. Platforms and formats may be left for Media to advise. Formats use a multi-select dropdown, including Email Campaign; requested platforms include Email. Submission requires selecting copywriting help or providing at least one of headline, body or caption. Field helpers explain the brief, deadlines, copy and ownership. The Media calendar uses portal requests and deliverables, with search/status filters, month navigation and a mobile agenda. Cancelled requests are excluded; it does not connect to an external calendar. Acceptance means the brief is usable for production; Ready to post records final review separately.
 
 ## Expense process
+
+Cost inputs show a $45.00 example and accept digits with up to two decimal places, without currency symbols. Expense discussion takes place in Slack; the portal retains automatic activity history and approval/rejection notes.
 
 Only preapproval intake is supported: automatic submitter plus Expense, Purpose, Cost (USD), and optional item/expense link. Justin alone approves or rejects, including his own submissions; Justin is the default IPN-card purchaser. Leadership sees its own expenses; Justin sees all.
 
@@ -29,7 +31,7 @@ Slack channel notifications have Approve, Reject and Open in Portal actions. App
 
 The initial notification shows dated recorded Relay cash, cash after the proposed purchase, cash after other approved commitments, and separate estimated Reconsider holdings. The projection conservatively assumes unpaid commitments come from Relay; it is not a live bank balance.
 
-CSV import accepts Date/Transaction Date/Posted Date, Description/Merchant/Memo, Amount/Net Amount, and optional Transaction ID. Pending rows are skipped. Matching is manual: the account and amount must agree with a recorded payment. Importing and matching never append a second expense. The database enforces one matched request per bank transaction. Duplicate indistinguishable CSV rows need distinct transaction IDs.
+Bank CSV import and matching are deferred from the initial portal UI. The existing secured backend remains available for a later reconciliation workflow: it matches imported bank metadata to recorded payments, rather than pulling expenses from Sheets. Matching checks account/amount and cannot append another expense; the database enforces one request per matched bank transaction. Current operations are approval → purchase → receipt, followed by bank/ledger checks in the finance tracker.
 
 ## Finance tracker cleanup — completed October 5
 
@@ -62,7 +64,7 @@ Only actual movements after a checkpoint date change its account balance, so alr
 
 The local preview binds only to localhost, requires the explicit development flag, and is unavailable in production. Start with `npm run workflow:dev`, then visit `http://127.0.0.1:4327/workflow-preview/media` or `/workflow-preview/expenses`. It uses sample people and writes only ignored local JSON. No sign-in is needed: use “Preview as” to switch roles. Preview navigation stays within these two workflows; other Admin tabs are disabled because real authentication is intentionally disconnected. Runtime Slack/Sheets deliveries are disabled.
 
-Browser QA covers submit/approve/purchase/receipt, expense privacy and preapproved reimbursement, complete media production/review/publication, mobile event prefill, authentication redirects, CSRF, unauthorized approval, stale revisions and invalid Slack signatures. Database tests apply the actual migration in PGlite and check RLS, server-only mutation access, audit/outbox atomicity and the shared sheet lease. Live Slack delivery and deployed service-account sync remain untested until credentials are configured.
+Browser QA covers submit/approve/purchase/receipt, expense privacy and preapproved reimbursement, complete media production/review/publication with a single owner, multi-format and Email selection, required copy choice, decimal-only costs, media calendar dates and leap months, mobile event prefill/calendar, authentication redirects, CSRF, unauthorized approval, stale revisions and invalid Slack signatures. Database tests apply the actual migration in PGlite and check RLS, server-only mutation access, audit/outbox atomicity and the shared sheet lease. Live Slack delivery and deployed service-account sync remain untested until credentials are configured.
 
 Full repository suite: 179/180 passed. The unchanged Instagram archive test fixture uses account `123` against the current snapshot's different account and fails with “Instagram snapshot account mismatch”; unrelated to these workflows. The production build's existing middleware deprecation warning remains.
 
@@ -73,3 +75,7 @@ Full repository suite: 179/180 passed. The unchanged Instagram archive test fixt
 ![Media publication flow with sample data](screenshots/media.png)
 
 ![Mobile event prefill](screenshots/mobile.png)
+
+![Media calendar with sample data](screenshots/calendar.png)
+
+![Updated media intake form](screenshots/media-form.png)

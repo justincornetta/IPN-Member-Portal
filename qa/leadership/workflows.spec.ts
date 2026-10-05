@@ -29,7 +29,13 @@ test("expense approval, purchase and receipt through the browser", async ({
   await page
     .getByLabel("Purpose", { exact: true })
     .fill("Supplies for the Community meetup")
-  await page.getByLabel("Cost (USD)").fill("40.00")
+  const cost = page.getByLabel("Cost (USD)")
+  await expect(cost).toHaveAttribute("placeholder", "45.00")
+  await cost.fill("40.00")
+  await cost.fill("$40.00")
+  await expect(cost).toHaveValue("40.00")
+  await cost.fill("40.001")
+  await expect(cost).toHaveValue("40.00")
   await page
     .getByRole("button", { name: "Submit request", exact: true })
     .click()
@@ -58,6 +64,13 @@ test("expense approval, purchase and receipt through the browser", async ({
     "href",
     "https://drive.google.com/file/d/example-receipt/view"
   )
+  await expect(page.getByLabel("Add a comment")).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "Activity history" })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Reconcile bank activity", { exact: true })
+  ).toHaveCount(0)
   await page.screenshot({
     path: "/tmp/ipn-workflow-expense.png",
     fullPage: true
@@ -132,13 +145,25 @@ test("general media request, shared assignment, review and posted deliverable", 
   page
 }) => {
   await page.goto("/workflow-preview/media")
-  const previewNav = page.getByRole("navigation", { name: "Preview admin navigation" })
-  await expect(previewNav.getByText("Analytics", { exact: true })).toHaveAttribute("aria-disabled", "true")
-  await expect(previewNav.getByText("Content", { exact: true })).toHaveAttribute("aria-disabled", "true")
-  await expect(page.locator('a[href^="/dashboard"], a[href^="/login"]')).toHaveCount(0)
-  await previewNav.getByRole("link", { name: "Expense Submissions", exact: true }).click()
+  const previewNav = page.getByRole("navigation", {
+    name: "Preview admin navigation"
+  })
+  await expect(
+    previewNav.getByText("Analytics", { exact: true })
+  ).toHaveAttribute("aria-disabled", "true")
+  await expect(
+    previewNav.getByText("Content", { exact: true })
+  ).toHaveAttribute("aria-disabled", "true")
+  await expect(
+    page.locator('a[href^="/dashboard"], a[href^="/login"]')
+  ).toHaveCount(0)
+  await previewNav
+    .getByRole("link", { name: "Expense Submissions", exact: true })
+    .click()
   await expect(page).toHaveURL(/\/workflow-preview\/expenses$/)
-  await previewNav.getByRole("link", { name: "Media Requests", exact: true }).click()
+  await previewNav
+    .getByRole("link", { name: "Media Requests", exact: true })
+    .click()
   await expect(page).toHaveURL(/\/workflow-preview\/media$/)
   await page
     .getByRole("button", { name: "New media request", exact: true })
@@ -156,17 +181,30 @@ test("general media request, shared assignment, review and posted deliverable", 
     .getByLabel("When does this need to be posted by?")
     .fill("2026-10-20")
   await page.getByLabel("Urgent — alert Agnes").check()
+  await page.locator('summary[aria-label="Media format"]').click()
+  const formats = page.getByRole("group", { name: "Media format options" })
+  await formats.getByLabel("Carousel", { exact: true }).check()
+  await formats.getByLabel("Email Campaign", { exact: true }).check()
+  await expect(
+    formats.getByLabel("Media to advise", { exact: true })
+  ).not.toBeChecked()
+  await page.locator('summary[aria-label="Media format"]').click()
+  await page.getByLabel("Email", { exact: true }).check()
+  await page.getByLabel("Draft copy", { exact: true }).selectOption("help")
   await page
     .getByRole("button", { name: "Submit request", exact: true })
     .click()
   await page.getByLabel("Move request to").selectOption("accepted")
   await page.getByRole("button", { name: "Update status", exact: true }).click()
   await page
-    .getByLabel("Production owner", { exact: true })
+    .getByLabel("Media owner", { exact: true })
     .selectOption({ label: "Alex Morgan" })
-  await page
-    .getByLabel("Publishing owner", { exact: true })
-    .selectOption({ label: "Agnes Horie" })
+  await expect(
+    page.getByLabel("Publishing owner", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByText("Email · Carousel, Email Campaign", { exact: true })
+  ).toBeVisible()
   await page
     .getByRole("button", { name: "Add deliverable", exact: true })
     .click()
@@ -176,6 +214,7 @@ test("general media request, shared assignment, review and posted deliverable", 
     .getByLabel("Final asset link (Drive / Canva)")
     .fill("https://www.canva.com/design/example/edit")
   await page.getByLabel("Deliverable status").selectOption("ready")
+  await page.getByLabel("Scheduled posting date").fill("2026-10-19")
   await page
     .getByRole("button", { name: "Save production", exact: true })
     .click()
@@ -191,6 +230,28 @@ test("general media request, shared assignment, review and posted deliverable", 
       .click()
     await expect(page.getByLabel("Move request to")).toBeVisible()
   }
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await page
+    .getByRole("button", { name: "Media calendar", exact: true })
+    .click()
+  await page.getByLabel("Calendar month").fill("2026-10")
+  const calendar = page.getByRole("region", { name: "Media calendar" })
+  await expect(
+    calendar.getByRole("button", { name: /Deadline.*Leadership announcement/ })
+  ).toBeVisible()
+  const scheduled = calendar.getByRole("button", {
+    name: /Scheduled.*Leadership announcement/
+  })
+  await expect(scheduled).toBeVisible()
+  await page.getByLabel("Calendar month").fill("2028-02")
+  await expect(calendar.getByText("29", { exact: true })).toBeVisible()
+  await expect(calendar.getByText("30", { exact: true })).toHaveCount(0)
+  await page.getByLabel("Calendar month").fill("2026-10")
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-calendar.png",
+    fullPage: true
+  })
+  await scheduled.click()
   await page.getByLabel("Deliverable status").selectOption("posted")
   await page
     .getByLabel("Published link")
@@ -268,4 +329,79 @@ test("API rejects cross-site access, unauthorized approvals and stale revisions"
     maxRedirects: 0
   })
   expect(auth.status()).toBe(307)
+})
+
+test("media copy choice and supplied draft validation", async ({
+  page,
+  request
+}) => {
+  await page.goto("/workflow-preview/media")
+  await page
+    .getByRole("button", { name: "New media request", exact: true })
+    .click()
+  await page.getByLabel("Idea name", { exact: true }).fill("Educational email")
+  await page.getByLabel("Team / project").fill("Education")
+  await page
+    .getByLabel("Idea / brief")
+    .fill("Explain how members can join the research seminar.")
+  await page
+    .getByLabel("When does this need to be posted by?")
+    .fill("2026-10-15")
+  await page
+    .getByRole("button", { name: "Submit request", exact: true })
+    .click()
+  await expect(page.getByLabel("Draft copy", { exact: true })).toHaveValue("")
+  await page.getByLabel("Draft copy", { exact: true }).selectOption("self")
+  await page
+    .getByRole("button", { name: "Submit request", exact: true })
+    .click()
+  expect(
+    await page
+      .getByLabel("Headline", { exact: true })
+      .evaluate((input: HTMLInputElement) => input.validity.valueMissing)
+  ).toBeTruthy()
+  await page
+    .getByLabel("Headline", { exact: true })
+    .fill("Join our research seminar")
+  await page.screenshot({
+    path: "/tmp/ipn-workflow-media-form.png",
+    fullPage: true
+  })
+  await page
+    .getByRole("button", { name: "Submit request", exact: true })
+    .click()
+  await expect(
+    page.getByText("Join our research seminar", { exact: true })
+  ).toBeVisible()
+  const bad = await request.post("/api/admin/workflows", {
+    data: {
+      id: randomUUID(),
+      kind: "media",
+      title: "Missing copy",
+      media: {
+        type: "announcement",
+        team: "Media",
+        brief: "Test",
+        postedBy: "2026-10-10",
+        needsCopyHelp: false
+      }
+    }
+  })
+  expect(bad.status()).toBe(400)
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await page
+    .getByRole("button", { name: "Media calendar", exact: true })
+    .click()
+  await page.getByLabel("Calendar month").fill("2026-10")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(
+    page
+      .getByRole("region", { name: "Media calendar" })
+      .getByRole("button", { name: /Deadline.*Educational email/ })
+  ).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBeTruthy()
 })

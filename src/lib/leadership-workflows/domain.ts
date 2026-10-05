@@ -20,7 +20,8 @@ export const EXPENSE_STATUSES = [
   "cancelled"
 ] as const
 export type Status =
-  (typeof MEDIA_STATUSES)[number] | (typeof EXPENSE_STATUSES)[number]
+  | (typeof MEDIA_STATUSES)[number]
+  | (typeof EXPENSE_STATUSES)[number]
 export const STATUS_LABELS: Record<Status, string> = {
   submitted: "Submitted",
   needs_information: "Needs information",
@@ -45,6 +46,23 @@ export type Person = {
   team: string | null
 }
 export type AssetLink = { label: string; url: string }
+export const MEDIA_FORMATS = [
+  "Media to advise",
+  "Image",
+  "Carousel",
+  "Story",
+  "Short video",
+  "Long video",
+  "Blog / article",
+  "Newsletter",
+  "Email Campaign",
+  "Other"
+] as const
+export function mediaFormats(media: MediaBrief): string[] {
+  return media.formats?.length
+    ? media.formats
+    : [media.format || "Media to advise"]
+}
 export type Deliverable = {
   id: string
   name: string
@@ -67,6 +85,7 @@ export type MediaBrief = {
   platforms: string[]
   format: string
   needsCopyHelp: boolean
+  formats?: string[]
   headline: string
   body: string
   caption: string
@@ -248,6 +267,28 @@ export function parseMedia(value: unknown): MediaBrief {
   const links = Array.isArray(v.links) ? v.links : []
   if (links.length > 20)
     throw new WorkflowError("Use at most 20 supporting links.")
+  const headline = text(v.headline, "Headline", false, 1000)
+  const body = text(v.body, "Body")
+  const caption = text(v.caption, "Caption")
+  if (v.needsCopyHelp !== true && !headline && !body && !caption)
+    throw new WorkflowError("Choose copywriting help or provide draft copy.")
+  const formats =
+    v.formats === undefined
+      ? [text(v.format, "Media format", false, 100) || "Media to advise"]
+      : strings(v.formats)
+  if (
+    !formats.length ||
+    (v.formats !== undefined &&
+      formats.some(
+        (f) => !MEDIA_FORMATS.includes(f as (typeof MEDIA_FORMATS)[number])
+      ))
+  )
+    throw new WorkflowError(
+      "Choose at least one media format, or Media to advise."
+    )
+  const uniqueFormats = [...new Set(formats)]
+  if (uniqueFormats.includes("Media to advise") && uniqueFormats.length > 1)
+    throw new WorkflowError("Choose specific formats or Media to advise.")
   return {
     type: type as MediaBrief["type"],
     team: text(v.team, "Team / project", true, 150),
@@ -255,11 +296,12 @@ export function parseMedia(value: unknown): MediaBrief {
     postedBy: date(v.postedBy, "Posted-by date"),
     urgent: v.urgent === true,
     platforms: strings(v.platforms ?? ["Media to advise"]),
-    format: text(v.format, "Media format", false, 100) || "Media to advise",
+    formats: uniqueFormats,
+    format: uniqueFormats.join(", "),
     needsCopyHelp: v.needsCopyHelp === true,
-    headline: text(v.headline, "Headline", false, 1000),
-    body: text(v.body, "Body"),
-    caption: text(v.caption, "Caption"),
+    headline,
+    body,
+    caption,
     links: links
       .map((l) => {
         const x = object(l)
@@ -371,6 +413,10 @@ export function applyChange(
     return id
   }
   if (action === "comment") {
+    if (record.kind === "expense")
+      throw new WorkflowError(
+        "Discuss expense requests in Slack. Activity history is recorded automatically."
+      )
     if (!note) throw new WorkflowError("Write a comment first.")
   } else if (record.kind === "media") {
     const m = record.media!
@@ -397,9 +443,10 @@ export function applyChange(
       }
     } else if (action === "production") {
       m.productionOwnerId = member(
-        text(v.productionOwnerId, "Production owner", false, 36)
+        text(v.ownerId ?? v.productionOwnerId, "Media owner", false, 36)
       )
-      m.publisherId = member(text(v.publisherId, "Publisher", false, 36))
+      // Retain the legacy keys for stored records; both duties use one owner.
+      m.publisherId = m.productionOwnerId
       if (!Array.isArray(v.deliverables) || v.deliverables.length > 30)
         throw new WorkflowError("Use at most 30 deliverables.")
       m.deliverables = v.deliverables.map((value) => {
@@ -411,20 +458,25 @@ export function applyChange(
           )
         )
           throw new WorkflowError("Invalid deliverable status.")
+        const deliverableId = text(d.id, "Deliverable ID", true, 80)
+        const old = m.deliverables.find((x) => x.id === deliverableId)
+        const assigneeId = member(
+          text(d.assigneeId, "Deliverable owner", false, 36)
+        )
+        const ownerId = assigneeId || m.productionOwnerId
         const result: Deliverable = {
-          id: text(d.id, "Deliverable ID", true, 80),
+          id: deliverableId,
           name: text(d.name, "Deliverable name", true, 150),
           platform: text(d.platform, "Platform", true, 80),
           format: text(d.format, "Format", false, 80),
-          assigneeId: member(text(d.assigneeId, "Assignee", false, 36)),
-          publisherId: member(text(d.publisherId, "Publisher", false, 36)),
+          assigneeId,
+          publisherId: old?.status === "posted" ? old.publisherId : ownerId,
           scheduledDate: date(d.scheduledDate, "Scheduled date", false),
           status: status as Deliverable["status"],
           assetUrl: url(d.assetUrl, "Final asset", true),
           publishedUrl: url(d.publishedUrl, "Published link"),
           postedDate: date(d.postedDate, "Posted date", false)
         }
-        const old = m.deliverables.find((x) => x.id === result.id)
         if (
           old?.status === "posted" &&
           JSON.stringify(old) !== JSON.stringify(result)
@@ -496,7 +548,7 @@ export function applyChange(
       if (status === "needs_information" && !note)
         throw new WorkflowError("Explain what information is needed.")
       if (status === "assigned" && !m.productionOwnerId)
-        throw new WorkflowError("Select a production owner first.")
+        throw new WorkflowError("Select a media owner first.")
       if (
         status === "ready_to_post" &&
         (!m.deliverables.length || m.deliverables.some((d) => !d.assetUrl))
