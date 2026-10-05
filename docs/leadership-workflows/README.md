@@ -19,6 +19,9 @@ The media queue uses a list with Idea Name, Request Type, Submitter, Submitted d
 
 All eligible leadership can view and edit the queue. Agnes's ownership is an operating convention; separate media editing permissions are deliberately deferred. Urgent does not bypass review. Platforms and formats may be left for Media to advise. Formats use a multi-select dropdown, including Email Campaign; requested platforms include Email. Submission requires selecting copywriting help or providing at least one of headline, body or caption. Field helpers explain the brief, deadlines, copy and ownership. The Media calendar uses portal request deadlines and publication records, with search/status filters, month navigation and a mobile agenda. Cancelled requests are excluded; it does not connect to an external calendar. Acceptance means the brief is usable for production; Ready to post records final review separately.
 
+
+The optional **Link to include** intake section sits above Draft copy and captures one audience destination URL plus required placement instructions (for example, Instagram bio or email button). It is separate from Drive/Canva source assets, appears prominently near the top of the request detail, and is included in the Slack media notification template. Posting a request with a destination requires the Media owner to check that the link was included in its specified location. The server records the confirming person/date; editing the URL or placement clears confirmation and returns accepted work for review. This is manual confirmation, not automatic verification of the live platform. Existing requests without a destination retain their normal posting flow.
+
 ## Expense process
 
 Cost inputs show a $45.00 example and accept digits with up to two decimal places, without currency symbols. Expense discussion takes place in Slack; the portal retains automatic activity history and approval/rejection notes.
@@ -97,3 +100,5 @@ Full repository suite: 179/180 passed. The unchanged Instagram archive test fixt
 ![Compact media detail and full-height sidebar](screenshots/media-detail.png)
 
 ![Combined expense funds card](screenshots/expense-funds.png)
+
+![Media publishing link intake](screenshots/media-link-intake.png)

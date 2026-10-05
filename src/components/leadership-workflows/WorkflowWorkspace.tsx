@@ -1111,6 +1111,45 @@ function RequestForm({
               Use Urgent for time-sensitive requests. Agnes still needs to
               review and accept the brief.
             </p>
+            <section
+              aria-label="Link to include"
+              className="rounded-xl border border-ipn/20 bg-ipn-light/40 p-4 sm:col-span-2"
+            >
+              <h3 className="text-sm font-semibold">
+                Link to include (optional)
+              </h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                The destination readers should visit, such as an event invite,
+                member portal page or portfolio. This is separate from source
+                asset links.
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Destination URL"
+                  hint="Paste the full HTTPS link the audience should open."
+                >
+                  <input
+                    type="url"
+                    className={input}
+                    placeholder="https://…"
+                    value={media.destinationUrl || ""}
+                    onChange={(e) => m({ destinationUrl: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  label="Where to include the link"
+                  hint="For example: Instagram bio, story sticker, caption or email button. Required when you supply a link."
+                >
+                  <input
+                    className={input}
+                    value={media.linkPlacement || ""}
+                    required={Boolean(media.destinationUrl?.trim())}
+                    maxLength={1000}
+                    onChange={(e) => m({ linkPlacement: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </section>
             <div className="sm:col-span-2">
               <details className="rounded-xl border border-zinc-200 p-4" open>
                 <summary className="cursor-pointer text-sm font-medium">
@@ -1259,6 +1298,33 @@ function RequestDetail({
             </span>
             {r.media!.needsCopyHelp && <span>Copywriting requested</span>}
           </div>
+          {r.media!.destinationUrl && (
+            <section
+              aria-label="Requested publishing link"
+              className="rounded-xl border border-ipn/25 bg-ipn-light/40 p-4"
+            >
+              <h3 className="text-sm font-semibold">
+                Link to include when posting
+              </h3>
+              <a
+                href={r.media!.destinationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block break-all text-sm text-ipn underline"
+              >
+                {r.media!.destinationUrl}
+              </a>
+              <p className="mt-2 whitespace-pre-wrap text-sm">
+                <span className="font-medium">Where to include it:</span>{" "}
+                {r.media!.linkPlacement}
+              </p>
+              <p className="mt-2 text-xs text-zinc-500">
+                {r.media!.linkConfirmedAt
+                  ? `Inclusion confirmed by ${name(r.media!.linkConfirmedBy)} · ${r.media!.linkConfirmedAt.slice(0, 10)}`
+                  : "The Media owner must confirm this link was included before marking the request Posted."}
+              </p>
+            </section>
+          )}
           <p className="whitespace-pre-wrap text-sm leading-relaxed">
             {r.media!.brief}
           </p>
@@ -1468,7 +1534,8 @@ function Production({
     scheduledDate: publication?.scheduledDate || "",
     assetUrl: publication?.assetUrl || "",
     publishedUrl: publication?.publishedUrl || "",
-    postedDate: publication?.postedDate || ""
+    postedDate: publication?.postedDate || "",
+    linkIncluded: Boolean(r.media!.linkConfirmedAt)
   })
   const locked = r.status === "posted"
   const legacyMultiple = r.media!.deliverables.length > 1
@@ -1598,6 +1665,28 @@ function Production({
                 </Field>
               </div>
             </details>
+            {r.media!.destinationUrl && (
+              <div className="rounded-lg border border-ipn/20 bg-white p-4">
+                <p className="mb-2 text-sm font-semibold">Posting checklist</p>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={details.linkIncluded}
+                    required={Boolean(
+                      details.publishedUrl || details.postedDate
+                    )}
+                    disabled={!locked && r.status !== "ready_to_post"}
+                    onChange={(e) => update({ linkIncluded: e.target.checked })}
+                  />
+                  I included the requested link in the specified location
+                </label>
+                <p className="mt-2 text-xs text-zinc-500">
+                  Confirm after posting, then save the published link and actual
+                  date. Final review is required first.
+                </p>
+              </div>
+            )}
             {!locked && (
               <button className={`${primary} self-start`}>
                 Save production

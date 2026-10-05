@@ -192,10 +192,27 @@ test("general media request, shared assignment, review and request publication",
   ).not.toBeChecked()
   await page.locator('summary[aria-label="Media format"]').click()
   await page.getByLabel("Email", { exact: true }).check()
+  await page
+    .getByLabel("Destination URL")
+    .fill("https://members.intercollegiatepsychedelics.net/events/seminar")
+  await page
+    .getByLabel("Where to include the link")
+    .fill("Instagram bio and email button")
   await page.getByLabel("Draft copy", { exact: true }).selectOption("help")
   await page
     .getByRole("button", { name: "Submit request", exact: true })
     .click()
+  const publishingLink = page.getByRole("region", {
+    name: "Requested publishing link"
+  })
+  await expect(publishingLink.getByRole("link")).toHaveAttribute(
+    "href",
+    "https://members.intercollegiatepsychedelics.net/events/seminar"
+  )
+  await expect(publishingLink).toContainText("Instagram bio and email button")
+  await expect(
+    page.getByLabel("I included the requested link in the specified location")
+  ).toBeDisabled()
   await page.getByLabel("Move request to").selectOption("accepted")
   await page.getByRole("button", { name: "Update status", exact: true }).click()
   await page
@@ -263,9 +280,21 @@ test("general media request, shared assignment, review and request publication",
   await page
     .getByLabel("Actual posting date")
     .fill(new Date().toISOString().slice(0, 10))
+  const linkCheck = page.getByLabel(
+    "I included the requested link in the specified location"
+  )
+  await expect(linkCheck).toHaveAttribute("required")
+  await expect(linkCheck).toBeEnabled()
+  expect(
+    await linkCheck.evaluate(
+      (element: HTMLInputElement) => element.validity.valueMissing
+    )
+  ).toBeTruthy()
+  await linkCheck.check()
   await page
     .getByRole("button", { name: "Save production", exact: true })
     .click()
+  await expect(publishingLink).toContainText("Inclusion confirmed by")
   await expect(page.getByText("Posted", { exact: true }).first()).toBeVisible()
   await page.screenshot({
     path: "/tmp/ipn-workflow-media.png",

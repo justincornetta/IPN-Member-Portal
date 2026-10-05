@@ -562,3 +562,90 @@ test("request publication keeps one record, requires review and records Posted a
     /final record/
   )
 })
+
+test("publishing destination links are validated, confirmed on posting and reset on edits", () => {
+  const media = {
+    type: "announcement",
+    team: "Media",
+    brief: "Event promotion",
+    postedBy: "2026-10-20",
+    platforms: ["Instagram"],
+    needsCopyHelp: true,
+    destinationUrl:
+      "https://members.intercollegiatepsychedelics.net/events/seminar",
+    linkPlacement: "Instagram bio"
+  }
+  assert.throws(
+    () => parseMedia({ ...media, linkPlacement: "" }),
+    /Where to include/
+  )
+  assert.throws(
+    () => parseMedia({ ...media, destinationUrl: "javascript:alert(1)" }),
+    /HTTPS/
+  )
+  let r = createRequest(
+    { id: randomUUID(), kind: "media", title: "Seminar", media },
+    member,
+    now
+  )
+  const publication = {
+    scheduledDate: "",
+    assetUrl: "https://www.canva.com/design/example/edit",
+    publishedUrl: "",
+    postedDate: ""
+  }
+  r = change(r, "publication", other, { ownerId: member.id, publication })
+  for (const status of [
+    "accepted",
+    "assigned",
+    "in_production",
+    "director_review",
+    "ready_to_post"
+  ])
+    r = change(r, "status", other, { status })
+  const completed = {
+    ...publication,
+    publishedUrl: "https://www.instagram.com/p/example/",
+    postedDate: "2026-10-05"
+  }
+  assert.throws(
+    () =>
+      change(r, "publication", member, {
+        ownerId: member.id,
+        publication: completed
+      }),
+    /Confirm that the requested link/
+  )
+  assert.throws(
+    () =>
+      change(r, "production", member, {
+        ownerId: member.id,
+        deliverables: [
+          { ...r.media.deliverables[0], ...completed, status: "posted" }
+        ]
+      }),
+    /Confirm inclusion/
+  )
+  const posted = change(r, "publication", member, {
+    ownerId: member.id,
+    publication: { ...completed, linkIncluded: true }
+  })
+  assert.equal(posted.status, "posted")
+  assert.equal(posted.media.linkConfirmedBy, member.id)
+  assert.equal(posted.media.linkConfirmedAt, now.toISOString())
+  const previouslyConfirmed = {
+    ...r,
+    media: {
+      ...r.media,
+      linkConfirmedAt: now.toISOString(),
+      linkConfirmedBy: member.id
+    }
+  }
+  const edited = change(previouslyConfirmed, "edit", member, {
+    title: r.title,
+    media: { ...media, linkPlacement: "Story sticker" }
+  })
+  assert.equal(edited.media.linkConfirmedAt, undefined)
+  assert.equal(edited.media.linkConfirmedBy, undefined)
+  assert.equal(edited.status, "director_review")
+})

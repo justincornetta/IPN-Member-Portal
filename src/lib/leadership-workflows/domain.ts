@@ -89,6 +89,10 @@ export type MediaBrief = {
   body: string
   caption: string
   links: AssetLink[]
+  destinationUrl?: string
+  linkPlacement?: string
+  linkConfirmedAt?: string
+  linkConfirmedBy?: string
   eventId: string
   eventDetails: string
   deliverables: Deliverable[]
@@ -285,6 +289,17 @@ export function parseMedia(value: unknown): MediaBrief {
     throw new WorkflowError(
       "Choose at least one media format, or Media to advise."
     )
+  const destinationUrl = url(v.destinationUrl, "Link to include")
+  const linkPlacement = text(
+    v.linkPlacement,
+    "Where to include the link",
+    Boolean(destinationUrl),
+    1000
+  )
+  if (linkPlacement && !destinationUrl)
+    throw new WorkflowError(
+      "Add the destination URL for the link instructions."
+    )
   const uniqueFormats = [...new Set(formats)]
   if (uniqueFormats.includes("Media to advise") && uniqueFormats.length > 1)
     throw new WorkflowError("Choose specific formats or Media to advise.")
@@ -297,6 +312,8 @@ export function parseMedia(value: unknown): MediaBrief {
     platforms: strings(v.platforms ?? ["Media to advise"]),
     formats: uniqueFormats,
     format: uniqueFormats.join(", "),
+    destinationUrl,
+    linkPlacement,
     needsCopyHelp: v.needsCopyHelp === true,
     headline,
     body,
@@ -434,6 +451,13 @@ export function applyChange(
         deliverables: m.deliverables
       }
       if (
+        edited.destinationUrl !== m.destinationUrl ||
+        edited.linkPlacement !== m.linkPlacement
+      ) {
+        delete record.media.linkConfirmedAt
+        delete record.media.linkConfirmedBy
+      }
+      if (
         !["submitted", "needs_information", "cancelled"].includes(record.status)
       ) {
         record.status = "director_review"
@@ -456,6 +480,14 @@ export function applyChange(
             "Add both the published link and actual posting date."
           )
         publicationPosted = Boolean(publishedUrl && postedDate)
+        if (
+          publicationPosted &&
+          m.destinationUrl &&
+          publication.linkIncluded !== true
+        )
+          throw new WorkflowError(
+            "Confirm that the requested link was included in the specified location before marking this request Posted."
+          )
         const old = m.deliverables[0]
         v.deliverables = [
           {
@@ -534,6 +566,15 @@ export function applyChange(
           throw new WorkflowError(
             "Complete Director review before recording publication."
           )
+        if (
+          status === "posted" &&
+          m.destinationUrl &&
+          action !== "publication" &&
+          !m.linkConfirmedAt
+        )
+          throw new WorkflowError(
+            "Confirm inclusion of the requested link through the publication record first."
+          )
         return result
       })
       if (
@@ -575,6 +616,10 @@ export function applyChange(
           throw new WorkflowError(
             "Complete Director review of the final asset before recording publication."
           )
+        if (m.destinationUrl) {
+          m.linkConfirmedAt = now.toISOString()
+          m.linkConfirmedBy = actor.id
+        }
         record.status = "posted"
       }
     } else if (action === "status") {
@@ -601,6 +646,10 @@ export function applyChange(
       )
         throw new WorkflowError(
           "Record publication for every deliverable first."
+        )
+      if (status === "posted" && m.destinationUrl && !m.linkConfirmedAt)
+        throw new WorkflowError(
+          "Confirm inclusion of the requested link through the publication record first."
         )
       record.status = status
       if (status === "accepted") {

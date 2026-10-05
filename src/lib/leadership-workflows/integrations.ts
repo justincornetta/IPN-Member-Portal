@@ -334,7 +334,10 @@ export async function deliverJob(db: DB, job: IntegrationJob) {
   if (job.target === "slack_media") {
     const m = r.media!
     const channel = process.env.WORKFLOW_MEDIA_SLACK_CHANNEL_ID || "C088ZJBM0QY"
-    const message = `${m.urgent ? "🚩 URGENT · " : ""}<@${DIRECTOR_SLACK_ID}> · ${job.event === "submitted" ? "New media request" : STATUS_LABELS[r.status]}\n*${escapeSlack(r.title)}* · ${escapeSlack(m.team)}\nFrom ${escapeSlack(r.requesterName)} · Post by ${m.postedBy}\n${escapeSlack(m.brief).slice(0, 1800)}\n<${requestUrl(r)}|Open request>`
+    const destination = m.destinationUrl
+      ? `\n*Link to include:* ${escapeSlack(m.destinationUrl)}\n*Where:* ${escapeSlack(m.linkPlacement || "")}`
+      : ""
+    const message = `${m.urgent ? "🚩 URGENT · " : ""}<@${DIRECTOR_SLACK_ID}> · ${job.event === "submitted" ? "New media request" : STATUS_LABELS[r.status]}\n*${escapeSlack(r.title)}* · ${escapeSlack(m.team)}\nFrom ${escapeSlack(r.requesterName)} · Post by ${m.postedBy}\n${escapeSlack(m.brief).slice(0, 1800)}${destination}\n<${requestUrl(r)}|Open request>`
     const result = await slack("chat.postMessage", {
       channel,
       text: message,
