@@ -15,6 +15,8 @@ Added or clarified: event/announcement/campaign/educational request types; event
 3. The team tracks Assigned → In production → Director review → Ready to post → Posted. Each request tracks one piece of content, with one Media owner and direct fields for a scheduled date, final Drive/Canva asset link, published link and actual posting date. There is no add/remove content item or second content status. Submit separate requests when outputs need separate tracking; intake still supports multiple formats and platforms.
 4. After final review, saving the published link and actual date together marks the request Posted. Posted records retain their final record. Changing a reviewed final asset requires review again. Publication cannot bypass Director review. Media activity/comments collapse by default; expense history remains open.
 
+Submitted media requests use bold headings and dividers for Request overview, Brief and event details, Draft copy, Links and assets, Additional details for the media team, Production and publication, Review and status, and Activity history. Overview metadata is labeled in a responsive grid. Empty optional sections are omitted. Identical brief/event detail text is displayed once without changing either stored field; distinct text remains visible. Posting-link instructions remain highlighted.
+
 The media queue uses a list with Idea Name, Request Type, Submitter, Submitted date, Status, Media Owner and Publish by date. The last column is the requested posting deadline. Default sorting is earliest deadline first; all columns support sorting through headers or the Sort by selector, with an ascending/descending toggle. Text search includes title, type, submitter, status, owner, deadline, team and brief. Status filtering, urgent indicators, row opening and keyboard access remain available; sorting survives opening a detail and returning to the queue. The list scrolls horizontally on mobile.
 
 All eligible leadership can view and edit the queue. Agnes's ownership is an operating convention; separate media editing permissions are deliberately deferred. Urgent does not bypass review. Platforms and formats may be left for Media to advise. Formats use a multi-select dropdown, including Email Campaign; requested platforms include Email. Submission requires selecting copywriting help or providing a headline or post caption. Body and caption are one Post caption field for the full message, key details and call to action. Older body text is combined with the caption in both the detail and edit form, and saved as caption on edit; identical text is not repeated. Field helpers explain the brief, deadlines, copy and ownership. The Media calendar uses portal request deadlines and publication records, with search/status filters, month navigation and a mobile agenda. Cancelled requests are excluded; it does not connect to an external calendar. Acceptance means the brief is usable for production; Ready to post records final review separately.
@@ -101,7 +103,9 @@ Full repository suite: 183/184 passed after syncing with the latest main. The un
 
 ![Media queue list on mobile](screenshots/media-list-mobile.png)
 
-![Compact media detail and full-height sidebar](screenshots/media-detail.png)
+![Organized media request sections](screenshots/media-detail.png)
+
+![Media request sections on mobile](screenshots/media-detail-mobile.png)
 
 ![Combined expense funds card](screenshots/expense-funds.png)
 

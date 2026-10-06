@@ -221,9 +221,9 @@ test("general media request, shared assignment, review and request publication",
   await expect(
     page.getByLabel("Publishing owner", { exact: true })
   ).toHaveCount(0)
-  await expect(
-    page.getByText("Email · Carousel, Email Campaign", { exact: true })
-  ).toBeVisible()
+  const overview = page.getByRole("region", { name: "Request overview", exact: true })
+  await expect(overview.getByText("Email", { exact: true })).toBeVisible()
+  await expect(overview.getByText("Carousel, Email Campaign", { exact: true })).toBeVisible()
   await expect(
     page.getByRole("button", { name: "Add content item", exact: true })
   ).toHaveCount(0)
@@ -762,6 +762,61 @@ test("media list default deadline ordering, column sorting, search and row openi
     path: "/tmp/ipn-workflow-media-list-mobile.png",
     fullPage: true
   })
+})
+
+test("submitted media sections retain content and omit duplicated event text", async ({ page, request }) => {
+  const eventDetails = "Research seminar\nOctober 17, 2026 · 6 PM Eastern\nOnline\nMeet the IPN research team."
+  const notes = "Please coordinate the announcement with Education."
+  const id = randomUUID()
+  const response = await request.post("/api/admin/workflows", {
+    data: {
+      id,
+      kind: "media",
+      title: "Research seminar media brief",
+      media: {
+        type: "event",
+        team: "Education",
+        brief: eventDetails,
+        eventDetails,
+        postedBy: "2026-10-17",
+        platforms: ["Instagram", "Email"],
+        formats: ["Carousel", "Email Campaign"],
+        needsCopyHelp: false,
+        headline: "Meet the research team",
+        caption: "Join our seminar and bring your questions.",
+        additionalDetails: notes,
+        destinationUrl: "https://example.com/events/seminar",
+        linkPlacement: "Instagram bio and email button",
+        links: [{ label: "Source artwork", url: "https://www.canva.com/design/example/edit" }]
+      }
+    }
+  })
+  expect(response.ok()).toBeTruthy()
+  await page.goto("/workflow-preview/media")
+  await page.getByRole("button", { name: "Open media request: Research seminar media brief", exact: true }).click()
+  for (const title of ["Request overview", "Brief and event details", "Draft copy", "Links and assets", "Additional details for the media team", "Production and publication", "Review and status"]) {
+    await expect(page.getByRole("heading", { name: title, exact: true })).toHaveCount(1)
+  }
+  await expect(page.getByText(eventDetails, { exact: true })).toHaveCount(1)
+  await expect(page.getByRole("region", { name: "Draft copy", exact: true })).toContainText("Join our seminar and bring your questions.")
+  await expect(page.getByRole("region", { name: "Links and assets", exact: true }).getByRole("link", { name: "Source artwork 1", exact: true })).toHaveAttribute("href", "https://www.canva.com/design/example/edit")
+  await expect(page.getByRole("region", { name: "Additional details for the media team", exact: true })).toContainText(notes)
+  await page.setViewportSize({ width: 1440, height: 1800 })
+  await page.getByRole("heading", { name: "Research seminar media brief", exact: true }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: "/tmp/ipn-workflow-media-sections.png", fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByRole("button", { name: "Edit request", exact: true }).click()
+  await expect(page.getByLabel("Idea / brief", { exact: true })).toHaveValue(eventDetails)
+  await expect(page.getByLabel("Event details", { exact: true })).toHaveValue(eventDetails)
+  await page.getByLabel("Idea / brief", { exact: true }).fill("Invite new members to learn about IPN research.")
+  await page.getByRole("button", { name: "Save changes", exact: true }).click()
+  const brief = page.getByRole("region", { name: "Brief and event details", exact: true })
+  await expect(brief).toContainText("Invite new members to learn about IPN research.")
+  await expect(brief).toContainText("Meet the IPN research team.")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole("heading", { name: "Request overview", exact: true }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: "/tmp/ipn-workflow-media-sections-mobile.png", fullPage: true })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
 })
 
 test("long media details scroll within the content pane and keep the sidebar full height", async ({

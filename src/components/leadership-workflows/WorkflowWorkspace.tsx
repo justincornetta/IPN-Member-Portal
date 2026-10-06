@@ -466,13 +466,13 @@ export default function WorkflowWorkspace({
             <div>
               <Badge record={current} />
               <h2 className="mt-3 text-xl font-semibold">{current.title}</h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                {current.requesterName} · Submitted{" "}
-                {current.submittedAt.slice(0, 10)} ·{" "}
-                {current.kind === "media"
-                  ? `Post by ${current.media!.postedBy}`
-                  : usd(current.expense!.amountCents)}
-              </p>
+              {current.kind === "expense" && (
+                <p className="mt-1 text-sm text-zinc-500">
+                  {current.requesterName} · Submitted{" "}
+                  {current.submittedAt.slice(0, 10)} ·{" "}
+                  {usd(current.expense!.amountCents)}
+                </p>
+              )}
             </div>
             <button
               className={secondary}
@@ -1256,6 +1256,172 @@ function RequestForm({
     </form>
   )
 }
+function MediaSection({
+  title,
+  children
+}: {
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section aria-label={title} className="border-t border-zinc-200 py-5">
+      <h3 className="text-base font-bold text-zinc-900">{title}</h3>
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  )
+}
+
+function MediaRequestSummary({
+  record: r,
+  people
+}: {
+  record: WorkflowRequest
+  people: Person[]
+}) {
+  const media = r.media!
+  const caption = mediaPostCaption(media)
+  const eventDetails = media.eventDetails.trim()
+  const brief = media.brief.trim()
+  const requestType = {
+    event: "Event",
+    announcement: "Announcement",
+    campaign: "Campaign",
+    educational: "Educational content"
+  }[media.type]
+  const overview = [
+    ["Submitter", r.requesterName],
+    ["Submitted date", r.submittedAt.slice(0, 10)],
+    ["Publish by date", media.postedBy],
+    ["Request type", requestType],
+    ["Team / project", media.team],
+    ["Requested platforms", media.platforms.join(", ")],
+    ["Media formats", mediaFormats(media).join(", ")]
+  ]
+  return (
+    <div>
+      <MediaSection title="Request overview">
+        <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          {overview.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <dt className="font-semibold text-zinc-600">{label}</dt>
+              <dd className="mt-1 break-words text-zinc-900">{value}</dd>
+            </div>
+          ))}
+          {media.urgent && (
+            <div>
+              <dt className="font-semibold text-zinc-600">Priority</dt>
+              <dd className="mt-1 font-semibold text-amber-700">Urgent</dd>
+            </div>
+          )}
+        </dl>
+      </MediaSection>
+      <MediaSection
+        title={eventDetails ? "Brief and event details" : "Request brief"}
+      >
+        {brief !== eventDetails && (
+          <div>
+            {eventDetails && (
+              <h4 className="mb-2 text-sm font-semibold">Idea / brief</h4>
+            )}
+            <p className="whitespace-pre-wrap break-words text-sm leading-7">
+              {brief}
+            </p>
+          </div>
+        )}
+        {eventDetails && (
+          <div>
+            <h4 className="mb-2 text-sm font-semibold">Event details</h4>
+            <p className="whitespace-pre-wrap break-words text-sm leading-7">
+              {eventDetails}
+            </p>
+          </div>
+        )}
+      </MediaSection>
+      {(media.needsCopyHelp || media.headline || caption) && (
+        <MediaSection title="Draft copy">
+          {media.needsCopyHelp && (
+            <p className="rounded-lg bg-ipn-light/50 px-3 py-2 text-sm text-ipn-dark">
+              Copywriting requested from the Media team.
+            </p>
+          )}
+          {[
+            ["Headline", media.headline],
+            ["Post caption", caption]
+          ].map(([label, value]) => value ? (
+              <div key={label}>
+                <h4 className="text-sm font-semibold text-zinc-700">{label}</h4>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
+                  {value}
+                </p>
+              </div>
+            ) : null
+          )}
+        </MediaSection>
+      )}
+      {(media.destinationUrl || media.links.length > 0) && (
+        <MediaSection title="Links and assets">
+          {media.destinationUrl && (
+            <section
+              aria-label="Requested publishing link"
+              className="rounded-xl border border-ipn/25 bg-ipn-light/40 p-4"
+            >
+              <h4 className="text-sm font-bold">Link to include when posting</h4>
+              <a
+                href={media.destinationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block break-all text-sm text-ipn underline"
+              >
+                {media.destinationUrl}
+              </a>
+              <p className="mt-3 whitespace-pre-wrap break-words text-sm">
+                <span className="font-semibold">Where to include it:</span>{" "}
+                {media.linkPlacement}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">
+                {media.linkConfirmedAt
+                  ? `Inclusion confirmed by ${people.find((person) => person.id === media.linkConfirmedBy)?.name || "Unassigned"} · ${media.linkConfirmedAt.slice(0, 10)}`
+                  : "The Media owner must confirm this link was included before marking the request Posted."}
+              </p>
+            </section>
+          )}
+          {media.links.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-sm font-semibold text-zinc-700">
+                Supporting materials
+              </h4>
+              <ul className="space-y-3">
+                {media.links.map((link, i) => (
+                  <li key={i} className="text-sm">
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-ipn underline"
+                    >
+                      {link.label} {i + 1}
+                    </a>
+                    <p className="mt-1 break-all text-xs text-zinc-500">
+                      {link.url}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </MediaSection>
+      )}
+      {media.additionalDetails && (
+        <MediaSection title="Additional details for the media team">
+          <p className="whitespace-pre-wrap break-words text-sm leading-7">
+            {media.additionalDetails}
+          </p>
+        </MediaSection>
+      )}
+    </div>
+  )
+}
+
 function RequestDetail({
   record: r,
   data,
@@ -1291,146 +1457,64 @@ function RequestDetail({
     <div className="flex flex-col gap-4">
       {r.kind === "media" ? (
         <>
-          <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-            <span>
-              {r.media!.type} · {r.media!.team}
-            </span>
-            {r.media!.urgent && (
-              <span className="font-semibold text-amber-700">Urgent</span>
-            )}
-            <span>
-              {r.media!.platforms.join(", ")} · {r.media!.format}
-            </span>
-            {r.media!.needsCopyHelp && <span>Copywriting requested</span>}
-          </div>
-          {r.media!.destinationUrl && (
-            <section
-              aria-label="Requested publishing link"
-              className="rounded-xl border border-ipn/25 bg-ipn-light/40 p-4"
-            >
-              <h3 className="text-sm font-semibold">
-                Link to include when posting
-              </h3>
-              <a
-                href={r.media!.destinationUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 block break-all text-sm text-ipn underline"
-              >
-                {r.media!.destinationUrl}
-              </a>
-              <p className="mt-2 whitespace-pre-wrap text-sm">
-                <span className="font-medium">Where to include it:</span>{" "}
-                {r.media!.linkPlacement}
-              </p>
-              <p className="mt-2 text-xs text-zinc-500">
-                {r.media!.linkConfirmedAt
-                  ? `Inclusion confirmed by ${name(r.media!.linkConfirmedBy)} · ${r.media!.linkConfirmedAt.slice(0, 10)}`
-                  : "The Media owner must confirm this link was included before marking the request Posted."}
-              </p>
-            </section>
-          )}
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {r.media!.brief}
-          </p>
-          {r.media!.eventDetails && (
-            <p className="whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-sm">
-              {r.media!.eventDetails}
-            </p>
-          )}
-          {[
-            ["Headline", r.media!.headline],
-            ["Post caption", mediaPostCaption(r.media!)]
-          ].map(([label, value]) => {
-            return value ? (
-              <div key={label}>
-                <p className="text-xs font-medium uppercase text-zinc-500">
-                  {label}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">{value}</p>
-              </div>
-            ) : null
-          })}
-          {r.media!.additionalDetails && (
-            <section className="rounded-xl border border-violet-100 bg-violet-50/40 p-4">
-              <h3 className="text-sm font-semibold">
-                Additional details for the media team
-              </h3>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                {r.media!.additionalDetails}
-              </p>
-            </section>
-          )}
-          {r.media!.links.length > 0 && (
-            <div className="flex flex-wrap gap-3">
-              {r.media!.links.map((l, i) => (
-                <a
-                  key={i}
-                  href={l.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-ipn underline"
-                >
-                  {l.label} {i + 1}
-                </a>
-              ))}
-            </div>
-          )}
-          {(r.media!.acceptedAt || r.media!.reviewedAt) && (
-            <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
-              {r.media!.acceptedAt && (
-                <span>
-                  Accepted by {name(r.media!.acceptedBy)} ·{" "}
-                  {r.media!.acceptedAt.slice(0, 10)}
-                </span>
-              )}
-              {r.media!.reviewedAt && (
-                <span>
-                  Final review: {name(r.media!.reviewedBy)} ·{" "}
-                  {r.media!.reviewedAt.slice(0, 10)}
-                </span>
-              )}
-            </div>
-          )}
+          <MediaRequestSummary record={r} people={data.people} />
           <Production
             record={r}
             people={data.people}
             busy={busy}
             save={apply}
           />
-          {r.status !== "posted" && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Move request to">
-                <select
-                  disabled={busy}
-                  className={input}
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as typeof status)}
+          <MediaSection title="Review and status">
+            {(r.media!.acceptedAt || r.media!.reviewedAt) && (
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                {r.media!.acceptedAt && (
+                  <div>
+                    <dt className="font-semibold text-zinc-600">Accepted by</dt>
+                    <dd className="mt-1">{name(r.media!.acceptedBy)} · {r.media!.acceptedAt.slice(0, 10)}</dd>
+                  </div>
+                )}
+                {r.media!.reviewedAt && (
+                  <div>
+                    <dt className="font-semibold text-zinc-600">Final review</dt>
+                    <dd className="mt-1">{name(r.media!.reviewedBy)} · {r.media!.reviewedAt.slice(0, 10)}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            {r.status !== "posted" && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Move request to">
+                  <select
+                    disabled={busy}
+                    className={input}
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as typeof status)}
+                  >
+                    {mediaNextStatuses(r.status).map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Review notes / missing information">
+                  <textarea
+                    className={input}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={2}
+                  />
+                </Field>
+                <button
+                  className={`${primary} justify-self-start`}
+                  disabled={busy || !mediaNextStatuses(r.status).length}
+                  onClick={() => run({ action: "status", status, note })}
                 >
-                  {mediaNextStatuses(r.status).map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Review notes / missing information">
-                <textarea
-                  className={input}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={2}
-                />
-              </Field>
-              <button
-                className={`${primary} justify-self-start`}
-                disabled={busy || !mediaNextStatuses(r.status).length}
-                onClick={() => run({ action: "status", status, note })}
-              >
-                Update status
-              </button>
-            </div>
-          )}
+                  Update status
+                </button>
+              </div>
+            )}
+          </MediaSection>
         </>
       ) : (
         <ExpenseDetail record={r} data={data} busy={busy} save={apply} />
@@ -1454,7 +1538,7 @@ function RequestDetail({
         className="border-t border-zinc-200 pt-4"
       >
         <summary className="cursor-pointer text-sm">
-          <h3 className="inline font-semibold">
+          <h3 className={r.kind === "media" ? "inline text-base font-bold" : "inline font-semibold"}>
             Activity history{" "}
             <span className="ml-1 font-normal text-zinc-500">
               ({data.activity.filter((a) => a.requestId === r.id).length})
@@ -1560,7 +1644,7 @@ function Production({
     setDetails({ ...details, ...patch })
   return (
     <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-      <h3 className="font-semibold">Production and publication</h3>
+      <h3 className="text-base font-bold">Production and publication</h3>
       <p className="mt-1 text-xs text-zinc-500">
         One request tracks one piece of content. The Media owner handles
         production and posting; Agnes leads acceptance, assignment and review.
