@@ -144,7 +144,8 @@ test("leadership expense privacy and preapproved reimbursement", async ({
   ).toBeVisible()
 })
 test("general media request, shared assignment, review and request publication", async ({
-  page
+  page,
+  request
 }) => {
   await page.goto("/workflow-preview/media")
   const previewNav = page.getByRole("navigation", {
@@ -213,8 +214,34 @@ test("general media request, shared assignment, review and request publication",
   await expect(
     page.getByLabel("I included the requested link in the specified location")
   ).toBeDisabled()
+  await expect(page.getByLabel("Move request to")).toHaveValue("submitted")
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(1)
+  await expect(page.getByRole("button", { name: "Save production", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Update status", exact: true })).toHaveCount(0)
+  expect(await page.getByLabel("Move request to").evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('[aria-label="Final asset link (Drive / Canva)"]')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBeTruthy()
+  await page.getByLabel("Media owner", { exact: true }).selectOption({ label: "Alex Morgan" })
   await page.getByLabel("Move request to").selectOption("accepted")
-  await page.getByRole("button", { name: "Update status", exact: true }).click()
+  await page.getByLabel("Review notes / missing information").fill("Complete brief, assigned to Alex.")
+  const acceptanceSaved = page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/admin/workflows/"))
+  await page.getByRole("button", { name: "Save", exact: true }).click()
+  expect((await acceptanceSaved).ok()).toBeTruthy()
+  await expect(page.getByLabel("Move request to")).toHaveValue("accepted")
+  const saved = (await (await request.get("/api/admin/workflows")).json()).data
+  const accepted = saved.requests.find((record: { title: string }) => record.title === "Leadership announcement")
+  expect(accepted.revision).toBe(2)
+  expect(accepted.media.productionOwnerId).toBe(saved.people.find((person: { name: string }) => person.name === "Alex Morgan").id)
+  const history = saved.activity.filter((activity: { requestId: string }) => activity.requestId === accepted.id)
+  expect(history).toHaveLength(2)
+  expect(history.find((activity: { event: string }) => activity.event === "saved").note).toBe("Complete brief, assigned to Alex.")
+  const invalid = await request.patch(`/api/admin/workflows/${accepted.id}`, {
+    data: { revision: 2, action: "media_save", ownerId: saved.user.id, status: "assigned", publication: { assetUrl: "https://example.com/asset" } }
+  })
+  expect(invalid.status()).toBe(400)
+  const unchanged = (await (await request.get("/api/admin/workflows")).json()).data.requests.find((record: { id: string }) => record.id === accepted.id)
+  expect(unchanged.revision).toBe(2)
+  expect(unchanged.status).toBe("accepted")
+  expect(unchanged.media.productionOwnerId).toBe(accepted.media.productionOwnerId)
+  await page.getByRole("region", { name: "Production and publication", exact: true }).screenshot({ path: "/tmp/ipn-workflow-media-single-save.png" })
   await page
     .getByLabel("Media owner", { exact: true })
     .selectOption({ label: "Alex Morgan" })
@@ -234,7 +261,7 @@ test("general media request, shared assignment, review and request publication",
     .fill("https://www.canva.com/design/example/edit")
   await page.getByLabel("Scheduled posting date").fill("2026-10-19")
   await page
-    .getByRole("button", { name: "Save production", exact: true })
+    .getByRole("button", { name: "Save", exact: true })
     .click()
   for (const status of [
     "assigned",
@@ -244,7 +271,7 @@ test("general media request, shared assignment, review and request publication",
   ]) {
     await page.getByLabel("Move request to").selectOption(status)
     await page
-      .getByRole("button", { name: "Update status", exact: true })
+      .getByRole("button", { name: "Save", exact: true })
       .click()
     await expect(page.getByLabel("Move request to")).toBeVisible()
   }
@@ -292,7 +319,7 @@ test("general media request, shared assignment, review and request publication",
   ).toBeTruthy()
   await linkCheck.check()
   await page
-    .getByRole("button", { name: "Save production", exact: true })
+    .getByRole("button", { name: "Save", exact: true })
     .click()
   await expect(publishingLink).toContainText("Inclusion confirmed by")
   await expect(page.getByText("Posted", { exact: true }).first()).toBeVisible()

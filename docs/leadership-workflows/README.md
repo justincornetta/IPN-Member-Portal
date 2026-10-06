@@ -10,12 +10,14 @@ Retained from the [original Canva SOP](https://www.canva.com/design/DAGbUiV46dw/
 
 Added or clarified: event/announcement/campaign/educational request types; event/meetup prefill; “Media to advise”; copywriting help; urgent flag; a single required **When does this need to be posted by?** date; needs-information notes; one Media owner for production through publication; a monthly calendar of deadlines, scheduled posts and actual posting dates; final asset links; review history; published links and actual posting dates. The image generator is outside this scope. The original uncommitted media pilot remains untouched in the brand-guidelines project.
 
+The media workflow uses one **Save** button for owner assignment, status, review notes, scheduled date, final asset and publication fields. The order is Media owner → Review and status → Final asset / scheduled date → Publication record / posting checklist → Save. Status defaults to the current stage. All fields validate before one request revision, audit entry and outbox batch are persisted. Existing stage transitions, required missing-information notes, final review, asset-change review resets, link confirmation and posted-record locking remain enforced. Older multi-output requests retain their saved outputs and can still save owner/status updates.
+
 1. Leadership submits a brief in Admin → Media Requests. An optional **Additional details for the media team** field appears directly above Submit request, outside the collapsible copy section. It stores extra context, preferences and instructions, shows them in a labeled request detail section, and remains editable. These notes are separate from the published copy. A submission notifies private `#media-space` and tags Agnes (`U0C5PPBBEK1`, verified against the Director of Media announcement).
 2. Agnes requests missing information or accepts it, then assigns the Media owner.
 3. The team tracks Assigned → In production → Director review → Ready to post → Posted. Each request tracks one piece of content, with one Media owner and direct fields for a scheduled date, final Drive/Canva asset link, published link and actual posting date. There is no add/remove content item or second content status. Submit separate requests when outputs need separate tracking; intake still supports multiple formats and platforms.
 4. After final review, saving the published link and actual date together marks the request Posted. Posted records retain their final record. Changing a reviewed final asset requires review again. Publication cannot bypass Director review. Media activity/comments collapse by default; expense history remains open.
 
-Submitted media requests use bold headings and dividers for Request overview, Brief and event details, Draft copy, Links and assets, Additional details for the media team, Production and publication, Review and status, and Activity history. Overview metadata is labeled in a responsive grid. Empty optional sections are omitted. Identical brief/event detail text is displayed once without changing either stored field; distinct text remains visible. Posting-link instructions remain highlighted.
+Submitted media requests use bold headings and dividers for Request overview, Brief and event details, Draft copy, Links and assets, Additional details for the media team, Production and publication (with Review and status before final assets), and Activity history. Overview metadata is labeled in a responsive grid. Empty optional sections are omitted. Identical brief/event detail text is displayed once without changing either stored field; distinct text remains visible. Posting-link instructions remain highlighted.
 
 The media queue uses a list with Idea Name, Request Type, Submitter, Submitted date, Status, Media Owner and Publish by date. The last column is the requested posting deadline. Default sorting is earliest deadline first; all columns support sorting through headers or the Sort by selector, with an ascending/descending toggle. Text search includes title, type, submitter, status, owner, deadline, team and brief. Status filtering, urgent indicators, row opening and keyboard access remain available; sorting survives opening a detail and returning to the queue. The list scrolls horizontally on mobile.
 
@@ -102,6 +104,8 @@ Full repository suite: 183/184 passed after syncing with the latest main. The un
 ![Media queue list with sample data](screenshots/media-list.png)
 
 ![Media queue list on mobile](screenshots/media-list-mobile.png)
+
+![One media workflow Save button](screenshots/media-single-save.png)
 
 ![Organized media request sections](screenshots/media-detail.png)
 

@@ -452,7 +452,56 @@ export function applyChange(
       throw new WorkflowError(
         "Posted requests retain their final record. Add a comment or create a follow-up request."
       )
-    if (action === "edit") {
+    if (action === "media_save") {
+      const desiredStatus = text(v.status, "Status", true) as Status
+      if (
+        desiredStatus !== current.status &&
+        !mediaNextStatuses(current.status).includes(desiredStatus)
+      )
+        throw new WorkflowError(
+          "That status change is not available from the current stage."
+        )
+      // Validate the whole form in memory, then persist one revision and audit event.
+      let result = applyChange(
+        current,
+        {
+          revision: current.revision,
+          ownerId: v.ownerId,
+          ...(m.deliverables.length > 1
+            ? { action: "production", deliverables: m.deliverables }
+            : { action: "publication", publication: v.publication })
+        },
+        actor,
+        approverId,
+        people,
+        now
+      )
+      if (result.record.status === "posted") {
+        if (desiredStatus !== current.status && desiredStatus !== "posted")
+          throw new WorkflowError(
+            "Clear the publication record before moving to another status."
+          )
+      } else if (
+        desiredStatus !== current.status &&
+        desiredStatus !== result.record.status
+      ) {
+        result = applyChange(
+          result.record,
+          {
+            revision: result.record.revision,
+            action: "status",
+            status: desiredStatus,
+            note
+          },
+          actor,
+          approverId,
+          people,
+          now
+        )
+      }
+      result.record.revision = current.revision + 1
+      return { record: result.record, event: "saved", note }
+    } else if (action === "edit") {
       const edited = parseMedia(v.media)
       record.title = text(v.title, "Idea name", true, 180)
       record.media = {

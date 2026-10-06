@@ -582,6 +582,53 @@ test("request publication keeps one record, requires review and records Posted a
   )
 })
 
+test("one media save validates owner, status and publication before advancing one revision", () => {
+  let r = createRequest({
+    id: randomUUID(), kind: "media", title: "Seminar",
+    media: { type: "event", team: "Media", brief: "Promote the seminar", postedBy: "2026-10-20", needsCopyHelp: true }
+  }, member, now)
+  const publication = { assetUrl: "", scheduledDate: "2026-10-19", publishedUrl: "", postedDate: "" }
+  const input = { revision: r.revision, action: "media_save", ownerId: other.id, status: "accepted", note: "Ready for Media", publication }
+  const before = structuredClone(r)
+  assert.throws(() => applyChange(r, { ...input, status: "assigned" }, member, justin.id, people, now), /status change/)
+  assert.throws(() => applyChange(r, { ...input, status: "needs_information", note: "" }, member, justin.id, people, now), /information is needed/)
+  assert.deepEqual(r, before)
+  const result = applyChange(r, input, member, justin.id, people, now)
+  assert.equal(result.event, "saved")
+  assert.equal(result.note, "Ready for Media")
+  assert.equal(result.record.revision, r.revision + 1)
+  r = result.record
+  assert.equal(r.status, "accepted")
+  assert.equal(r.media.productionOwnerId, other.id)
+  assert.equal(r.media.acceptedBy, member.id)
+  r = change(r, "media_save", member, { ownerId: other.id, status: r.status, publication })
+  assert.equal(r.status, "accepted")
+  for (const status of ["assigned", "in_production", "director_review"])
+    r = change(r, "media_save", member, { ownerId: other.id, status, publication })
+  const reviewed = structuredClone(r)
+  assert.throws(() => change(r, "media_save", member, { ownerId: member.id, status: "ready_to_post", publication }), /final Drive or Canva/)
+  assert.deepEqual(r, reviewed)
+  const final = { ...publication, assetUrl: "https://www.canva.com/design/example/edit" }
+  r = change(r, "media_save", member, { ownerId: other.id, status: "ready_to_post", publication: final })
+  assert.equal(r.status, "ready_to_post")
+  assert.equal(r.media.reviewedBy, member.id)
+  const legacy = structuredClone(r)
+  legacy.media.deliverables.push({ ...legacy.media.deliverables[0], id: randomUUID(), name: "Second legacy output" })
+  const legacySaved = change(legacy, "media_save", member, { ownerId: other.id, status: legacy.status })
+  assert.deepEqual(legacySaved.media.deliverables, legacy.media.deliverables)
+  assert.equal(legacySaved.revision, legacy.revision + 1)
+  const complete = { ...final, publishedUrl: "https://example.com/published", postedDate: "2026-10-20" }
+  assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "cancelled", publication: complete }), /Clear the publication record/)
+  assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...complete, assetUrl: "https://www.canva.com/design/revised/edit" } }), /Director review/)
+  const pendingReview = change(r, "media_save", member, { ownerId: other.id, status: r.status, publication: { ...final, assetUrl: "https://www.canva.com/design/revised/edit" } })
+  assert.equal(pendingReview.status, "director_review")
+  assert.equal(pendingReview.media.reviewedBy, undefined)
+  const posted = change(r, "media_save", member, { ownerId: other.id, status: "posted", publication: complete })
+  assert.equal(posted.status, "posted")
+  assert.equal(posted.revision, r.revision + 1)
+  assert.throws(() => change(posted, "media_save", member, { ownerId: other.id, status: "posted", publication: complete }), /final record/)
+})
+
 test("publishing destination links are validated, confirmed on posting and reset on edits", () => {
   const media = {
     type: "announcement",

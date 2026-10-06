@@ -386,7 +386,10 @@ function jobsFor(r: WorkflowRequest, event: string) {
     jobs.push({ target: "slack_media" })
     if (r.status === "needs_information")
       jobs.push({ target: "slack_dm", recipientId: r.requesterId })
-    if (["production", "publication"].includes(event) && r.media!.productionOwnerId)
+    if (
+      ["production", "publication", "saved"].includes(event) &&
+      r.media!.productionOwnerId
+    )
       jobs.push({ target: "slack_dm", recipientId: r.media!.productionOwnerId })
   }
   return jobs

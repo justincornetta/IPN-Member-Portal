@@ -1434,8 +1434,7 @@ function RequestDetail({
   save: Save
 }) {
   const [editing, setEditing] = useState(false),
-    [note, setNote] = useState(""),
-    [status, setStatus] = useState(mediaNextStatuses(r.status)[0] || r.status)
+    [note, setNote] = useState("")
   const apply = (body: Record<string, unknown>) =>
     save({ revision: r.revision, ...body })
   const run = (body: Record<string, unknown>) =>
@@ -1451,8 +1450,6 @@ function RequestDetail({
         record={r}
       />
     )
-  const name = (id?: string) =>
-    data.people.find((p) => p.id === id)?.name || "Unassigned"
   return (
     <div className="flex flex-col gap-4">
       {r.kind === "media" ? (
@@ -1464,57 +1461,6 @@ function RequestDetail({
             busy={busy}
             save={apply}
           />
-          <MediaSection title="Review and status">
-            {(r.media!.acceptedAt || r.media!.reviewedAt) && (
-              <dl className="grid gap-4 text-sm sm:grid-cols-2">
-                {r.media!.acceptedAt && (
-                  <div>
-                    <dt className="font-semibold text-zinc-600">Accepted by</dt>
-                    <dd className="mt-1">{name(r.media!.acceptedBy)} · {r.media!.acceptedAt.slice(0, 10)}</dd>
-                  </div>
-                )}
-                {r.media!.reviewedAt && (
-                  <div>
-                    <dt className="font-semibold text-zinc-600">Final review</dt>
-                    <dd className="mt-1">{name(r.media!.reviewedBy)} · {r.media!.reviewedAt.slice(0, 10)}</dd>
-                  </div>
-                )}
-              </dl>
-            )}
-            {r.status !== "posted" && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Move request to">
-                  <select
-                    disabled={busy}
-                    className={input}
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as typeof status)}
-                  >
-                    {mediaNextStatuses(r.status).map((s) => (
-                      <option key={s} value={s}>
-                        {STATUS_LABELS[s]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Review notes / missing information">
-                  <textarea
-                    className={input}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={2}
-                  />
-                </Field>
-                <button
-                  className={`${primary} justify-self-start`}
-                  disabled={busy || !mediaNextStatuses(r.status).length}
-                  onClick={() => run({ action: "status", status, note })}
-                >
-                  Update status
-                </button>
-              </div>
-            )}
-          </MediaSection>
         </>
       ) : (
         <ExpenseDetail record={r} data={data} busy={busy} save={apply} />
@@ -1630,6 +1576,8 @@ function Production({
   save: Save
 }) {
   const [owner, setOwner] = useState(r.media!.productionOwnerId)
+  const [status, setStatus] = useState(r.status)
+  const [reviewNote, setReviewNote] = useState("")
   const publication = r.media!.deliverables[0]
   const [details, setDetails] = useState({
     scheduledDate: publication?.scheduledDate || "",
@@ -1642,160 +1590,111 @@ function Production({
   const legacyMultiple = r.media!.deliverables.length > 1
   const update = (patch: Partial<typeof details>) =>
     setDetails({ ...details, ...patch })
+  const name = (id?: string) =>
+    people.find((person) => person.id === id)?.name || "Unassigned"
   return (
-    <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+    <section aria-label="Production and publication" className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
       <h3 className="text-base font-bold">Production and publication</h3>
-      <p className="mt-1 text-xs text-zinc-500">
-        One request tracks one piece of content. The Media owner handles
-        production and posting; Agnes leads acceptance, assignment and review.
-        Submit a separate request for an output that needs its own status or
-        posting date.
+      <p className="mt-1 text-xs leading-5 text-zinc-500">
+        Assign the Media owner, review the request, then add assets and publication details as work progresses. Save all changes together below.
       </p>
-      {legacyMultiple ? (
-        <div className="mt-4 space-y-3 text-sm">
-          <p>
-            This older request contains several outputs. Their saved records are
-            retained below; use separate requests for future work.
-          </p>
-          {r.media!.deliverables.map((item) => (
-            <div key={item.id} className="rounded-lg border bg-white p-3">
-              <p className="font-medium">
-                {item.name} · {item.platform}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {item.status.replace(/_/g, " ")}
-              </p>
-              {item.assetUrl && (
-                <a
-                  href={item.assetUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mr-3 text-ipn underline"
-                >
-                  Final asset
-                </a>
-              )}
-              {item.publishedUrl && (
-                <a
-                  href={item.publishedUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-ipn underline"
-                >
-                  Published content
-                </a>
-              )}
-              {item.postedDate && <p>Posted {item.postedDate}</p>}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            void save({
-              action: "publication",
-              ownerId: owner,
-              publication: details
-            }).catch(() => {})
-          }}
-        >
-          <fieldset
-            disabled={busy || locked}
-            className="mt-4 flex flex-col gap-4"
-          >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          void save({
+            action: "media_save",
+            ownerId: owner,
+            status,
+            note: reviewNote,
+            publication: details
+          }).catch(() => {})
+        }}
+      >
+        <fieldset disabled={busy || locked} className="mt-4 flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PersonSelect label="Media owner" people={people} value={owner} onChange={setOwner} />
+          </div>
+          <MediaSection title="Review and status">
+            {(r.media!.acceptedAt || r.media!.reviewedAt) && (
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                {r.media!.acceptedAt && (
+                  <div>
+                    <dt className="font-semibold text-zinc-600">Accepted by</dt>
+                    <dd className="mt-1">{name(r.media!.acceptedBy)} · {r.media!.acceptedAt.slice(0, 10)}</dd>
+                  </div>
+                )}
+                {r.media!.reviewedAt && (
+                  <div>
+                    <dt className="font-semibold text-zinc-600">Final review</dt>
+                    <dd className="mt-1">{name(r.media!.reviewedBy)} · {r.media!.reviewedAt.slice(0, 10)}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
-              <PersonSelect
-                label="Media owner"
-                people={people}
-                value={owner}
-                onChange={setOwner}
-              />
-              <Field
-                label="Scheduled posting date"
-                hint="The planned posting date, shown in the media calendar. Leave blank until scheduled."
-              >
-                <input
-                  type="date"
-                  className={input}
-                  value={details.scheduledDate}
-                  onChange={(e) => update({ scheduledDate: e.target.value })}
-                />
+              <Field label="Move request to" hint="Keep the current status when saving other updates, or choose the next stage.">
+                <select className={input} value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+                  {[r.status, ...mediaNextStatuses(r.status)].map((stage) => (
+                    <option key={stage} value={stage}>{STATUS_LABELS[stage]}</option>
+                  ))}
+                </select>
               </Field>
-              <Field
-                label="Final asset link (Drive / Canva)"
-                hint="Link to the finished content or a folder containing its assets. Required before Ready to post."
-              >
-                <input
-                  type="url"
-                  className={input}
-                  value={details.assetUrl}
-                  onChange={(e) => update({ assetUrl: e.target.value })}
-                />
-              </Field>
+              {!locked && (
+                <Field label="Review notes / missing information">
+                  <textarea className={input} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} rows={3} maxLength={8000} required={status === "needs_information" && status !== r.status} />
+                </Field>
+              )}
             </div>
-            <details
-              className="rounded-lg border border-zinc-200 bg-white"
-              open={locked}
-            >
-              <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
-                Publication record
-              </summary>
-              <div className="grid gap-4 border-t border-zinc-100 p-4 sm:grid-cols-2">
-                <Field
-                  label="Published link"
-                  hint="Add the live post, video or sent campaign link after publication."
-                >
-                  <input
-                    type="url"
-                    className={input}
-                    value={details.publishedUrl}
-                    onChange={(e) => update({ publishedUrl: e.target.value })}
-                  />
+          </MediaSection>
+          {legacyMultiple ? (
+            <div className="space-y-3 text-sm">
+              <p>This older request contains several outputs. Their saved records are retained below; use separate requests for future work.</p>
+              {r.media!.deliverables.map((item) => (
+                <div key={item.id} className="rounded-lg border bg-white p-3">
+                  <p className="font-medium">{item.name} · {item.platform}</p>
+                  <p className="text-xs text-zinc-500">{item.status.replace(/_/g, " ")}</p>
+                  {item.assetUrl && <a href={item.assetUrl} target="_blank" rel="noreferrer" className="mr-3 text-ipn underline">Final asset</a>}
+                  {item.publishedUrl && <a href={item.publishedUrl} target="_blank" rel="noreferrer" className="text-ipn underline">Published content</a>}
+                  {item.postedDate && <p>Posted {item.postedDate}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2">
+                <Field label="Final asset link (Drive / Canva)" hint="Link to the finished content or a folder containing its assets. Required before Ready to post.">
+                  <input type="url" className={input} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
                 </Field>
-                <Field
-                  label="Actual posting date"
-                  hint="Add with the published link after posting. Saving both marks the reviewed request Posted."
-                >
-                  <input
-                    type="date"
-                    className={input}
-                    value={details.postedDate}
-                    onChange={(e) => update({ postedDate: e.target.value })}
-                  />
+                <Field label="Scheduled posting date" hint="The planned posting date, shown in the media calendar. Leave blank until scheduled.">
+                  <input type="date" className={input} value={details.scheduledDate} onChange={(e) => update({ scheduledDate: e.target.value })} />
                 </Field>
               </div>
-            </details>
-            {r.media!.destinationUrl && (
-              <div className="rounded-lg border border-ipn/20 bg-white p-4">
-                <p className="mb-2 text-sm font-semibold">Posting checklist</p>
-                <label className="flex items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={details.linkIncluded}
-                    required={Boolean(
-                      details.publishedUrl || details.postedDate
-                    )}
-                    disabled={!locked && r.status !== "ready_to_post"}
-                    onChange={(e) => update({ linkIncluded: e.target.checked })}
-                  />
-                  I included the requested link in the specified location
-                </label>
-                <p className="mt-2 text-xs text-zinc-500">
-                  Confirm after posting, then save the published link and actual
-                  date. Final review is required first.
-                </p>
-              </div>
-            )}
-            {!locked && (
-              <button className={`${primary} self-start`}>
-                Save production
-              </button>
-            )}
-          </fieldset>
-        </form>
-      )}
+              <details className="rounded-lg border border-zinc-200 bg-white" open={locked}>
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Publication record</summary>
+                <div className="grid gap-4 border-t border-zinc-100 p-4 sm:grid-cols-2">
+                  <Field label="Published link" hint="Add the live post, video or sent campaign link after publication.">
+                    <input type="url" className={input} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
+                  </Field>
+                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Posted.">
+                    <input type="date" className={input} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
+                  </Field>
+                </div>
+              </details>
+              {r.media!.destinationUrl && (
+                <div className="rounded-lg border border-ipn/20 bg-white p-4">
+                  <p className="mb-2 text-sm font-semibold">Posting checklist</p>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-1" checked={details.linkIncluded} required={Boolean(details.publishedUrl || details.postedDate)} disabled={!locked && r.status !== "ready_to_post"} onChange={(e) => update({ linkIncluded: e.target.checked })} />
+                    I included the requested link in the specified location
+                  </label>
+                  <p className="mt-2 text-xs text-zinc-500">Confirm after posting, then save the published link and actual date. Final review is required first.</p>
+                </div>
+              )}
+            </>
+          )}
+          {!locked && <button className={`${primary} self-start`}>{busy ? "Saving…" : "Save"}</button>}
+        </fieldset>
+      </form>
     </section>
   )
 }
