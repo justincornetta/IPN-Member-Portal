@@ -49,3 +49,8 @@ next-env.d.ts
 
 # Claude Code personal settings (project-scoped, not team-wide)
 .claude/settings.local.json
+
+/test-results/
+/playwright-report/
+
+/supabase/.temp/
