@@ -43,6 +43,7 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
           gte() { return query },
           order() { return query },
           limit() { return query },
+          maybeSingle: async () => { const result = await execute(); return { ...result, data: result.data?.[0] } },
           single: async () => { const result = await execute(); return { ...result, data: result.data?.[0] } },
           then(resolve, reject) { return execute().then(resolve, reject) }
         }
@@ -90,6 +91,11 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       if (previous === undefined) delete process.env.WORKFLOW_EXCLUDED_REQUEST_IDS
       else process.env.WORKFLOW_EXCLUDED_REQUEST_IDS = previous
     }
+    await pg.exec("truncate leadership_requests")
+    await pg.query("insert into leadership_requests values ($1)", [JSON.stringify({ id: "deleted", kind: "media", requesterId: "leader", status: "submitted", deletedAt: "2026-10-06T12:00:00Z" })])
+    const deletedQueue = await api(new Request("https://preview.example.test/api/admin/workflows"), bootstrap)
+    assert.deepEqual((await deletedQueue.json()).data.requests, [])
+    await assert.rejects(mockModule.exports.readRequest({ db, demo: false, user: { id: "leader" }, approverId: "leader" }, "deleted"), /Request not found/)
   } finally {
     await pg.close()
   }

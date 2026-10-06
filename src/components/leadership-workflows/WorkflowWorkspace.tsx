@@ -17,7 +17,6 @@ import {
   EXPENSE_STATUSES,
   MEDIA_STATUSES,
   STATUS_LABELS,
-  mediaNextStatuses,
   usd,
   unpaidCents,
   type Bootstrap,
@@ -190,7 +189,7 @@ export default function WorkflowWorkspace({
       const result = await response.json()
       if (!result.ok) throw new Error(result.error)
       if (result.data?.id) {
-        setSelected(result.data.id)
+        setSelected(result.data.deletedAt ? "" : result.data.id)
         if (kind === "expense")
           setExpenseTab(
             [
@@ -243,7 +242,7 @@ export default function WorkflowWorkspace({
           "reimbursed"
         ].includes(r.status) ===
           (expenseTab === "approved")) &&
-      (!filter || r.status === filter) &&
+      (!filter || (r.status === "in_production" ? "assigned" : r.status) === filter) &&
       (!search ||
         [
           r.title,
@@ -1271,13 +1270,7 @@ function MediaSection({
   )
 }
 
-function MediaRequestSummary({
-  record: r,
-  people
-}: {
-  record: WorkflowRequest
-  people: Person[]
-}) {
+function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
   const media = r.media!
   const caption = mediaPostCaption(media)
   const eventDetails = media.eventDetails.trim()
@@ -1378,11 +1371,6 @@ function MediaRequestSummary({
                 <span className="font-semibold">Where to include it:</span>{" "}
                 {media.linkPlacement}
               </p>
-              <p className="mt-2 text-xs leading-5 text-zinc-500">
-                {media.linkConfirmedAt
-                  ? `Inclusion confirmed by ${people.find((person) => person.id === media.linkConfirmedBy)?.name || "Unassigned"} · ${media.linkConfirmedAt.slice(0, 10)}`
-                  : "The Media owner must confirm this link was included before marking the request Posted."}
-              </p>
             </section>
           )}
           {media.links.length > 0 && (
@@ -1454,7 +1442,7 @@ function RequestDetail({
     <div className="flex flex-col gap-4">
       {r.kind === "media" ? (
         <>
-          <MediaRequestSummary record={r} people={data.people} />
+          <MediaRequestSummary record={r} />
           <Production
             record={r}
             people={data.people}
@@ -1477,6 +1465,18 @@ function RequestDetail({
           onClick={() => setEditing(true)}
         >
           Edit request
+        </button>
+      )}
+      {r.kind === "media" && (
+        <button
+          className={`${secondary} self-start text-red-700`}
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm(`Delete “${r.title}”? It will be removed from the queue and calendar. Cancel keeps the request visible instead.`))
+              run({ action: "delete" })
+          }}
+        >
+          Delete request
         </button>
       )}
       <details
@@ -1576,15 +1576,14 @@ function Production({
   save: Save
 }) {
   const [owner, setOwner] = useState(r.media!.productionOwnerId)
-  const [status, setStatus] = useState(r.status)
+  const [status, setStatus] = useState(r.status === "in_production" ? "assigned" : r.status)
   const [reviewNote, setReviewNote] = useState("")
   const publication = r.media!.deliverables[0]
   const [details, setDetails] = useState({
     scheduledDate: publication?.scheduledDate || "",
     assetUrl: publication?.assetUrl || "",
     publishedUrl: publication?.publishedUrl || "",
-    postedDate: publication?.postedDate || "",
-    linkIncluded: Boolean(r.media!.linkConfirmedAt)
+    postedDate: publication?.postedDate || ""
   })
   const locked = r.status === "posted"
   const legacyMultiple = r.media!.deliverables.length > 1
@@ -1632,9 +1631,9 @@ function Production({
               </dl>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Move request to" hint="Keep the current status when saving other updates, or choose the next stage.">
+              <Field label="Move request to" hint="Choose the stage that reflects the work. Approved: Ready to Publish confirms final review of the asset.">
                 <select className={input} value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-                  {[r.status, ...mediaNextStatuses(r.status)].map((stage) => (
+                  {MEDIA_STATUSES.map((stage) => (
                     <option key={stage} value={stage}>{STATUS_LABELS[stage]}</option>
                   ))}
                 </select>
@@ -1645,53 +1644,40 @@ function Production({
                 </Field>
               )}
             </div>
-          </MediaSection>
-          {legacyMultiple ? (
-            <div className="space-y-3 text-sm">
-              <p>This older request contains several outputs. Their saved records are retained below; use separate requests for future work.</p>
-              {r.media!.deliverables.map((item) => (
-                <div key={item.id} className="rounded-lg border bg-white p-3">
-                  <p className="font-medium">{item.name} · {item.platform}</p>
-                  <p className="text-xs text-zinc-500">{item.status.replace(/_/g, " ")}</p>
-                  {item.assetUrl && <a href={item.assetUrl} target="_blank" rel="noreferrer" className="mr-3 text-ipn underline">Final asset</a>}
-                  {item.publishedUrl && <a href={item.publishedUrl} target="_blank" rel="noreferrer" className="text-ipn underline">Published content</a>}
-                  {item.postedDate && <p>Posted {item.postedDate}</p>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2">
-                <Field label="Final asset link (Drive / Canva)" hint="Link to the finished content or a folder containing its assets. Required before Ready to post.">
-                  <input type="url" className={input} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
-                </Field>
-                <Field label="Scheduled posting date" hint="The planned posting date, shown in the media calendar. Leave blank until scheduled.">
-                  <input type="date" className={input} value={details.scheduledDate} onChange={(e) => update({ scheduledDate: e.target.value })} />
-                </Field>
+            {legacyMultiple ? (
+              <div className="space-y-3 text-sm">
+                <p>This older request contains several outputs. Their saved records are retained below; use separate requests for future work.</p>
+                {r.media!.deliverables.map((item) => (
+                  <div key={item.id} className="rounded-lg border bg-white p-3">
+                    <p className="font-medium">{item.name} · {item.platform}</p>
+                    <p className="text-xs text-zinc-500">{item.status.replace(/_/g, " ")}</p>
+                    {item.assetUrl && <a href={item.assetUrl} target="_blank" rel="noreferrer" className="mr-3 text-ipn underline">Final asset</a>}
+                    {item.publishedUrl && <a href={item.publishedUrl} target="_blank" rel="noreferrer" className="text-ipn underline">Published content</a>}
+                    {item.postedDate && <p>Posted {item.postedDate}</p>}
+                  </div>
+                ))}
               </div>
-              <details className="rounded-lg border border-zinc-200 bg-white" open={locked}>
-                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Publication record</summary>
-                <div className="grid gap-4 border-t border-zinc-100 p-4 sm:grid-cols-2">
+            ) : (
+              <>
+                <div className="grid gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2">
+                  <Field label="Final asset link (Drive / Canva)" hint="Link to the finished content or a folder containing its assets. Required before Approved: Ready to Publish.">
+                    <input type="url" className={input} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
+                  </Field>
+                  <Field label="Scheduled posting date" hint="The planned posting date, shown in the media calendar. Leave blank until scheduled.">
+                    <input type="date" className={input} value={details.scheduledDate} onChange={(e) => update({ scheduledDate: e.target.value })} />
+                  </Field>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Published link" hint="Add the live post, video or sent campaign link after publication.">
                     <input type="url" className={input} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
                   </Field>
-                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Posted.">
+                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Published.">
                     <input type="date" className={input} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
                   </Field>
                 </div>
-              </details>
-              {r.media!.destinationUrl && (
-                <div className="rounded-lg border border-ipn/20 bg-white p-4">
-                  <p className="mb-2 text-sm font-semibold">Posting checklist</p>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input type="checkbox" className="mt-1" checked={details.linkIncluded} required={Boolean(details.publishedUrl || details.postedDate)} disabled={!locked && r.status !== "ready_to_post"} onChange={(e) => update({ linkIncluded: e.target.checked })} />
-                    I included the requested link in the specified location
-                  </label>
-                  <p className="mt-2 text-xs text-zinc-500">Confirm after posting, then save the published link and actual date. Final review is required first.</p>
-                </div>
-              )}
-            </>
-          )}
+              </>
+            )}
+          </MediaSection>
           {!locked && <button className={`${primary} self-start`}>{busy ? "Saving…" : "Save"}</button>}
         </fieldset>
       </form>

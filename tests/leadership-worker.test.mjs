@@ -47,3 +47,25 @@ test("quarantined preview purchases cannot reach Slack or the ledger while real 
     else process.env.WORKFLOW_EXCLUDED_REQUEST_IDS = previous
   }
 })
+
+
+test("queued notifications for deleted media skip delivery even with an older job payload", async () => {
+  const mockModule = { exports: {} }
+  const compiled = ts.transpileModule(readFileSync(new URL("../src/lib/leadership-workflows/integrations.ts", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText
+  new Function("require", "module", "exports", compiled)((path) => {
+    if (path === "node:crypto") return {}
+    if (path === "./domain" || path === "./slack-signature") return {}
+    throw new Error(`Unexpected import: ${path}`)
+  }, mockModule, mockModule.exports)
+  const db = { from() {
+    const q = { select() { return q }, eq() { return q }, async single() {
+      return { data: { data: { id: "deleted", kind: "media", deletedAt: "2026-10-06T12:00:00Z" } } }
+    } }
+    return q
+  } }
+  for (const target of ["slack_media", "slack_dm"]) {
+    assert.deepEqual(await mockModule.exports.deliverJob(db, { request_id: "deleted", target, payload: { status: "submitted" } }), { skipped: "Request deleted" })
+  }
+})

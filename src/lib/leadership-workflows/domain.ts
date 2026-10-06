@@ -1,13 +1,12 @@
 export type Kind = "media" | "expense"
 export const MEDIA_STATUSES = [
   "submitted",
-  "needs_information",
   "accepted",
   "assigned",
-  "in_production",
   "director_review",
   "ready_to_post",
   "posted",
+  "needs_information",
   "cancelled"
 ] as const
 export const EXPENSE_STATUSES = [
@@ -20,16 +19,16 @@ export const EXPENSE_STATUSES = [
   "cancelled"
 ] as const
 export type Status =
-  (typeof MEDIA_STATUSES)[number] | (typeof EXPENSE_STATUSES)[number]
+  (typeof MEDIA_STATUSES)[number] | (typeof EXPENSE_STATUSES)[number] | "in_production" // Legacy stage.
 export const STATUS_LABELS: Record<Status, string> = {
   submitted: "Submitted",
   needs_information: "Needs information",
   accepted: "Accepted",
-  assigned: "Assigned",
-  in_production: "In production",
-  director_review: "Director review",
-  ready_to_post: "Ready to post",
-  posted: "Posted",
+  assigned: "Assigned: In Progress",
+  in_production: "Assigned: In Progress",
+  director_review: "Draft Complete: Pending Review",
+  ready_to_post: "Approved: Ready to Publish",
+  posted: "Published",
   pending: "Pending approval",
   approved: "Awaiting purchase",
   rejected: "Rejected",
@@ -131,6 +130,8 @@ export type WorkflowRequest = {
   revision: number
   submittedAt: string
   updatedAt: string
+  deletedAt?: string
+  deletedBy?: string
   media?: MediaBrief
   expense?: Expense
 }
@@ -402,18 +403,11 @@ export function canRead(
     r.kind === "media" || r.requesterId === actorId || actorId === approverId
   )
 }
-const transitions: Record<string, string[]> = {
-  submitted: ["needs_information", "accepted", "cancelled"],
-  needs_information: ["submitted", "accepted", "cancelled"],
-  accepted: ["assigned", "needs_information", "cancelled"],
-  assigned: ["in_production", "needs_information", "cancelled"],
-  in_production: ["director_review", "cancelled"],
-  director_review: ["in_production", "ready_to_post", "cancelled"],
-  ready_to_post: ["in_production", "posted", "cancelled"],
-  cancelled: ["submitted"]
-}
-export function mediaNextStatuses(status: Status) {
-  return (transitions[status] ?? []) as Status[]
+// Show every stage; validate its prerequisites when saving rather than hide it.
+export function mediaNextStatuses(status: Status): Status[] {
+  return status === "posted"
+    ? []
+    : MEDIA_STATUSES.filter((stage) => stage !== status)
 }
 export function applyChange(
   current: WorkflowRequest,
@@ -425,6 +419,8 @@ export function applyChange(
 ): { record: WorkflowRequest; event: string; note: string } {
   if (!canRead(current, actor.id, approverId))
     throw new WorkflowError("You do not have access to this expense.", 403)
+  if (current.deletedAt)
+    throw new WorkflowError("Request not found.", 404)
   const v = object(input)
   if (v.revision !== current.revision)
     throw new WorkflowError(
@@ -440,7 +436,12 @@ export function applyChange(
       throw new WorkflowError("Choose a current leadership team member.")
     return id
   }
-  if (action === "comment") {
+  if (action === "delete") {
+    if (record.kind !== "media")
+      throw new WorkflowError("Only media requests can be deleted.")
+    record.deletedAt = now.toISOString()
+    record.deletedBy = actor.id
+  } else if (action === "comment") {
     if (record.kind === "expense")
       throw new WorkflowError(
         "Discuss expense requests in Slack. Activity history is recorded automatically."
@@ -542,14 +543,6 @@ export function applyChange(
             "Add both the published link and actual posting date."
           )
         publicationPosted = Boolean(publishedUrl && postedDate)
-        if (
-          publicationPosted &&
-          m.destinationUrl &&
-          publication.linkIncluded !== true
-        )
-          throw new WorkflowError(
-            "Confirm that the requested link was included in the specified location before marking this request Posted."
-          )
         const old = m.deliverables[0]
         v.deliverables = [
           {
@@ -626,16 +619,7 @@ export function applyChange(
           old?.status !== "posted"
         )
           throw new WorkflowError(
-            "Complete Director review before recording publication."
-          )
-        if (
-          status === "posted" &&
-          m.destinationUrl &&
-          action !== "publication" &&
-          !m.linkConfirmedAt
-        )
-          throw new WorkflowError(
-            "Confirm inclusion of the requested link through the publication record first."
+            "Complete final review before recording publication."
           )
         return result
       })
@@ -669,19 +653,15 @@ export function applyChange(
             d.status !== "posted" && !["ready", "review"].includes(d.status)
         )
       ) {
-        record.status = "in_production"
+        record.status = "assigned"
         delete m.reviewedAt
         delete m.reviewedBy
       }
       if (publicationPosted) {
         if (record.status !== "ready_to_post")
           throw new WorkflowError(
-            "Complete Director review of the final asset before recording publication."
+            "Complete final review of the final asset before recording publication."
           )
-        if (m.destinationUrl) {
-          m.linkConfirmedAt = now.toISOString()
-          m.linkConfirmedBy = actor.id
-        }
         record.status = "posted"
       }
     } else if (action === "status") {
@@ -692,14 +672,14 @@ export function applyChange(
         )
       if (status === "needs_information" && !note)
         throw new WorkflowError("Explain what information is needed.")
-      if (status === "assigned" && !m.productionOwnerId)
+      if (["assigned", "in_production", "director_review", "ready_to_post"].includes(status) && !m.productionOwnerId)
         throw new WorkflowError("Select a media owner first.")
       if (
         status === "ready_to_post" &&
         (!m.deliverables.length || m.deliverables.some((d) => !d.assetUrl))
       )
         throw new WorkflowError(
-          "Add a final Drive or Canva link before the request is ready to post."
+          "Add a final Drive or Canva link before the request is ready to publish."
         )
       if (
         status === "posted" &&
@@ -709,10 +689,10 @@ export function applyChange(
         throw new WorkflowError(
           "Record publication for every deliverable first."
         )
-      if (status === "posted" && m.destinationUrl && !m.linkConfirmedAt)
-        throw new WorkflowError(
-          "Confirm inclusion of the requested link through the publication record first."
-        )
+      if (status !== "ready_to_post" && status !== "posted") {
+        delete m.reviewedAt
+        delete m.reviewedBy
+      }
       record.status = status
       if (status === "accepted") {
         m.acceptedBy = actor.id
