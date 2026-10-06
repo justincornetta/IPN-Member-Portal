@@ -311,6 +311,7 @@ export async function deliverJob(db: DB, job: IntegrationJob) {
     .single()
   if (!stored) throw new Error("Request is no longer available.")
   const r = stored.data as WorkflowRequest
+  if (r.deletedAt) return { skipped: "Request deleted" }
   if (job.target === "sheets") return syncExpense(r)
   if (job.target === "slack_expense") {
     const channel = process.env.WORKFLOW_EXPENSE_SLACK_CHANNEL_ID

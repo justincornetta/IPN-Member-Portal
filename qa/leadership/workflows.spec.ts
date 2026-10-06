@@ -213,7 +213,7 @@ test("general media request, shared assignment, review and request publication",
   await expect(publishingLink).toContainText("Instagram bio and email button")
   await expect(
     page.getByLabel("I included the requested link in the specified location")
-  ).toBeDisabled()
+  ).toHaveCount(0)
   await expect(page.getByLabel("Move request to")).toHaveValue("submitted")
   await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(1)
   await expect(page.getByRole("button", { name: "Save production", exact: true })).toHaveCount(0)
@@ -265,7 +265,6 @@ test("general media request, shared assignment, review and request publication",
     .click()
   for (const status of [
     "assigned",
-    "in_production",
     "director_review",
     "ready_to_post"
   ]) {
@@ -297,32 +296,20 @@ test("general media request, shared assignment, review and request publication",
     fullPage: true
   })
   await scheduled.click()
-  await page
-    .locator("summary")
-    .filter({ hasText: "Publication record" })
-    .click()
+  await expect(page.getByLabel("Published link")).toBeVisible()
+  await expect(page.locator("summary").filter({ hasText: "Publication record" })).toHaveCount(0)
+  await expect(page.getByText("Posting checklist", { exact: true })).toHaveCount(0)
   await page
     .getByLabel("Published link")
     .fill("https://www.instagram.com/p/example/")
   await page
     .getByLabel("Actual posting date")
     .fill(new Date().toISOString().slice(0, 10))
-  const linkCheck = page.getByLabel(
-    "I included the requested link in the specified location"
-  )
-  await expect(linkCheck).toHaveAttribute("required")
-  await expect(linkCheck).toBeEnabled()
-  expect(
-    await linkCheck.evaluate(
-      (element: HTMLInputElement) => element.validity.valueMissing
-    )
-  ).toBeTruthy()
-  await linkCheck.check()
+  await page.getByLabel("Move request to").selectOption("posted")
   await page
     .getByRole("button", { name: "Save", exact: true })
     .click()
-  await expect(publishingLink).toContainText("Inclusion confirmed by")
-  await expect(page.getByText("Posted", { exact: true }).first()).toBeVisible()
+  await expect(page.getByText("Published", { exact: true }).first()).toBeVisible()
   await page.screenshot({
     path: "/tmp/ipn-workflow-media.png",
     fullPage: true
@@ -923,4 +910,47 @@ test("long media details scroll within the content pane and keep the sidebar ful
       () => document.documentElement.scrollHeight <= window.innerHeight + 1
     )
   ).toBeTruthy()
+})
+
+test("six media stages, visible publication fields and confirmed deletion distinct from cancellation", async ({ page, request }) => {
+  const created = await request.post("/api/admin/workflows", {
+    data: { id: randomUUID(), kind: "media", title: "Media review example", media: {
+      type: "announcement", team: "Media", brief: "Share the leadership announcement", postedBy: "2026-10-20", needsCopyHelp: true,
+      destinationUrl: "https://example.test/event", linkPlacement: "Instagram bio"
+    } }
+  })
+  const result = await created.json()
+  expect(result.ok).toBeTruthy()
+  const id = result.data.id
+  await page.goto("/workflow-preview/media")
+  await page.getByRole("button", { name: "Open media request: Media review example", exact: true }).click()
+  const stage = page.getByLabel("Move request to")
+  await expect(stage.locator("option")).toHaveText([
+    "Submitted", "Accepted", "Assigned: In Progress", "Draft Complete: Pending Review", "Approved: Ready to Publish", "Published", "Needs information", "Cancelled"
+  ])
+  const review = page.getByRole("region", { name: "Review and status", exact: true })
+  await expect(review.getByLabel("Published link")).toBeVisible()
+  await expect(review.getByLabel("Actual posting date")).toBeVisible()
+  await expect(page.getByText("Posting checklist", { exact: true })).toHaveCount(0)
+  await stage.selectOption("cancelled")
+  await page.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(stage).toHaveValue("cancelled")
+  await page.screenshot({ path: "/tmp/ipn-media-review-simplified.png", fullPage: true })
+  page.once("dialog", (dialog) => dialog.dismiss())
+  await page.getByRole("button", { name: "Delete request", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Delete request", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Back to queue", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Open media request: Media review example", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Open media request: Media review example", exact: true }).click()
+  page.once("dialog", (dialog) => dialog.accept())
+  await page.getByRole("button", { name: "Delete request", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Open media request: Media review example", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Delete request", exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole("button", { name: "Open media request: Media review example", exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: "Media calendar", exact: true }).click()
+  await page.getByLabel("Calendar month").fill("2026-10")
+  await expect(page.getByRole("button", { name: /Media review example/ })).toHaveCount(0)
+  const stale = await request.patch(`/api/admin/workflows/${id}`, { data: { action: "status", revision: result.data.revision, status: "accepted" } })
+  expect(stale.status()).toBe(404)
 })

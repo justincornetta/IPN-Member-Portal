@@ -188,7 +188,6 @@ test("media publication requires reviewed linked deliverables and preserves post
     deliverables: [d]
   })
   r = change(r, "status", member, { status: "assigned" })
-  r = change(r, "status", member, { status: "in_production" })
   r = change(r, "status", member, { status: "director_review" })
   r = change(r, "status", other, { status: "ready_to_post" })
   assert.throws(
@@ -377,6 +376,13 @@ test("database RLS isolates expenses, permits shared media reads and denies dire
       ),
       /changed/
     )
+    const removed = change(m, "delete", other)
+    await db.query("select leadership_save_request($1,1,$2,'Leader','delete','', '[]'::jsonb)", [JSON.stringify(removed), other.id])
+    const savedRemoval = (await db.query("select data from leadership_requests where id=$1", [m.id])).rows[0].data
+    assert.equal(savedRemoval.deletedBy, other.id)
+    assert.equal(savedRemoval.deletedAt, now.toISOString())
+    assert.equal((await db.query("select event from leadership_request_activity where request_id=$1", [m.id])).rows[0].event, "delete")
+    assert.equal((await db.query("select * from leadership_integration_jobs where request_id=$1", [m.id])).rows.length, 0)
   } finally {
     await db.close()
   }
@@ -488,7 +494,7 @@ test("one media owner handles production and publication, with per-deliverable o
   assert.equal(delegated.media.deliverables[0].publisherId, other.id)
 })
 
-test("request publication keeps one record, requires review and records Posted atomically", () => {
+test("request publication keeps one record, requires review and records Published atomically", () => {
   let r = createRequest(
     {
       id: randomUUID(),
@@ -527,7 +533,7 @@ test("request publication keeps one record, requires review and records Posted a
           postedDate: "2026-10-05"
         }
       }),
-    /Director review/
+    /final review/
   )
   assert.throws(
     () =>
@@ -543,7 +549,6 @@ test("request publication keeps one record, requires review and records Posted a
   for (const status of [
     "accepted",
     "assigned",
-    "in_production",
     "director_review",
     "ready_to_post"
   ])
@@ -562,7 +567,7 @@ test("request publication keeps one record, requires review and records Posted a
           assetUrl: "https://www.canva.com/design/revised/edit"
         }
       }),
-    /Director review/
+    /final review/
   )
   const posted = change(r, "publication", member, {
     ownerId: member.id,
@@ -590,7 +595,8 @@ test("one media save validates owner, status and publication before advancing on
   const publication = { assetUrl: "", scheduledDate: "2026-10-19", publishedUrl: "", postedDate: "" }
   const input = { revision: r.revision, action: "media_save", ownerId: other.id, status: "accepted", note: "Ready for Media", publication }
   const before = structuredClone(r)
-  assert.throws(() => applyChange(r, { ...input, status: "assigned" }, member, justin.id, people, now), /status change/)
+  assert.throws(() => applyChange(r, { ...input, ownerId: "", status: "assigned" }, member, justin.id, people, now), /media owner/)
+  assert.equal(applyChange(r, { ...input, status: "assigned" }, member, justin.id, people, now).record.status, "assigned")
   assert.throws(() => applyChange(r, { ...input, status: "needs_information", note: "" }, member, justin.id, people, now), /information is needed/)
   assert.deepEqual(r, before)
   const result = applyChange(r, input, member, justin.id, people, now)
@@ -603,7 +609,7 @@ test("one media save validates owner, status and publication before advancing on
   assert.equal(r.media.acceptedBy, member.id)
   r = change(r, "media_save", member, { ownerId: other.id, status: r.status, publication })
   assert.equal(r.status, "accepted")
-  for (const status of ["assigned", "in_production", "director_review"])
+  for (const status of ["assigned", "director_review"])
     r = change(r, "media_save", member, { ownerId: other.id, status, publication })
   const reviewed = structuredClone(r)
   assert.throws(() => change(r, "media_save", member, { ownerId: member.id, status: "ready_to_post", publication }), /final Drive or Canva/)
@@ -619,7 +625,7 @@ test("one media save validates owner, status and publication before advancing on
   assert.equal(legacySaved.revision, legacy.revision + 1)
   const complete = { ...final, publishedUrl: "https://example.com/published", postedDate: "2026-10-20" }
   assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "cancelled", publication: complete }), /Clear the publication record/)
-  assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...complete, assetUrl: "https://www.canva.com/design/revised/edit" } }), /Director review/)
+  assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...complete, assetUrl: "https://www.canva.com/design/revised/edit" } }), /final review/)
   const pendingReview = change(r, "media_save", member, { ownerId: other.id, status: r.status, publication: { ...final, assetUrl: "https://www.canva.com/design/revised/edit" } })
   assert.equal(pendingReview.status, "director_review")
   assert.equal(pendingReview.media.reviewedBy, undefined)
@@ -629,7 +635,7 @@ test("one media save validates owner, status and publication before advancing on
   assert.throws(() => change(posted, "media_save", member, { ownerId: other.id, status: "posted", publication: complete }), /final record/)
 })
 
-test("publishing destination links are validated, confirmed on posting and reset on edits", () => {
+test("publishing retains destination instructions without a confirmation checkbox", () => {
   const media = {
     type: "announcement",
     team: "Media",
@@ -664,7 +670,6 @@ test("publishing destination links are validated, confirmed on posting and reset
   for (const status of [
     "accepted",
     "assigned",
-    "in_production",
     "director_review",
     "ready_to_post"
   ])
@@ -674,31 +679,14 @@ test("publishing destination links are validated, confirmed on posting and reset
     publishedUrl: "https://www.instagram.com/p/example/",
     postedDate: "2026-10-05"
   }
-  assert.throws(
-    () =>
-      change(r, "publication", member, {
-        ownerId: member.id,
-        publication: completed
-      }),
-    /Confirm that the requested link/
-  )
-  assert.throws(
-    () =>
-      change(r, "production", member, {
-        ownerId: member.id,
-        deliverables: [
-          { ...r.media.deliverables[0], ...completed, status: "posted" }
-        ]
-      }),
-    /Confirm inclusion/
-  )
   const posted = change(r, "publication", member, {
     ownerId: member.id,
-    publication: { ...completed, linkIncluded: true }
+    publication: completed
   })
   assert.equal(posted.status, "posted")
-  assert.equal(posted.media.linkConfirmedBy, member.id)
-  assert.equal(posted.media.linkConfirmedAt, now.toISOString())
+  assert.equal(posted.media.destinationUrl, media.destinationUrl)
+  assert.equal(posted.media.linkPlacement, "Instagram bio")
+  assert.equal(posted.media.linkConfirmedAt, undefined)
   const previouslyConfirmed = {
     ...r,
     media: {
@@ -714,4 +702,38 @@ test("publishing destination links are validated, confirmed on posting and reset
   assert.equal(edited.media.linkConfirmedAt, undefined)
   assert.equal(edited.media.linkConfirmedBy, undefined)
   assert.equal(edited.status, "director_review")
+})
+
+
+test("media deletion is distinct from cancellation, retains records and rejects stale or further edits", () => {
+  const r = createRequest({ id: randomUUID(), kind: "media", title: "Test request", media: {
+    type: "announcement", team: "Media", brief: "Test brief", postedBy: "2026-10-20", needsCopyHelp: true
+  } }, member, now)
+  const cancelled = change(r, "status", other, { status: "cancelled" })
+  assert.equal(cancelled.deletedAt, undefined)
+  const deleted = change(cancelled, "delete", other)
+  assert.equal(deleted.status, "cancelled")
+  assert.equal(deleted.title, r.title)
+  assert.equal(deleted.deletedAt, now.toISOString())
+  assert.equal(deleted.deletedBy, other.id)
+  assert.equal(deleted.revision, cancelled.revision + 1)
+  assert.throws(() => applyChange(r, { revision: 0, action: "delete" }, member, justin.id, people, now), /changed/)
+  assert.throws(() => change(deleted, "comment", member, { note: "No" }), /not found/)
+  assert.throws(() => change(expense(), "delete", justin), /Only media/)
+  assert.throws(() => change(expense(), "delete", other), /access/)
+})
+
+test("legacy production requests can enter the combined stage and backward changes clear final review", () => {
+  const r = createRequest({ id: randomUUID(), kind: "media", title: "Legacy request", media: {
+    type: "announcement", team: "Media", brief: "Brief", postedBy: "2026-10-20", needsCopyHelp: true
+  } }, member, now)
+  r.status = "in_production"
+  r.media.productionOwnerId = member.id
+  const combined = change(r, "status", member, { status: "assigned" })
+  assert.equal(combined.status, "assigned")
+  combined.status = "ready_to_post"
+  combined.media.reviewedBy = member.id
+  combined.media.reviewedAt = now.toISOString()
+  const returned = change(combined, "status", member, { status: "assigned" })
+  assert.equal(returned.media.reviewedAt, undefined)
 })

@@ -160,7 +160,7 @@ export async function context(request: Request): Promise<Context> {
 export async function readRequests(c: Context): Promise<WorkflowRequest[]> {
   if (c.demo)
     return (await demoState()).requests.filter((r) =>
-      canRead(r, c.user.id, c.approverId)
+      !r.deletedAt && canRead(r, c.user.id, c.approverId)
     )
   let q = c
     .db!.from("leadership_requests")
@@ -173,7 +173,7 @@ export async function readRequests(c: Context): Promise<WorkflowRequest[]> {
   if (error) throw new Error("Unable to load requests.")
   return (data ?? [])
     .map((row) => row.data as WorkflowRequest)
-    .filter((r) => !isExcludedRequest(r.id))
+    .filter((r) => !r.deletedAt && !isExcludedRequest(r.id))
 }
 export async function readRequest(
   c: Context,
@@ -181,7 +181,7 @@ export async function readRequest(
 ): Promise<WorkflowRequest> {
   if (c.demo) {
     const r = (await demoState()).requests.find((r) => r.id === id)
-    if (!r || !canRead(r, c.user.id, c.approverId))
+    if (!r || r.deletedAt || !canRead(r, c.user.id, c.approverId))
       throw new WorkflowError("Request not found.", 404)
     return r
   }
@@ -192,7 +192,7 @@ export async function readRequest(
     .select("data")
     .eq("id", id)
     .maybeSingle()
-  if (error || !data || !canRead(data.data, c.user.id, c.approverId))
+  if (error || !data || data.data.deletedAt || !canRead(data.data, c.user.id, c.approverId))
     throw new WorkflowError("Request not found.", 404)
   return data.data as WorkflowRequest
 }
@@ -378,6 +378,7 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
   }
 }
 function jobsFor(r: WorkflowRequest, event: string) {
+  if (r.deletedAt) return []
   const jobs: { target: string; recipientId?: string }[] = []
   if (r.kind === "expense") {
     jobs.push({ target: "sheets" })

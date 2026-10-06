@@ -22,7 +22,7 @@ Preflight on October 5, 2026:
 
 ## Media
 
-Use the existing real mixer request rather than resubmitting it. Confirm its notification appears in `#media-space`, tags Agnes, and opens the correct production request. Confirm owner assignment and review/status saves persist together, the scheduled date appears in the calendar, and final-review checks remain enforced. Do not mark the actual request Posted until content has really been published, with its final asset, publication URL/date, and requested destination-link confirmation recorded.
+Use the existing real mixer request rather than resubmitting it. Confirm its notification appears in `#media-space`, tags Agnes, and opens the correct production request. Confirm owner assignment and review/status saves persist together, the scheduled date appears in the calendar, and final-review checks remain enforced. Do not mark the actual request Published until content has really been published, with its final asset, publication URL/date recorded.
 
 ## Expenses
 
