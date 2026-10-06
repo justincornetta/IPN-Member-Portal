@@ -2,7 +2,7 @@
 
 Branch: `feature/leadership-workflows`. Production routes: `/dashboard/admin/media` and `/dashboard/admin/expenses`. Admin navigation also links to Analytics, Content and Leadership.
 
-The workflow schema was provisioned and verified in the existing Member Portal Supabase project on October 5, 2026. Slack/Sheets credentials are now saved in Netlify for production, and the Slack approval callback is configured. The application remains unmerged, and integrations remain **off** in every context. Live notification delivery and tracker writes have not been tested. Schema, server access and shared navigation touch Luke's ownership areas and need his review before merge. See [Supabase setup verification](supabase-setup.md).
+The workflow schema was provisioned and verified in the existing Member Portal Supabase project on October 5, 2026. Slack/Sheets credentials are now saved in Netlify for production, and the Slack approval callback is configured. The application remains unmerged, and integrations remain **off** in every context. Live notification delivery and tracker writes have not been tested. Schema, server access and shared navigation touch Luke's ownership areas and were flagged for review. Justin clarified that a second review is optional for this rollout. See [Supabase setup verification](supabase-setup.md).
 
 ## Media intake and SOP
 
@@ -83,7 +83,7 @@ Credential setup checks: Slack authentication/scopes/channel membership passed; 
 
 Signed-in preview fix: the loader selected a nonexistent `conferences.title` column; conferences use `name`, and the unused title selection is now removed. A bootstrap regression test executes the real server handler against a database fixture matching the existing event/conference columns, checking empty queues and meetup prefills with integrations off. It reproduced the original HTTP 500 and passes after the fix. The corrected conference selection also succeeds against the live Supabase Data API. The expense list browser fixture now uses the current purchase date so it remains valid after the UTC day changes.
 
-Full repository suite: 183/184 passed after syncing with the latest main. The unchanged Instagram archive test fixture uses account `123` against the current snapshot's different account and fails with “Instagram snapshot account mismatch”; unrelated to these workflows. The production build's existing middleware deprecation warning remains. `npm audit` reports 14 vulnerabilities, including a critical Next.js advisory; all affected installed versions match `origin/main`. Dependency remediation is a separate prerequisite for production rollout.
+Full repository suite: 183/184 passed after syncing with the latest main. The unchanged Instagram archive test fixture uses account `123` against the current snapshot's different account and fails with “Instagram snapshot account mismatch”; unrelated to these workflows. The production build's existing middleware deprecation warning remains. Rollout preparation upgraded Next.js/eslint-config-next to 16.3.8, Sharp to 0.35.5, and compatible lockfile dependencies. `npm audit --omit=dev` now reports zero findings; five high findings remain in the development-only ESLint glob dependency chain. The suggested forced fix downgrades Next.js lint configuration and was not applied.
 
 ## Review screenshots
 
@@ -114,3 +114,5 @@ Full repository suite: 183/184 passed after syncing with the latest main. The un
 ![Combined expense funds card](screenshots/expense-funds.png)
 
 ![Media publishing link intake](screenshots/media-link-intake.png)
+
+Controlled live test: see [live test plan](live-test-plan.md). Server-managed `WORKFLOW_EXCLUDED_REQUEST_IDS` quarantines simulated preview records without deleting their history; excluded requests are hidden from live workflow reads, cannot be mutated, and delivery jobs are skipped.

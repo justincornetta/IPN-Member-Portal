@@ -5,6 +5,7 @@ import { createRequire } from "node:module"
 import ts from "typescript"
 import { PGlite } from "@electric-sql/pglite"
 import * as domain from "../src/lib/leadership-workflows/domain.ts"
+import * as exclusions from "../src/lib/leadership-workflows/request-exclusions.ts"
 
 test("signed-in workflow bootstrap loads an empty queue and existing event/conference schemas", async () => {
   const pg = new PGlite()
@@ -59,6 +60,7 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       if (path === "@/lib/supabase/admin") return { createAdminClient: () => db }
       if (path === "@/lib/admin/leadership") return { LEADERSHIP_TEAMS: ["Media"] }
       if (path === "./domain") return domain
+      if (path === "./request-exclusions") return exclusions
       if (path === "./integrations") return { readCash: async () => null, integrationReady: () => ({ slack: false, sheets: false }) }
       if (path === "./worker") return { drainJobs: async () => {} }
       return nativeRequire(path)
@@ -77,6 +79,17 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
     ])
     assert.match(result.data.events[1].details, /Conference lobby/)
     assert.deepEqual(result.data.integrations, { slack: false, sheets: false, pending: 0 })
+    await pg.query("insert into leadership_requests values ($1)", [JSON.stringify({ id: "simulated", kind: "expense", requesterId: "leader", status: "purchased" })])
+    const previous = process.env.WORKFLOW_EXCLUDED_REQUEST_IDS
+    try {
+      process.env.WORKFLOW_EXCLUDED_REQUEST_IDS = "simulated"
+      const quarantined = await api(new Request("https://preview.example.test/api/admin/workflows"), bootstrap)
+      assert.deepEqual((await quarantined.json()).data.requests, [])
+      await assert.rejects(mockModule.exports.readRequest({ db, demo: false, user: { id: "leader" }, approverId: "leader" }, "simulated"), /Request not found/)
+    } finally {
+      if (previous === undefined) delete process.env.WORKFLOW_EXCLUDED_REQUEST_IDS
+      else process.env.WORKFLOW_EXCLUDED_REQUEST_IDS = previous
+    }
   } finally {
     await pg.close()
   }

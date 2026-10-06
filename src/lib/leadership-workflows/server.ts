@@ -22,6 +22,7 @@ import {
 import { readCash, integrationReady } from "./integrations"
 
 import { drainJobs } from "./worker"
+import { isExcludedRequest } from "./request-exclusions"
 type DB = ReturnType<typeof createAdminClient>
 export type Context = {
   db: DB | null
@@ -170,7 +171,9 @@ export async function readRequests(c: Context): Promise<WorkflowRequest[]> {
     q = q.or(`kind.eq.media,requester_id.eq.${c.user.id}`)
   const { data, error } = await q
   if (error) throw new Error("Unable to load requests.")
-  return (data ?? []).map((row) => row.data as WorkflowRequest)
+  return (data ?? [])
+    .map((row) => row.data as WorkflowRequest)
+    .filter((r) => !isExcludedRequest(r.id))
 }
 export async function readRequest(
   c: Context,
@@ -182,6 +185,8 @@ export async function readRequest(
       throw new WorkflowError("Request not found.", 404)
     return r
   }
+  if (isExcludedRequest(id))
+    throw new WorkflowError("Request not found.", 404)
   const { data, error } = await c
     .db!.from("leadership_requests")
     .select("data")
