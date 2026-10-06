@@ -13,6 +13,7 @@ import {
 import {
   MEDIA_FORMATS,
   mediaFormats,
+  mediaPostCaption,
   EXPENSE_STATUSES,
   MEDIA_STATUSES,
   STATUS_LABELS,
@@ -52,7 +53,6 @@ const emptyMedia: MediaBrief = {
   formats: ["Media to advise"],
   needsCopyHelp: false,
   headline: "",
-  body: "",
   caption: "",
   links: [],
   eventId: "",
@@ -758,7 +758,9 @@ function RequestForm({
   const [id] = useState(() => record?.id || crypto.randomUUID()),
     [title, setTitle] = useState(record?.title || ""),
     [media, setMedia] = useState<MediaBrief>(
-      record?.media || { ...emptyMedia, team: data.user.team || "" }
+      record?.media
+        ? { ...record.media, body: undefined, caption: mediaPostCaption(record.media) }
+        : { ...emptyMedia, team: data.user.team || "" }
     ),
     [links, setLinks] = useState(
       record?.media?.links.map((l) => l.url).join("\n") || ""
@@ -772,7 +774,7 @@ function RequestForm({
       record?.media
         ? record.media.needsCopyHelp
           ? "help"
-          : record.media.headline || record.media.body || record.media.caption
+          : record.media.headline || mediaPostCaption(record.media)
             ? "self"
             : ""
         : ""
@@ -1158,7 +1160,7 @@ function RequestForm({
                 <div className="mt-4 flex flex-col gap-4">
                   <Field
                     label="Draft copy"
-                    hint="Choose copywriting help, or supply at least a headline, body or caption yourself."
+                    hint="Choose copywriting help, or supply a headline or post caption yourself."
                   >
                     <select
                       className={input}
@@ -1193,30 +1195,18 @@ function RequestForm({
                           value={media.headline}
                           required={
                             copyChoice === "self" &&
-                            !media.body.trim() &&
                             !media.caption.trim()
                           }
                           onChange={(e) => m({ headline: e.target.value })}
                         />
                       </Field>
                       <Field
-                        label="Body"
-                        hint="The main text, key details or message to include."
-                      >
-                        <textarea
-                          className={input}
-                          rows={4}
-                          value={media.body}
-                          onChange={(e) => m({ body: e.target.value })}
-                        />
-                      </Field>
-                      <Field
                         label="Post caption"
-                        hint="The text accompanying the post, including a call to action or useful links."
+                        hint="The full text for the post: main message, key details, call to action and any useful links."
                       >
                         <textarea
                           className={input}
-                          rows={3}
+                          rows={5}
                           value={media.caption}
                           onChange={(e) => m({ caption: e.target.value })}
                         />
@@ -1333,12 +1323,14 @@ function RequestDetail({
               {r.media!.eventDetails}
             </p>
           )}
-          {["headline", "body", "caption"].map((key) => {
-            const value = r.media![key as "headline" | "body" | "caption"]
+          {[
+            ["Headline", r.media!.headline],
+            ["Post caption", mediaPostCaption(r.media!)]
+          ].map(([label, value]) => {
             return value ? (
-              <div key={key}>
+              <div key={label}>
                 <p className="text-xs font-medium uppercase text-zinc-500">
-                  {key}
+                  {label}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-sm">{value}</p>
               </div>

@@ -11,6 +11,7 @@ import {
   unpaidCents,
   url,
   parseMedia,
+  mediaPostCaption,
   cents,
   mediaFormats
 } from "../src/lib/leadership-workflows/domain.ts"
@@ -418,6 +419,24 @@ test("media multi-format briefs require copy help or supplied draft; legacy form
     () => change(expense(), "comment", member, { note: "Discuss in Slack" }),
     /Slack/
   )
+})
+test("post caption preserves legacy body copy through edits without duplication", () => {
+  const media = {
+    type: "announcement", team: "Media", brief: "Upcoming meetup",
+    postedBy: "2026-10-20", caption: "Join us", needsCopyHelp: false
+  }
+  const legacy = createRequest({ id: randomUUID(), kind: "media", title: "Meetup", media }, justin, now)
+  legacy.media.body = "Meetup details"
+  const caption = mediaPostCaption(legacy.media)
+  assert.equal(caption, "Meetup details\n\nJoin us")
+  assert.equal(parseMedia({ ...media, body: "Meetup details" }).caption, caption)
+  assert.equal(mediaPostCaption({ body: "Join us", caption: "Join us" }), "Join us")
+  const edited = change(legacy, "edit", justin, {
+    title: legacy.title, media: { ...legacy.media, body: undefined, caption }
+  })
+  assert.equal(edited.media.body, undefined)
+  assert.equal(mediaPostCaption(edited.media), caption)
+  assert.equal(parseMedia(edited.media).caption, caption)
 })
 test("one media owner handles production and publication, with per-deliverable overrides", () => {
   const r = createRequest(

@@ -86,7 +86,7 @@ export type MediaBrief = {
   needsCopyHelp: boolean
   formats?: string[]
   headline: string
-  body: string
+  body?: string // Legacy requests; new copy is stored in caption.
   caption: string
   links: AssetLink[]
   destinationUrl?: string
@@ -262,6 +262,10 @@ function strings(value: unknown): string[] {
     throw new WorkflowError("Choose the requested platforms.")
   return value.map((v) => text(v, "Platform", true, 80))
 }
+export function mediaPostCaption(media: { body?: string; caption?: string }) {
+  return [...new Set([media.body?.trim(), media.caption?.trim()].filter(Boolean))]
+    .join("\n\n")
+}
 export function parseMedia(value: unknown): MediaBrief {
   const v = object(value)
   const type = text(v.type, "Request type", true)
@@ -271,9 +275,16 @@ export function parseMedia(value: unknown): MediaBrief {
   if (links.length > 20)
     throw new WorkflowError("Use at most 20 supporting links.")
   const headline = text(v.headline, "Headline", false, 1000)
-  const body = text(v.body, "Body")
-  const caption = text(v.caption, "Caption")
-  if (v.needsCopyHelp !== true && !headline && !body && !caption)
+  const caption = text(
+    mediaPostCaption({
+      body: text(v.body, "Legacy body"),
+      caption: text(v.caption, "Post caption", false, 20002)
+    }),
+    "Post caption",
+    false,
+    20002
+  )
+  if (v.needsCopyHelp !== true && !headline && !caption)
     throw new WorkflowError("Choose copywriting help or provide draft copy.")
   const formats =
     v.formats === undefined
@@ -316,7 +327,6 @@ export function parseMedia(value: unknown): MediaBrief {
     linkPlacement,
     needsCopyHelp: v.needsCopyHelp === true,
     headline,
-    body,
     caption,
     links: links
       .map((l) => {
@@ -450,6 +460,7 @@ export function applyChange(
         publisherId: m.publisherId,
         deliverables: m.deliverables
       }
+      delete record.media.body
       if (
         edited.destinationUrl !== m.destinationUrl ||
         edited.linkPlacement !== m.linkPlacement

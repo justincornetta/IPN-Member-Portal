@@ -386,6 +386,7 @@ test("media copy choice and supplied draft validation", async ({
     .click()
   await expect(page.getByLabel("Draft copy", { exact: true })).toHaveValue("")
   await page.getByLabel("Draft copy", { exact: true }).selectOption("self")
+  await expect(page.getByLabel("Body", { exact: true })).toHaveCount(0)
   await page
     .getByRole("button", { name: "Submit request", exact: true })
     .click()
@@ -395,8 +396,9 @@ test("media copy choice and supplied draft validation", async ({
       .evaluate((input: HTMLInputElement) => input.validity.valueMissing)
   ).toBeTruthy()
   await page
-    .getByLabel("Headline", { exact: true })
+    .getByLabel("Post caption", { exact: true })
     .fill("Join our research seminar")
+  await expect(page.getByLabel("Headline", { exact: true })).not.toHaveAttribute("required")
   await page.screenshot({
     path: "/tmp/ipn-workflow-media-form.png",
     fullPage: true
@@ -407,6 +409,11 @@ test("media copy choice and supplied draft validation", async ({
   await expect(
     page.getByText("Join our research seminar", { exact: true })
   ).toBeVisible()
+  await expect(page.getByText("Post caption", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Edit request", exact: true }).click()
+  await expect(page.getByLabel("Post caption", { exact: true })).toHaveValue("Join our research seminar")
+  await expect(page.getByLabel("Body", { exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: "Cancel", exact: true }).click()
   const bad = await request.post("/api/admin/workflows", {
     data: {
       id: randomUUID(),
