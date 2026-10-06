@@ -88,6 +88,7 @@ export type MediaBrief = {
   headline: string
   body?: string // Legacy requests; new copy is stored in caption.
   caption: string
+  additionalDetails?: string
   links: AssetLink[]
   destinationUrl?: string
   linkPlacement?: string
@@ -328,6 +329,7 @@ export function parseMedia(value: unknown): MediaBrief {
     needsCopyHelp: v.needsCopyHelp === true,
     headline,
     caption,
+    additionalDetails: text(v.additionalDetails, "Additional details", false, 10000),
     links: links
       .map((l) => {
         const x = object(l)

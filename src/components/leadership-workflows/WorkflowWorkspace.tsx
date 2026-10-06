@@ -54,6 +54,7 @@ const emptyMedia: MediaBrief = {
   needsCopyHelp: false,
   headline: "",
   caption: "",
+  additionalDetails: "",
   links: [],
   eventId: "",
   eventDetails: "",
@@ -1227,6 +1228,20 @@ function RequestForm({
                 </div>
               </details>
             </div>
+            <div className="col-span-full">
+              <Field
+                label="Additional details for the media team (optional)"
+                hint="Add any extra context, preferences or instructions the Media team should know. These notes are for the team and are not part of the published copy."
+              >
+                <textarea
+                  className={input}
+                  rows={4}
+                  maxLength={10000}
+                  value={media.additionalDetails || ""}
+                  onChange={(e) => m({ additionalDetails: e.target.value })}
+                />
+              </Field>
+            </div>
           </>
         )}
       </div>
@@ -1336,6 +1351,16 @@ function RequestDetail({
               </div>
             ) : null
           })}
+          {r.media!.additionalDetails && (
+            <section className="rounded-xl border border-violet-100 bg-violet-50/40 p-4">
+              <h3 className="text-sm font-semibold">
+                Additional details for the media team
+              </h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
+                {r.media!.additionalDetails}
+              </p>
+            </section>
+          )}
           {r.media!.links.length > 0 && (
             <div className="flex flex-wrap gap-3">
               {r.media!.links.map((l, i) => (

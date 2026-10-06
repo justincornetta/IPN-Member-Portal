@@ -399,6 +399,10 @@ test("media copy choice and supplied draft validation", async ({
     .getByLabel("Post caption", { exact: true })
     .fill("Join our research seminar")
   await expect(page.getByLabel("Headline", { exact: true })).not.toHaveAttribute("required")
+  const extraNotes = "Please coordinate with the Education team.\nUse the IPN brand colors."
+  await page
+    .getByLabel("Additional details for the media team (optional)", { exact: true })
+    .fill(extraNotes)
   await page.screenshot({
     path: "/tmp/ipn-workflow-media-form.png",
     fullPage: true
@@ -410,10 +414,15 @@ test("media copy choice and supplied draft validation", async ({
     page.getByText("Join our research seminar", { exact: true })
   ).toBeVisible()
   await expect(page.getByText("Post caption", { exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Additional details for the media team", exact: true })).toBeVisible()
+  await expect(page.getByText(extraNotes, { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Edit request", exact: true }).click()
   await expect(page.getByLabel("Post caption", { exact: true })).toHaveValue("Join our research seminar")
   await expect(page.getByLabel("Body", { exact: true })).toHaveCount(0)
-  await page.getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(page.getByLabel("Additional details for the media team (optional)", { exact: true })).toHaveValue(extraNotes)
+  await page.getByLabel("Additional details for the media team (optional)", { exact: true }).fill(extraNotes + "\nCheck the event invite before posting.")
+  await page.getByRole("button", { name: "Save changes", exact: true }).click()
+  await expect(page.getByText(extraNotes + "\nCheck the event invite before posting.", { exact: true })).toBeVisible()
   const bad = await request.post("/api/admin/workflows", {
     data: {
       id: randomUUID(),
