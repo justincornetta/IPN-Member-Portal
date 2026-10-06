@@ -276,7 +276,7 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
         .limit(200),
       c
         .db!.from("conferences")
-        .select("id,title,timezone,meetups")
+        .select("id,timezone,meetups")
         .eq("status", "published")
         .limit(200),
       requests.length

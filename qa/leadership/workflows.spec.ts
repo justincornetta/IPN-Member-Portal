@@ -480,7 +480,7 @@ test("expense list columns, row opening, filters and mobile scrolling", async ({
       action: "purchase",
       paymentMethod: "ipn_card",
       actualAmountCents: "67.50",
-      purchaseDate: "2026-10-05",
+      purchaseDate: new Date().toISOString().slice(0, 10),
       account: "Relay"
     }
   })
