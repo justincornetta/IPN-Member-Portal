@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T16:57:22.240Z",
+  "generatedAt": "2026-10-27T16:04:02.685Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -9,7 +9,7 @@
       "mode": "Server snapshot",
       "lastPull": "2026-07-06T02:41:21.482864+00:00",
       "note": "2089 deduped records",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
       "lastSuccessfulAt": "2026-07-06T02:41:21.482864+00:00"
     },
     {
@@ -17,60 +17,50 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-26T16:55:48.459552+00:00",
-      "note": "1913 subscribers",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:55:48.459552+00:00"
+      "lastPull": "2026-10-27T16:00:51.137346+00:00",
+      "note": "1914 subscribers",
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:00:51.137346+00:00"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-26T16:55:49.947210+00:00",
-      "note": "4795 followers",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:55:49.947210+00:00"
+      "lastPull": "2026-10-27T16:00:55.039932+00:00",
+      "note": "4796 followers",
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:00:55.039932+00:00"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-10-26T16:55:50.189858+00:00",
+      "lastPull": "2026-10-27T16:00:55.474209+00:00",
       "note": "3131 followers",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:55:50.189858+00:00"
-    },
-    {
-      "id": "website",
-      "label": "Website / GA4",
-      "status": "success",
-      "mode": "API snapshot",
-      "lastPull": "2026-10-26T16:56:01.372447+00:00",
-      "note": "639 sessions in 30d",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:56:01.372447+00:00"
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:00:55.474209+00:00"
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-26T16:56:14.708089+00:00",
+      "lastPull": "2026-10-27T16:02:38.337418+00:00",
       "note": "8 events",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:56:14.708089+00:00"
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:02:38.337418+00:00"
     },
     {
       "id": "eventbrite",
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-26T16:57:15.150420+00:00",
+      "lastPull": "2026-10-27T16:03:55.147927+00:00",
       "note": "10 events",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:57:15.150420+00:00"
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:03:55.147927+00:00"
     },
     {
       "id": "webapp",
@@ -79,8 +69,8 @@
       "mode": "Manual/TBD",
       "lastPull": null,
       "note": "Live Supabase portal metrics shown separately",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:57:15.192Z"
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:03:55.192Z"
     },
     {
       "id": "whatsapp",
@@ -89,8 +79,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "Community metrics data model pending",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:57:15.192Z"
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:03:55.192Z"
     },
     {
       "id": "search-console",
@@ -99,8 +89,18 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "SEO query metrics pending",
-      "lastAttemptedAt": "2026-10-26T16:57:15.192Z",
-      "lastSuccessfulAt": "2026-10-26T16:57:15.192Z"
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-27T16:03:55.192Z"
+    },
+    {
+      "id": "website",
+      "label": "Website / GA4",
+      "status": "error",
+      "mode": "API snapshot",
+      "lastPull": "2026-10-26T16:56:01.372447+00:00",
+      "note": "GA4 timed out after 90s",
+      "lastAttemptedAt": "2026-10-27T16:03:55.192Z",
+      "lastSuccessfulAt": "2026-10-26T16:56:01.372447+00:00"
     }
   ],
   "overview": {
@@ -955,19 +955,19 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1589,
+      "totalSubscribers": 1590,
       "totalLists": 1,
       "totalCampaigns": 191,
       "avgOpenRate": 24.1,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 359,
-      "pulledAt": "2026-10-26T16:55:48.459552+00:00"
+      "pulledAt": "2026-10-27T16:00:51.137346+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1589,
+        "members": 1590,
         "unsubscribeCount": 324,
         "openRate": 42.40719087985969,
         "clickRate": 3.873136509792458
@@ -1558,10 +1558,10 @@
         "month": "2026-10",
         "campaigns": 1,
         "sent": 1587,
-        "opens": 464,
+        "opens": 465,
         "clicks": 30,
         "unsubscribes": 7,
-        "openRate": 29.2,
+        "openRate": 29.3,
         "clickRate": 1.9
       }
     ],
@@ -1647,7 +1647,7 @@
         "date": "2026-10-01T17:37:12+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1587,
-        "opens": 464,
+        "opens": 465,
         "openRate": 29.5,
         "clicks": 30,
         "clickRate": 1.9,
@@ -15191,11 +15191,11 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4795,
+        "followers": 4796,
         "engagementRate": 1.17,
         "postsThisMonth": 1,
         "status": "live",
-        "updatedAt": "2026-10-26T16:55:49.947210+00:00"
+        "updatedAt": "2026-10-27T16:00:55.039932+00:00"
       },
       {
         "id": "facebook",
@@ -15204,7 +15204,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-10-26T16:55:50.189858+00:00"
+        "updatedAt": "2026-10-27T16:00:55.474209+00:00"
       },
       {
         "id": "linkedin",
@@ -15794,15 +15794,15 @@
         "posts": 0
       },
       {
-        "date": "2026-10-26T16:55:49.947210+00:00",
+        "date": "2026-10-27T16:00:55.039932+00:00",
         "month": "2026-10",
         "channel": "instagram",
-        "followers": 4795,
+        "followers": 4796,
         "engagementRate": 1.17,
         "posts": 1
       },
       {
-        "date": "2026-10-26T16:55:50.189858+00:00",
+        "date": "2026-10-27T16:00:55.474209+00:00",
         "month": "2026-10",
         "channel": "facebook",
         "followers": 3131,
@@ -15820,7 +15820,7 @@
         "comments": 4,
         "engagement": 56,
         "permalink": "https://www.instagram.com/p/DeHg-jcxG6t/",
-        "lastObservedAt": "2026-10-26T16:55:49.947210+00:00"
+        "lastObservedAt": "2026-10-27T16:00:55.039932+00:00"
       },
       {
         "id": "18170794375455381",
@@ -17456,7 +17456,7 @@
         "avgDurationMin": 30.9,
         "repeatRatePct": 10.3,
         "uniqueAttendees": 39,
-        "pulledAt": "2026-10-26T16:56:14.708089+00:00"
+        "pulledAt": "2026-10-27T16:02:38.337418+00:00"
       },
       "byMonth": [
         {
@@ -18590,18 +18590,18 @@
           "registrations": []
         },
         {
-          "id": "89025512753",
-          "topic": "IPN Community Task Force Weekly Syncs",
-          "date": "2026-11-08T16:00:00Z",
+          "id": "89400107557",
+          "topic": "IPN Board of Directors Meeting – November",
+          "date": "2026-11-05T23:00:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
           "registrations": []
         },
         {
-          "id": "89400107557",
-          "topic": "IPN Board of Directors Meeting – November",
-          "date": "2026-11-09T00:00:00Z",
+          "id": "89025512753",
+          "topic": "IPN Community Task Force Weekly Syncs",
+          "date": "2026-11-08T16:00:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
@@ -18616,7 +18616,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-10-26T16:57:15.150420+00:00"
+        "pulledAt": "2026-10-27T16:03:55.147927+00:00"
       },
       "events": [
         {
