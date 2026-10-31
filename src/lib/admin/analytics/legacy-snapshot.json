@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T16:52:58.519Z",
+  "generatedAt": "2026-10-31T15:55:04.057Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -9,7 +9,7 @@
       "mode": "Server snapshot",
       "lastPull": "2026-07-06T02:41:21.482864+00:00",
       "note": "2089 deduped records",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
       "lastSuccessfulAt": "2026-07-06T02:41:21.482864+00:00"
     },
     {
@@ -17,60 +17,60 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-30T16:50:55.425662+00:00",
+      "lastPull": "2026-10-31T15:53:24.022383+00:00",
       "note": "1916 subscribers",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:50:55.425662+00:00"
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:53:24.022383+00:00"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-30T16:50:58.746085+00:00",
-      "note": "4796 followers",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:50:58.746085+00:00"
+      "lastPull": "2026-10-31T15:53:25.797334+00:00",
+      "note": "4797 followers",
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:53:25.797334+00:00"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-10-30T16:50:59.245874+00:00",
-      "note": "3130 followers",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:50:59.245874+00:00"
+      "lastPull": "2026-10-31T15:53:26.072490+00:00",
+      "note": "3131 followers",
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:53:26.072490+00:00"
     },
     {
       "id": "website",
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-30T16:51:11.502753+00:00",
-      "note": "581 sessions in 30d",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:51:11.502753+00:00"
+      "lastPull": "2026-10-31T15:53:49.081666+00:00",
+      "note": "573 sessions in 30d",
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:53:49.081666+00:00"
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-30T16:51:41.287468+00:00",
+      "lastPull": "2026-10-31T15:54:00.009676+00:00",
       "note": "7 events",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:51:41.287468+00:00"
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:54:00.009676+00:00"
     },
     {
       "id": "eventbrite",
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-10-30T16:52:46.728762+00:00",
+      "lastPull": "2026-10-31T15:54:58.445710+00:00",
       "note": "10 events",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:52:46.728762+00:00"
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:54:58.445710+00:00"
     },
     {
       "id": "webapp",
@@ -79,8 +79,8 @@
       "mode": "Manual/TBD",
       "lastPull": null,
       "note": "Live Supabase portal metrics shown separately",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:52:46.764Z"
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:54:58.486Z"
     },
     {
       "id": "whatsapp",
@@ -89,8 +89,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "Community metrics data model pending",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:52:46.764Z"
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:54:58.486Z"
     },
     {
       "id": "search-console",
@@ -99,8 +99,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "SEO query metrics pending",
-      "lastAttemptedAt": "2026-10-30T16:52:46.764Z",
-      "lastSuccessfulAt": "2026-10-30T16:52:46.764Z"
+      "lastAttemptedAt": "2026-10-31T15:54:58.486Z",
+      "lastSuccessfulAt": "2026-10-31T15:54:58.486Z"
     }
   ],
   "overview": {
@@ -961,7 +961,7 @@
       "avgOpenRate": 24.1,
       "avgClickRate": 1.7,
       "totalUnsubscribes": 360,
-      "pulledAt": "2026-10-30T16:50:55.425662+00:00"
+      "pulledAt": "2026-10-31T15:53:24.022383+00:00"
     },
     "lists": [
       {
@@ -8849,15 +8849,15 @@
         "clickDetail": [
           {
             "url": "https://apps.apple.com/app/id6450196166",
-            "clicks": 182,
+            "clicks": 183,
             "uniqueClicks": 30,
-            "percentOfClicks": 51.9
+            "percentOfClicks": 52
           },
           {
             "url": "https://play.google.com/store/apps/details?id=com.ipn.ipn_mobile_app&pli=1",
             "clicks": 149,
             "uniqueClicks": 14,
-            "percentOfClicks": 42.5
+            "percentOfClicks": 42.3
           },
           {
             "url": "https://apps.apple.com/app/id6450196166",
@@ -15191,20 +15191,20 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4796,
+        "followers": 4797,
         "engagementRate": 1.17,
         "postsThisMonth": 1,
         "status": "live",
-        "updatedAt": "2026-10-30T16:50:58.746085+00:00"
+        "updatedAt": "2026-10-31T15:53:25.797334+00:00"
       },
       {
         "id": "facebook",
         "label": "Facebook",
-        "followers": 3130,
+        "followers": 3131,
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-10-30T16:50:59.245874+00:00"
+        "updatedAt": "2026-10-31T15:53:26.072490+00:00"
       },
       {
         "id": "linkedin",
@@ -15794,18 +15794,18 @@
         "posts": 0
       },
       {
-        "date": "2026-10-30T16:50:58.746085+00:00",
+        "date": "2026-10-31T15:53:25.797334+00:00",
         "month": "2026-10",
         "channel": "instagram",
-        "followers": 4796,
+        "followers": 4797,
         "engagementRate": 1.17,
         "posts": 1
       },
       {
-        "date": "2026-10-30T16:50:59.245874+00:00",
+        "date": "2026-10-31T15:53:26.072490+00:00",
         "month": "2026-10",
         "channel": "facebook",
-        "followers": 3130,
+        "followers": 3131,
         "engagementRate": 0,
         "posts": 0
       }
@@ -15820,7 +15820,7 @@
         "comments": 4,
         "engagement": 56,
         "permalink": "https://www.instagram.com/p/DeHg-jcxG6t/",
-        "lastObservedAt": "2026-10-30T16:50:58.746085+00:00"
+        "lastObservedAt": "2026-10-31T15:53:25.797334+00:00"
       },
       {
         "id": "18170794375455381",
@@ -15854,20 +15854,20 @@
   },
   "website": {
     "overview": {
-      "sessions_30d": 581,
-      "unique_visitors_30d": 484,
-      "pageviews_30d": 667,
-      "bounce_rate": 0.62,
-      "avg_session_duration": 156.42,
-      "new_users_30d": 485,
-      "sessions_prev_30d": 535,
-      "unique_visitors_prev_30d": 432,
-      "sessions_mom_pct": 8.6,
-      "visitors_mom_pct": 12,
+      "sessions_30d": 573,
+      "unique_visitors_30d": 476,
+      "pageviews_30d": 658,
+      "bounce_rate": 0.61,
+      "avg_session_duration": 158.57,
+      "new_users_30d": 476,
+      "sessions_prev_30d": 522,
+      "unique_visitors_prev_30d": 426,
+      "sessions_mom_pct": 9.8,
+      "visitors_mom_pct": 11.7,
       "new_vs_returning": {
         "new": {
-          "sessions": 478,
-          "users": 478
+          "sessions": 470,
+          "users": 470
         },
         "returning": {
           "sessions": 69,
@@ -15945,24 +15945,15 @@
       },
       {
         "month": "2026-10",
-        "sessions": 572,
-        "users": 475,
-        "pageviews": 657,
+        "sessions": 573,
+        "users": 476,
+        "pageviews": 658,
         "bounceRate": 61,
-        "avgDuration": 158.85,
-        "newUsers": 475
+        "avgDuration": 158.57,
+        "newUsers": 476
       }
     ],
     "dailyTrend": [
-      {
-        "date": "2026-08-01",
-        "sessions": 22,
-        "users": 19,
-        "pageviews": 25,
-        "bounceRate": 68,
-        "avgDuration": 48.46,
-        "newUsers": 19
-      },
       {
         "date": "2026-08-02",
         "sessions": 26,
@@ -16682,18 +16673,27 @@
         "bounceRate": 0,
         "avgDuration": 251.11,
         "newUsers": 1
+      },
+      {
+        "date": "2026-10-30",
+        "sessions": 1,
+        "users": 1,
+        "pageviews": 1,
+        "bounceRate": 100,
+        "avgDuration": 0,
+        "newUsers": 1
       }
     ],
     "devices": [
       {
         "label": "desktop",
-        "sessions": 355,
-        "users": 294
+        "sessions": 348,
+        "users": 287
       },
       {
         "label": "mobile",
-        "sessions": 217,
-        "users": 182
+        "sessions": 216,
+        "users": 181
       },
       {
         "label": "tablet",
@@ -16704,8 +16704,8 @@
     "channels": [
       {
         "label": "Direct",
-        "sessions": 438,
-        "users": 393
+        "sessions": 430,
+        "users": 385
       },
       {
         "label": "Referral",
@@ -16714,13 +16714,13 @@
       },
       {
         "label": "Organic Search",
-        "sessions": 49,
-        "users": 30
+        "sessions": 48,
+        "users": 29
       },
       {
         "label": "Organic Social",
-        "sessions": 8,
-        "users": 8
+        "sessions": 9,
+        "users": 9
       },
       {
         "label": "AI Assistant",
@@ -16732,8 +16732,8 @@
       {
         "source": "(direct)",
         "medium": "(none)",
-        "sessions": 438,
-        "users": 393
+        "sessions": 430,
+        "users": 385
       },
       {
         "source": "mail.google.com",
@@ -16744,8 +16744,8 @@
       {
         "source": "google",
         "medium": "organic",
-        "sessions": 45,
-        "users": 27
+        "sessions": 44,
+        "users": 26
       },
       {
         "source": "beyondapprovalpsychedelics.substack.com",
@@ -16756,8 +16756,8 @@
       {
         "source": "facebook.com",
         "medium": "referral",
-        "sessions": 5,
-        "users": 5
+        "sessions": 6,
+        "users": 6
       },
       {
         "source": "chatgpt.com",
@@ -16817,13 +16817,13 @@
     "countries": [
       {
         "label": "United States",
-        "sessions": 288,
-        "users": 231
+        "sessions": 286,
+        "users": 229
       },
       {
         "label": "Singapore",
-        "sessions": 65,
-        "users": 65
+        "sessions": 61,
+        "users": 61
       },
       {
         "label": "United Kingdom",
@@ -16866,24 +16866,19 @@
         "users": 5
       },
       {
-        "label": "France",
-        "sessions": 5,
-        "users": 4
-      },
-      {
         "label": "Bulgaria",
         "sessions": 4,
         "users": 2
       },
       {
-        "label": "China",
-        "sessions": 4,
-        "users": 4
-      },
-      {
         "label": "Croatia",
         "sessions": 4,
         "users": 2
+      },
+      {
+        "label": "France",
+        "sessions": 4,
+        "users": 3
       },
       {
         "label": "Hong Kong",
@@ -16894,6 +16889,11 @@
         "label": "Italy",
         "sessions": 4,
         "users": 4
+      },
+      {
+        "label": "China",
+        "sessions": 3,
+        "users": 3
       },
       {
         "label": "Serbia",
@@ -16919,8 +16919,8 @@
     "cities": [
       {
         "label": "Singapore",
-        "sessions": 65,
-        "users": 65
+        "sessions": 61,
+        "users": 61
       },
       {
         "label": "(not set)",
@@ -16968,12 +16968,12 @@
         "users": 6
       },
       {
-        "label": "San Jose",
-        "sessions": 8,
-        "users": 7
+        "label": "Denver",
+        "sessions": 7,
+        "users": 6
       },
       {
-        "label": "Denver",
+        "label": "San Jose",
         "sessions": 7,
         "users": 6
       },
@@ -17030,26 +17030,26 @@
       {
         "path": "/",
         "title": "Intercollegiate Psychedelics Network | Join the Movement",
-        "pageviews": 166,
-        "users": 122,
-        "avgDuration": 90.72,
-        "bounceRate": 56.99999999999999
+        "pageviews": 164,
+        "users": 120,
+        "avgDuration": 91.92,
+        "bounceRate": 56.00000000000001
       },
       {
         "path": "/psychedelx",
         "title": "PsychedelX | Join the Movement — Intercollegiate Psychedelics Network",
-        "pageviews": 34,
-        "users": 27,
-        "avgDuration": 53.64,
-        "bounceRate": 36
+        "pageviews": 32,
+        "users": 26,
+        "avgDuration": 55.3,
+        "bounceRate": 38
       },
       {
         "path": "/our-team",
         "title": "Our Team | Engage with Leaders — Intercollegiate Psychedelics Network",
-        "pageviews": 21,
-        "users": 19,
-        "avgDuration": 102.84,
-        "bounceRate": 26
+        "pageviews": 20,
+        "users": 18,
+        "avgDuration": 108.55,
+        "bounceRate": 22
       },
       {
         "path": "/about-ipn",
@@ -17108,14 +17108,6 @@
         "bounceRate": 14.000000000000002
       },
       {
-        "path": "/2023/07/12/what-is-it/",
-        "title": "Intercollegiate Psychedelics Network",
-        "pageviews": 6,
-        "users": 6,
-        "avgDuration": 1.99,
-        "bounceRate": 100
-      },
-      {
         "path": "/contact",
         "title": "Contact | Connect with Us — Intercollegiate Psychedelics Network",
         "pageviews": 5,
@@ -17124,20 +17116,20 @@
         "bounceRate": 83
       },
       {
+        "path": "/2023/07/12/what-is-it/",
+        "title": "Intercollegiate Psychedelics Network",
+        "pageviews": 4,
+        "users": 4,
+        "avgDuration": 1.55,
+        "bounceRate": 100
+      },
+      {
         "path": "/cart",
         "title": "Intercollegiate Psychedelics Network",
         "pageviews": 3,
         "users": 3,
         "avgDuration": 5.05,
         "bounceRate": 67
-      },
-      {
-        "path": "/membership/",
-        "title": "Intercollegiate Psychedelics Network",
-        "pageviews": 3,
-        "users": 3,
-        "avgDuration": 15.95,
-        "bounceRate": 33
       },
       {
         "path": "/blog/2023/04/01/can-we-heal-without-tripping",
@@ -17154,6 +17146,14 @@
         "users": 2,
         "avgDuration": 2.82,
         "bounceRate": 50
+      },
+      {
+        "path": "/membership/",
+        "title": "Intercollegiate Psychedelics Network",
+        "pageviews": 2,
+        "users": 2,
+        "avgDuration": 20.08,
+        "bounceRate": 0
       },
       {
         "path": "/news/",
@@ -17190,15 +17190,15 @@
       },
       {
         "path": "/psychedelx",
-        "pageviews": 35,
-        "users": 28,
+        "pageviews": 33,
+        "users": 27,
         "bounceRate": 20,
-        "avgDuration": 53.64
+        "avgDuration": 55.3
       },
       {
         "path": "/contact",
-        "pageviews": 7,
-        "users": 7,
+        "pageviews": 6,
+        "users": 6,
         "bounceRate": 90,
         "avgDuration": 1.33
       }
@@ -17391,7 +17391,7 @@
         "bounceRate": 0
       }
     ],
-    "pulledAt": "2026-10-30T16:51:11.502753+00:00"
+    "pulledAt": "2026-10-31T15:53:49.081666+00:00"
   },
   "events": {
     "zoom": {
@@ -17404,7 +17404,7 @@
         "avgDurationMin": 32,
         "repeatRatePct": 10.3,
         "uniqueAttendees": 39,
-        "pulledAt": "2026-10-30T16:51:41.287468+00:00"
+        "pulledAt": "2026-10-31T15:54:00.009676+00:00"
       },
       "byMonth": [
         {
@@ -18573,7 +18573,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-10-30T16:52:46.728762+00:00"
+        "pulledAt": "2026-10-31T15:54:58.445710+00:00"
       },
       "events": [
         {
