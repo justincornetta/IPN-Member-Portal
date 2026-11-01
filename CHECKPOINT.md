@@ -12,7 +12,7 @@ Follow-up after Justin's screenshots:
 - Added a browser regression check for admin/member and queue/form visibility; screenshots now include the bottom of the page at all three viewports.
 - Reinstalled locked dependencies/browser runtime; lint, production build, all 17 workflow browser checks and diff checks pass. The earlier 18 workflow/domain tests remain unchanged and passed in the initial implementation session.
 - The same design reviewer returned GO after rechecking optical spacing, mobile grouping, complete Media footers and live admin/leadership diagnostic visibility. The initial GO missed optical whitespace and a production-only condition; both are explicitly documented as review regressions.
-- Cornbot routed a shared review-skill update to Notion Organizer, request `42747ac64fc19a1efb9f`. Focus: actual visible gaps, full scroll-path/role coverage, explicit preview-production differences, and relevance of diagnostic UI. Written/read-back confirmation is pending.
+- Cornbot routed a shared review-skill update to Notion Organizer, request `42747ac64fc19a1efb9f`. Focus: actual visible gaps, full scroll-path/role coverage, explicit preview-production differences, and relevance of diagnostic UI. Read-back of the canonical skill confirmed these checks, an evidence requirement, and both PR #68 examples are now present.
 
 - Located Luke Strong's October 26 private `#media-space` thread after Justin explicitly authorized private Slack search. Inspected all four steps of Luke's Claude prototype.
 - Added a guided new-request form: Idea → When and where → Copy and files → Review, with simpler prompts, native selectable cards/chips, optional reader links, and review edit links.

@@ -50,7 +50,7 @@ For subsequent reviews in this project:
 
 Focused re-review: **GO** after comparing the before/after screenshots at 1440, 1280 and 390 px, inspecting complete Media footers, and checking admin/leadership visibility in the live local browser. The reviewer confirmed consistent visible gaps, readable mobile wrapping, clean form actions, and no browser warnings/errors. Production visibility is supported by the shared source condition and local role fixtures; production itself was not opened.
 
-The shared design-review skill update was routed through Cornbot to Notion Organizer (request `42747ac64fc19a1efb9f`); this document records the project-specific requirements while that update is processed. The “About 3 minutes” label is an estimate inherited from the prototype, not a measured completion time.
+The [shared design-review skill](https://app.notion.com/p/3f22386c248f81bb8420f03e467a78e8) was updated by Notion Organizer through Cornbot (request `42747ac64fc19a1efb9f`). Read-back confirmed all three checks, the screenshot/recorded-evidence requirement, and both PR #68 regression examples. The “About 3 minutes” label is an estimate inherited from the prototype, not a measured completion time.
 
 ## Publication
 
