@@ -2,7 +2,7 @@
 
 ## Status
 
-Media intake improvements implemented locally on `feature/media-guided-request`, based on `origin/main` commit `32e47e5`. Awaiting Justin's approval to push and open a PR. No deployment or production writes.
+Media intake improvements implemented locally on `feature/media-guided-request`, based on `origin/main` commit `32e47e5`. Justin approved pushing and opening a PR on November 1, 2026. Publishing the reviewed branch; no production writes or merge authorized.
 
 ## Last session — November 1, 2026
 
@@ -16,19 +16,19 @@ Media intake improvements implemented locally on `feature/media-guided-request`,
 
 ## Next steps
 
-1. Show Justin the completed local implementation and request publishing approval under `AGENTS.md`.
-2. After explicit approval, push `feature/media-guided-request`, open a PR with the verification notes/screenshots, and add its Netlify deploy-preview URL.
-3. Send Cornbot a concise milestone update when Tin Can connectivity is restored.
+1. Push `feature/media-guided-request`, open a PR with the verification notes/screenshots, and add its Netlify deploy-preview URL.
+2. Send Cornbot a concise milestone update.
+3. Review PR checks and await a separate merge decision.
 
 ## Open decisions
 
-- Publishing approval is pending. The new-request form is scoped separately from the existing editing/production screens and sitewide portal styling.
+- Publishing approval received; merge approval remains pending. The new-request form is scoped separately from the existing editing/production screens and sitewide portal styling.
 
 ## Known issues and limits
 
 - Existing Next.js middleware deprecation warning remains.
 - Production sign-in and real Slack/Sheets delivery were not exercised; local preview delivery is disabled.
-- Tin Can inbox and doctor could not reach the configured relay. `tailscale status` reports Tailscale is stopped. Retried the inbox after backoff; relay remains unavailable. No team/Notion milestone update could be delivered. Do not repeat diagnostics more than hourly; retry with the instructed backoff.
+- Tin Can connectivity recovered during PR publication; the inbox check succeeded with no requests waiting.
 - Pre-existing unrelated untracked credential JSON was left untouched and is excluded from this commit.
 
 ## References / PRs / commits
@@ -36,6 +36,6 @@ Media intake improvements implemented locally on `feature/media-guided-request`,
 - [Implementation, source links, QA and screenshots](docs/media-guided-intake/README.md)
 - [Luke's proposal](https://intercollegia-dcd2196.slack.com/archives/C088ZJBM0QY/p1793063310607659?thread_ts=1793034999.165159&cid=C088ZJBM0QY)
 - [Luke's interactive prototype](https://claude.ai/artifact/2BMHD6ByWTAUViDf5DKifz)
-- Base: `32e47e5`. Implementation commit: this checkpoint's commit. No PR yet.
+- Base: `32e47e5`. Implementation commit: `601b37a`. PR creation is the next authorized action.
 
 This committed checkpoint is mirrored into the owning workspace project root for cross-session discovery.

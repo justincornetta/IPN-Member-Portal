@@ -37,4 +37,4 @@ Independent product-design review: **GO**, with no material blockers. The review
 
 ## Publication
 
-Local implementation only. No push, PR, deployment, or production mutation has been performed. Publishing requires Justin's explicit approval under the repository's `AGENTS.md`. A deploy-preview URL can be added after approval and PR creation.
+Justin approved pushing the reviewed branch and opening a PR on November 1, 2026. The PR will include these verification results and screenshots; its Netlify preview will be linked once available. Production has not been changed. Merge remains a separate decision.
