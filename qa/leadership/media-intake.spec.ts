@@ -16,6 +16,11 @@ for (const width of [1440, 1280, 390]) {
     await page.evaluate(() => document.fonts.ready)
     await form.getByRole("heading", { name: "New media request", exact: true }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: `docs/media-guided-intake/screenshots/idea-${width}.png` })
+    if (width === 1440) {
+      await form.getByRole("navigation", { name: "Request steps" }).screenshot({
+        path: "docs/media-guided-intake/screenshots/step-navigation.png"
+      })
+    }
     await form.getByLabel("Give it a name", { exact: true }).fill("Mentorship interest form")
     await form.getByLabel("Team or project").fill("Community")
     await form.getByLabel("What's it about?").fill("Invite members to help shape IPN's mentorship program by joining a focus group.")
@@ -42,6 +47,9 @@ for (const width of [1440, 1280, 390]) {
     await form.getByRole("heading", { name: "Anything else?", exact: true }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: `docs/media-guided-intake/screenshots/review-${width}.png` })
     await expect(form.getByRole("button", { name: "Send request", exact: true })).toBeEnabled()
+    await form.getByRole("button", { name: "Send request", exact: true }).scrollIntoViewIfNeeded()
+    await expect(page.getByText("Integration status", { exact: true })).toHaveCount(0)
+    await page.screenshot({ path: `docs/media-guided-intake/screenshots/footer-${width}.png` })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
     await form.getByRole("button", { name: "Cancel", exact: true }).click()
     await expect(form).toHaveCount(0)
@@ -50,6 +58,25 @@ for (const width of [1440, 1280, 390]) {
     await expect(page.locator("nextjs-portal [data-nextjs-dialog]")).toHaveCount(0)
   })
 }
+
+test("integration diagnostics belong to the expense admin queue, not request forms or Media", async ({ page }) => {
+  await page.goto("/workflow-preview/expenses")
+  const status = page.getByText("Integration status", { exact: true })
+  await expect(status).toBeVisible()
+  await status.click()
+  await expect(page.getByRole("button", { name: "Retry pending deliveries", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Submit expense", exact: true }).click()
+  await expect(status).toHaveCount(0)
+  await page.getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(status).toBeVisible()
+  await page.getByLabel("Preview as").selectOption("member")
+  await expect(status).toHaveCount(0)
+  await page.goto("/workflow-preview/media")
+  await expect(page.getByRole("button", { name: "New media request", exact: true })).toBeEnabled()
+  await expect(status).toHaveCount(0)
+  await page.getByRole("button", { name: "New media request", exact: true }).click()
+  await expect(status).toHaveCount(0)
+})
 
 test("a failed submission keeps the brief and reuses its id on retry", async ({ page }) => {
   await page.goto("/workflow-preview/media")

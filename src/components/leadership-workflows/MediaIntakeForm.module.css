@@ -28,7 +28,7 @@
 .form header .hint { margin-top: 4px; }
 .hint { display: block; color: #e2d6ee; font-size: 14px; font-weight: 400; }
 .intro { color: #e2d6ee; margin: 8px 0 24px; }
-.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 24px 0; margin: 0 0 24px; border-bottom: 1px solid #e2d6ee44; list-style: none; }
+.steps { display: flex; flex-wrap: wrap; column-gap: 24px; row-gap: 12px; padding: 20px 0; margin: 0 0 24px; border-bottom: 1px solid #e2d6ee44; list-style: none; }
 .steps button { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; text-align: left; color: #e2d6ee; }
 .steps button > span:first-child { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid #e2d6ee88; border-radius: 50%; }
 .steps [aria-current="step"] { font-weight: 600; color: white; }
@@ -73,8 +73,8 @@
 @media (max-width: 600px) {
   .form { padding: 20px 16px; }
   .form h3 { font-size: 23px; }
-  .steps { gap: 6px; }
-  .steps button { flex-direction: column; align-items: flex-start; gap: 6px; font-size: 11px; }
+  .steps { column-gap: 16px; row-gap: 8px; }
+  .steps button { gap: 8px; font-size: 13px; }
   .columns, .cards { grid-template-columns: 1fr; }
   .review > div { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
   .review dt { grid-column: 1; }

@@ -606,7 +606,7 @@ export default function WorkflowWorkspace({
           )}
         </section>
       )}
-      {data && isApprover && !demo && (
+      {data && isApprover && kind === "expense" && !creating && !selected && (
         <details className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
           <summary className="cursor-pointer font-medium">
             Integration status
