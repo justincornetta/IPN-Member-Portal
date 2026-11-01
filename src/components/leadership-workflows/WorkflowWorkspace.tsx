@@ -27,6 +27,7 @@ import {
 } from "@/lib/leadership-workflows/domain"
 
 import MediaCalendar from "./MediaCalendar"
+import MediaIntakeForm from "./MediaIntakeForm"
 import MediaList, {
   MEDIA_COLUMNS,
   mediaListValue,
@@ -323,7 +324,7 @@ export default function WorkflowWorkspace({
         </div>
         <button
           className={primary}
-          disabled={!data || busy}
+          disabled={!data || busy || (kind === "media" && creating)}
           onClick={() => {
             setCreating(true)
             setSelected("")
@@ -805,6 +806,9 @@ function RequestForm({
           : { expense: { purpose, amountCents: amount, itemUrl } })
       })
     } catch {}
+  }
+  if (kind === "media" && !record) {
+    return <MediaIntakeForm data={data} initialMedia={media} busy={busy} save={save} close={close} />
   }
   return (
     <form
