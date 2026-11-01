@@ -37,4 +37,4 @@ Independent product-design review: **GO**, with no material blockers. The review
 
 ## Publication
 
-Justin approved pushing the reviewed branch and opening a PR on November 1, 2026. The PR will include these verification results and screenshots; its Netlify preview will be linked once available. Production has not been changed. Merge remains a separate decision.
+Justin approved pushing the reviewed branch and opening a PR on November 1, 2026. [PR #68](https://github.com/justincornetta/IPN-Member-Portal/pull/68) includes these verification results and screenshots; its Netlify preview will be linked in the PR once available. Production has not been changed. Merge remains a separate decision.

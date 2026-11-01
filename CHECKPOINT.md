@@ -2,7 +2,7 @@
 
 ## Status
 
-Media intake improvements implemented locally on `feature/media-guided-request`, based on `origin/main` commit `32e47e5`. Justin approved pushing and opening a PR on November 1, 2026. Publishing the reviewed branch; no production writes or merge authorized.
+Media intake improvements implemented locally on `feature/media-guided-request`, based on `origin/main` commit `32e47e5`. Justin approved pushing and opening a PR on November 1, 2026. [PR #68](https://github.com/justincornetta/IPN-Member-Portal/pull/68) is open; no production writes or merge authorized.
 
 ## Last session — November 1, 2026
 
@@ -16,9 +16,8 @@ Media intake improvements implemented locally on `feature/media-guided-request`,
 
 ## Next steps
 
-1. Push `feature/media-guided-request`, open a PR with the verification notes/screenshots, and add its Netlify deploy-preview URL.
-2. Send Cornbot a concise milestone update.
-3. Review PR checks and await a separate merge decision.
+1. Check Netlify preview completion and add its URL to PR #68.
+2. Await a separate merge decision. The PR includes verification notes and screenshots; no merge has been performed.
 
 ## Open decisions
 
@@ -28,7 +27,7 @@ Media intake improvements implemented locally on `feature/media-guided-request`,
 
 - Existing Next.js middleware deprecation warning remains.
 - Production sign-in and real Slack/Sheets delivery were not exercised; local preview delivery is disabled.
-- Tin Can connectivity recovered during PR publication; the inbox check succeeded with no requests waiting.
+- Tin Can connectivity recovered during PR publication; the inbox check succeeded with no requests waiting. Cornbot received milestone notification `1c07fd2f9c10320e020d` for concise Notion routing.
 - Pre-existing unrelated untracked credential JSON was left untouched and is excluded from this commit.
 
 ## References / PRs / commits
@@ -36,6 +35,6 @@ Media intake improvements implemented locally on `feature/media-guided-request`,
 - [Implementation, source links, QA and screenshots](docs/media-guided-intake/README.md)
 - [Luke's proposal](https://intercollegia-dcd2196.slack.com/archives/C088ZJBM0QY/p1793063310607659?thread_ts=1793034999.165159&cid=C088ZJBM0QY)
 - [Luke's interactive prototype](https://claude.ai/artifact/2BMHD6ByWTAUViDf5DKifz)
-- Base: `32e47e5`. Implementation commit: `601b37a`. PR creation is the next authorized action.
+- Base: `32e47e5`. Implementation commit: `601b37a`. Publication approval recorded in `bdb33d6`. [PR #68](https://github.com/justincornetta/IPN-Member-Portal/pull/68) is open; Netlify preview is building.
 
 This committed checkpoint is mirrored into the owning workspace project root for cross-session discovery.
