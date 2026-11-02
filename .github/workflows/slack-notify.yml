@@ -169,3 +169,15 @@ jobs:
           curl -sf -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-type: application/json' \
             -d "$PAYLOAD"
+
+      # Posts the screenshots/videos the commit added (e.g. a PR's
+      # docs/**/screenshots) right below the message above. Needs a Slack
+      # bot token with files:write; without it this step logs and skips.
+      - name: Upload commit screenshots and video to Slack
+        if: always()
+        continue-on-error: true
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: node scripts/slack-commit-media.mjs
