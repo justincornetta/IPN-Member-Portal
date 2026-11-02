@@ -172,36 +172,38 @@ test("general media request, shared assignment, review and request publication",
     .getByRole("button", { name: "New media request", exact: true })
     .click()
   await page
-    .getByLabel("Idea name", { exact: true })
+    .getByLabel("Give it a name", { exact: true })
     .fill("Leadership announcement")
-  await page.getByLabel("Team / project").fill("IPN Media")
+  await page.getByLabel("Team or project").fill("IPN Media")
   await page
-    .getByLabel("Idea / brief")
+    .getByLabel("What's it about?")
     .fill(
       "Introduce our new Director of Media and invite leaders to use the queue."
     )
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
   await page
-    .getByLabel("When does this need to be posted by?")
+    .getByLabel("Post by", { exact: true })
     .fill("2026-10-20")
-  await page.getByLabel("Urgent — alert Agnes").check()
-  await page.locator('summary[aria-label="Media format"]').click()
-  const formats = page.getByRole("group", { name: "Media format options" })
+  await page.getByLabel("This is urgent", { exact: false }).check()
+  const formats = page.getByRole("group", { name: "What format?", exact: true })
   await formats.getByLabel("Carousel", { exact: true }).check()
   await formats.getByLabel("Email Campaign", { exact: true }).check()
   await expect(
     formats.getByLabel("Media to advise", { exact: true })
   ).not.toBeChecked()
-  await page.locator('summary[aria-label="Media format"]').click()
   await page.getByLabel("Email", { exact: true }).check()
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
+  await page.getByRole("button", { name: "+ Add a link for readers", exact: true }).click()
   await page
     .getByLabel("Destination URL")
     .fill("https://members.intercollegiatepsychedelics.net/events/seminar")
   await page
     .getByLabel("Where to include the link")
     .fill("Instagram bio and email button")
-  await page.getByLabel("Draft copy", { exact: true }).selectOption("help")
+  await page.getByRole("radio", { name: /Help me write it/ }).check()
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
   await page
-    .getByRole("button", { name: "Submit request", exact: true })
+    .getByRole("button", { name: "Send request", exact: true })
     .click()
   const publishingLink = page.getByRole("region", {
     name: "Requested publishing link"
@@ -321,9 +323,9 @@ test("event prefill, mobile layout and Admin dropdown", async ({ page }) => {
   await page
     .getByRole("button", { name: "New media request", exact: true })
     .click()
-  await page.getByLabel("Request type").selectOption("event")
+  await page.getByRole("radio", { name: /Event Promote/ }).check()
   await page.getByLabel("Existing event").selectOption("demo-event")
-  await expect(page.getByLabel("Idea name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Give it a name", { exact: true })).toHaveValue(
     "IPN Labs research seminar"
   )
   await expect(page.getByLabel("Event details")).toHaveValue(/October 20, 2026/)
@@ -335,6 +337,62 @@ test("event prefill, mobile layout and Admin dropdown", async ({ page }) => {
   await page.screenshot({
     path: "/tmp/ipn-workflow-mobile.png",
     fullPage: true
+  })
+})
+test("guided intake validates each step, preserves edits, and sends only after review", async ({ page, request }) => {
+  await page.goto("/workflow-preview/media")
+  await page.getByRole("button", { name: "New media request", exact: true }).click()
+  const form = page.getByRole("form", { name: "New media request" })
+  let submissions = 0
+  page.on("request", (r) => {
+    if (r.method() === "POST" && r.url().endsWith("/api/admin/workflows")) submissions++
+  })
+  await expect(form.getByRole("button", { name: "Step 4: Review" })).toBeDisabled()
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(form.getByRole("alert")).toContainText("name is required")
+  await expect(form.getByLabel("Give it a name", { exact: true })).toBeFocused()
+  await form.getByLabel("Give it a name", { exact: true }).fill("Guided request")
+  await form.getByLabel("Team or project").fill("Community")
+  await form.getByLabel("What's it about?").fill("Promote our member meetup.")
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(form.getByLabel("Post by", { exact: true })).toBeFocused()
+  await form.getByLabel("Post by", { exact: true }).fill("2026-12-01")
+  const channels = form.getByRole("group", { name: "Where should it go?", exact: true })
+  await channels.getByLabel("Instagram", { exact: true }).check()
+  await channels.getByLabel("Instagram", { exact: true }).uncheck()
+  await expect(channels.getByLabel("Media to advise", { exact: true })).toBeChecked()
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await form.getByRole("radio", { name: /Help me write it/ }).check()
+  await form.getByLabel("Files in Drive or Canva (optional)", { exact: true }).fill("https://example.com/file")
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(form.getByRole("alert")).toContainText("Google Drive or Canva")
+  await form.getByLabel("Files in Drive or Canva (optional)", { exact: true }).fill("https://drive.google.com/file/d/brief/view")
+  await form.getByRole("button", { name: "+ Add a link for readers", exact: true }).click()
+  await form.getByLabel("Destination URL").fill("https://example.com/meetup")
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(form.getByLabel("Where to include the link", { exact: true })).toBeFocused()
+  await form.getByLabel("Where to include the link", { exact: true }).fill("Instagram bio")
+  await form.getByRole("button", { name: "Continue", exact: true }).click()
+  await form.getByLabel("Notes for the Media team (optional)").fill("Coordinate with Community.")
+  await expect(form.getByText("Instagram bio", { exact: false })).toBeVisible()
+  await form.getByRole("button", { name: "Edit idea", exact: true }).click()
+  await expect(form.getByLabel("Give it a name", { exact: true })).toHaveValue("Guided request")
+  await form.getByLabel("Give it a name", { exact: true }).fill("Updated guided request")
+  await form.getByRole("button", { name: "Step 4: Review", exact: true }).click()
+  await expect(form.getByLabel("Notes for the Media team (optional)")).toHaveValue("Coordinate with Community.")
+  await expect(form.getByText("Updated guided request · Announcement", { exact: true })).toBeVisible()
+  expect(submissions).toBe(0)
+  await form.getByRole("button", { name: "Send request", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Updated guided request", exact: true })).toBeVisible()
+  expect(submissions).toBe(1)
+  const state = await (await request.get("/api/admin/workflows")).json()
+  const saved = state.data.requests.find((r: { title: string }) => r.title === "Updated guided request")
+  expect(saved.media).toMatchObject({
+    postedBy: "2026-12-01", platforms: ["Media to advise"], needsCopyHelp: true,
+    destinationUrl: "https://example.com/meetup", linkPlacement: "Instagram bio",
+    additionalDetails: "Coordinate with Community.",
+    links: [{ label: "Supporting material", url: "https://drive.google.com/file/d/brief/view" }]
   })
 })
 test("API rejects cross-site access, unauthorized approvals and stale revisions", async ({
@@ -387,42 +445,38 @@ test("media copy choice and supplied draft validation", async ({
   await page
     .getByRole("button", { name: "New media request", exact: true })
     .click()
-  await page.getByLabel("Idea name", { exact: true }).fill("Educational email")
-  await page.getByLabel("Team / project").fill("Education")
+  await page.getByLabel("Give it a name", { exact: true }).fill("Educational email")
+  await page.getByLabel("Team or project").fill("Education")
   await page
-    .getByLabel("Idea / brief")
+    .getByLabel("What's it about?")
     .fill("Explain how members can join the research seminar.")
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
   await page
-    .getByLabel("When does this need to be posted by?")
+    .getByLabel("Post by", { exact: true })
     .fill("2026-10-15")
-  await page
-    .getByRole("button", { name: "Submit request", exact: true })
-    .click()
-  await expect(page.getByLabel("Draft copy", { exact: true })).toHaveValue("")
-  await page.getByLabel("Draft copy", { exact: true }).selectOption("self")
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(page.getByRole("form", { name: "New media request" }).getByRole("alert")).toHaveText("Choose who will write the copy.")
+  await page.getByRole("radio", { name: /I'll write it/ }).check()
   await expect(page.getByLabel("Body", { exact: true })).toHaveCount(0)
-  await page
-    .getByRole("button", { name: "Submit request", exact: true })
-    .click()
-  expect(
-    await page
-      .getByLabel("Headline", { exact: true })
-      .evaluate((input: HTMLInputElement) => input.validity.valueMissing)
-  ).toBeTruthy()
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(page.getByRole("form", { name: "New media request" }).getByRole("alert")).toContainText("Add a headline or post caption")
+  await expect(page.getByLabel("Headline", { exact: true })).toBeFocused()
   await page
     .getByLabel("Post caption", { exact: true })
     .fill("Join our research seminar")
   await expect(page.getByLabel("Headline", { exact: true })).not.toHaveAttribute("required")
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
   const extraNotes = "Please coordinate with the Education team.\nUse the IPN brand colors."
   await page
-    .getByLabel("Additional details for the media team (optional)", { exact: true })
+    .getByLabel("Notes for the Media team (optional)", { exact: true })
     .fill(extraNotes)
   await page.screenshot({
     path: "/tmp/ipn-workflow-media-form.png",
     fullPage: true
   })
   await page
-    .getByRole("button", { name: "Submit request", exact: true })
+    .getByRole("button", { name: "Send request", exact: true })
     .click()
   await expect(
     page.getByText("Join our research seminar", { exact: true })
