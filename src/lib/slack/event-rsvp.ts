@@ -87,27 +87,21 @@ async function getNotificationDetails(
   const admin = createAdminClient()
 
   if (notification.kind === "event") {
-    const [{ data: event, error: eventError }, { count, error: countError }] = await Promise.all([
-      admin
-        .from("events")
-        .select("title, event_type")
-        .eq("id", notification.eventId)
-        .single(),
-      admin
-        .from("event_registrations")
-        .select("*", { count: "exact", head: true })
-        .eq("event_id", notification.eventId),
-    ])
+    // Includes active guests; the same count is used by guest RSVP alerts.
+    const { data: event, error: eventError } = await admin
+      .from("events")
+      .select("title, event_type, registration_count")
+      .eq("id", notification.eventId)
+      .single()
 
     if (eventError || !event) throw new Error(eventError?.message ?? "Event not found")
-    if (countError) throw new Error(countError.message)
 
     return {
       eventName: event.title,
       rsvpType: event.event_type || "IPN Event",
       parentConference: null,
       detail: null,
-      rsvpCount: count ?? 0,
+      rsvpCount: event.registration_count ?? 0,
     }
   }
 

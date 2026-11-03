@@ -267,3 +267,24 @@ test("production-scoped email configuration works when Netlify build CONTEXT is 
  delete process.env.CONTEXT
  const h=workerHarness();assert.equal((await h.run()).sent,1);assert.equal(h.sent.length,1)
 }))
+
+test('test cleanup removes only exact event aliases and their jobs; repeats safely',async()=>{
+ const db=await database();try{
+  await db.exec("alter table events add column slug text")
+  await db.query("update events set slug=$1",['global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional'])
+  for(const email of ['justin.cornetta+1@gmail.com','justin.cornetta+5@gmail.com','justin.cornetta+8@gmail.com','justin.cornetta@gmail.com','real@example.com'])await register(db,true,email)
+  const sql=readFileSync(resolve(root,'supabase/migrations/20261103160122_remove_event_test_rsvps.sql'),'utf8')
+  await db.exec("update guest_event_email_deliveries set status='sending' where id=(select d.id from guest_event_email_deliveries d join guest_event_registrations g on g.id=d.registration_id where g.email='justin.cornetta+1@gmail.com' limit 1)")
+  await db.exec('begin')
+  await assert.rejects(()=>db.exec(sql),/test email is being delivered/)
+  await db.exec('rollback')
+  assert.equal((await db.query('select count(*)::int n from guest_event_registrations')).rows[0].n,5)
+  await db.exec("update guest_event_email_deliveries set status='pending' where status='sending'")
+  await db.exec('begin;'+sql+'commit;')
+  assert.equal((await db.query('select count(*)::int n from guest_event_registrations')).rows[0].n,2)
+  assert.equal((await db.query('select registration_count from events')).rows[0].registration_count,2)
+  assert.equal((await db.query('select count(*)::int n from guest_event_email_deliveries')).rows[0].n,8)
+  await db.exec('begin;'+sql+'commit;')
+  assert.equal((await db.query('select registration_count from events')).rows[0].registration_count,2)
+ }finally{await db.close()}
+})
