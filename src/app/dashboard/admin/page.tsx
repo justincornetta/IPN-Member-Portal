@@ -713,6 +713,7 @@ export default async function AdminPage() {
     participationRows,
     attendanceRows,
   })
+  portalUtilization.eventRsvpTitles = Object.fromEntries(eventRows.map(event => [event.slug, event.title]))
   const onboardingAnalytics = buildOnboardingAnalyticsData({
     profiles: enrichedProfiles,
     progressRows: (onboardingResult.data ?? []) as OnboardingProgressRow[],

@@ -1,3 +1,21 @@
+# Event totals and member analytics drill-down — November 3, 2026
+
+## Status
+Completed locally on `feature/event-rsvp-analytics`, extending the unpublished RSVP analytics feature. User requested event aggregates with member-level detail; no publication approval supplied. No push, PR, merge or production data writes. Base main remains current at `0e95438`.
+
+## Last session
+Report now defaults to one row per event with display titles from existing event records. Each session/stage counts once across RSVP paths; expandable path rows may overlap. Selecting an event reveals path breakdown and searchable member activity (existing profile name/email, sessions, paths, per-stage counts, account creation, last UTC activity). Member attribution uses only the server's user ID on each observation or registration success; anonymous/guest activity is never assigned by email or shared session inference. New account creation does not relabel earlier guest actions. Raw session IDs stay server-side; response-local groups allow deduplication. Date cohorts use the first retained session observation per event across paths. Report is hidden when the analytics query fails, alongside the existing analytics-unavailable message.
+
+Locked dependencies/browser runtime installed; lint, production build, 36 focused analytics tests and all 15 browser scenarios passed. Final table-only desktop/mobile rerun passed after copy clarification. Tests include cross-path deduplication, multi-account shared sessions, repeat actions, account creation attribution, date cohorts, member search/empty results and guest-only events. Independent product-design review GO at 1440/1280/390 plus full admin integration; no material blockers or console errors. Screenshots/docs refreshed. Production identity attribution and collection are not claimed as live-verified.
+
+## Next steps / open decisions
+Review http://localhost:4331/rsvp-analytics-review (local isolated fixtures, server left running). Click View members & paths for the two-member event. Await explicit publication approval under AGENTS.md, then push/open PR with pr-documentation. Merge is separate.
+
+## Known limits / references
+This is observed product analytics, not the current RSVP roster or an authoritative attendee count. Anonymous guest activity remains in event totals without identified member rows. Existing 90-day retention and same-session conversion limits apply. Existing Next middleware deprecation warning remains. Tin Can relay remains unavailable; concise milestone handoff to Cornbot pending. Docs/calculations/screenshots: `docs/guest-event-rsvp/analytics.md`. Prior local analytics commits `4fb60e8`, `1300156`, `860e58f` remain unpublished.
+
+---
+
 # Event RSVP analytics — November 3, 2026
 
 ## Status

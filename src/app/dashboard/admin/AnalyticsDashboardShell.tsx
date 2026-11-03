@@ -2838,7 +2838,7 @@ function PortalUtilizationPanel({ data, mode = "all" }: { data: PortalUtilizatio
 
   return (
     <div className="flex flex-col gap-6">
-      <EventRsvpAnalytics journeys={data.eventRsvpJourneys ?? []}/>
+      {data.trackingAvailable && <EventRsvpAnalytics journeys={data.eventRsvpJourneys ?? []} members={data.members} eventTitles={data.eventRsvpTitles}/>}
       <FilterBar>
         {mode === "activity" && <FilterField label="Registration from">
           <input type="date" value={registrationFrom} onChange={(event) => setRegistrationFrom(event.target.value)} className={inputClassName} />

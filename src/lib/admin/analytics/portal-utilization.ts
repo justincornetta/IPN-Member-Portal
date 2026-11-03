@@ -77,6 +77,7 @@ export type PortalJourneyStep = {
 
 export type PortalUtilizationData = {
   eventRsvpJourneys?: RsvpJourney[]
+  eventRsvpTitles?: Record<string, string>
   generatedAt: string
   rawRetentionDays: number
   trackingAvailable: boolean

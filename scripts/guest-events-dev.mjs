@@ -36,10 +36,19 @@ const analyticsClient=resolve(target,"src/lib/portal-analytics/client.ts")
 writeFileSync(analyticsClient,readFileSync(analyticsClient,"utf8").replace(' || process.env.NODE_ENV !== "production"',''))
 mkdirSync(resolve(target,"src/app/rsvp-analytics-review"),{recursive:true})
 writeFileSync(resolve(target,"src/app/rsvp-analytics-review/page.tsx"),`import Panel from "@/app/dashboard/admin/EventRsvpAnalytics";
-export default function Review(){return <main className="p-6 bg-zinc-50 text-zinc-900"><Panel journeys={[
-{date:"2026-11-03",eventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",path:"guest",stages:["open","submit","error","confirmed","signup"],signupCompleted:true},
-{date:"2026-11-03",eventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",path:"member",stages:["view","submit","confirmed","join"],signupCompleted:false}
-]}/></main>}`)
+import {buildRsvpJourneys} from "@/lib/portal-analytics/event-rsvp";
+const slug="global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional";
+const event=(session_id:string,stage:string,path:string,user_id:string|null=null,eventSlug=slug)=>({event_name:"curated_click",session_id,user_id,occurred_at:"2026-11-03T10:00:00Z",metadata:{flow:"event_rsvp",eventSlug,stage,path}});
+export default function Review(){return <main className="p-6 bg-zinc-50 text-zinc-900"><Panel
+ eventTitles={{[slug]:"Global Psychedelic Week: So you want to be a psychedelic professional?","community-roundtable":"Community roundtable"}}
+ members={[{userId:"m1",fullName:"Taylor Example",email:"taylor@example.com"},{userId:"m2",fullName:"Casey Example",email:"casey@example.com"}]}
+ journeys={buildRsvpJourneys([
+ event("s1","view","visitor"),event("s1","submit","guest"),event("s1","error","guest"),event("s1","confirmed","member_login","m1"),
+ event("s2","view","member","m1"),event("s2","submit","member","m1"),event("s2","confirmed","member","m1"),event("s2","calendar","member","m1"),
+ event("s3","submit","guest"),event("s3","confirmed","guest"),event("s3","signup","guest"),
+ {event_name:"registration_success",session_id:"s3",user_id:"m2",occurred_at:"2026-11-03T10:02:00Z",metadata:{}},
+ event("s4","submit","guest",null,"community-roundtable"),event("s4","confirmed","guest",null,"community-roundtable")
+ ])}/></main>}`)
 const child=spawn(process.execPath,[resolve(root,"node_modules/next/dist/bin/next"),"dev","--hostname","127.0.0.1","--port","4331"],{cwd:target,env,stdio:"inherit"})
 for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal))
 child.on("exit",code=>process.exit(code??0))

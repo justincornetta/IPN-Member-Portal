@@ -27,3 +27,57 @@ test('analytics failures never interrupt RSVP and navigation uses beacon with ca
  const blocked=load('src/lib/portal-analytics/event-rsvp-client.ts',{'./event-rsvp':core,'./client':{trackPortalEvent(){throw Error('storage blocked')}}})
  assert.doesNotThrow(()=>blocked.trackRsvp('event-one','submit','guest'))
 })
+
+test('event totals deduplicate path switches and repeated actions in a session', () => {
+ const rows=core.buildRsvpJourneys([
+  event('view','visitor'),event('submit','guest'),event('submit','member_login'),
+  event('confirmed','member_login'),event('confirmed','member_login'),
+  {...event('submit','member'),session_id:'s2'}, {...event('confirmed','member'),session_id:'s2'},
+ ])
+ const summary=core.summarizeRsvpJourneys(rows)
+ assert.equal(summary.sessions,2)
+ assert.equal(summary.counts.submit,2)
+ assert.equal(summary.counts.confirmed,2)
+ assert.equal(summary.success,100)
+ assert.equal(summary.counts.view,1)
+})
+test('member drilldown attributes only authenticated observations, even in shared sessions', () => {
+ const rows=core.buildRsvpJourneys([
+  event('submit','guest'),
+  {...event('confirmed','member_login'),user_id:'member-one'},
+  {...event('join','member'),user_id:'member-two'},
+  {...event('confirmed','member'),session_id:'s2',user_id:'member-one'},
+ ])
+ const summary=core.summarizeRsvpJourneys(rows)
+ assert.equal(summary.members.length,2)
+ const first=summary.members.find(m=>m.userId==='member-one')
+ assert.equal(first.sessions.size,2)
+ assert.equal(first.stages.get('confirmed').size,2)
+ assert.equal(first.stages.has('submit'),false)
+ assert.equal(first.stages.has('join'),false)
+ const second=summary.members.find(m=>m.userId==='member-two')
+ assert.equal(second.stages.get('join').size,1)
+ assert.equal(second.stages.has('confirmed'),false)
+ assert.equal(JSON.stringify(rows).includes('"session_id"'),false)
+})
+test('same-session account creation identifies its account without relabeling guest actions', () => {
+ const rows=core.buildRsvpJourneys([
+  event('signup'),
+  {event_name:'registration_success',session_id:'s1',user_id:'new-member',occurred_at:'2026-11-03T11:00:00Z',metadata:{}},
+ ])
+ const summary=core.summarizeRsvpJourneys(rows)
+ assert.equal(summary.accounts,1)
+ assert.equal(summary.members[0].accountCreated,true)
+ assert.equal(summary.members[0].stages.size,0)
+})
+test('event cohorts use first retained session observation across paths and keep events separate', () => {
+ const rows=core.buildRsvpJourneys([
+  event('view','visitor','event-one','2026-11-03T23:59:00Z'),
+  event('submit','member_login','event-one','2026-11-04T00:01:00Z'),
+  event('submit','guest','event-two','2026-11-04T00:02:00Z'),
+ ])
+ assert.equal(rows[0].date,rows[1].date)
+ assert.equal(rows[1].date,'2026-11-03')
+ assert.equal(rows[0].sessionGroup,rows[1].sessionGroup)
+ assert.notEqual(rows[0].sessionGroup,rows[2].sessionGroup)
+})
