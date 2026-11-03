@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { isSafeRedirectPath } from "@/lib/auth/redirect"
 import type { EmailOtpType } from "@supabase/supabase-js"
+import { claimGuestRegistrations } from "@/lib/guest-events/service"
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash, type })
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) await claimGuestRegistrations(user.id).catch(() => console.error("[guest-events] RSVP association needs retry"))
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
@@ -25,6 +28,8 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) await claimGuestRegistrations(user.id).catch(() => console.error("[guest-events] RSVP association needs retry"))
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
@@ -33,6 +38,10 @@ export async function GET(request: Request) {
   // rather than dumping them on the login page with a confusing error.
   if (next.startsWith("/reset-password")) {
     return NextResponse.redirect(`${origin}/forgot-password?expired=1`)
+  }
+
+  if (searchParams.get("source") === "guest-signup") {
+    return NextResponse.redirect(`${origin}/join?expired=1`)
   }
 
   return NextResponse.redirect(`${origin}/login?error=Could+not+verify+your+email`)

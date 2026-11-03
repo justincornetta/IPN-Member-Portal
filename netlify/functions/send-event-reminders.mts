@@ -1,12 +1,13 @@
 import type { Config } from "@netlify/functions"
 import { processDueEventReminders } from "../../src/lib/events/email-service"
+import { processGuestEventEmails } from "../../src/lib/guest-events/service"
 
 export default async function sendEventReminders() {
   try {
-    const result = await processDueEventReminders()
+    const [result, guestResult] = await Promise.all([processDueEventReminders(), processGuestEventEmails()])
     console.log("[send-event-reminders]", JSON.stringify(result))
 
-    return new Response(JSON.stringify({ ok: true, result }), {
+    return new Response(JSON.stringify({ ok: true, result, guestResult }), {
       headers: { "content-type": "application/json" },
     })
   } catch (error) {

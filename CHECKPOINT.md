@@ -1,3 +1,43 @@
+# Guest event RSVP — active local work
+
+## Status
+
+Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9e0787`, in `Code/IPN-Member-Portal-guest-rsvp`. Publishing approval pending. No production database migration, live email, push, PR or deployment in this session.
+
+## Last session — November 2, 2026
+
+- Justin selected inline RSVP on the existing event page and explicitly retained the current portal styling, without the new brand guidelines.
+- Audited the public event/login/registration path and retained screenshots. Generated and implemented the selected light-style inline concept.
+- Added guest RSVP with first name, last name and email; direct join/calendar access after confirmation; optional prefilled email-link IPN signup; expired-link recovery; one-click signed-in RSVP.
+- Added per-event admin opt-in (default off), private guest persistence, transactional email outbox, verified-email account linking, cancellation, consent, idempotent delivery and reminder deduplication after conversion.
+- Prepared Resend confirmation, 24-hour/1-hour reminders and an opt-in membership invitation 24 hours after event end. Live delivery remains disabled locally.
+- Locked dependencies and browser runtime installed. Lint, production build, 36 focused domain/SQL/sender/regression tests and diff checks pass. Browser QA covers 1440/1280/390 px, guest/member states, retries, duplicate submission, signup recovery, dark-system contrast, unsubscribe, cancellation and email templates.
+- Independent design reviewer returned GO after full-page and live-flow review. Fixed dark-system inherited foreground and a same-route signup-retry no-op found in review. Cleared generated cache after stale HMR error; fresh browser console clean.
+- Detailed architecture, rollout requirements, screenshots and source comparison are in `docs/guest-event-rsvp/README.md` and `design-qa.md` inside the guest-RSVP worktree.
+
+## Next steps
+
+1. Justin reviews the local event and email previews at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
+2. Obtain explicit approval before push/PR. Flag auth/schema changes for Luke during review; follow pr-documentation skill if opening a PR.
+3. In an authorized isolated environment, validate Supabase email verification and real Resend inbox delivery. Review migration `20261103033258_guest_event_rsvp.sql`, sender configuration and one-hour auth expiry. Production rollout requires its own authorization, migration before the new admin query, configuration flags and explicit per-event opt-in.
+
+## Open decisions / known limits
+
+- Existing events are not automatically opened to guests. The intended pilot event must be enabled explicitly after rollout approval.
+- No production send or hosted auth verification has been exercised. Attendance is not inferred from RSVP or conversion.
+- Local fixture event ends November 3, 2026; adjust fixture timestamps for later QA sessions. Tests use no live integrations.
+- Existing Next.js middleware deprecation warning remains. No dependency updates were attempted.
+- Tin Can relay remained unreachable. A concise milestone request to Cornbot failed to send; retry later. No Notion edit was made.
+- Active media-intake worktree and its unrelated credential file were left untouched. Its prior checkpoint is retained below.
+
+## References
+
+- Branch: `feature/guest-event-rsvp`; no PR yet. Local implementation commit is the commit containing this checkpoint.
+- Owning worktree: `Code/IPN-Member-Portal-guest-rsvp`.
+- Documentation: `docs/guest-event-rsvp/README.md`.
+
+---
+
 # IPN Member Portal — current checkpoint
 
 ## Status

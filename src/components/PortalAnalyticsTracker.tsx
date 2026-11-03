@@ -14,13 +14,13 @@ function pathEvent(pathname: string): PortalAnalyticsEventName | null {
 function InnerPortalAnalyticsTracker() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const trackingDisabled = process.env.NODE_ENV !== "production"
+  const trackingDisabled = process.env.NODE_ENV !== "production" || pathname.startsWith("/events/rsvp/") || pathname.startsWith("/auth/")
   const currentPathRef = useRef("")
   const pageStartedAtRef = useRef<number | null>(null)
   const clickCountRef = useRef(0)
 
   useEffect(() => {
-    if (trackingDisabled) return
+    if (trackingDisabled) { currentPathRef.current = ""; return }
     const search = searchParams.toString()
     const pagePath = `${pathname}${search ? `?${search}` : ""}`
     const previousPath = currentPathRef.current

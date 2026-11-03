@@ -54,6 +54,7 @@ export type AdminContentPayload = {
   externalEventId?: string
   requiresVerifiedTicket?: boolean
   registrationReminderEnabled?: boolean
+  guestRsvpEnabled?: boolean
   recordingProvider?: string
   recordingCategory?: string
   sourceId?: string
@@ -452,6 +453,7 @@ export async function publishAdminContent(
       registration_provider: isRecording ? null : clean(payload.registrationProvider),
       external_event_id: isRecording ? null : clean(payload.externalEventId),
       requires_verified_ticket: isRecording ? false : Boolean(payload.requiresVerifiedTicket),
+      guest_rsvp_enabled: !isRecording && !payload.requiresVerifiedTicket && !clean(payload.registrationUrl) && payload.guestRsvpEnabled === true,
       registration_reminder_enabled: isRecording
         ? false
         : payload.registrationReminderEnabled !== false,
@@ -575,6 +577,7 @@ export type AdminEventSummary = {
   external_event_id: string | null
   requires_verified_ticket: boolean
   registration_reminder_enabled: boolean
+  guest_rsvp_enabled: boolean
   is_recording: boolean
   recording_url: string | null
   recording_provider: string | null
@@ -606,7 +609,7 @@ export async function listAdminEvents(): Promise<AdminEventSummary[]> {
   const admin = createAdminClient()
   const { data } = await admin
     .from("events")
-    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, chat_platform, chat_external_url, chat_status, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, registration_reminder_enabled, is_recording, recording_url, recording_provider, recording_category, recording_published_at, speaker_resources, status")
+    .select("id, slug, title, event_type, starts_at, ends_at, timezone, summary, description, speakers, location_label, location_details, join_url, chat_platform, chat_external_url, chat_status, thumbnail_url, registration_url, registration_provider, external_event_id, requires_verified_ticket, guest_rsvp_enabled, registration_reminder_enabled, is_recording, recording_url, recording_provider, recording_category, recording_published_at, speaker_resources, status")
     .order("starts_at", { ascending: true })
     .limit(200)
   return (data ?? []) as AdminEventSummary[]

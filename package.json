@@ -22,7 +22,9 @@
     "qa:install": "playwright install chromium",
     "qa:local": "playwright test -c playwright.workflows.config.ts",
     "workflow:dev": "node scripts/workflow-dev.mjs",
-    "clean": "node scripts/clean.mjs"
+    "clean": "node scripts/clean.mjs",
+    "guest-events:dev": "node scripts/guest-events-dev.mjs",
+    "qa:guest-events": "playwright test -c playwright.guest-events.config.ts"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",
