@@ -1,3 +1,11 @@
+# Daily sync Slack failure alerts — November 3, 2026
+
+Status: implemented locally with user authorization to notify #portal-analytics and tag Justin. Independent workflow_run notifier covers failed, cancelled, timed-out and abnormal completed Content sync runs on main; successful runs remain quiet. Uses existing SLACK_ANALYTICS_WEBHOOK_URL; Justin U061Z7YC3DX confirmed through Slack. Manual dispatch sends a clearly labeled delivery test without imports. No checkout/artifacts, permissions empty, bounded delivery retries. Daily sync now has a five-minute job limit and 60-second content request limit.
+
+Validation: parsed workflow YAML, exercised actual shell payload with mock curl for failure/cancel/timeout, mention/link, manual test, missing secret and rejected delivery; all pass. Daily cron unchanged. Independent review GO. Workflow-only change; no web application or UI changes. Next: publish PR, send labeled delivery test, verify channel message. Known limit: no detection of a schedule that never starts or alerts blocked by GitHub/Slack outage.
+
+---
+
 # Daily publication sync — November 3, 2026
 
 Status: implemented and verified locally; publishing with owner authorization. GitHub workflow runs at 11:17 UTC daily (06:17 EST / 07:17 EDT) for Substack and newsletters. Existing hourly Netlify job now runs only YouTube/Eventbrite/ended-event operations, preserving timely ticket access. Website refresh unchanged. Lockfile install, browser runtime, lint, production build, seven focused tests and eight desktop/mobile browser routes pass; no page/console errors. Independent review GO. Next: merge PR, verify production schedule and run workflow once. No open decisions; existing framework middleware warning remains.
