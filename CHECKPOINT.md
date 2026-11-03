@@ -1,3 +1,7 @@
+# Production release — November 3, 2026
+
+PR #70 merged with Justin's explicit approval at 13:02:59 UTC, merge commit `b8d234d47971106629e8f847fbc51a530243cd5f`. Production event now exposes member and guest RSVP dialogs, with full description, unchecked invitation consent and no test UI. Live browser warning/error logs empty. No form submitted yet: awaiting Justin's test recipient for actual RSVP/email delivery verification. Do not claim end-to-end delivery passed. Next: submit one authorized test RSVP, verify persisted record and delivery, then update this checkpoint. Prior release preparation follows.
+
 # Event RSVP — production-ready PR #70
 
 ## Status
