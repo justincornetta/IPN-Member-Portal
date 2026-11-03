@@ -1,0 +1,44 @@
+name: Content sync failure alert
+
+on:
+  workflow_run:
+    workflows: ["Content sync"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: # Sends a clearly labeled delivery test; does not run imports.
+
+permissions: {}
+
+jobs:
+  notify:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(fromJSON('["failure","cancelled","timed_out","action_required","startup_failure","stale"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      # No checkout or execution of code/artifacts from the triggering run.
+      - name: Notify Justin in portal-analytics
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ANALYTICS_WEBHOOK_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SYNC_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          ALERT_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "SLACK_ANALYTICS_WEBHOOK_URL is missing; alert cannot be delivered."
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TEXT="<@U061Z7YC3DX> *TEST: Portal daily sync failure alerts* — delivery check only. No sync failed and no imports were run by this test. Future failures will be posted here and tag you. <${ALERT_RUN_URL}|View alert test>"
+          else
+            TEXT="<@U061Z7YC3DX> *Portal daily content sync needs attention* — result: ${CONCLUSION}. Newsletter or article updates may be incomplete. <${SYNC_RUN_URL}|View the sync run and failed steps>. Check the error and rerun after fixing it."
+          fi
+          jq -n --arg text "$TEXT" '{text: $text, unfurl_links: false, unfurl_media: false}' > /tmp/slack-alert.json
+          # Bounded retries for transient failures; no raw API errors or secrets in Slack.
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --retry 2 --retry-delay 3 --retry-max-time 100 \
+            -H 'Content-Type: application/json' --data-binary @/tmp/slack-alert.json \
+            "$SLACK_WEBHOOK_URL"
