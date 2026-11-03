@@ -27,3 +27,7 @@ The implementation deliberately uses native responsive layouts, real event times
 The preview uses local memory and simulated member states; real auth, database persistence and delivery are replaced only at the service boundary. The actual RSVP UI and email renderer are shared. Unchanged location details and related events are absent in the fixture and inspected in source. Next's development indicator is preview-only. No production delivery claim is made by this review.
 
 Evidence: `screenshots/{1440,1280,390}-{landing,form,confirmation,optional-signup,signup-sent,member}.png`, `screenshots/email-*.png`, `screenshots/manage-rsvp.png`, `screenshots/join-dark-system.png`, and `screenshots/retry-error.png`.
+
+## Full-description correction — November 2, 2026
+
+Restored both original description paragraphs in the local fixture from Justin’s screenshot. The public renderer already used the complete stored description. Refreshed the existing 1440/1280/390 full-page evidence and checked the final sentence remains visible without clipping. No other layout or email changes in this follow-up.

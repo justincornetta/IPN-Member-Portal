@@ -2,10 +2,11 @@
 
 ## Status
 
-Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9e0787`, in `Code/IPN-Member-Portal-guest-rsvp`. Publishing approval pending. No production database migration, live email, push, PR or deployment in this session.
+Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9e0787`, in `Code/IPN-Member-Portal-guest-rsvp`. Justin approved publishing this branch and opening a PR after restoring the complete event description. No merge, production migration or live email authorized.
 
 ## Last session — November 2, 2026
 
+- Follow-up: restored both full original event-description paragraphs from Justin’s screenshot. The public renderer already preserved stored descriptions; the local fixture was abbreviated. Rechecked full text and wrapping at desktop and phone widths.
 - Justin selected inline RSVP on the existing event page and explicitly retained the current portal styling, without the new brand guidelines.
 - Audited the public event/login/registration path and retained screenshots. Generated and implemented the selected light-style inline concept.
 - Added guest RSVP with first name, last name and email; direct join/calendar access after confirmation; optional prefilled email-link IPN signup; expired-link recovery; one-click signed-in RSVP.
@@ -17,8 +18,8 @@ Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9
 
 ## Next steps
 
-1. Justin reviews the local event and email previews at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
-2. Obtain explicit approval before push/PR. Flag auth/schema changes for Luke during review; follow pr-documentation skill if opening a PR.
+1. Complete the approved push and PR after local QA. Keep the event and email previews available at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
+2. Flag auth/schema changes for Luke in the PR; no merge without Justin’s separate approval.
 3. In an authorized isolated environment, validate Supabase email verification and real Resend inbox delivery. Review migration `20261103033258_guest_event_rsvp.sql`, sender configuration and one-hour auth expiry. Production rollout requires its own authorization, migration before the new admin query, configuration flags and explicit per-event opt-in.
 
 ## Open decisions / known limits

@@ -1,6 +1,6 @@
 # Guest event RSVP and optional IPN signup
 
-Status: implemented locally on `feature/guest-event-rsvp`; not published. No production migration, account creation or real email send has been performed.
+Status: implemented on `feature/guest-event-rsvp`; Justin approved publishing and opening a PR after the full-description correction. No production migration, account creation or real email send has been performed.
 
 ## Decision and scope
 
@@ -21,7 +21,7 @@ Run `npm ci`, `npm run qa:install`, then `npm run guest-events:dev`.
 - Optional account signup: http://127.0.0.1:4331/join
 - Expired link recovery: http://127.0.0.1:4331/join?expired=1
 
-The development launcher strips integration credentials, uses in-memory registrations, and disables email delivery. The preview join link deliberately goes to example.com. Demo behavior is disabled in production. The fixture reproduces the November 3, 2026 event and will stop accepting RSVPs after its end; update fixture dates for future QA sessions. The existing location-details and related-events sections are omitted from the fixture but unchanged in the application.
+The development launcher strips integration credentials, uses in-memory registrations, and disables email delivery. The preview join link deliberately goes to example.com. Demo behavior is disabled in production. The fixture includes both complete original event-description paragraphs supplied by Justin. The fixture reproduces the November 3, 2026 event and will stop accepting RSVPs after its end; update fixture dates for future QA sessions. The existing location-details and related-events sections are omitted from the fixture but unchanged in the application.
 
 ## Emails and identity
 
@@ -47,9 +47,9 @@ Locked dependencies and the repo browser runtime installed successfully. Lint, p
 
 The migration was executed against local PGlite with private-role checks, duplicate/consent/outbox assertions, verified-email linking, count preservation, bounded leases and transaction rollback on cancellation failure. Email delivery uses a mock Resend client in tests. Actual hosted Supabase verification and Resend inbox delivery remain deployment-stage checks. No attendance data was collected; RSVP and portal conversion must not be presented as attendance.
 
-## Publishing and rollout — pending approval
+## Publishing and rollout
 
-Repository instructions require Justin's approval before pushing/opening a PR. Auth/schema ownership should be flagged for Luke during review. This branch is based on `origin/main` at `c9e0787` and is isolated from the active media-intake worktree.
+Justin approved pushing/opening a PR on November 2, 2026, after restoring the complete description. Merge and production rollout remain separate decisions. Auth/schema ownership should be flagged for Luke during review. This branch is based on `origin/main` at `c9e0787` and is isolated from the active media-intake worktree.
 
 After publishing approval, review/deploy the additive migration `supabase/migrations/20261103033258_guest_event_rsvp.sql` before deploying the new admin event query. Existing events default to guest RSVP disabled. `supabase/schema.sql` remains the older bootstrap snapshot; this additional migration is required for new installations as well.
 

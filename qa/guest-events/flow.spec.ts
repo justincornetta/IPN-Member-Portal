@@ -8,6 +8,7 @@ for(const width of [1440,1280,390])test(`guest flow and member states at ${width
   page.on("console",m=>{if(m.type()==="error")errors.push(m.text())})
   await page.goto("/events/guest-rsvp-preview")
   await expect(page.getByRole("heading",{name:"RSVP free",exact:true})).toBeVisible()
+  await expect(page.getByText(/Before his involvement in IPN and counselor education at UCF/)).toContainText("community support and ancient mind-body practices.")
   await page.screenshot({path:`${dir}/${width}-landing.png`,fullPage:true})
   await page.getByRole("button",{name:"RSVP free",exact:true}).click()
   await expect(page.getByLabel("First name",{exact:true})).toBeFocused()
