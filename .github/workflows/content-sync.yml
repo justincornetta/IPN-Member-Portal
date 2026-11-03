@@ -27,6 +27,7 @@ jobs:
           fi
 
       - name: Import and verify published newsletters
+        if: ${{ !cancelled() }}
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           CONTENT_SYNC_SECRET: ${{ secrets.CONTENT_SYNC_SECRET }}
