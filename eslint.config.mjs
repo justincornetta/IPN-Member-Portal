@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     ".netlify/**",
     ".qa-guest/**",
+    ".qa-news/**",
     ".vercel/**",
   ]),
 ]);

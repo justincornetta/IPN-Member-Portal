@@ -56,3 +56,5 @@ next-env.d.ts
 /supabase/.temp/
 
 /.qa-guest/
+
+/.qa-news/
