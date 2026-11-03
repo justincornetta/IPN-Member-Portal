@@ -13,11 +13,11 @@ Justin approved removing test-specific features and updating PR #70 so the appro
 - Enabled guest RSVP only for the published Global Psychedelic Week pilot. Read-only checks found zero guest registrations and zero email jobs. No live test account, RSVP or email was created. Current production code stays unchanged until merge/deploy.
 - Added a production build prerequisite check for configuration/schema. Read-only production schema check passed; live email/provider authentication was not tested.
 - Locked dependencies/browser runtime installed. Lint, production build, 73 focused checks and ten desktop/phone browser workflows passed. Fresh independent design review: GO, no warnings/errors or material blockers. Test counts are passing automated cases, not conversion/attendance metrics.
-- Updating the authorized PR with current release documentation and screenshots; hosted read-only verification follows publication.
+- Published cleanup commit `30ea3c2` to PR #70 and rewrote the PR description/screenshots for production. Netlify deploy `6ae9d800fe34d14f80327fa5` is ready. Read-only hosted checks: event loads with full description and real member state, no test banner/credentials, removed routes return 404, guest button absent in the logged-out preview as expected. Browser warning/error logs empty; no live forms submitted.
 
 ## Next steps
 
-1. Finish PR update and verify refreshed deploy preview without submitting forms. Record the commit/deploy result below.
+1. Review the updated PR and current deployment evidence; code and configuration are ready for the merge decision.
 2. Justin reviews/merges when ready; Luke should review auth/schema changes. No merge authorization supplied.
 3. After deployment, monitor real guest email jobs and scheduled worker. Live auth/provider delivery remains unexercised; never represent mock testing as inbox delivery verification.
 
@@ -28,7 +28,7 @@ Justin approved removing test-specific features and updating PR #70 so the appro
 - Other events stay guest-disabled until individually enabled. Opt-in checkbox permits one post-event membership invitation, not future-event/newsletter subscription.
 - Signing-key rotation invalidates guest management links. Disabling flags stops guest enrollment and delivery; preserve the outbox ledger during rollback.
 - Existing Next.js middleware deprecation warning remains. Unrelated media worktree/credential files were not changed.
-- Tin Can relay unavailable earlier this session; milestone sync will be retried. Notion is not edited directly.
+- Tin Can milestone update to Cornbot failed with relay timeout. Notion sync remains pending; no direct Notion edit.
 
 ## References
 
