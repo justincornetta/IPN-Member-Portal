@@ -1,4 +1,4 @@
-import type { Config } from "@netlify/functions"
+import type { Config, Context } from "@netlify/functions"
 import {
   memberNotificationMode,
   processPendingMemberNotifications,
@@ -38,7 +38,9 @@ async function requestedEventSlug(request: Request) {
   }
 }
 
-export default async function queueMemberEventNotification(request: Request) {
+export default async function queueMemberEventNotification(request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), {
       status: 405,

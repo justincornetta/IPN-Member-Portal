@@ -43,3 +43,11 @@ Functional QA checks native modal containment, explicit Tab wrapping, initial fi
 The local login fixture does not refresh its header identity because no session is created; actual login uses Supabase cookies. Source inspection confirmed unchanged location/related-event rendering. Real hosted auth, email and database delivery remain outside visual-review coverage. Member actions now remain available independently of guest enrollment. Preview deployment still uses the connected backend for actual member actions, so automated testing stays on the local fixture.
 
 New evidence: `screenshots/{1440,1280,390}-login-modal.png`, `*-login-confirmed.png`, updated `*-form.png` and landing/confirmation captures, `390-short-modal.png`, `member-rsvp-retry.png`. No accepted design exceptions.
+
+## Isolated hosted sandbox — November 3, 2026
+
+Fresh read-only reviewer: **GO**, no material UX blockers. Reviewed full-page 1440/1280/390 screenshots, complete description/footer, signed-in and guest states, optical action spacing and preview banner purpose. Fresh Chrome tests confirmed guest RSVP, simulated signup, personalized inbox, cancellation, member login/automatic RSVP and one-click signed-in RSVP. Keyboard submit, Escape and focus restoration worked; no browser warnings/errors. Phone modal fit and no horizontal overflow were verified.
+
+Evidence: `screenshots/sandbox-{1440,1280,390}-{landing,signup,inbox}.png`; four production-build sandbox browser checks and ten existing browser checks pass. The initial inbox captures had unpainted lower frames despite correct live behavior; QA now scrolls through all four frames and waits for their headings before capture. Test-mode navigation originally retained success state; full-page sandbox navigation now resets it.
+
+Preview-only differences: explicit test banner, fixture event/member credentials, browser-local 24-hour cookies, immediate email templates, simulated signup completion and sample joining link. No production account/email/database is exercised. Backend isolation is covered separately by 47 focused checks, including client refusal, sender suppression and Netlify background-handler boundaries. No accepted design exceptions.

@@ -6,6 +6,12 @@ Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9
 
 ## Last session — November 3, 2026
 
+- Justin explicitly authorized enabling the hosted guest preview with no production data changes or real email. PR #70 now has a build-scoped sandbox at the original event landing-page URL, plus `/event-preview/emails` as a preview inbox. This supersedes the earlier hosted-live-backend limitation below.
+- Activation requires deploy-preview context, review ID 70 and the existing feature branch. It uses fixture event data and browser-specific 24-hour test cookies; no Supabase project/migration, production event flag or hosting credential was changed. Real login cookies are ignored; sample credentials remain `member@example.com` / `preview-password`.
+- Guest RSVP, cancellation/unsubscribe and optional signup are simulated. Inbox templates are immediately available and personalized from the browser’s latest test RSVP; real verification, scheduling and delivery remain integration-stage gaps. Signup explicitly confirms that no account/email was created.
+- Database/auth client factories refuse sandbox access; route allowlist blocks generic portal/auth/API writes; analytics is disabled; guest sender remains off even with inherited live flags. Netlify background functions independently reject deploy-preview invocations using platform context.
+- Normal production build and the sandbox production build pass. All 47 focused checks, four sandbox browser workflows at 1440/1280/390 px and ten existing browser workflows pass; lint/diff checks pass. Fixed test-mode switching retaining prior client state by making sandbox navigation reload the page. Fresh read-only design review returned GO after complete-page desktop/phone and live interaction review.
+
 - Implemented Justin’s approved revision: separate member sign-in/RSVP and guest RSVP dialogs. Successful event-specific login automatically saves the RSVP on the same page; signed-in members use one click. Generic sign-in does not enroll anyone.
 - Preserved the complete description and existing styling. Member RSVP works independently of the guest enrollment flag. Server actions resolve the event, recheck eligibility/session/account restrictions and reuse the idempotent member registration service.
 - Added invalid-login feedback, signed-in retry after RSVP failure, session-expiry recovery, focus containment/restoration, Escape/backdrop dismissal, password clearing and short-phone scrolling.
@@ -27,7 +33,7 @@ Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9
 
 ## Next steps
 
-1. Review PR #70 and its Netlify preview. The complete local event/email previews remain available at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
+1. Review PR #70 and its isolated hosted sandbox, including the preview inbox. The complete local event/email previews remain available at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
 2. Flag auth/schema changes for Luke in the PR; no merge without Justin’s separate approval.
 3. In an authorized isolated environment, validate Supabase email verification and real Resend inbox delivery. Review migration `20261103033258_guest_event_rsvp.sql`, sender configuration and one-hour auth expiry. Production rollout requires its own authorization, migration before the new admin query, configuration flags and explicit per-event opt-in.
 

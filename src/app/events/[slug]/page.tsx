@@ -8,7 +8,7 @@ import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord } from "@/lib/events/types"
 import icon from "../../../../assets/purple_icon.png"
 import GuestRsvp from "@/components/events/GuestRsvp"
-import { demoEvent, demoSlug, guestDemoEnabled } from "@/lib/guest-events/demo"
+import { demoEvent, demoEventSlug, guestDemoEnabled } from "@/lib/guest-events/demo"
 import { guestFeatureEnabled } from "@/lib/guest-events/service"
 import { guestRsvpAvailable, memberRsvpAvailable, safeWebUrl } from "@/lib/guest-events/domain"
 import { buildGoogleCalendarUrl, formatEventDateTime } from "@/lib/events/calendar"
@@ -21,7 +21,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  if (guestDemoEnabled() && slug === demoSlug) return { title: `${demoEvent.title} | IPN` }
+  if (guestDemoEnabled() && demoEventSlug(slug)) return { title: `${demoEvent.title} | IPN` }
   const admin = createAdminClient()
   const { data } = await admin
     .from("events")
@@ -46,14 +46,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicEventPage({ params, searchParams }: Props) {
   const { slug } = await params
-  const demo = guestDemoEnabled() && slug === demoSlug
+  const demo = guestDemoEnabled() && demoEventSlug(slug)
   const previewView = demo ? (await searchParams)?.view : undefined
   const admin = demo ? null : createAdminClient()
   const supabase = demo ? null : await createClient()
   const now = new Date().toISOString()
 
   const [{ data: event }, { data: { user } }, { data: otherEvents }] = await Promise.all([
-    demo ? Promise.resolve({ data: demoEvent }) : admin!
+    demo ? Promise.resolve({ data: { ...demoEvent, slug } }) : admin!
       .from("events")
       .select("*")
       .eq("slug", slug)

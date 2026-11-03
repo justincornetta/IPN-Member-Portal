@@ -1,8 +1,10 @@
-import type { Config } from "@netlify/functions"
+import type { Config, Context } from "@netlify/functions"
 import { processDueEventReminders } from "../../src/lib/events/email-service"
 import { processGuestEventEmails } from "../../src/lib/guest-events/service"
 
-export default async function sendEventReminders() {
+export default async function sendEventReminders(_request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   try {
     const [result, guestResult] = await Promise.all([processDueEventReminders(), processGuestEventEmails()])
     console.log("[send-event-reminders]", JSON.stringify(result))

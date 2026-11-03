@@ -235,3 +235,71 @@ test("public member RSVP preserves the portal account-ban restriction",async()=>
  const result=await h.rsvpFromEventPage("test")
  assert.equal(result.ok,undefined);assert.equal(result.joinUrl,undefined);assert.equal(h.calls.length,0)
 })
+
+test("hosted sandbox is compiled only for PR 70 on its approved branch",()=>{
+ const keys=["CONTEXT","REVIEW_ID","BRANCH"]
+ const saved=keys.map(k=>process.env[k])
+ try {
+  for(const [context,id,branch,expected] of [["production","70","feature/guest-event-rsvp","0"],["deploy-preview","71","feature/guest-event-rsvp","0"],["deploy-preview","70","main","0"],["deploy-preview","70","feature/guest-event-rsvp","1"]]){
+   [process.env.CONTEXT,process.env.REVIEW_ID,process.env.BRANCH]=[context,id,branch]
+   assert.equal(load("next.config.ts").default.env.IPN_GUEST_SANDBOX_ENABLED,expected)
+  }
+ }finally{keys.forEach((k,i)=>saved[i]===undefined?delete process.env[k]:process.env[k]=saved[i])}
+})
+
+test("hosted sandbox refuses database/auth clients before accessing credentials",async()=>{
+ const saved=process.env.IPN_GUEST_SANDBOX_ENABLED;process.env.IPN_GUEST_SANDBOX_ENABLED="1"
+ const fail=()=>{throw new Error("LIVE CLIENT REACHED")}
+ try {
+  assert.throws(()=>load("src/lib/supabase/admin.ts",{"@supabase/supabase-js":{createClient:fail}}).createAdminClient(),/disabled in/)
+  await assert.rejects(()=>load("src/lib/supabase/server.ts",{"@supabase/ssr":{createServerClient:fail},"next/headers":{cookies:async()=>({})}}).createClient(),/disabled in/)
+  assert.throws(()=>load("src/lib/supabase/client.ts",{"@supabase/ssr":{createBrowserClient:fail}}).createClient(),/disabled in/)
+ }finally{if(saved===undefined)delete process.env.IPN_GUEST_SANDBOX_ENABLED;else process.env.IPN_GUEST_SANDBOX_ENABLED=saved}
+})
+
+test("hosted guest RSVP uses per-browser state and cannot deliver even if live flags are inherited",async()=>{
+ const keys=["IPN_GUEST_SANDBOX_ENABLED","GUEST_EVENT_EMAIL_MODE","CONTEXT"]
+ const saved=keys.map(k=>process.env[k]);[process.env.IPN_GUEST_SANDBOX_ENABLED,process.env.GUEST_EVENT_EMAIL_MODE,process.env.CONTEXT]=["1","live","production"]
+ let writes=0
+ try {
+  const svc=load("src/lib/guest-events/service.ts",{"../supabase/admin":{createAdminClient:()=>{throw new Error("LIVE DATABASE REACHED")}},"resend":{Resend:class{constructor(){throw new Error("LIVE EMAIL REACHED")}}},"./preview-store":{registerPreviewGuest:async()=>writes++}})
+  const result=await svc.submitGuestRsvp("global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",{firstName:"Test",lastName:"Guest",email:"guest@example.com"},new Request("https://preview.example"))
+  assert.equal(writes,1);assert.equal(result.demo,true);assert.equal(result.emailStatus,"preview")
+  assert.equal((await svc.processGuestEventEmails()).disabled,true)
+ }finally{keys.forEach((k,i)=>saved[i]===undefined?delete process.env[k]:process.env[k]=saved[i])}
+})
+
+test("sandbox cookies survive fresh module instances but remain separate between browsers",async()=>{
+ const saved=process.env.IPN_GUEST_SANDBOX_ENABLED;process.env.IPN_GUEST_SANDBOX_ENABLED="1"
+ const a=new Map(),b=new Map();let jar=a
+ const mocks={"next/headers":{cookies:async()=>({get:k=>jar.has(k)?{value:jar.get(k)}:undefined,set:(k,v,opts)=>{assert.equal(opts.httpOnly,true);assert.equal(opts.sameSite,"lax");jar.set(k,v)}})}}
+ try {
+  const one=load("src/lib/guest-events/preview-store.ts",mocks)
+  const first=await one.registerPreviewGuest({firstName:"Test",lastName:"Guest",email:"guest@example.com",marketingOptIn:true})
+  const two=load("src/lib/guest-events/preview-store.ts",mocks)
+  assert.equal((await two.readPreviewGuest()).id,first.id)
+  jar=b;assert.equal(await two.readPreviewGuest(),null)
+  jar=a;await two.savePreviewGuest({...first,cancelled_at:new Date().toISOString()});assert.ok((await one.readPreviewGuest()).cancelled_at)
+  jar.set("ipn-rsvp-sandbox","invalid");assert.equal(await one.readPreviewGuest(),null)
+ }finally{if(saved===undefined)delete process.env.IPN_GUEST_SANDBOX_ENABLED;else process.env.IPN_GUEST_SANDBOX_ENABLED=saved}
+})
+
+test("sandbox route allowlist rejects portal, callbacks, analytics and unrelated APIs",()=>{
+ const {previewPathAllowed}=load("src/lib/guest-events/preview-mode.ts")
+ for(const path of ["/dashboard","/api/analytics/track","/auth/callback","/login","/api/events/other-event/rsvp","/api/events/membership/extra"])assert.equal(previewPathAllowed(path),false,path)
+ for(const path of ["/join","/event-preview/emails","/api/events/membership","/events/guest-rsvp-preview"])assert.equal(previewPathAllowed(path),true,path)
+})
+
+test("all Netlify background handlers stop at the platform's deploy-preview boundary",async()=>{
+ const {readdirSync}=nativeRequire("node:fs")
+ for(const name of readdirSync(resolve(root,"netlify/functions"))){
+  if(!/\.(mts|ts)$/.test(name))continue
+  const source=readFileSync(resolve(root,"netlify/functions",name),"utf8")
+  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
+  const handlerModule={exports:{}}
+  const fail=()=>{throw new Error("BACKGROUND SIDE EFFECT REACHED: "+name)}
+  new Function("require","module","exports",compiled)(()=>new Proxy({},{get:()=>fail}),handlerModule,handlerModule.exports)
+  const result=await handlerModule.exports.default(new Request("https://preview.example"),{deploy:{context:"deploy-preview"}})
+  assert.equal(result.status,403,name)
+ }
+})

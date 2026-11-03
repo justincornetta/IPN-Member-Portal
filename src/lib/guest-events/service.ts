@@ -6,16 +6,19 @@ import type { GuestRegistration, GuestEmailKind } from "./domain"
 import { guestRsvpAvailable, parseGuestInput, safeWebUrl } from "./domain"
 import { rateKey, guestToken, readGuestToken } from "./tokens"
 import { renderGuestEmail } from "./email-content"
-import { demoEvent, demoFind, demoRegister, demoSlug, demoUpdate, guestDemoEnabled } from "./demo"
+import { demoEvent, demoEventSlug, demoFind, demoRegister, demoUpdate, guestDemoEnabled, previewGuest } from "./demo"
+import { hostedGuestPreview, previewOrigin } from "./preview-mode"
+import { readPreviewGuest, registerPreviewGuest, savePreviewGuest } from "./preview-store"
 
 export class GuestError extends Error { constructor(message:string,public status=400) { super(message) } }
 export function guestFeatureEnabled() {
   return guestDemoEnabled() || process.env.GUEST_EVENT_RSVP_ENABLED === "true"
 }
 export function guestLiveEmailEnabled() {
-  return process.env.GUEST_EVENT_EMAIL_MODE === "live" && process.env.CONTEXT === "production"
+  return !guestDemoEnabled() && process.env.GUEST_EVENT_EMAIL_MODE === "live" && process.env.CONTEXT === "production"
 }
 export function guestSiteUrl() {
+  if (hostedGuestPreview()) return previewOrigin()
   const raw = process.env.NEXT_PUBLIC_SITE_URL
   if (!raw) throw new Error("Guest event site URL is missing")
   const url = new URL(raw)
@@ -23,7 +26,7 @@ export function guestSiteUrl() {
   return url.origin
 }
 export async function readGuestEvent(slug: string): Promise<EventRecord | null> {
-  if (guestDemoEnabled()) return slug === demoSlug ? demoEvent : null
+  if (guestDemoEnabled()) return demoEventSlug(slug) ? { ...demoEvent, slug } : null
   const { data,error } = await createAdminClient().from("events").select("*").eq("slug",slug).eq("status","published").eq("is_recording",false).maybeSingle()
   if(error) throw error
   return data as EventRecord | null
@@ -62,7 +65,8 @@ export async function submitGuestRsvp(slug:string,input:unknown,request:Request)
   if(!guestDemoEnabled() && (!guestLiveEmailEnabled() || !process.env.RESEND_API_KEY))
     throw new GuestError("Registration is temporarily unavailable. Please try again shortly.",503)
   await checkGuestRate(request,clean.email,"rsvp:"+event.id)
-  if(guestDemoEnabled()) demoRegister(clean)
+  if(hostedGuestPreview()) await registerPreviewGuest(clean)
+  else if(guestDemoEnabled()) demoRegister(clean)
   else {
     // Check signing configuration before accepting a registration.
     guestToken(event.id)
@@ -72,11 +76,16 @@ export async function submitGuestRsvp(slug:string,input:unknown,request:Request)
     if(error) throw new GuestError("We couldn't save your RSVP. Please try again.",503)
   }
   return {ok:true,joinUrl:safeWebUrl(event.join_url),calendarUrl:buildGoogleCalendarUrl({...event,join_url:safeWebUrl(event.join_url)}),
-    emailStatus:"queued",demo:guestDemoEnabled()}
+    emailStatus:guestDemoEnabled()?"preview":"queued",demo:guestDemoEnabled()}
 }
 export async function readGuestAccess(token:string) {
   const id=readGuestToken(token)
   if(!id) return null
+  if(hostedGuestPreview()) {
+    const saved = await readPreviewGuest()
+    const guest = saved ?? previewGuest
+    return guest.id === id ? {guest,event:demoEvent} : null
+  }
   if(guestDemoEnabled()) {
     const guest=demoFind(id); return guest ? {guest,event:demoEvent} : null
   }
@@ -91,6 +100,7 @@ export async function updateGuestPreference(token:string,action:"unsubscribe"|"c
   const access=await readGuestAccess(token)
   if(!access) throw new GuestError("This link is not valid.",404)
   const update=action==="unsubscribe" ? {marketing_opt_in:false} : {cancelled_at:new Date().toISOString(),marketing_opt_in:false}
+  if(hostedGuestPreview()) { await savePreviewGuest({...access.guest,...update}); return }
   if(guestDemoEnabled()) { demoUpdate(access.guest.id,update); return }
   const db=createAdminClient()
   const {error}=await db.rpc("update_guest_event_preference",{p_id:access.guest.id,p_action:action})

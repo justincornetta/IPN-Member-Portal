@@ -11,8 +11,10 @@
  */
 
 import { createBrowserClient } from "@supabase/ssr"
+import { hostedGuestPreview } from "../guest-events/preview-mode"
 
 export function createClient() {
+  if (hostedGuestPreview()) throw new Error("Live authentication is disabled in the RSVP sandbox")
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

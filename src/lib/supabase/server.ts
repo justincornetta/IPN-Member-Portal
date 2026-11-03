@@ -13,9 +13,11 @@
 
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { hostedGuestPreview } from "../guest-events/preview-mode"
 
 export async function createClient() {
   const cookieStore = await cookies()
+  if (hostedGuestPreview()) throw new Error("Live authentication is disabled in the RSVP sandbox")
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

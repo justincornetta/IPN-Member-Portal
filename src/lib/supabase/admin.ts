@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { hostedGuestPreview } from "../guest-events/preview-mode"
 
 declare const Netlify:
   | {
@@ -16,6 +17,7 @@ function env(name: string) {
 }
 
 export function createAdminClient() {
+  if (hostedGuestPreview()) throw new Error("Live database access is disabled in the RSVP sandbox")
   const url = env("NEXT_PUBLIC_SUPABASE_URL")
   const serviceRoleKey = env("SUPABASE_SERVICE_ROLE_KEY")
   if (!url || !serviceRoleKey) {

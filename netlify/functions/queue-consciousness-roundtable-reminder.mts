@@ -1,4 +1,4 @@
-import type { Config } from "@netlify/functions"
+import type { Config, Context } from "@netlify/functions"
 import { queueEventRegistrationReminderNow } from "../../src/lib/member-notifications/email-service"
 
 const EVENT_ID = "7dc2bd55-4852-49be-a53c-9d5c60f4d7a0"
@@ -12,7 +12,9 @@ export function consciousnessRoundtableReminderIsDue(now: Date) {
   )
 }
 
-export default async function queueConsciousnessRoundtableReminder() {
+export default async function queueConsciousnessRoundtableReminder(_request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   const now = new Date()
   if (!consciousnessRoundtableReminderIsDue(now)) {
     return new Response(JSON.stringify({ ok: true, skipped: "outside one-off send date" }), {

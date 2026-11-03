@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js"
-import type { Config } from "@netlify/functions"
+import type { Config, Context } from "@netlify/functions"
 import { drainJobs } from "../../src/lib/leadership-workflows/worker"
-export default async function leadershipWorkflowRetries() {
+export default async function leadershipWorkflowRetries(_request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   if (Netlify.env.get("WORKFLOW_INTEGRATION_MODE") !== "live")
     return new Response("Disabled")
   const url = Netlify.env.get("NEXT_PUBLIC_SUPABASE_URL"),

@@ -1,3 +1,4 @@
+import type { Context } from "@netlify/functions"
 import { runContentSync } from "../../src/lib/sync/content"
 
 declare const Netlify:
@@ -29,7 +30,9 @@ function isSecretAuthorized(request: Request) {
   return Boolean(secret && (headerSecret === secret || bearer === secret))
 }
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   if (!(await isScheduledInvocation(request)) && !isSecretAuthorized(request)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,

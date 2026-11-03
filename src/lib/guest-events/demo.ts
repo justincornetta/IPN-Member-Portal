@@ -1,9 +1,11 @@
 import type { EventRecord } from "../events/types"
 import type { GuestRegistration, GuestInput } from "./domain"
 import { randomUUID } from "node:crypto"
+import { hostedGuestPreview, previewEventSlug } from "./preview-mode"
 
-export function guestDemoEnabled() { return process.env.NODE_ENV !== "production" && process.env.GUEST_EVENT_LOCAL_DEMO === "1" }
+export function guestDemoEnabled() { return hostedGuestPreview() || (process.env.NODE_ENV !== "production" && process.env.GUEST_EVENT_LOCAL_DEMO === "1") }
 export const demoSlug = "guest-rsvp-preview"
+export function demoEventSlug(slug: string) { return slug === demoSlug || (hostedGuestPreview() && slug === previewEventSlug) }
 export const demoEvent = {
   id: "11111111-1111-4111-8111-111111111111", slug: demoSlug,
   title: "Global Psychedelic Week: So you want to be a psychedelic professional?",

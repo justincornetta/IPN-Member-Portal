@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import PortalAnalyticsTracker from "@/components/PortalAnalyticsTracker";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
+import { hostedGuestPreview } from "@/lib/guest-events/preview-mode";
+import PreviewBanner from "@/components/events/PreviewBanner";
+import { connection } from "next/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,18 +26,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The sandbox is browser-specific; never prerender live portal children at build time.
+  if (hostedGuestPreview()) await connection();
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full flex flex-col">
-        <PortalAnalyticsTracker />
+        {!hostedGuestPreview() && <PortalAnalyticsTracker />}
+        {hostedGuestPreview() && <PreviewBanner />}
         {children}
       </body>
     </html>

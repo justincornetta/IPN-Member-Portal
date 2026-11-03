@@ -1,3 +1,4 @@
+import type { Context } from "@netlify/functions"
 import { runPortalAnalyticsMaintenance } from "../../src/lib/portal-analytics/rollup"
 
 declare const Netlify:
@@ -44,7 +45,9 @@ async function getTrigger(request: Request, payload: { trigger?: unknown }) {
   return "manual"
 }
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   if (!isSecretAuthorized(request)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
