@@ -9,12 +9,13 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Trigger content sync
         run: |
           SITE_URL="${{ secrets.SITE_URL }}"
           SITE_URL="${SITE_URL%/}"
-          RESPONSE=$(curl -s -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/api/admin/sync-content" \
+          RESPONSE=$(curl --connect-timeout 10 --max-time 60 -sS -w "\n__HTTP_STATUS__%{http_code}" -X POST "${SITE_URL}/api/admin/sync-content" \
             -H "x-content-sync-secret: ${{ secrets.CONTENT_SYNC_SECRET }}" \
             -H "Content-Type: application/json")
           HTTP_STATUS=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS__[0-9]*' | grep -o '[0-9]*')
