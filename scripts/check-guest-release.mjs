@@ -9,7 +9,7 @@ if(process.env.GUEST_EVENT_RSVP_ENABLED!=="true" || process.env.GUEST_EVENT_EMAI
 if(process.env.GUEST_EVENT_TOKEN_SECRET.length<32)throw new Error("Guest RSVP signing secret must contain at least 32 characters.")
 if(new URL(process.env.NEXT_PUBLIC_SITE_URL).protocol!=="https:")throw new Error("Production site URL must use HTTPS.")
 const db=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
-for(const [table,columns] of [["events","id,guest_rsvp_enabled"],["guest_event_registrations","id"],["guest_event_email_deliveries","id"],["guest_event_rate_limits","bucket"]]){
+for(const [table,columns] of [["events","id,guest_rsvp_enabled"],["guest_event_registrations","id,slack_notification_claimed_at"],["guest_event_email_deliveries","id"],["guest_event_rate_limits","bucket"]]){
   const {error}=await db.from(table).select(columns).limit(0)
   if(error)throw new Error("Guest RSVP database setup is incomplete: "+table+". Apply the guest RSVP migration before release.")
 }
