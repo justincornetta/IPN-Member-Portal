@@ -126,3 +126,15 @@ export function summarizeRsvpJourneys(rows: RsvpJourney[]) {
     success: counts.submit ? Math.round(completed / counts.submit * 100) : null,
   }
 }
+
+// Reuse the final Zoom detail selection, after label overrides, exclusions and
+// shared filters. Match stable portal IDs, never event titles or guessed dates.
+export function rsvpJourneysForEventSelection(
+  journeys: RsvpJourney[],
+  portalEvents: { id: string; slug: string | null }[],
+  selectedEvents: { id: string; portalEventId?: string }[],
+) {
+  const ids = new Set(selectedEvents.flatMap(event => [event.id, event.portalEventId].filter(Boolean)))
+  const slugs = new Set(portalEvents.filter(event => ids.has(event.id)).map(event => event.slug).filter(Boolean))
+  return journeys.filter(journey => slugs.has(journey.eventSlug))
+}

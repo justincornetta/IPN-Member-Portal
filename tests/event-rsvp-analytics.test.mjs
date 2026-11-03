@@ -81,3 +81,12 @@ test('event cohorts use first retained session observation across paths and keep
  assert.equal(rows[0].sessionGroup,rows[1].sessionGroup)
  assert.notEqual(rows[0].sessionGroup,rows[2].sessionGroup)
 })
+
+test('RSVP report reuses the selected Zoom events by stable portal ID, including historical mappings', () => {
+ const journeys = core.buildRsvpJourneys([event('view','visitor','event-one'),event('submit','guest','event-two'),event('view','visitor','unmapped')])
+ const inventory = [{id:'p1',slug:'event-one'},{id:'p2',slug:'event-two'},{id:'p3',slug:null}]
+ assert.deepEqual(core.rsvpJourneysForEventSelection(journeys,inventory,[{id:'historical-zoom-id',portalEventId:'p1'}]).map(row=>row.eventSlug),['event-one'])
+ assert.deepEqual(core.rsvpJourneysForEventSelection(journeys,inventory,[{id:'p2'}]).map(row=>row.eventSlug),['event-two'])
+ assert.deepEqual(core.rsvpJourneysForEventSelection(journeys,inventory,[]),[])
+ assert.deepEqual(core.rsvpJourneysForEventSelection(journeys,inventory,[{id:'unmatched-title'}]),[])
+})

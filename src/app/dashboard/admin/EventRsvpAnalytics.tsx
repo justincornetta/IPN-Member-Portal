@@ -76,18 +76,16 @@ function EventDetail({ title, rows, members }: { title: string; rows: RsvpJourne
           <td className={`${cell} whitespace-nowrap`}>{member.lastAt ? new Date(member.lastAt).toISOString().slice(0, 16).replace('T', ' ') : '—'}</td>
         </tr>)}</tbody>
       </table>
-    </div> : <p className="rounded bg-white p-4 text-sm text-zinc-600">{memberRows.length ? 'No members match this search.' : 'No identified member activity recorded for this event in the selected dates. Guest activity remains in the totals above.'}</p>}
+    </div> : <p className="rounded bg-white p-4 text-sm text-zinc-600">{memberRows.length ? 'No members match this search.' : 'No identified member activity recorded for this event in the selected events. Guest activity remains in the totals above.'}</p>}
   </section>
 }
 
 export default function EventRsvpAnalytics({ journeys, members = [], eventTitles = {} }: {
   journeys: RsvpJourney[]; members?: Member[]; eventTitles?: Record<string, string>
 }) {
-  const [from, setFrom] = useState(''), [to, setTo] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const groups = new Map<string, RsvpJourney[]>()
   for (const row of journeys) {
-    if ((from && row.date < from) || (to && row.date > to)) continue
     const rows = groups.get(row.eventSlug) ?? []
     rows.push(row)
     groups.set(row.eventSlug, rows)
@@ -96,10 +94,6 @@ export default function EventRsvpAnalytics({ journeys, members = [], eventTitles
   return <section className="rounded-xl border border-zinc-200 bg-white p-5" aria-labelledby="event-rsvp-analytics-title">
     <h2 id="event-rsvp-analytics-title" className="text-lg font-semibold text-zinc-900">Event RSVP journey</h2>
     <p className="mt-2 text-sm leading-6 text-zinc-600">One row per event. Each stage counts a browser session once across all RSVP paths. Open an event to see its path breakdown and identified member activity. These observations are not unique attendees or the official RSVP total.</p>
-    <div className="my-4 flex flex-wrap gap-4">
-      <label className="text-sm text-zinc-700">Journey start from<input aria-label="RSVP journey from" className={field} type="date" value={from} onChange={event => setFrom(event.target.value)}/></label>
-      <label className="text-sm text-zinc-700">Through<input aria-label="RSVP journey through" className={field} type="date" value={to} onChange={event => setTo(event.target.value)}/></label>
-    </div>
     {groups.size > 0 && <p className="mb-2 text-xs text-zinc-500">Scroll horizontally for more metrics.</p>}
     {groups.size ? <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="RSVP journey results">
       <table className="w-full"><thead><MetricHeaders first="Event"/></thead><tbody>
@@ -115,8 +109,8 @@ export default function EventRsvpAnalytics({ journeys, members = [], eventTitles
           </th><MetricCells summary={summary}/></tr>
         })}
       </tbody></table>
-    </div> : <p className="rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">No RSVP journey activity recorded for these dates. Tracking starts when this update is deployed; earlier RSVPs are not backfilled.</p>}
+    </div> : <p className="rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">No RSVP journey activity recorded for events matching the filters above. Tracking starts when this update is deployed; earlier RSVPs are not backfilled.</p>}
     {selected && groups.has(selected) && <EventDetail key={selected} title={titleFor(selected)} rows={groups.get(selected)!} members={members}/>}
-    <p className="mt-3 text-xs leading-5 text-zinc-500">This section uses its own date filters and the portal’s retained analytics window. Dates filter the first retained session observation per event (UTC). Submission success is sessions recording both submission and confirmation ÷ sessions submitting. Repeat confirmations can include existing RSVPs. Account creations require registration success after the latest signup click in the same session; email verification and later sessions are not attributed. Join clicks do not establish attendance. Blocked analytics may undercount activity.</p>
+    <p className="mt-3 text-xs leading-5 text-zinc-500">Uses Zoom’s event date, program and type filters above. Granularity controls the time charts. Counts include retained activity for matching events, including actions before the event date. Submission success is sessions recording both submission and confirmation ÷ sessions submitting. Repeat confirmations can include existing RSVPs. Account creations require registration success after the latest signup click in the same session; email verification and later sessions are not attributed. Join clicks do not establish attendance. Blocked analytics may undercount activity.</p>
   </section>
 }

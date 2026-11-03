@@ -1,3 +1,21 @@
+# RSVP analytics moved into Zoom — November 3, 2026
+
+## Status
+Justin requested this revision to published PR [#78](https://github.com/justincornetta/IPN-Member-Portal/pull/78). Completed and locally verified; publishing to the same approved feature branch. No merge or production data changes.
+
+## Last session
+Moved Event RSVP journey from Member Portal Activity into Engagement → Zoom, directly above Zoom event detail. Removed its independent date controls. The report consumes the same final Zoom event selection after shared From/To event dates, Program, Type and saved label/exclusion overrides. Matches portal IDs including historical linked rows; no guessed title matching. Counts include retained observations for matching events, even before event date. Granularity continues to control time charts, while both event tables retain one row per event. Member search remains local to the drill-down.
+
+Locked dependencies/browser runtime installed; lint/build and 37 focused tests pass. All 15 browser scenarios verified (12 unchanged flows plus 3 integrated viewport checks after correcting test selectors for nested Zoom rows and native selects). Browser checks cover placement, absence of duplicate date inputs, both event lists under date/program/type, exclusions, URL/reload persistence, member search/empty states and removal from Member Portal Activity. Fresh design-review follow-up GO at 1440/1280/390 with no material blockers or console errors. Test fixture now renders the full existing analytics shell; it remains disposable/local-only. Screenshots and methodology refreshed.
+
+## Next steps / open decisions
+Publish revision to PR #78; confirm latest preview deploy. Preview: https://deploy-preview-78--ipn-member-portal.netlify.app/dashboard/admin?report=engagement&view=zoom . Local populated review: http://localhost:4331/rsvp-analytics-review?report=engagement&view=zoom . Admin sign-in required on hosted preview. Await separate merge decision.
+
+## Known limits
+Observed session analytics, not current RSVP roster/attendance. Existing 90-day retention, anonymous identity and same-session conversion limits remain. Granularity does not regroup per-event tables (same behavior as Zoom detail). Events not in the filtered Zoom inventory are omitted. No live RSVP/auth forms submitted. Existing middleware warning; Tin Can relay unavailable. Reference: `docs/guest-event-rsvp/analytics.md`.
+
+---
+
 # RSVP analytics PR published — November 3, 2026
 
 ## Status
