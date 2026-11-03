@@ -73,6 +73,8 @@ async function database(){
  create trigger member_count after insert or delete on event_registrations for each row execute function test_member_count();
  `)
  await db.exec(readFileSync(resolve(root,"supabase/migrations/20261103123749_guest_event_rsvp.sql"),"utf8"))
+ await db.exec(readFileSync(resolve(root,"supabase/migrations/20261103130712_guest_event_verified_email_permissions.sql"),"utf8"))
+ await db.exec("revoke all on auth.users from service_role")
  await db.query("insert into events(id,starts_at,ends_at,status,guest_rsvp_enabled) values($1,now()+interval '3 days',now()+interval '3 days 1 hour','published',true)",[event.id])
  return db
 }

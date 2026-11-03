@@ -1,3 +1,7 @@
+# Production RSVP verified — November 3, 2026
+
+Authorized guest test caught service_role lacking auth.users SELECT. Applied migration 20261103130712_guest_event_verified_email_permissions: only the two existing service-only verified-email functions use SECURITY DEFINER with pinned search_path; anon/member EXECUTE remains revoked. No broad auth table grant. Transactional rollback probe passed, then real browser retry saved one RSVP. Confirmation sent via Resend and verified in recipient Gmail inbox at 13:07:20 UTC. Invitation consent false; one-hour reminder pending, no invitation job. Live test remains active as authorized. Regression fixture now denies direct auth.users access to reproduce production permissions. Fix recorded on fix/guest-rsvp-auth-permissions for follow-up PR.
+
 # Production release — November 3, 2026
 
 PR #70 merged with Justin's explicit approval at 13:02:59 UTC, merge commit `b8d234d47971106629e8f847fbc51a530243cd5f`. Production event now exposes member and guest RSVP dialogs, with full description, unchecked invitation consent and no test UI. Live browser warning/error logs empty. No form submitted yet: awaiting Justin's test recipient for actual RSVP/email delivery verification. Do not claim end-to-end delivery passed. Next: submit one authorized test RSVP, verify persisted record and delivery, then update this checkpoint. Prior release preparation follows.
