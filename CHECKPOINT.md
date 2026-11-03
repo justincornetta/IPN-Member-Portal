@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9e0787`, in `Code/IPN-Member-Portal-guest-rsvp`. Justin approved publishing this branch and opening a PR after restoring the complete event description. No merge, production migration or live email authorized.
+Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9e0787`, in `Code/IPN-Member-Portal-guest-rsvp`. Justin approved publishing after the full-description correction. PR #70 is open: https://github.com/justincornetta/IPN-Member-Portal/pull/70 . No merge, production migration or live email authorized.
 
 ## Last session — November 2, 2026
 
@@ -18,7 +18,7 @@ Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9
 
 ## Next steps
 
-1. Complete the approved push and PR after local QA. Keep the event and email previews available at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
+1. Review PR #70 and its Netlify preview. The complete local event/email previews remain available at http://127.0.0.1:4331/events/guest-rsvp-preview and http://127.0.0.1:4331/event-preview/emails .
 2. Flag auth/schema changes for Luke in the PR; no merge without Justin’s separate approval.
 3. In an authorized isolated environment, validate Supabase email verification and real Resend inbox delivery. Review migration `20261103033258_guest_event_rsvp.sql`, sender configuration and one-hour auth expiry. Production rollout requires its own authorization, migration before the new admin query, configuration flags and explicit per-event opt-in.
 
@@ -33,7 +33,7 @@ Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9
 
 ## References
 
-- Branch: `feature/guest-event-rsvp`; no PR yet. Local implementation commit is the commit containing this checkpoint.
+- Branch: `feature/guest-event-rsvp`; PR: https://github.com/justincornetta/IPN-Member-Portal/pull/70 . Implementation `bbea351`; full-description correction `b555de6`.
 - Owning worktree: `Code/IPN-Member-Portal-guest-rsvp`.
 - Documentation: `docs/guest-event-rsvp/README.md`.
 

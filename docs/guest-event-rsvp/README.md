@@ -1,6 +1,6 @@
 # Guest event RSVP and optional IPN signup
 
-Status: implemented on `feature/guest-event-rsvp`; Justin approved publishing and opening a PR after the full-description correction. No production migration, account creation or real email send has been performed.
+Status: [PR #70](https://github.com/justincornetta/IPN-Member-Portal/pull/70) is open on `feature/guest-event-rsvp` after Justin approved publication and the complete-description correction. No production migration, account creation or real email send has been performed.
 
 ## Decision and scope
 
