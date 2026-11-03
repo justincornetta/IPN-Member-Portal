@@ -1,3 +1,9 @@
+# Guest RSVP Slack notifications — November 3, 2026
+
+Status: implemented on feature/guest-rsvp-slack from origin/main 7e17e2d; PR #72 open: https://github.com/justincornetta/IPN-Member-Portal/pull/72 . Guest RSVP now schedules a server-only Slack alert after response, parallel with email processing. Uses existing event RSVP webhook; labels guest status and includes name/email/event/type plus combined count. Atomic row claim prevents concurrent/retry duplicates; old rows are marked during migration to avoid backfill. Missing webhook/nonproduction disables sends. Slack failures are logged without identity/webhook and never block the RSVP; delivery is best-effort without automatic retry after uncertain results.
+
+Validation: locked dependencies/browser runtime installed; lint/build and 25 targeted tests pass. All ten desktop/mobile browser workflows passed. No live Slack message or production migration performed. Requires migration 20261103140000_guest_event_slack_claim.sql before production deployment; release check enforces its column. No UI changes/design review required. Next: review new PR, apply migration and merge when approved. Existing root history follows.
+
 # Production RSVP verified — November 3, 2026
 
 Authorized guest test caught service_role lacking auth.users SELECT. Applied migration 20261103130712_guest_event_verified_email_permissions: only the two existing service-only verified-email functions use SECURITY DEFINER with pinned search_path; anon/member EXECUTE remains revoked. No broad auth table grant. Transactional rollback probe passed, then real browser retry saved one RSVP. Confirmation sent via Resend and verified in recipient Gmail inbox at 13:07:20 UTC. Invitation consent false; one-hour reminder pending, no invitation job. Live test remains active as authorized. Regression fixture now denies direct auth.users access to reproduce production permissions. Fix recorded on fix/guest-rsvp-auth-permissions for follow-up PR.

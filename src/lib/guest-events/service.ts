@@ -60,15 +60,17 @@ export async function submitGuestRsvp(slug:string,input:unknown,request:Request)
   if((!guestLiveEmailEnabled() || !process.env.RESEND_API_KEY))
     throw new GuestError("Registration is temporarily unavailable. Please try again shortly.",503)
   await checkGuestRate(request,clean.email,"rsvp:"+event.id)
+  let registrationId: string | null = null
   {
     // Check signing configuration before accepting a registration.
     guestToken(event.id)
-    const {error}=await createAdminClient().rpc("register_guest_event",{
+    const {data,error}=await createAdminClient().rpc("register_guest_event",{
       p_event_id:event.id,p_first_name:clean.firstName,p_last_name:clean.lastName,p_email:clean.email,p_opt_in:clean.marketingOptIn
     })
     if(error) throw new GuestError("We couldn't save your RSVP. Please try again.",503)
+    registrationId=data
   }
-  return {ok:true,joinUrl:safeWebUrl(event.join_url),calendarUrl:buildGoogleCalendarUrl({...event,join_url:safeWebUrl(event.join_url)}),
+  return {registrationId,ok:true,joinUrl:safeWebUrl(event.join_url),calendarUrl:buildGoogleCalendarUrl({...event,join_url:safeWebUrl(event.join_url)}),
     emailStatus:"queued"}
 }
 export async function readGuestAccess(token:string) {
