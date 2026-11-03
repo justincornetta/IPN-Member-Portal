@@ -2,8 +2,8 @@ name: Content sync
 
 on:
   schedule:
-    # Refresh published content throughout the month.
-    - cron: "0 */6 * * *"
+    # One daily refresh at 11:17 UTC (06:17 EST / 07:17 EDT).
+    - cron: "17 11 * * *"
   workflow_dispatch: # allow manual trigger from GitHub UI
 
 jobs:
