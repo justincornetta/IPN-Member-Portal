@@ -42,7 +42,9 @@ export default async function handler(request: Request, context: Context) {
 
   const result = await runContentSync()
 
-  return new Response(JSON.stringify({ ok: true, result }), {
+  const ok = !Object.values(result).some(value => "error" in value)
+  return new Response(JSON.stringify({ ok, result }), {
+    status: ok ? 200 : 502,
     headers: { "content-type": "application/json" },
   })
 }

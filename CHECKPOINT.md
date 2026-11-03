@@ -1,3 +1,21 @@
+# Newsletter and Substack sync — November 3, 2026
+
+## Status
+Prepared and tested locally on `fix/automatic-newsletter-import`, checkout `Code/IPN-Member-Portal-content-sync`. Awaiting owner review before any push, PR, deployment or live import. Companion website checkout `website-redesign/Code/ipn-website-news-sync`, branch `fix/automatic-news-feeds`.
+
+## Last session
+Replaced credential/AI-dependent monthly import with public Mailchimp RSS ingestion, all available member issues, idempotent upsert and read-back verification. Six-hour job now waits for completion, runs all month and surfaces failures. Added November/October public-source fallback. Verified all four live Substack feed items already exist in production portal; improved internal failure reporting. Website now loads both public feeds via a cached same-origin endpoint, preserves static content on failure, and ships November in HTML.
+
+Portal locked dependencies/browser runtime, lint, production build and 12 focused tests pass. Website build, two endpoint tests, four Python tests and 1,803-reference audit pass. Eight desktop/phone browser routes plus three future-publication/outage scenarios pass. No browser errors. Persistence uses a test client; live writes/scheduler/CDN remain release verification, not completed tests.
+
+## Next steps / open decisions
+Owner reviews http://127.0.0.1:4341/dashboard , /dashboard/resources?tab=newsletters and http://127.0.0.1:8041/news/ . Publish only after approval. Then run/verify live import and scheduled completion, and check deployed website endpoint/cache behavior. No schema/auth changes.
+
+## Known issues / references
+Existing Next.js middleware deprecation warning. Website dynamic refresh needs JavaScript; no-JS sees saved November snapshot. Public feeds contain recent entries; static historical entries and newsletter archive link retained. November uses the actual email's animated website artwork. Tin Can relay unavailable; concise Notion milestone request attempted, no direct Notion edit. Full implementation, release limits and screenshots: `docs/news-sync/README.md`. No PR yet.
+
+---
+
 # Guest RSVP Slack notifications — November 3, 2026
 
 Status: implemented on feature/guest-rsvp-slack from origin/main 7e17e2d; PR #72 open: https://github.com/justincornetta/IPN-Member-Portal/pull/72 . Guest RSVP now schedules a server-only Slack alert after response, parallel with email processing. Uses existing event RSVP webhook; labels guest status and includes name/email/event/type plus combined count. Atomic row claim prevents concurrent/retry duplicates; old rows are marked during migration to avoid backfill. Missing webhook/nonproduction disables sends. Slack failures are logged without identity/webhook and never block the RSVP; delivery is best-effort without automatic retry after uncertain results.

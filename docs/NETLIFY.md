@@ -207,3 +207,7 @@ Use the existing Squarespace-managed `intercollegiatepsychedelics.net` domain. D
 ## Vercel deprecation
 
 Vercel is no longer the active deployment target. Keep the old Vercel project paused or disconnected to avoid duplicate public links and deploy confusion.
+
+## Newsletter imports
+
+See `docs/news-sync/README.md`. Published newsletter cards now use the public Mailchimp RSS archive, with no Mailchimp audience or OpenAI configuration. Existing credentials remain relevant to separate member and analytics integrations. The six-hour GitHub job calls the synchronous protected endpoint and verifies saved rows.

@@ -1,12 +1,10 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 import test from "node:test"
 import sharp from "sharp"
 
 import {
   buildNewsletterResource,
   findLatestNewsletterCampaign,
-  isAutomaticNewsletterSyncWindow,
 } from "../src/lib/sync/mailchimp-newsletter-core.ts"
 import {
   fallbackNewsletterSummary,
@@ -148,50 +146,4 @@ test("deterministic cover renderer creates the approved master and square sizes"
   ])
   assert.deepEqual([cover.width, cover.height], [900, 600])
   assert.deepEqual([square.width, square.height], [300, 300])
-})
-
-test("automatic newsletter polling is limited to the first five Eastern calendar days", () => {
-  assert.equal(
-    isAutomaticNewsletterSyncWindow(new Date("2026-09-05T23:59:59-04:00")),
-    true,
-  )
-  assert.equal(
-    isAutomaticNewsletterSyncWindow(new Date("2026-09-06T00:00:00-04:00")),
-    false,
-  )
-})
-
-test("the protected cron triggers a Mailchimp background job and exposes a manual dry run", () => {
-  const contentSync = readFileSync("src/lib/sync/content.ts", "utf8")
-  const route = readFileSync(
-    "src/app/api/admin/sync-newsletters/route.ts",
-    "utf8",
-  )
-  const workflow = readFileSync(".github/workflows/content-sync.yml", "utf8")
-  const background = readFileSync(
-    "netlify/functions/newsletter-sync-background.ts",
-    "utf8",
-  )
-  const newsletterSync = readFileSync(
-    "src/lib/sync/mailchimp-newsletters.ts",
-    "utf8",
-  )
-  const migration = readFileSync(
-    "supabase/migrations/20260901003145_mailchimp_newsletter_sync_idempotency.sql",
-    "utf8",
-  )
-
-  assert.doesNotMatch(contentSync, /syncLatestMailchimpNewsletter/)
-  assert.match(route, /CONTENT_SYNC_SECRET/)
-  assert.match(route, /defaultDryRun/)
-  assert.match(route, /defaultDryRun \|\|/)
-  assert.match(workflow, /0 \*\/6 \* \* \*/)
-  assert.match(workflow, /api\/background\/sync-newsletters/)
-  assert.match(background, /syncLatestMailchimpNewsletter/)
-  assert.match(background, /path: "\/api\/background\/sync-newsletters"/)
-  assert.match(background, /background: true/)
-  assert.match(newsletterSync, /reviewNewsletterCovers/)
-  assert.match(newsletterSync, /attempt <= 2/)
-  assert.match(newsletterSync, /failed visual quality review after two attempts/)
-  assert.match(migration, /resources_mailchimp_newsletter_source_id_uidx/)
 })

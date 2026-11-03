@@ -20,7 +20,8 @@ export async function POST(request: Request) {
 
   try {
     const result = await Promise.race([runContentSync(), timeout])
-    return NextResponse.json({ ok: true, result })
+    const ok = !Object.values(result).some(value => "error" in value)
+    return NextResponse.json({ ok, result }, { status: ok ? 200 : 502 })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("[sync-content] Unhandled error:", message)
