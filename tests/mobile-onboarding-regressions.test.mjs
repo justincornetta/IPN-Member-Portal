@@ -9,7 +9,7 @@ async function source(path) {
 }
 
 test("registration step changes reset scroll and focus an announced step heading", async () => {
-  const register = await source("src/app/register/page.tsx")
+  const register = await source("src/app/register/RegistrationForm.tsx")
 
   assert.match(register, /contentRef\.current\?\.scrollIntoView\(\{[\s\S]*?block: "start"/)
   assert.match(register, /prefers-reduced-motion: reduce/)
@@ -18,7 +18,7 @@ test("registration step changes reset scroll and focus an announced step heading
 })
 
 test("registration school guidance uses readable spacing and secondary contrast", async () => {
-  const register = await source("src/app/register/page.tsx")
+  const register = await source("src/app/register/RegistrationForm.tsx")
 
   assert.match(register, /mt-1\.5 text-xs leading-5 text-zinc-500[^>]*>Showing schools/)
 })

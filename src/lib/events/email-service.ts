@@ -2,6 +2,7 @@ import { Resend } from "resend"
 import { buildGoogleCalendarUrl, formatEventDateTime } from "./calendar"
 import type { EventRecord } from "./types"
 import { createAdminClient } from "../supabase/admin"
+import { guestFeatureEnabled } from "../guest-events/service"
 
 export type EventEmailKind =
   | "rsvp_confirmation"
@@ -518,6 +519,11 @@ async function sendEventEmail({
 
 async function loadEventRegistrationContext(eventId: string, userId: string) {
   const admin = createAdminClient()
+  if (guestFeatureEnabled()) {
+    const { data, error } = await admin.from("guest_event_registrations").select("id").eq("event_id", eventId).eq("converted_user_id", userId).is("cancelled_at", null).limit(1)
+    if (error) throw error
+    if (data?.length) return null // Guest delivery ledger continues this registration's reminders.
+  }
   const [{ data: event }, { data: registration }, { data: profile }] =
     await Promise.all([
       admin
@@ -628,6 +634,12 @@ export async function processDueEventReminders(
   if (registrationError) throw new Error(registrationError.message)
 
   const registrations = (registrationRows ?? []) as RegistrationRow[]
+  const guestKeys = new Set<string>()
+  if (guestFeatureEnabled()) {
+    const { data: converted, error } = await admin.from("guest_event_registrations").select("event_id, converted_user_id").in("event_id", events.map(e => e.id)).not("converted_user_id", "is", null).is("cancelled_at", null)
+    if (error) throw error
+    for (const row of converted ?? []) guestKeys.add(row.event_id + "/" + row.converted_user_id)
+  }
   const userIds = Array.from(new Set(registrations.map((row) => row.user_id)))
   const { data: profileRows, error: profileError } = userIds.length
     ? await admin
@@ -645,6 +657,7 @@ export async function processDueEventReminders(
   const results: EventEmailResult[] = []
 
   for (const registration of registrations) {
+    if (guestKeys.has(registration.event_id + "/" + registration.user_id)) continue
     const event = eventById.get(registration.event_id)
     const profile = profileById.get(registration.user_id)
     if (!event || !profile) {

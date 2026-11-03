@@ -16,6 +16,8 @@ export default async function newsletterSyncBackground(
   request: Request,
   context: Context,
 ) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   if (request.method !== "POST") {
     console.warn("[newsletter-sync] Rejected non-POST request", {
       method: request.method,

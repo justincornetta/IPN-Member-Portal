@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase/server"
@@ -7,6 +7,11 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord } from "@/lib/events/types"
 import icon from "../../../../assets/purple_icon.png"
+import GuestRsvp from "@/components/events/GuestRsvp"
+import { guestFeatureEnabled } from "@/lib/guest-events/service"
+import { guestRsvpAvailable, memberRsvpAvailable, safeWebUrl } from "@/lib/guest-events/domain"
+import { buildGoogleCalendarUrl, formatEventDateTime } from "@/lib/events/calendar"
+import { rsvpFromEventPage, signInAndRsvpForEvent } from "@/lib/events/public-rsvp-actions"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -64,7 +69,14 @@ export default async function PublicEventPage({ params }: Props) {
 
   if (!event) notFound()
 
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("is_banned").eq("id", user.id).maybeSingle()
+    if (profile?.is_banned) redirect("/banned")
+  }
   const e = event as EventRecord
+  const inlineRsvp = memberRsvpAvailable(e)
+  const allowGuestRsvp = guestFeatureEnabled() && guestRsvpAvailable(e)
+  const memberRegistration = user && inlineRsvp ? await supabase.from("event_registrations").select("event_id").eq("event_id", e.id).eq("user_id", user.id).maybeSingle() : null
 
   return (
     <div className="flex min-h-full shrink-0 flex-col bg-zinc-50 text-zinc-900">
@@ -138,7 +150,7 @@ export default async function PublicEventPage({ params }: Props) {
         )}
 
         {/* CTA */}
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        {inlineRsvp ? <GuestRsvp slug={slug} title={e.title} date={formatEventDateTime(e.starts_at,e.ends_at,e.timezone)} signedIn={Boolean(user)} registered={Boolean(memberRegistration?.data)} allowGuestRsvp={allowGuestRsvp} onMemberRsvp={rsvpFromEventPage.bind(null,slug)} onSignInRsvp={signInAndRsvpForEvent.bind(null,slug)} memberJoinUrl={user ? safeWebUrl(e.join_url) : null} memberCalendarUrl={user ? buildGoogleCalendarUrl(e) : null}/> : <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
           {user ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -174,7 +186,7 @@ export default async function PublicEventPage({ params }: Props) {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Description */}
         {(e.description || e.summary) && (

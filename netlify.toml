@@ -10,3 +10,7 @@
     "public/onboarding/ipn-logo.png",
     "public/newsletters/brand/Geist-Regular.ttf",
   ]
+
+# Fail before publishing if the additive guest RSVP setup has not been applied.
+[context.production]
+  command = "npm run release:check && npm run build"

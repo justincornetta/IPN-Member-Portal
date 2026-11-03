@@ -6,6 +6,7 @@ import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isSafeRedirectPath } from "@/lib/auth/redirect"
+import { claimGuestRegistrations } from "@/lib/guest-events/service"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
 import { sendMemberRegistrationSlackNotification } from "@/lib/slack/member-registration"
@@ -282,6 +283,7 @@ export async function signIn(
     destination = `/dashboard${destination}`
   }
   await recordAuthAnalyticsEvent("sign_in_success", analytics, authData.user?.id)
+  if (authData.user) await claimGuestRegistrations(authData.user.id).catch(() => console.error("[guest-events] RSVP association needs retry"))
   redirect(destination)
 }
 

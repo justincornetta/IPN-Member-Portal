@@ -7,6 +7,7 @@ import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 import { recordPortalAnalyticsEvent } from "@/lib/portal-analytics/events"
 import { sendEventRsvpSlackNotification } from "@/lib/slack/event-rsvp"
 import { sendEventRegistrationConfirmation } from "./email-service"
+import { claimGuestRegistrations } from "../guest-events/service"
 
 type EventRegistrationResult = {
   error?: string
@@ -32,6 +33,7 @@ export async function registerForEvent(
   } = await supabase.auth.getUser()
 
   if (!user) return { error: "You need to be logged in to RSVP." }
+  await claimGuestRegistrations(user.id)
 
   const { data: event, error: eventError } = await supabase
     .from("events")

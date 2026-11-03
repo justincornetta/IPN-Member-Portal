@@ -63,6 +63,7 @@ export type EventRecord = {
   status: string
   registration_count: number
   registration_reminder_enabled: boolean
+  guest_rsvp_enabled?: boolean
 }
 
 export type EventWithRegistration = EventRecord & {

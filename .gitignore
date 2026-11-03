@@ -54,3 +54,5 @@ next-env.d.ts
 /playwright-report/
 
 /supabase/.temp/
+
+/.qa-guest/

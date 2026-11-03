@@ -1,10 +1,12 @@
-import type { Config } from "@netlify/functions"
+import type { Config, Context } from "@netlify/functions"
 import {
   processPendingMemberNotifications,
   queueDueEventRegistrationReminders,
 } from "../../src/lib/member-notifications/email-service"
 
-export default async function sendMemberNotifications() {
+export default async function sendMemberNotifications(_request: Request, context: Context) {
+  if (context.deploy.context === "deploy-preview") return new Response("Background actions are disabled in deploy previews", { status: 403 })
+
   try {
     const queued = await queueDueEventRegistrationReminders()
     const result = await processPendingMemberNotifications()

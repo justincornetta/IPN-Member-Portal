@@ -274,6 +274,7 @@ type EventFields = {
   hasRegistration: boolean; registrationUrl: string; registrationProvider: string
   externalEventId: string; requiresVerifiedTicket: boolean
   registrationReminderEnabled: boolean
+  guestRsvpEnabled: boolean
   summary: string; description: string; speakers: string; imageUrl: string; slug: string
   speakerLinks: SpeakerLinkRow[]
   papers: PaperRow[]
@@ -287,6 +288,7 @@ const EVENT_DEFAULTS: EventFields = {
   hasRegistration: false, registrationUrl: "", registrationProvider: "Eventbrite",
   externalEventId: "", requiresVerifiedTicket: false,
   registrationReminderEnabled: true,
+  guestRsvpEnabled: false,
   summary: "", description: "", speakers: "", imageUrl: "", slug: "",
   speakerLinks: [], papers: [], eventMaterials: [],
 }
@@ -348,6 +350,7 @@ function EventForm({ initial, onSubmit, pending }: {
       externalEventId: f.hasRegistration && f.registrationProvider === "Eventbrite" ? f.externalEventId || undefined : undefined,
       requiresVerifiedTicket: f.hasRegistration && f.registrationProvider === "Eventbrite" ? f.requiresVerifiedTicket : false,
       registrationReminderEnabled: f.registrationReminderEnabled,
+      guestRsvpEnabled: f.guestRsvpEnabled,
       summary: f.summary || undefined, description: f.description || undefined,
       speakers: f.speakers || undefined, imageUrl: f.imageUrl || undefined,
       speakerResources: hasSpeakerData ? {
@@ -405,7 +408,7 @@ function EventForm({ initial, onSubmit, pending }: {
         <>
           <StepBar step={2} total={3} title="Access & registration" sub="How do people join or sign up?" />
           <div className="flex flex-col gap-4">
-            <Field label="Join URL" hint="The direct Zoom / Google Meet / etc. link. Only shown to members (or ticketed attendees if gated below).">
+            <Field label="Join URL" hint="The direct Zoom / Google Meet / etc. link. Also shared with guest attendees when guest RSVP is enabled below.">
               <input value={f.joinUrl} onChange={(e) => set("joinUrl", e.target.value)} className={inputCls()} placeholder="https://zoom.us/j/..." />
             </Field>
             <Field label="WhatsApp event chat invite URL" hint="Optional — when added, registered members see a Join chat button for this event">
@@ -415,6 +418,10 @@ function EventForm({ initial, onSubmit, pending }: {
               <input value={f.locationLabel} onChange={(e) => set("locationLabel", e.target.value)} className={inputCls()} placeholder="Online" />
             </Field>
 
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3.5 transition hover:border-zinc-300">
+              <input type="checkbox" checked={f.guestRsvpEnabled} onChange={(e) => set("guestRsvpEnabled", e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0" />
+              <span><span className="block text-sm text-zinc-700">Allow guest RSVP without an IPN account</span><span className="mt-1 block text-xs leading-5 text-zinc-500">Collect a name and email, then send joining details and reminders. Does not apply to external registration or verified-ticket events.</span></span>
+            </label>
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3.5 transition hover:border-zinc-300">
               <input type="checkbox" checked={f.registrationReminderEnabled} onChange={(e) => set("registrationReminderEnabled", e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer flex-shrink-0" />
               <span>
@@ -1808,6 +1815,7 @@ function eventToFields(e: AdminEventSummary): EventFields {
     externalEventId: e.external_event_id ?? "",
     requiresVerifiedTicket: e.requires_verified_ticket ?? false,
     registrationReminderEnabled: e.registration_reminder_enabled ?? true,
+    guestRsvpEnabled: e.guest_rsvp_enabled ?? false,
     summary: e.summary ?? "", description: e.description ?? "",
     speakers: e.speakers ?? "", imageUrl: e.thumbnail_url ?? "", slug: e.slug ?? "",
     speakerLinks: (sr?.speakerLinks ?? []).map((l) => ({ label: l.label ?? "", url: l.url ?? "", linkType: l.type ?? "website" })),
