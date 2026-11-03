@@ -1,3 +1,73 @@
+# RSVP analytics moved into Zoom — November 3, 2026
+
+## Status
+Justin requested this revision to published PR [#78](https://github.com/justincornetta/IPN-Member-Portal/pull/78). Completed and locally verified; publishing to the same approved feature branch. No merge or production data changes.
+
+## Last session
+Moved Event RSVP journey from Member Portal Activity into Engagement → Zoom, directly above Zoom event detail. Removed its independent date controls. The report consumes the same final Zoom event selection after shared From/To event dates, Program, Type and saved label/exclusion overrides. Matches portal IDs including historical linked rows; no guessed title matching. Counts include retained observations for matching events, even before event date. Granularity continues to control time charts, while both event tables retain one row per event. Member search remains local to the drill-down.
+
+Locked dependencies/browser runtime installed; lint/build and 37 focused tests pass. All 15 browser scenarios verified (12 unchanged flows plus 3 integrated viewport checks after correcting test selectors for nested Zoom rows and native selects). Browser checks cover placement, absence of duplicate date inputs, both event lists under date/program/type, exclusions, URL/reload persistence, member search/empty states and removal from Member Portal Activity. Fresh design-review follow-up GO at 1440/1280/390 with no material blockers or console errors. Test fixture now renders the full existing analytics shell; it remains disposable/local-only. Screenshots and methodology refreshed.
+
+## Next steps / open decisions
+Publish revision to PR #78; confirm latest preview deploy. Preview: https://deploy-preview-78--ipn-member-portal.netlify.app/dashboard/admin?report=engagement&view=zoom . Local populated review: http://localhost:4331/rsvp-analytics-review?report=engagement&view=zoom . Admin sign-in required on hosted preview. Await separate merge decision.
+
+## Known limits
+Observed session analytics, not current RSVP roster/attendance. Existing 90-day retention, anonymous identity and same-session conversion limits remain. Granularity does not regroup per-event tables (same behavior as Zoom detail). Events not in the filtered Zoom inventory are omitted. No live RSVP/auth forms submitted. Existing middleware warning; Tin Can relay unavailable. Reference: `docs/guest-event-rsvp/analytics.md`.
+
+---
+
+# RSVP analytics PR published — November 3, 2026
+
+## Status
+Justin explicitly approved push and PR publication. PR [#78](https://github.com/justincornetta/IPN-Member-Portal/pull/78) is open on `feature/event-rsvp-analytics`. No merge authorized or performed; production unchanged.
+
+## Last session
+Confirmed the report is integrated into the existing Analytics → Engagement → Member Portal Activity panel, using current analytics collection, profiles and admin access controls. The standalone sample-data page exists only in the disposable local QA copy. Synced current main `b6a3a3d`; resolved the checkpoint-only merge conflict by preserving both histories. Final lint and production build passed after sync. Prior 36 calculation checks, 15 browser scenarios and independent design GO remain applicable; no application code changed in publication. GitHub connector returned integration 403 for PR creation, so used already-authenticated GitHub CLI.
+
+## Next steps / open decisions
+Review PR and its Netlify checks. Admin preview: https://deploy-preview-78--ipn-member-portal.netlify.app/dashboard/admin?report=engagement&view=portal-activity . Admin authentication required; do not submit test RSVP/account forms against its connected backend. Read-only hosted verification is recorded in the PR body and root checkpoint after deployment. Await separate merge decision.
+
+## Known limits / references
+Observed analytics, not current RSVP roster; anonymous guests remain aggregate, same-session account attribution and 90-day retention limits apply. No migration, new provider, live RSVP test, email or Slack send. Local fixture review remains available on port 4331. Methodology/screenshots: `docs/guest-event-rsvp/analytics.md`. Existing middleware warning; Tin Can relay unavailable. Implementation commits `4fb60e8`, `fd66d0b`; current-main sync `0d0ddde`.
+
+---
+
+# Event totals and member analytics drill-down — November 3, 2026
+
+## Status
+Completed locally on `feature/event-rsvp-analytics`, extending the unpublished RSVP analytics feature. User requested event aggregates with member-level detail; no publication approval supplied. No push, PR, merge or production data writes. Base main remains current at `0e95438`.
+
+## Last session
+Report now defaults to one row per event with display titles from existing event records. Each session/stage counts once across RSVP paths; expandable path rows may overlap. Selecting an event reveals path breakdown and searchable member activity (existing profile name/email, sessions, paths, per-stage counts, account creation, last UTC activity). Member attribution uses only the server's user ID on each observation or registration success; anonymous/guest activity is never assigned by email or shared session inference. New account creation does not relabel earlier guest actions. Raw session IDs stay server-side; response-local groups allow deduplication. Date cohorts use the first retained session observation per event across paths. Report is hidden when the analytics query fails, alongside the existing analytics-unavailable message.
+
+Locked dependencies/browser runtime installed; lint, production build, 36 focused analytics tests and all 15 browser scenarios passed. Final table-only desktop/mobile rerun passed after copy clarification. Tests include cross-path deduplication, multi-account shared sessions, repeat actions, account creation attribution, date cohorts, member search/empty results and guest-only events. Independent product-design review GO at 1440/1280/390 plus full admin integration; no material blockers or console errors. Screenshots/docs refreshed. Production identity attribution and collection are not claimed as live-verified.
+
+## Next steps / open decisions
+Review http://localhost:4331/rsvp-analytics-review (local isolated fixtures, server left running). Click View members & paths for the two-member event. Await explicit publication approval under AGENTS.md, then push/open PR with pr-documentation. Merge is separate.
+
+## Known limits / references
+This is observed product analytics, not the current RSVP roster or an authoritative attendee count. Anonymous guest activity remains in event totals without identified member rows. Existing 90-day retention and same-session conversion limits apply. Existing Next middleware deprecation warning remains. Tin Can relay remains unavailable; concise milestone handoff to Cornbot pending. Docs/calculations/screenshots: `docs/guest-event-rsvp/analytics.md`. Prior local analytics commits `4fb60e8`, `1300156`, `860e58f` remain unpublished.
+
+---
+
+# Event RSVP analytics — November 3, 2026
+
+## Status
+Implemented locally on `feature/event-rsvp-analytics` in `Code/IPN-Member-Portal-guest-rsvp`; implementation commit `4fb60e8`, latest main `0e95438` synced in merge `1300156`. Awaiting Justin's explicit approval to publish this new feature under repository AGENTS.md. No push, PR, merge or production analytics writes performed.
+
+## Last session
+Added first-party public event RSVP observations and an Event RSVP journey report under Admin → Analytics → Engagement → Member Portal Activity. Separates visitor, guest, member sign-in and signed-in paths; counts session-deduplicated form stages, confirmations/errors, calendar/join clicks and same-session account creation after optional signup. Fixed metadata sanitization strips form identity, passwords, raw errors, private tokens and referrers. Existing analytics user/session association remains; no new provider or schema migration. Official combined RSVP/Slack total unchanged.
+
+Locked dependencies and browser runtime installed. Lint, production build and 32 focused analytics checks pass, including after syncing latest main. All 15 browser scenarios pass (14 in final full run; the remaining guest case passed on rerun after increasing its assertion wait for observed six-second cold compilation). Browser checks cover desktop/phone flows, privacy-safe payloads, sign-in failures/retry, post-login click attribution, filters and horizontal table scrolling. Fresh independent design review GO at 1440/1280/390, including full admin context, no material blockers. Local tests use isolated fixture boundaries and never write production data or send messages.
+
+## Next steps / open decisions
+Justin reviews http://localhost:4331/rsvp-analytics-review and approves publication. Then push branch, open PR following pr-documentation, link deploy preview and verify read-only. Merge remains separate. Local server session is intentionally left running at port 4331.
+
+## Known limits
+Counts are observed browser sessions, not unique attendees or official RSVP totals. Confirmation may describe an existing RSVP; join click is not attendance. Attribution is same-session account creation, not verified email or later-session conversion. Uses existing 90-day retained raw events and excludes earlier/backfilled RSVPs. Production-mode deploy previews use existing analytics behavior; use local fixtures for safe tests. Detailed calculations/gaps and screenshots: `docs/guest-event-rsvp/analytics.md`. No production collection verified before deployment. Existing middleware deprecation warning remains. Tin Can milestone notification to Cornbot failed because relay was unavailable; Notion summary pending.
+
+---
+
 # Daily sync Slack failure alerts — November 3, 2026
 
 Status: implemented locally with user authorization to notify #portal-analytics and tag Justin. Independent workflow_run notifier covers failed, cancelled, timed-out and abnormal completed Content sync runs on main; successful runs remain quiet. Uses existing SLACK_ANALYTICS_WEBHOOK_URL; Justin U061Z7YC3DX confirmed through Slack. Manual dispatch sends a clearly labeled delivery test without imports. No checkout/artifacts, permissions empty, bounded delivery retries. Daily sync now has a five-minute job limit and 60-second content request limit.

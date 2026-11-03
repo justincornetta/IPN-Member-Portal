@@ -1,4 +1,4 @@
-import {appendFileSync,cpSync,existsSync,mkdirSync,rmSync,symlinkSync,writeFileSync} from "node:fs"
+import {appendFileSync,readFileSync,cpSync,existsSync,mkdirSync,rmSync,symlinkSync,writeFileSync} from "node:fs"
 import {resolve} from "node:path"
 import {spawn} from "node:child_process"
 
@@ -30,6 +30,12 @@ env.GUEST_EVENT_TOKEN_SECRET="qa-only-token-not-a-production-secret"
 env.RESEND_API_KEY="qa-placeholder-never-used"
 // Do not copy .env files: the fixture cannot inherit local integration secrets.
 writeFileSync(resolve(target,".gitignore"),"*\n")
+// Enable observation capture only inside the disposable QA copy. The local
+// analytics API still discards requests; no analytics database is contacted.
+const analyticsClient=resolve(target,"src/lib/portal-analytics/client.ts")
+writeFileSync(analyticsClient,readFileSync(analyticsClient,"utf8").replace(' || process.env.NODE_ENV !== "production"',''))
+mkdirSync(resolve(target,"src/app/rsvp-analytics-review"),{recursive:true})
+cpSync(resolve(root,"qa/guest-events/fixtures/analytics-review.tsx"),resolve(target,"src/app/rsvp-analytics-review/page.tsx"))
 const child=spawn(process.execPath,[resolve(root,"node_modules/next/dist/bin/next"),"dev","--hostname","127.0.0.1","--port","4331"],{cwd:target,env,stdio:"inherit"})
 for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal))
 child.on("exit",code=>process.exit(code??0))

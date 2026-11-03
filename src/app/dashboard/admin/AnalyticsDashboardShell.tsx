@@ -1,5 +1,7 @@
 "use client"
 
+import EventRsvpAnalytics from "./EventRsvpAnalytics"
+import { rsvpJourneysForEventSelection } from "@/lib/portal-analytics/event-rsvp"
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { CSSProperties, ReactElement, ReactNode } from "react"
@@ -4939,6 +4941,7 @@ function EventsPanel({
   isSuperadmin,
   forcedView,
   hideViewTabs = false,
+  portalUtilization,
 }: {
   snapshot: LegacyAnalyticsSnapshot
   analyticsRefresh: PortalAnalyticsRefreshRun | null
@@ -4949,6 +4952,7 @@ function EventsPanel({
   isSuperadmin: boolean
   forcedView?: EventsView
   hideViewTabs?: boolean
+  portalUtilization?: PortalUtilizationData
 }) {
   const [internalActive, setInternalActive] = useState<EventsView>("zoom")
   const active = forcedView ?? internalActive
@@ -5161,6 +5165,12 @@ function EventsPanel({
             />
             <PaginationControls page={attendeesPage} totalPages={attendeeTotalPages} onPageChange={setAttendeesPage} />
           </Panel>
+          {portalUtilization && (portalUtilization.trackingAvailable ?
+            <EventRsvpAnalytics
+              journeys={rsvpJourneysForEventSelection(portalUtilization.eventRsvpJourneys ?? [], portalEvents, zoomDetailEvents)}
+              members={portalUtilization.members}
+              eventTitles={portalUtilization.eventRsvpTitles}
+            /> : <Panel title="Event RSVP journey"><p className="text-sm text-zinc-600">RSVP analytics are temporarily unavailable. Refresh to try again.</p></Panel>)}
           <Panel title="Zoom event detail" subtitle="Click an event to expand registrant trend, registrant timestamps, and available attendance detail. Registrants before July 2026 are historical Zoom backfill; the July transition event appends unique Zoom registrants; future registrants are Portal RSVPs.">
             <ZoomEventDetailTable events={zoomDetailEvents} />
           </Panel>
@@ -5765,7 +5775,7 @@ export default function AnalyticsDashboardShell({ memberInsights, portalUtilizat
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3"><SectionTabs active={engagementView} onChange={changeEngagementView} items={[{ id: "overview", label: "Overview" }, { id: "zoom", label: "Zoom" }, { id: "eventbrite", label: "Eventbrite" }, { id: "portal-activity", label: "Member Portal Activity" }]} />{engagementView === "overview" ? <ReviewBadge status="New" /> : engagementView === "portal-activity" ? <ReviewBadge status="Enhanced" /> : <ReviewBadge status="Production" />}</div>
             {engagementView === "overview" && <EngagementOverviewPanel data={portalUtilization} events={portalEvents} communityEvents={communityEvents} communityEventsError={communityEventsError} snapshot={analyticsSnapshot} eventLabelOverrides={sharedOverrides} />}
-            {engagementView === "zoom" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={sharedOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={handleOverrideSaved} isSuperadmin={isSuperadmin} forcedView="zoom" hideViewTabs />}
+            {engagementView === "zoom" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={sharedOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={handleOverrideSaved} isSuperadmin={isSuperadmin} forcedView="zoom" hideViewTabs portalUtilization={portalUtilization} />}
             {engagementView === "eventbrite" && <EventsPanel snapshot={analyticsSnapshot} analyticsRefresh={analyticsRefresh} eventLabelOverrides={sharedOverrides} portalEvents={portalEvents} communityEvents={communityEvents} onOverrideSaved={handleOverrideSaved} isSuperadmin={isSuperadmin} forcedView="eventbrite" hideViewTabs />}
             {engagementView === "portal-activity" && <PortalUtilizationPanel data={portalUtilization} mode="activity" />}
           </div>
