@@ -1,4 +1,5 @@
 import {test,expect} from "@playwright/test"
+import {completeRegistrationPreview} from "../registration-preview"
 import {createHmac} from "node:crypto"
 const dir="docs/guest-event-rsvp/screenshots"
 for(const width of [1440,1280,390])test(`guest flow and member states at ${width}px`,async({page})=>{
@@ -21,17 +22,16 @@ for(const width of [1440,1280,390])test(`guest flow and member states at ${width
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeFocused()
   await expect(page.getByRole("link",{name:"Join event",exact:true})).toHaveAttribute("href","https://example.com/zoom-preview")
   await page.screenshot({path:`${dir}/${width}-confirmation.png`,fullPage:true})
-  await page.getByRole("button",{name:/Join IPN free/}).click()
+  await page.getByRole("link",{name:/Join IPN free/}).click()
   await expect(page.getByLabel("Email",{exact:true})).toHaveValue(`alex-${width}@example.com`)
   await page.screenshot({path:`${dir}/${width}-optional-signup.png`,fullPage:true})
-  await page.getByRole("button",{name:"Email me a sign-up link",exact:true}).click()
-  await expect(page.getByRole("heading",{name:"Check your email",exact:true})).toBeVisible()
+  await completeRegistrationPreview(page)
   await page.screenshot({path:`${dir}/${width}-signup-sent.png`,fullPage:true})
   await page.goto("/events/guest-rsvp-preview?view=member")
   await expect(page.getByText("You’re signed in. Reserve your place with one click.")).toBeVisible()
   await page.getByRole("button",{name:"RSVP",exact:true}).click()
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeVisible()
-  await expect(page.getByRole("button",{name:/Join IPN free/})).toHaveCount(0)
+  await expect(page.getByRole("link",{name:/Join IPN free/})).toHaveCount(0)
   await page.screenshot({path:`${dir}/${width}-member.png`,fullPage:true})
   await page.goto("/events/guest-rsvp-preview?view=registered")
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeVisible()
@@ -141,7 +141,7 @@ for(const width of [1440,1280,390])test(`member login modal, keyboard and automa
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeFocused()
   await expect(page.getByRole("dialog")).not.toBeVisible()
   await expect(page).toHaveURL(/\/events\/guest-rsvp-preview$/)
-  await expect(page.getByRole("button",{name:/Join IPN free/})).toHaveCount(0)
+  await expect(page.getByRole("link",{name:/Join IPN free/})).toHaveCount(0)
   await page.screenshot({path:`${dir}/${width}-login-confirmed.png`,fullPage:true})
   expect(errors).toEqual([])
 })

@@ -10,6 +10,14 @@ The current public event page can be viewed without an account, but its RSVP gat
 
 The initial inline-form [imagegen concept](selected-inline-concept.png), [generation prompt](imagegen-prompt.txt), [original event screenshot](current-event-before.png), and [design review](design-qa.md) are retained. The modal revision supersedes the concept’s inline form placement. The concept is an illustration: the implementation uses real event timestamps, not the concept's incorrect example reminder date.
 
+## Direct registration and invitation consent — November 3 follow-up
+
+After RSVP, **Join IPN free** now goes directly to the existing four-step `/register` page. Name/email are prefilled using a tab-local handoff that expires after 30 minutes; no personal data is placed in the URL. Prefill is editable and is not proof of email ownership. Storage failure falls back to ordinary blank registration. The RSVP is saved independently, and registration explains that membership is optional. Standard registration keeps its existing password, profile, verification, newsletter-sync and onboarding behavior. The management page uses the same direct link; invitation emails link directly to ordinary registration. `/join` remains available for recovery from older email-based signup links.
+
+The unchecked checkbox now reads **Email me an invitation to join IPN after this event.** Confirmation and eligible 24-hour/1-hour reminders do not require it. Opting in permits the single membership invitation 24 hours after event end; it does not subscribe a guest to the portal's future-event notification feed or newsletter. Full member registration has its existing separate newsletter sync.
+
+Hosted/local guest previews show the same four-step form, with sample city entry instead of external location lookup and a simulated completion. The server signup action also refuses all preview submissions before touching auth, Mailchimp, Slack or analytics. No account or email is created. Live auth/email verification still requires separate integration validation.
+
 ## Hosted sandbox — PR #70
 
 Justin authorized an isolated hosted preview on November 3. The existing event URL on [deploy preview #70](https://deploy-preview-70--ipn-member-portal.netlify.app/events/global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional) now runs the same RSVP UI against fixtures. A visible Test preview banner links to the guest/member login, signed-in member state and [preview inbox](https://deploy-preview-70--ipn-member-portal.netlify.app/event-preview/emails). Member credentials are `member@example.com` / `preview-password`; existing real login cookies are ignored. This supersedes earlier notes that hosted member actions use the live backend or guest enrollment is disabled there.

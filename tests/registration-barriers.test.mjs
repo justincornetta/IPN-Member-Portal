@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 import * as registration from '../src/lib/constants/registration.ts'
 
-function mockedSignUp() {
+function mockedSignUp(preview = false) {
   let clientCalls = 0
   let payload
   const mockModule = { exports: {} }
   const source = readFileSync(new URL('../src/lib/auth/actions.ts', import.meta.url), 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const require = (path) => {
+    if (path === '@/lib/guest-events/demo') return { guestDemoEnabled: () => preview }
     if (path === '@/lib/constants/registration') return registration
     if (path === '@/lib/auth/redirect') return { isSafeRedirectPath: () => false }
     if (path === '@/lib/supabase/server') return { createClient: async () => {
@@ -53,5 +54,11 @@ test('new choice is immediately above Other and persists unchanged through the s
 test('invalid field statuses fail before auth', async () => {
   const fixture = mockedSignUp()
   assert.deepEqual(await fixture.signUp({ ...base, psychedelic_field_status: '', psychedelic_field_barriers: [] }), { error: 'Please select your field status.' })
+  assert.equal(fixture.calls(), 0)
+})
+
+test('registration server action refuses preview submissions before auth or integrations', async () => {
+  const fixture = mockedSignUp(true)
+  assert.deepEqual(await fixture.signUp({ ...base, psychedelic_field_status: registration.FIELD_STATUS_OPTIONS[0] }), {error: 'Account creation is disabled in this test preview.'})
   assert.equal(fixture.calls(), 0)
 })

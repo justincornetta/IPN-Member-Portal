@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/solid"
 import type { PublicRsvpResult } from "@/lib/events/public-rsvp-actions"
-import MembershipForm from "./MembershipForm"
+import GuestRegistrationLink from "./GuestRegistrationLink"
 import { hostedGuestPreview } from "@/lib/guest-events/preview-mode"
 
 type Props = {
@@ -30,7 +30,6 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
   const [password, setPassword] = useState("")
   const [success, setSuccess] = useState<{ joinUrl: string | null; calendarUrl: string } | null>(
     registered ? { joinUrl: memberJoinUrl ?? null, calendarUrl: memberCalendarUrl ?? "" } : null)
-  const [joining, setJoining] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const focusConfirmation = useRef(false)
   const dialog = useRef<HTMLDialogElement>(null)
@@ -125,11 +124,9 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
         {success.joinUrl ? <a href={success.joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn underline">Join event</a> : <p className="text-sm text-zinc-600">Joining details will be available in your event access link.</p>}
       </div>
       {!member && <div className="mt-5 border-t border-zinc-200 pt-5">
-        {joining ? <MembershipForm initial={identity} eventSlug={slug}/> : <>
           <h3 className="text-sm font-semibold">Want to stay connected?</h3>
           <p className="mt-1 text-sm text-zinc-600">Join IPN for upcoming events and a community of students and early-career professionals.</p>
-          <button onClick={() => setJoining(true)} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-ipn">Join IPN free → <span className="ml-2 font-normal text-zinc-500">(optional)</span></button>
-        </>}
+          <GuestRegistrationLink identity={identity} slug={slug}/>
       </div>}
       {member && <Link className="mt-3 inline-flex min-h-11 items-center text-sm text-ipn" href={"/dashboard/events/" + slug}>Open in portal →</Link>}
     </> : member ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -182,7 +179,7 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
           </div>
           <label className="block text-sm font-medium">Email<input name="email" type="email" autoComplete="email" maxLength={254} required disabled={pending} value={identity.email} onChange={e => setIdentity({ ...identity, email: e.target.value })} className={field}/></label>
           <div className="hidden" aria-hidden="true"><label>Website<input name="website" tabIndex={-1} autoComplete="off"/></label></div>
-          <label className="flex min-h-11 items-start gap-3 text-sm text-zinc-600"><input name="marketingOptIn" type="checkbox" disabled={pending} checked={optIn} onChange={e => setOptIn(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[#664fa1]"/>Email me about future IPN events and opportunities.</label>
+          <label className="flex min-h-11 items-start gap-3 text-sm text-zinc-600"><input name="marketingOptIn" type="checkbox" disabled={pending} checked={optIn} onChange={e => setOptIn(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[#664fa1]"/>Email me an invitation to join IPN after this event.</label>
           <p className="text-xs leading-5 text-zinc-500">We’ll email your confirmation and event reminders. An IPN account is optional.</p>
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <button disabled={pending} className={button + " w-full"}>{pending ? "Saving your RSVP…" : "Confirm RSVP"}</button>

@@ -5,7 +5,7 @@ import {readGuestAccess} from "@/lib/guest-events/service"
 import {safeWebUrl} from "@/lib/guest-events/domain"
 import {buildGoogleCalendarUrl,formatEventDateTime} from "@/lib/events/calendar"
 import GuestPreferences from "@/components/events/GuestPreferences"
-import MembershipForm from "@/components/events/MembershipForm"
+import GuestRegistrationLink from "@/components/events/GuestRegistrationLink"
 export const dynamic="force-dynamic"
 export const metadata:Metadata={robots:{index:false,follow:false},referrer:"no-referrer",title:"Your event RSVP | IPN"}
 export default async function GuestAccess({params,searchParams}:{params:Promise<{token:string}>;searchParams:Promise<{action?:string;join?:string}>}){
@@ -17,7 +17,7 @@ export default async function GuestAccess({params,searchParams}:{params:Promise<
  {query.action==="unsubscribe"?<div className="mt-6"><GuestPreferences token={token} action="unsubscribe"/></div>:unavailable?<p className="mt-5 text-sm">This RSVP or event is no longer available. Contact info@intercollegiatepsychedelics.net if you need help.</p>:<>
  <p className="mt-4 text-sm text-zinc-600">No portal login is needed to attend.</p><div className="mt-5 flex flex-wrap items-center gap-4">{join?<a href={join} rel="noreferrer" className="rounded-lg bg-ipn px-5 py-3 text-sm font-medium text-white">Join event</a>:<p className="text-sm">Joining details will appear here when available.</p>}<a className="text-sm font-medium text-ipn underline" href={buildGoogleCalendarUrl(event)} rel="noreferrer">Add to calendar</a></div>
  <div className="mt-6 border-t border-zinc-200 pt-5"><GuestPreferences token={token} action="cancel"/></div>
- {!guest.converted_user_id&&<div className="mt-6 border-t border-zinc-200 pt-5">{query.join==="1"?<MembershipForm initial={{firstName:guest.first_name,lastName:guest.last_name,email:guest.email}} eventSlug={event.slug}/>:<Link className="inline-flex min-h-11 items-center text-sm text-ipn" href={"?join=1"}>Join IPN free (optional) →</Link>}</div>}
+ {!guest.converted_user_id&&<div className="mt-6 border-t border-zinc-200 pt-5"><GuestRegistrationLink identity={{firstName:guest.first_name,lastName:guest.last_name,email:guest.email}} slug={event.slug}/></div>}
  </>}
  </div></main>
 }

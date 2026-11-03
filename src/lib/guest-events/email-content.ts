@@ -21,13 +21,13 @@ export function renderGuestEmail({ kind, event, guest, site, token }: {
     : [kind === "rsvp_confirmation" ? "You’re registered. You do not need an IPN account to attend." : "Here are your joining details. No portal login is needed.",
       ...(!join ? ["Joining details are not available yet. Use your event access page below for the latest information."] : [])]
   const links = invitation
-    ? [{ label: "Join IPN free", href: manageUrl + "?join=1" }]
+    ? [{ label: "Join IPN free", href: site + "/register" }]
     : [
       { label: join ? "Join event" : "View joining details", href: join ?? manageUrl },
       { label: "Add to calendar", href: buildGoogleCalendarUrl({ ...event, join_url: join }) },
     ]
   const details = invitation ? [] : [event.title, date, event.location_label ?? "Online", ...(event.speakers ? ["Speaker: " + event.speakers] : [])]
-  const footer = invitation ? "You opted in to future IPN events and opportunities." : "You’re receiving this because you RSVP’d for this IPN event."
+  const footer = invitation ? "You asked for an invitation to join IPN after this event." : "You’re receiving this because you RSVP’d for this IPN event."
   const unsubscribe = site + "/events/rsvp/" + encodeURIComponent(token) + "?action=unsubscribe"
   const html = `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#3f3f46"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 12px" align="center"><table role="presentation" width="100%" style="max-width:600px;background:white;border:1px solid #e4e4e7;border-radius:12px"><tr><td style="padding:28px">
   <p style="color:#664fa1;font-size:14px;font-weight:600">IPN Events</p>

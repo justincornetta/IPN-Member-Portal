@@ -37,6 +37,7 @@ test("guest validation rejects invalid identity and bot fields; consent requires
 })
 test("reminders do not backfill already-passed windows; optional invitation follows event end",()=>{
  assert.deepEqual(emailSchedule(event,false,Date.parse("2030-01-03T17:30:00Z")).map(x=>x.kind),["rsvp_confirmation"])
+ assert.deepEqual(emailSchedule(event,false,Date.parse("2030-01-01")).map(x=>x.kind),["rsvp_confirmation","reminder_24h","reminder_1h"])
  const jobs=emailSchedule(event,true,Date.parse("2030-01-01"))
  assert.deepEqual(jobs.map(x=>x.kind),["rsvp_confirmation","reminder_24h","reminder_1h","membership_invitation"])
  assert.equal(jobs[3].due_at,"2030-01-04T19:00:00.000Z")
@@ -52,7 +53,7 @@ test("email templates provide direct joining, escape content, and separate marke
   assert.doesNotMatch(content.html,/<script>/)
   assert.match(content.html,/&lt;script&gt;/)
   assert.doesNotMatch(content.html,/\/dashboard/)
-  if(kind==="membership_invitation"){assert.match(content.html,/Unsubscribe/);assert.ok(content.headers["List-Unsubscribe-Post"]);assert.match(content.html,/signed-token\?join=1/)}
+  if(kind==="membership_invitation"){assert.match(content.html,/Unsubscribe/);assert.ok(content.headers["List-Unsubscribe-Post"]);assert.match(content.html,/https:\/\/portal.example\/register/)}
   else{assert.match(content.text,/https:\/\/example.com\/meeting/);assert.equal(content.headers,undefined);assert.match(content.text,/cancel RSVP/)}
  }
 })
@@ -293,7 +294,7 @@ test("sandbox cookies survive fresh module instances but remain separate between
 test("sandbox route allowlist rejects portal, callbacks, analytics and unrelated APIs",()=>{
  const {previewPathAllowed}=load("src/lib/guest-events/preview-mode.ts")
  for(const path of ["/dashboard","/api/analytics/track","/auth/callback","/login","/api/events/other-event/rsvp","/api/events/membership/extra"])assert.equal(previewPathAllowed(path),false,path)
- for(const path of ["/join","/event-preview/emails","/api/events/membership","/events/guest-rsvp-preview"])assert.equal(previewPathAllowed(path),true,path)
+ for(const path of ["/register","/join","/event-preview/emails","/api/events/membership","/events/guest-rsvp-preview"])assert.equal(previewPathAllowed(path),true,path)
 })
 
 test("all Netlify background handlers stop at the platform's deploy-preview boundary",async()=>{
@@ -308,4 +309,13 @@ test("all Netlify background handlers stop at the platform's deploy-preview boun
   const result=await handlerModule.exports.default(new Request("https://preview.example"),{deploy:{context:"deploy-preview"}})
   assert.equal(result.status,403,name)
  }
+})
+
+test("event registration prefill expires and rejects invalid or external destinations",()=>{
+ const {parseRegistrationHandoff}=load("src/lib/guest-events/registration-handoff.ts")
+ const value={identity:{firstName:"Alex",lastName:"Rivera",email:"alex@example.com"},eventPath:"/events/sample-event",expires:Date.now()+60000}
+ assert.equal(parseRegistrationHandoff(JSON.stringify(value)).identity.email,"alex@example.com")
+ for(const override of [{expires:0},{expires:"tomorrow"},{eventPath:"https://evil.example"},{eventPath:"/events/../admin"},{identity:{email:"invalid"}}])
+   assert.equal(parseRegistrationHandoff(JSON.stringify({...value,...override})),null)
+ assert.equal(parseRegistrationHandoff("invalid JSON"),null)
 })

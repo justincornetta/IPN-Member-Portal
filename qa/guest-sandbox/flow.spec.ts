@@ -1,4 +1,5 @@
 import {test,expect} from "@playwright/test"
+import {completeRegistrationPreview} from "../registration-preview"
 const slug="global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional"
 const event="/events/"+slug
 const dir="docs/guest-event-rsvp/screenshots"
@@ -20,10 +21,14 @@ for(const width of [1440,1280,390])test(`isolated hosted guest RSVP, inbox, sign
  await page.getByRole("button",{name:"Confirm RSVP",exact:true}).click()
  await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeVisible()
  await expect(page.getByRole("link",{name:"Open the preview inbox",exact:true})).toBeVisible()
- await page.getByRole("button",{name:/Join IPN free/}).click()
- await page.getByRole("button",{name:"Email me a sign-up link",exact:true}).click()
- await expect(page.getByRole("status")).toContainText("no account was created")
+ await page.getByRole("link",{name:/Join IPN free/}).click()
+ await expect(page).toHaveURL(/\/register\?from=event$/)
+ await expect(page.getByLabel("Email",{exact:true})).toHaveValue(`sandbox-${width}@example.com`)
+ await page.screenshot({path:`${dir}/sandbox-${width}-registration.png`,fullPage:true})
+ await completeRegistrationPreview(page)
  await page.screenshot({path:`${dir}/sandbox-${width}-signup.png`,fullPage:true})
+ await page.goto("/register")
+ await expect(page.getByLabel("Email",{exact:true})).toHaveValue("")
  await page.getByRole("link",{name:"Preview inbox",exact:true}).click()
  await expect(page.frameLocator('iframe[title="rsvp confirmation"]').getByText("Hi Sandbox,",{exact:true})).toBeVisible()
  for(const kind of ["rsvp confirmation","reminder 24h","reminder 1h","membership invitation"]){
@@ -38,6 +43,9 @@ for(const width of [1440,1280,390])test(`isolated hosted guest RSVP, inbox, sign
  await expect(separate.frameLocator('iframe[title="rsvp confirmation"]').getByText("Hi Alex,",{exact:true})).toBeVisible()
  await fresh.close()
  await page.getByRole("link",{name:"View or cancel your test RSVP",exact:true}).click()
+ await page.getByRole("link",{name:/Join IPN free/}).click()
+ await expect(page.getByLabel("Email",{exact:true})).toHaveValue(`sandbox-${width}@example.com`)
+ await page.goBack()
  await page.getByRole("button",{name:"Cancel my RSVP",exact:true}).click()
  await expect(page.getByText("This RSVP or event is no longer available.",{exact:false})).toBeVisible()
  await page.reload()
