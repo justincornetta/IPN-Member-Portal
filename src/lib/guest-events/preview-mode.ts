@@ -1,11 +1,13 @@
-// This non-secret flag is fixed by Next at build time, never by a request/cookie.
+import build from "./preview-build.json"
+
+// Generated before compilation; independent of Netlify runtime environment variables.
 export function hostedGuestPreview() {
-  return process.env.IPN_GUEST_SANDBOX_ENABLED === "1"
+  return build.enabled
 }
 
 export const previewEventSlug = "global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional"
 export function previewOrigin() {
-  return process.env.IPN_GUEST_SANDBOX_ORIGIN || "http://127.0.0.1:4331"
+  return build.origin || "http://127.0.0.1:4331"
 }
 
 export function previewPathAllowed(pathname: string) {

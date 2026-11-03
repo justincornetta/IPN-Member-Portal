@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/check-required-env.mjs",
+    "predev": "node scripts/guest-preview-build.mjs && node scripts/check-required-env.mjs",
     "dev": "next dev",
     "build": "next build",
     "test": "node --test --experimental-strip-types tests/*.test.mjs",
@@ -24,7 +24,8 @@
     "workflow:dev": "node scripts/workflow-dev.mjs",
     "clean": "node scripts/clean.mjs",
     "guest-events:dev": "node scripts/guest-events-dev.mjs",
-    "qa:guest-events": "playwright test -c playwright.guest-events.config.ts"
+    "qa:guest-events": "playwright test -c playwright.guest-events.config.ts",
+    "prebuild": "node scripts/guest-preview-build.mjs"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",

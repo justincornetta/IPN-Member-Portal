@@ -6,6 +6,7 @@ import {resolve,dirname} from "node:path"
 import ts from "typescript"
 import {PGlite} from "@electric-sql/pglite"
 import {parseGuestInput,guestRsvpAvailable,emailSchedule,safeWebUrl} from "../src/lib/guest-events/domain.ts"
+import {guestPreviewBuild} from "../scripts/guest-preview-build.mjs"
 import {guestToken,readGuestToken} from "../src/lib/guest-events/tokens.ts"
 
 const root=resolve(import.meta.dirname,"..")
@@ -14,9 +15,10 @@ function load(relative,mocks={},cache=new Map()){
  const filename=resolve(root,relative)
  if(cache.has(filename))return cache.get(filename).exports
  const loadedModule={exports:{}};cache.set(filename,loadedModule)
- const compiled=ts.transpileModule(readFileSync(filename,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
+ const compiled=ts.transpileModule(readFileSync(filename,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText
  new Function("require","module","exports",compiled)(name=>{
    if(name in mocks)return mocks[name]
+   if(name.endsWith(".json")){return JSON.parse(readFileSync(resolve(dirname(filename),name),"utf8"))}
    if(name.startsWith(".")){return load(resolve(dirname(filename),name+".ts"),mocks,cache)}
    return nativeRequire(name)
  },loadedModule,loadedModule.exports)
@@ -242,7 +244,7 @@ test("hosted sandbox is compiled only for PR 70 on its approved branch",()=>{
  try {
   for(const [context,id,branch,expected] of [["production","70","feature/guest-event-rsvp","0"],["deploy-preview","71","feature/guest-event-rsvp","0"],["deploy-preview","70","main","0"],["deploy-preview","70","feature/guest-event-rsvp","1"]]){
    [process.env.CONTEXT,process.env.REVIEW_ID,process.env.BRANCH]=[context,id,branch]
-   assert.equal(load("next.config.ts").default.env.IPN_GUEST_SANDBOX_ENABLED,expected)
+   assert.equal(String(Number(guestPreviewBuild(process.env).enabled)),expected)
   }
  }finally{keys.forEach((k,i)=>saved[i]===undefined?delete process.env[k]:process.env[k]=saved[i])}
 })
@@ -251,9 +253,9 @@ test("hosted sandbox refuses database/auth clients before accessing credentials"
  const saved=process.env.IPN_GUEST_SANDBOX_ENABLED;process.env.IPN_GUEST_SANDBOX_ENABLED="1"
  const fail=()=>{throw new Error("LIVE CLIENT REACHED")}
  try {
-  assert.throws(()=>load("src/lib/supabase/admin.ts",{"@supabase/supabase-js":{createClient:fail}}).createAdminClient(),/disabled in/)
-  await assert.rejects(()=>load("src/lib/supabase/server.ts",{"@supabase/ssr":{createServerClient:fail},"next/headers":{cookies:async()=>({})}}).createClient(),/disabled in/)
-  assert.throws(()=>load("src/lib/supabase/client.ts",{"@supabase/ssr":{createBrowserClient:fail}}).createClient(),/disabled in/)
+  assert.throws(()=>load("src/lib/supabase/admin.ts",{"../guest-events/preview-mode":{hostedGuestPreview:()=>true},"@supabase/supabase-js":{createClient:fail}}).createAdminClient(),/disabled in/)
+  await assert.rejects(()=>load("src/lib/supabase/server.ts",{"../guest-events/preview-mode":{hostedGuestPreview:()=>true},"@supabase/ssr":{createServerClient:fail},"next/headers":{cookies:async()=>({})}}).createClient(),/disabled in/)
+  assert.throws(()=>load("src/lib/supabase/client.ts",{"../guest-events/preview-mode":{hostedGuestPreview:()=>true},"@supabase/ssr":{createBrowserClient:fail}}).createClient(),/disabled in/)
  }finally{if(saved===undefined)delete process.env.IPN_GUEST_SANDBOX_ENABLED;else process.env.IPN_GUEST_SANDBOX_ENABLED=saved}
 })
 
@@ -262,7 +264,7 @@ test("hosted guest RSVP uses per-browser state and cannot deliver even if live f
  const saved=keys.map(k=>process.env[k]);[process.env.IPN_GUEST_SANDBOX_ENABLED,process.env.GUEST_EVENT_EMAIL_MODE,process.env.CONTEXT]=["1","live","production"]
  let writes=0
  try {
-  const svc=load("src/lib/guest-events/service.ts",{"../supabase/admin":{createAdminClient:()=>{throw new Error("LIVE DATABASE REACHED")}},"resend":{Resend:class{constructor(){throw new Error("LIVE EMAIL REACHED")}}},"./preview-store":{registerPreviewGuest:async()=>writes++}})
+  const svc=load("src/lib/guest-events/service.ts",{"./preview-mode":{hostedGuestPreview:()=>true,previewEventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional"},"../supabase/admin":{createAdminClient:()=>{throw new Error("LIVE DATABASE REACHED")}},"resend":{Resend:class{constructor(){throw new Error("LIVE EMAIL REACHED")}}},"./preview-store":{registerPreviewGuest:async()=>writes++}})
   const result=await svc.submitGuestRsvp("global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",{firstName:"Test",lastName:"Guest",email:"guest@example.com"},new Request("https://preview.example"))
   assert.equal(writes,1);assert.equal(result.demo,true);assert.equal(result.emailStatus,"preview")
   assert.equal((await svc.processGuestEventEmails()).disabled,true)
@@ -272,7 +274,7 @@ test("hosted guest RSVP uses per-browser state and cannot deliver even if live f
 test("sandbox cookies survive fresh module instances but remain separate between browsers",async()=>{
  const saved=process.env.IPN_GUEST_SANDBOX_ENABLED;process.env.IPN_GUEST_SANDBOX_ENABLED="1"
  const a=new Map(),b=new Map();let jar=a
- const mocks={"next/headers":{cookies:async()=>({get:k=>jar.has(k)?{value:jar.get(k)}:undefined,set:(k,v,opts)=>{assert.equal(opts.httpOnly,true);assert.equal(opts.sameSite,"lax");jar.set(k,v)}})}}
+ const mocks={"./preview-mode":{hostedGuestPreview:()=>true,previewEventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional"},"next/headers":{cookies:async()=>({get:k=>jar.has(k)?{value:jar.get(k)}:undefined,set:(k,v,opts)=>{assert.equal(opts.httpOnly,true);assert.equal(opts.sameSite,"lax");jar.set(k,v)}})}}
  try {
   const one=load("src/lib/guest-events/preview-store.ts",mocks)
   const first=await one.registerPreviewGuest({firstName:"Test",lastName:"Guest",email:"guest@example.com",marketingOptIn:true})
@@ -295,7 +297,7 @@ test("all Netlify background handlers stop at the platform's deploy-preview boun
  for(const name of readdirSync(resolve(root,"netlify/functions"))){
   if(!/\.(mts|ts)$/.test(name))continue
   const source=readFileSync(resolve(root,"netlify/functions",name),"utf8")
-  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
+  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText
   const handlerModule={exports:{}}
   const fail=()=>{throw new Error("BACKGROUND SIDE EFFECT REACHED: "+name)}
   new Function("require","module","exports",compiled)(()=>new Proxy({},{get:()=>fail}),handlerModule,handlerModule.exports)

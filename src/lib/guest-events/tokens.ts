@@ -1,8 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto"
+import previewBuild from "./preview-build.json" with { type: "json" }
 
 function secret() {
   // Sandbox tokens only address browser-local fixtures; never production data.
-  if (process.env.IPN_GUEST_SANDBOX_ENABLED === "1") return "isolated-pr70-preview-token-not-an-auth-secret"
+  if (previewBuild.enabled) return "isolated-pr70-preview-token-not-an-auth-secret"
   const value = process.env.GUEST_EVENT_TOKEN_SECRET
   if (!value || value.length < 32) throw new Error("Guest event tokens are not configured.")
   return value
