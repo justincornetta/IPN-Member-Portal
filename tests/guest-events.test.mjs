@@ -188,3 +188,50 @@ test("preview contexts cannot deliver guest emails even with live mode configure
  process.env.CONTEXT="deploy-preview"
  const h=workerHarness();assert.equal((await h.run()).disabled,true);assert.equal(h.sent.length,0)
 }))
+
+function memberActionHarness({eventChange={},authError=false,session=false,registrationError=false,unavailableAfterLogin=false,banned=false}={}){
+ const calls=[];let signedIn=session;let reads=0
+ const active={...event,starts_at:new Date(Date.now()+86400000).toISOString(),ends_at:new Date(Date.now()+90000000).toISOString(),...eventChange}
+ const service=load("src/lib/events/public-rsvp-actions.ts",{
+  "../supabase/server":{createClient:async()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{is_banned:banned},error:null})})})}),auth:{
+    signInWithPassword:async()=>{calls.push("login");signedIn=!authError;return {data:{user:signedIn?{id:"verified-member"}:null},error:authError?new Error("private auth error"):null}},
+    getUser:async()=>({data:{user:signedIn?{id:"verified-member"}:null},error:null})
+  }})},
+  "../guest-events/service":{readGuestEvent:async()=>{reads++;return unavailableAfterLogin&&reads>1?null:active}},
+  "../guest-events/demo":{guestDemoEnabled:()=>false},
+  "./actions":{registerForEvent:async(id,slug)=>{calls.push({id,slug});return registrationError?{error:"database internal detail"}:{}}}
+ })
+ return {calls,...service}
+}
+test("event-specific login automatically RSVPs the verified member for the server-resolved event",async()=>{
+ const h=memberActionHarness({eventChange:{guest_rsvp_enabled:false}})
+ const result=await h.signInAndRsvpForEvent("test",{email:"member@example.com",password:"test-password"})
+ assert.equal(result.ok,true);assert.equal(result.signedIn,true)
+ assert.deepEqual(h.calls,["login",{id:event.id,slug:"test"}])
+ assert.equal(result.joinUrl,event.join_url)
+})
+test("failed login never creates an RSVP or exposes joining details; invalid events reject before auth",async()=>{
+ const h=memberActionHarness({authError:true})
+ const result=await h.signInAndRsvpForEvent("test",{email:"member@example.com",password:"wrong"})
+ assert.equal(result.ok,undefined);assert.equal(result.joinUrl,undefined);assert.deepEqual(h.calls,["login"])
+ assert.doesNotMatch(result.error,/private auth/)
+ for(const change of [{requires_verified_ticket:true},{registration_url:"https://tickets.example"},{status:"draft"},{is_recording:true},{ends_at:"2000-01-01"}]){
+  const unavailable=memberActionHarness({eventChange:change});assert.ok((await unavailable.signInAndRsvpForEvent("test",{email:"member@example.com",password:"password"})).error);assert.equal(unavailable.calls.length,0)
+ }
+})
+test("member RSVP requires a verified session and is independent of guest enrollment",async()=>{
+ const out=memberActionHarness();assert.equal((await out.rsvpFromEventPage("test")).needsSignIn,true);assert.equal(out.calls.length,0)
+ const member=memberActionHarness({session:true,eventChange:{guest_rsvp_enabled:false}});assert.equal((await member.rsvpFromEventPage("test")).ok,true);assert.equal(member.calls.length,1)
+})
+test("login success with RSVP failure keeps the member signed in and rechecks event eligibility",async()=>{
+ for(const config of [{registrationError:true},{unavailableAfterLogin:true}]){
+  const h=memberActionHarness(config);const result=await h.signInAndRsvpForEvent("test",{email:"member@example.com",password:"password"})
+  assert.equal(result.signedIn,true);assert.equal(result.ok,undefined);assert.match(result.error,/signed in.*couldn’t save/);assert.equal(result.joinUrl,undefined)
+ }
+})
+
+test("public member RSVP preserves the portal account-ban restriction",async()=>{
+ const h=memberActionHarness({session:true,banned:true})
+ const result=await h.rsvpFromEventPage("test")
+ assert.equal(result.ok,undefined);assert.equal(result.joinUrl,undefined);assert.equal(h.calls.length,0)
+})

@@ -20,11 +20,15 @@ export function parseGuestInput(input: unknown): GuestInput {
   if (value.website) throw new Error("We couldn't accept this request. Please try again.")
   return { firstName, lastName, email, marketingOptIn: value.marketingOptIn === true }
 }
-export function guestRsvpAvailable(event: Pick<EventRecord, "status" | "is_recording" | "requires_verified_ticket" | "registration_url" | "starts_at" | "ends_at" | "guest_rsvp_enabled">, now = Date.now()) {
-  return event.guest_rsvp_enabled === true && event.status === "published" && !event.is_recording
+export function memberRsvpAvailable(event: Pick<EventRecord, "status" | "is_recording" | "requires_verified_ticket" | "registration_url" | "starts_at" | "ends_at" | "guest_rsvp_enabled">, now = Date.now()) {
+  return event.status === "published" && !event.is_recording
     && !event.requires_verified_ticket && !event.registration_url
     && new Date(event.ends_at ?? event.starts_at).getTime() > now
 }
+export function guestRsvpAvailable(event: Parameters<typeof memberRsvpAvailable>[0], now = Date.now()) {
+  return event.guest_rsvp_enabled === true && memberRsvpAvailable(event, now)
+}
+
 export function safeWebUrl(value: string | null | undefined): string | null {
   if (!value) return null
   try { const url = new URL(value); return url.protocol === "https:" ? url.href : null } catch { return null }

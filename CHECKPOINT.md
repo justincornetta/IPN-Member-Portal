@@ -1,10 +1,19 @@
-# Guest event RSVP — active local work
+# Event RSVP — member login and guest modals
 
 ## Status
 
 Implemented locally on `feature/guest-event-rsvp`, based on `origin/main` at `c9e0787`, in `Code/IPN-Member-Portal-guest-rsvp`. Justin approved publishing after the full-description correction. PR #70 is open: https://github.com/justincornetta/IPN-Member-Portal/pull/70 . No merge, production migration or live email authorized.
 
-## Last session — November 2, 2026
+## Last session — November 3, 2026
+
+- Implemented Justin’s approved revision: separate member sign-in/RSVP and guest RSVP dialogs. Successful event-specific login automatically saves the RSVP on the same page; signed-in members use one click. Generic sign-in does not enroll anyone.
+- Preserved the complete description and existing styling. Member RSVP works independently of the guest enrollment flag. Server actions resolve the event, recheck eligibility/session/account restrictions and reuse the idempotent member registration service.
+- Added invalid-login feedback, signed-in retry after RSVP failure, session-expiry recovery, focus containment/restoration, Escape/backdrop dismissal, password clearing and short-phone scrolling.
+- Final lint, production build and 41 focused checks pass. All ten browser workflows pass, covering desktop/phone modal interactions and existing guest/email/management flows. Fresh read-only design review returned GO with no material blockers.
+- Local demo login: `member@example.com` / `preview-password`; partial-success retry: `rsvp-retry@example.com` with the same demo password. No real accounts or messages are used locally.
+- PR #70 includes this modal revision on the existing approved branch. Guest enrollment remains disabled on the hosted preview pending rollout configuration/migration; hosted member actions use its connected backend. Use the isolated local demo for testing both paths.
+
+## Earlier session — November 2, 2026
 
 - Follow-up: restored both full original event-description paragraphs from Justin’s screenshot. The public renderer already preserved stored descriptions; the local fixture was abbreviated. Rechecked full text and wrapping at desktop and phone widths.
 - Justin selected inline RSVP on the existing event page and explicitly retained the current portal styling, without the new brand guidelines.

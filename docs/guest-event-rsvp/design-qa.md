@@ -31,3 +31,15 @@ Evidence: `screenshots/{1440,1280,390}-{landing,form,confirmation,optional-signu
 ## Full-description correction — November 2, 2026
 
 Restored both original description paragraphs in the local fixture from Justin’s screenshot. The public renderer already used the complete stored description. Refreshed the existing 1440/1280/390 full-page evidence and checked the final sentence remains visible without clipping. No other layout or email changes in this follow-up.
+
+## Modal revision — November 3, 2026
+
+Status: **passed / GO** from a fresh read-only reviewer. User approved separate “Sign in & RSVP” and “RSVP without an account” dialogs, automatic RSVP only after the explicit member action, and one-click RSVP for signed-in members.
+
+The reviewer inspected settled screenshots at 1440, 1280, 390 px and 390×600, the complete description/footer, and all guest/member/already-registered states. Fresh Chrome tests confirmed login→automatic RSVP, guest→confirmation, guest-disabled member login and partial-success retry without another password prompt. No console warnings/errors or design blockers remained. Entry-action visible gaps measure 12 px; phone controls stack. No production diagnostics were added. Local sample credentials/Next’s badge are development-only.
+
+Functional QA checks native modal containment, explicit Tab wrapping, initial field focus, Escape/backdrop close with opener focus restored, success focus after React commits, retained guest identity, cleared passwords after failed login, and short-phone scrolling. Scrollbar clicks do not dismiss the dialog. The first QA run exposed focus timing/wrapping defects; both were corrected before GO.
+
+The local login fixture does not refresh its header identity because no session is created; actual login uses Supabase cookies. Source inspection confirmed unchanged location/related-event rendering. Real hosted auth, email and database delivery remain outside visual-review coverage. Member actions now remain available independently of guest enrollment. Preview deployment still uses the connected backend for actual member actions, so automated testing stays on the local fixture.
+
+New evidence: `screenshots/{1440,1280,390}-login-modal.png`, `*-login-confirmed.png`, updated `*-form.png` and landing/confirmation captures, `390-short-modal.png`, `member-rsvp-retry.png`. No accepted design exceptions.

@@ -3,11 +3,6 @@ import type { GuestRegistration, GuestInput } from "./domain"
 import { randomUUID } from "node:crypto"
 
 export function guestDemoEnabled() { return process.env.NODE_ENV !== "production" && process.env.GUEST_EVENT_LOCAL_DEMO === "1" }
-export async function demoMemberRsvp() {
-  "use server"
-  if (!guestDemoEnabled()) return { error: "Preview unavailable" }
-  return {}
-}
 export const demoSlug = "guest-rsvp-preview"
 export const demoEvent = {
   id: "11111111-1111-4111-8111-111111111111", slug: demoSlug,
