@@ -1,4 +1,4 @@
-import {appendFileSync,cpSync,existsSync,mkdirSync,rmSync,symlinkSync,writeFileSync} from "node:fs"
+import {appendFileSync,readFileSync,cpSync,existsSync,mkdirSync,rmSync,symlinkSync,writeFileSync} from "node:fs"
 import {resolve} from "node:path"
 import {spawn} from "node:child_process"
 
@@ -30,6 +30,16 @@ env.GUEST_EVENT_TOKEN_SECRET="qa-only-token-not-a-production-secret"
 env.RESEND_API_KEY="qa-placeholder-never-used"
 // Do not copy .env files: the fixture cannot inherit local integration secrets.
 writeFileSync(resolve(target,".gitignore"),"*\n")
+// Enable observation capture only inside the disposable QA copy. The local
+// analytics API still discards requests; no analytics database is contacted.
+const analyticsClient=resolve(target,"src/lib/portal-analytics/client.ts")
+writeFileSync(analyticsClient,readFileSync(analyticsClient,"utf8").replace(' || process.env.NODE_ENV !== "production"',''))
+mkdirSync(resolve(target,"src/app/rsvp-analytics-review"),{recursive:true})
+writeFileSync(resolve(target,"src/app/rsvp-analytics-review/page.tsx"),`import Panel from "@/app/dashboard/admin/EventRsvpAnalytics";
+export default function Review(){return <main className="p-6 bg-zinc-50 text-zinc-900"><Panel journeys={[
+{date:"2026-11-03",eventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",path:"guest",stages:["open","submit","error","confirmed","signup"],signupCompleted:true},
+{date:"2026-11-03",eventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",path:"member",stages:["view","submit","confirmed","join"],signupCompleted:false}
+]}/></main>}`)
 const child=spawn(process.execPath,[resolve(root,"node_modules/next/dist/bin/next"),"dev","--hostname","127.0.0.1","--port","4331"],{cwd:target,env,stdio:"inherit"})
 for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal))
 child.on("exit",code=>process.exit(code??0))

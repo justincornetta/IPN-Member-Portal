@@ -1,3 +1,4 @@
+import { buildRsvpJourneys, rsvpMetadata, type RsvpJourney } from "../../portal-analytics/event-rsvp.ts"
 export type UtilizationAudience = "all" | "leadership" | "member"
 export type UtilizationMemberAudience = Exclude<UtilizationAudience, "all"> | "unknown"
 export type UtilizationDevice = "all" | "desktop" | "mobile" | "tablet" | "unknown"
@@ -75,6 +76,7 @@ export type PortalJourneyStep = {
 }
 
 export type PortalUtilizationData = {
+  eventRsvpJourneys?: RsvpJourney[]
   generatedAt: string
   rawRetentionDays: number
   trackingAvailable: boolean
@@ -321,6 +323,8 @@ function eventLabel(event: PortalUtilizationEventInput) {
     return portalPageCategory(event.page_path) ?? page
   }
   if (event.event_name === "curated_click") {
+    const rsvp = rsvpMetadata(event.metadata ?? {})
+    if (rsvp) return `Event RSVP: ${rsvp.stage} (${rsvp.path})`
     return event.target_label || event.target_id || "Link clicked"
   }
   if (event.event_name === "registration_success") return "Registration completed"
@@ -985,6 +989,7 @@ export function buildPortalUtilizationData({
     ))
 
   return {
+    eventRsvpJourneys: buildRsvpJourneys(sortedEvents),
     generatedAt: now.toISOString(),
     rawRetentionDays: RAW_RETENTION_DAYS,
     trackingAvailable: !analyticsError,

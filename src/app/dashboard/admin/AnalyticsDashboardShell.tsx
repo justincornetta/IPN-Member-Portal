@@ -1,5 +1,6 @@
 "use client"
 
+import EventRsvpAnalytics from "./EventRsvpAnalytics"
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { CSSProperties, ReactElement, ReactNode } from "react"
@@ -2837,6 +2838,7 @@ function PortalUtilizationPanel({ data, mode = "all" }: { data: PortalUtilizatio
 
   return (
     <div className="flex flex-col gap-6">
+      <EventRsvpAnalytics journeys={data.eventRsvpJourneys ?? []}/>
       <FilterBar>
         {mode === "activity" && <FilterField label="Registration from">
           <input type="date" value={registrationFrom} onChange={(event) => setRegistrationFrom(event.target.value)} className={inputClassName} />

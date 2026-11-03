@@ -1,3 +1,4 @@
+import { rsvpMetadata } from "./event-rsvp"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export const PORTAL_ANALYTICS_EVENTS = [
@@ -91,6 +92,17 @@ export function sanitizePortalAnalyticsPayload(payload: unknown) {
   const eventName = cleanText(body.eventName, 80)
   const sessionId = cleanText(body.sessionId, 120)
   if (!eventName || !PORTAL_ANALYTICS_EVENT_SET.has(eventName) || !sessionId) return null
+
+  if (eventName === "curated_click" && (body.metadata as Record<string,unknown> | null)?.flow === "event_rsvp") {
+    const metadata = rsvpMetadata(body.metadata as Record<string,unknown>)
+    if (!metadata) return null
+    // Only the fixed vocabulary crosses this boundary; drop identity, errors,
+    // query strings, referrers and arbitrary metadata from RSVP observations.
+    return {event_name:eventName as PortalAnalyticsEventName,session_id:sessionId,
+      anonymous_id:cleanText(body.anonymousId,120),page_path:"/events/"+metadata.eventSlug,
+      page_title:"Event RSVP",referrer:null,target_id:null,target_label:null,error_code:null,
+      duration_seconds:null,click_count:null,metadata}
+  }
 
   return {
     event_name: eventName as PortalAnalyticsEventName,

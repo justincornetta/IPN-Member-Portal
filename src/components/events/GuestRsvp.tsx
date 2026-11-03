@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/solid"
 import type { PublicRsvpResult } from "@/lib/events/public-rsvp-actions"
+import { trackRsvp } from "@/lib/portal-analytics/event-rsvp-client"
 import GuestRegistrationLink from "./GuestRegistrationLink"
 
 type Props = {
@@ -53,7 +54,13 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
     }
   }, [success])
 
+  const confirmationPath = useRef<"guest" | "member" | "member_login">(signedIn ? "member" : "guest")
+  const observedView = useRef<string | null>(null)
+  useEffect(() => {
+    if (observedView.current !== slug) { observedView.current = slug; trackRsvp(slug, "view", signedIn ? "member" : "visitor") }
+  }, [slug, signedIn])
   function openModal(next: Exclude<Mode, null>) {
+    trackRsvp(slug, "open", next === "guest" ? "guest" : "member_login")
     if (!mode) opener.current = document.activeElement as HTMLElement | null
     setError(""); setPassword(""); setMode(next)
   }
@@ -65,12 +72,14 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
   function confirm(result: { joinUrl: string | null; calendarUrl: string }) {
     closeModal(); setError(""); focusConfirmation.current = true; setSuccess(result)
   }
-  function acceptMemberResult(result: PublicRsvpResult) {
+  function acceptMemberResult(result: PublicRsvpResult, path: "member" | "member_login") {
+    trackRsvp(slug, result.ok ? "confirmed" : "error", path)
     if (result.needsSignIn) {
       setSessionExpired(true); setAuthenticated(false); openModal("login"); setError(result.error ?? "Please sign in again."); return
     }
     if (result.signedIn) { setAuthenticated(true); setSessionExpired(false) }
     if (result.ok && result.calendarUrl) {
+      confirmationPath.current = path
       confirm({ joinUrl: result.joinUrl ?? null, calendarUrl: result.calendarUrl })
     } else {
       if (result.signedIn) closeModal()
@@ -80,6 +89,7 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
   async function submitGuest(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); if (pending) return
     setPending(true); setError("")
+    trackRsvp(slug, "submit", "guest")
     const form = new FormData(e.currentTarget)
     try {
       const response = await fetch("/api/events/" + encodeURIComponent(slug) + "/rsvp", {
@@ -88,22 +98,26 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error)
+      trackRsvp(slug, "confirmed", "guest")
+      confirmationPath.current = "guest"
       confirm(result)
-    } catch (e) { setError(e instanceof Error ? e.message : "We couldn’t save your RSVP. Please try again.") }
+    } catch (e) { trackRsvp(slug, "error", "guest"); setError(e instanceof Error ? e.message : "We couldn’t save your RSVP. Please try again.") }
     finally { setPending(false) }
   }
   async function submitLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); if (pending) return
     setPending(true); setError("")
-    try { acceptMemberResult(await onSignInRsvp({ email, password })) }
-    catch { setError("We couldn’t sign you in and confirm your RSVP. Please try again.") }
+    trackRsvp(slug, "submit", "member_login")
+    try { acceptMemberResult(await onSignInRsvp({ email, password }), "member_login") }
+    catch { trackRsvp(slug, "error", "member_login"); setError("We couldn’t sign you in and confirm your RSVP. Please try again.") }
     finally { setPassword(""); setPending(false) }
   }
   async function memberRsvp() {
     if (pending) return
     setPending(true); setError("")
-    try { acceptMemberResult(await onMemberRsvp()) }
-    catch { setError("We couldn’t save your RSVP. Please try again.") }
+    trackRsvp(slug, "submit", "member")
+    try { acceptMemberResult(await onMemberRsvp(), "member") }
+    catch { trackRsvp(slug, "error", "member"); setError("We couldn’t save your RSVP. Please try again.") }
     finally { setPending(false) }
   }
   const button = "min-h-11 rounded-lg bg-ipn px-5 py-2.5 text-sm font-medium text-white transition hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn disabled:opacity-50"
@@ -119,8 +133,8 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
       <p className="mt-4 text-sm text-zinc-700">{date}</p>
       {!member && <p className="mt-2 text-sm text-zinc-600">Check your email for confirmation and joining details. Keep the link to view or cancel your RSVP.</p>}
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
-        <a className={button} href={success.calendarUrl} target="_blank" rel="noreferrer">Add to calendar</a>
-        {success.joinUrl ? <a href={success.joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn underline">Join event</a> : <p className="text-sm text-zinc-600">Joining details will be available in your event access link.</p>}
+        <a className={button} onClick={() => trackRsvp(slug, "calendar", confirmationPath.current)} href={success.calendarUrl} target="_blank" rel="noreferrer">Add to calendar</a>
+        {success.joinUrl ? <a onClick={() => trackRsvp(slug, "join", confirmationPath.current)} href={success.joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn underline">Join event</a> : <p className="text-sm text-zinc-600">Joining details will be available in your event access link.</p>}
       </div>
       {!member && <div className="mt-5 border-t border-zinc-200 pt-5">
           <h3 className="text-sm font-semibold">Want to stay connected?</h3>
