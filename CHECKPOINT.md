@@ -1,3 +1,21 @@
+# Event RSVP analytics — November 3, 2026
+
+## Status
+Implemented locally on `feature/event-rsvp-analytics` in `Code/IPN-Member-Portal-guest-rsvp`; implementation commit `4fb60e8`, latest main `0e95438` synced in merge `1300156`. Awaiting Justin's explicit approval to publish this new feature under repository AGENTS.md. No push, PR, merge or production analytics writes performed.
+
+## Last session
+Added first-party public event RSVP observations and an Event RSVP journey report under Admin → Analytics → Engagement → Member Portal Activity. Separates visitor, guest, member sign-in and signed-in paths; counts session-deduplicated form stages, confirmations/errors, calendar/join clicks and same-session account creation after optional signup. Fixed metadata sanitization strips form identity, passwords, raw errors, private tokens and referrers. Existing analytics user/session association remains; no new provider or schema migration. Official combined RSVP/Slack total unchanged.
+
+Locked dependencies and browser runtime installed. Lint, production build and 32 focused analytics checks pass, including after syncing latest main. All 15 browser scenarios pass (14 in final full run; the remaining guest case passed on rerun after increasing its assertion wait for observed six-second cold compilation). Browser checks cover desktop/phone flows, privacy-safe payloads, sign-in failures/retry, post-login click attribution, filters and horizontal table scrolling. Fresh independent design review GO at 1440/1280/390, including full admin context, no material blockers. Local tests use isolated fixture boundaries and never write production data or send messages.
+
+## Next steps / open decisions
+Justin reviews http://localhost:4331/rsvp-analytics-review and approves publication. Then push branch, open PR following pr-documentation, link deploy preview and verify read-only. Merge remains separate. Local server session is intentionally left running at port 4331.
+
+## Known limits
+Counts are observed browser sessions, not unique attendees or official RSVP totals. Confirmation may describe an existing RSVP; join click is not attendance. Attribution is same-session account creation, not verified email or later-session conversion. Uses existing 90-day retained raw events and excludes earlier/backfilled RSVPs. Production-mode deploy previews use existing analytics behavior; use local fixtures for safe tests. Detailed calculations/gaps and screenshots: `docs/guest-event-rsvp/analytics.md`. No production collection verified before deployment. Existing middleware deprecation warning remains. Tin Can milestone notification to Cornbot failed because relay was unavailable; Notion summary pending.
+
+---
+
 # Newsletter and Substack sync — November 3, 2026
 
 ## Status
