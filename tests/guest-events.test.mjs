@@ -238,14 +238,18 @@ test("public member RSVP preserves the portal account-ban restriction",async()=>
  assert.equal(result.ok,undefined);assert.equal(result.joinUrl,undefined);assert.equal(h.calls.length,0)
 })
 
-test("hosted sandbox is compiled only for PR 70 on its approved branch",()=>{
+test("hosted sandbox is compiled only for deploy-preview 70, including Netlify pull refs",()=>{
  const keys=["CONTEXT","REVIEW_ID","BRANCH"]
  const saved=keys.map(k=>process.env[k])
  try {
-  for(const [context,id,branch,expected] of [["production","70","feature/guest-event-rsvp","0"],["deploy-preview","71","feature/guest-event-rsvp","0"],["deploy-preview","70","main","0"],["deploy-preview","70","feature/guest-event-rsvp","1"]]){
+  for(const [context,id,branch,expected] of [["production","70","feature/guest-event-rsvp","0"],["deploy-preview","71","feature/guest-event-rsvp","0"],["branch-deploy","70","feature/guest-event-rsvp","0"],["deploy-preview","70","pull/70/head","1"],["deploy-preview","70","feature/guest-event-rsvp","1"]]){
    [process.env.CONTEXT,process.env.REVIEW_ID,process.env.BRANCH]=[context,id,branch]
    assert.equal(String(Number(guestPreviewBuild(process.env).enabled)),expected)
   }
+  const previewUrl="https://deploy-preview-70--ipn-member-portal.netlify.app"
+  assert.equal(guestPreviewBuild({CONTEXT:"deploy-preview",DEPLOY_PRIME_URL:previewUrl}).enabled,true)
+  assert.equal(guestPreviewBuild({CONTEXT:"production",DEPLOY_PRIME_URL:previewUrl}).enabled,false)
+  assert.equal(guestPreviewBuild({CONTEXT:"deploy-preview",REVIEW_ID:"71",DEPLOY_PRIME_URL:previewUrl}).enabled,false)
  }finally{keys.forEach((k,i)=>saved[i]===undefined?delete process.env[k]:process.env[k]=saved[i])}
 })
 
