@@ -1,102 +1,69 @@
-# Event RSVP modals and optional IPN signup
+# Event RSVP and optional IPN registration
 
-Status: [PR #70](https://github.com/justincornetta/IPN-Member-Portal/pull/70) is open on `feature/guest-event-rsvp` after Justin approved publication and the complete-description correction. No production migration, account creation or real email send has been performed.
+[PR #70](https://github.com/justincornetta/IPN-Member-Portal/pull/70) is prepared for production. Justin approved removing the hosted test experience on November 3, 2026. The PR is not merged. Existing portal styling and the complete event description are retained.
 
-## Decision and scope
+## How it works
 
-Justin’s November 3 revision replaces the inline form with two dialogs on the event page: “Sign in & RSVP” for existing accounts and “RSVP without an account” for guests, keeping the current portal styling. The event artwork, Geist typography, light surfaces, purple controls, header, event content and footer remain. The new brand guidelines are not applied.
+1. Visitors choose **Sign in & RSVP** or **RSVP without an account** on the event page. Signed-in members RSVP with one click; existing registrants see confirmation.
+2. Event-specific sign-in verifies the member and saves the RSVP automatically. Generic login does not enroll anyone. If login succeeds but saving fails, the member stays signed in and can retry.
+3. Guests provide first name, last name and email. Saving queues confirmation and eligible reminders atomically, then shows joining/calendar links. Retries do not duplicate registrations.
+4. **Join IPN free** opens existing four-step registration. A 30-minute tab-local handoff prefills editable name/email without placing personal details in the URL. Membership is optional; the RSVP remains saved independently. Verified email ownership is required before linking guest RSVPs to an account.
+5. The unchecked **Email me an invitation to join IPN after this event** checkbox permits one post-event invitation. It does not subscribe guests to future-event alerts or a newsletter. Standard membership retains its existing newsletter behavior.
 
-The current public event page can be viewed without an account, but its RSVP gate directs visitors into login or the longer member registration flow. The guest path is event page → guest RSVP dialog → first name, last name and email → confirmed RSVP with calendar/join links. Optional IPN account creation comes after confirmation. The member path is event page → login dialog → successful email/password sign-in automatically saves the event RSVP. Signed-in members use one click; already registered members see their confirmation. Generic site sign-in does not automatically RSVP.
+## Email behavior
 
-The initial inline-form [imagegen concept](selected-inline-concept.png), [generation prompt](imagegen-prompt.txt), [original event screenshot](current-event-before.png), and [design review](design-qa.md) are retained. The modal revision supersedes the concept’s inline form placement. The concept is an illustration: the implementation uses real event timestamps, not the concept's incorrect example reminder date.
+| Message | Timing | Audience |
+| --- | --- | --- |
+| Confirmation | Queued with RSVP; processing starts after the response | Every new guest RSVP |
+| 24-hour reminder | 24 hours before the event; skipped if already passed | Active guests |
+| 1-hour reminder | 1 hour before the event; skipped if already passed | Active guests |
+| Membership invitation | 24 hours after event end | Opted-in guests who have not joined |
 
-## Direct registration and invitation consent — November 3 follow-up
+The worker runs every ten minutes, so due messages may arrive up to one interval later. Signed management links allow viewing/canceling an RSVP and opting out of the invitation. Cancellation suppresses remaining event messages; invitation unsubscribe leaves transactional reminders active. Invitations do not imply attendance or promise recordings.
 
-After RSVP, **Join IPN free** now goes directly to the existing four-step `/register` page. Name/email are prefilled using a tab-local handoff that expires after 30 minutes; no personal data is placed in the URL. Prefill is editable and is not proof of email ownership. Storage failure falls back to ordinary blank registration. The RSVP is saved independently, and registration explains that membership is optional. Standard registration keeps its existing password, profile, verification, newsletter-sync and onboarding behavior. The management page uses the same direct link; invitation emails link directly to ordinary registration. `/join` remains available for recovery from older email-based signup links.
+The outbox persists an immutable payload and Resend idempotency key before sending. Leases prevent concurrent delivery; five failed attempts or 23 hours after first attempt require manual review. Converted guests retain their original ledger so member reminders do not double-send. Review uncertain deliveries in Resend before retrying; do not purge their ledger.
 
-The unchecked checkbox now reads **Email me an invitation to join IPN after this event.** Confirmation and eligible 24-hour/1-hour reminders do not require it. Opting in permits the single membership invitation 24 hours after event end; it does not subscribe a guest to the portal's future-event notification feed or newsletter. Full member registration has its existing separate newsletter sync.
+## Production preparation completed November 3
 
-Hosted/local guest previews show the same four-step form, with sample city entry instead of external location lookup and a simulated completion. The server signup action also refuses all preview submissions before touching auth, Mailchimp, Slack or analytics. No account or email is created. Live auth/email verification still requires separate integration validation.
+- Applied the additive migration to Supabase project `plgzakxecjlzepzeqiio`. The repository filename matches its recorded remote version: `supabase/migrations/20261103123749_guest_event_rsvp.sql`. Do not reapply it to this project. New installations still need this migration; the older `supabase/schema.sql` bootstrap does not contain it.
+- Verified RLS on all three guest tables and no anonymous/authenticated table access. Server-only RPCs, origin/input checks, a honeypot, persistent rate limits and signed management links protect the guest path. Rotating the signing key invalidates existing links.
+- Saved `GUEST_EVENT_RSVP_ENABLED=true`, `GUEST_EVENT_EMAIL_MODE=live` and a random server signing secret in Netlify's **Production context only**. The secret uses plan-supported Builds/Functions/Runtime scopes; non-secret flags use all scopes. No deploy-preview values were added.
+- Verified existing Supabase/Resend variables, canonical HTTPS site URL and event sender settings are present. The sender remains `IPN Events <events@members.intercollegiatepsychedelics.net>` with the IPN reply-to address.
+- Enabled guest RSVP only for the published Global Psychedelic Week event. Other events remain opt-in. Recordings, ticket-required and external-registration events are excluded.
+- Read-only checks found zero guest registrations and zero email jobs. No live RSVP, test account or email was created. The current production build lacks this feature; it activates after merge and deployment.
 
-## Hosted sandbox — PR #70
+Production builds run `npm run release:check` before building. It checks required configuration and reads the required schema without changing data. Missing prerequisites stop publication. Netlify's `CONTEXT` may be absent inside functions, so delivery uses the Production-scoped email setting; explicitly non-production contexts still refuse guest sends. Background handlers retain the platform's deploy-preview guard.
 
-Justin authorized an isolated hosted preview on November 3. The existing event URL on [deploy preview #70](https://deploy-preview-70--ipn-member-portal.netlify.app/events/global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional) now runs the same RSVP UI against fixtures. A visible Test preview banner links to the guest/member login, signed-in member state and [preview inbox](https://deploy-preview-70--ipn-member-portal.netlify.app/event-preview/emails). Member credentials are `member@example.com` / `preview-password`; existing real login cookies are ignored. This supersedes earlier notes that hosted member actions use the live backend or guest enrollment is disabled there.
+## Hosted preview after cleanup
 
-Before each build, `scripts/guest-preview-build.mjs` writes a literal `preview-build.json` module (committed fallback: disabled). This avoids relying on build metadata being available inside Netlify’s function runtime. Activation is compiled only when Netlify's build context is `deploy-preview`, review ID is `70` (or Netlify’s exact PR #70 URL when the review ID is absent). Production and other PR builds do not enable the sandbox. Git ref names are not used as an activation condition because Netlify checks out `pull/70/head`. The production event is not edited or enabled for guests. No Supabase migration, project, credentials or hosting environment variables were changed.
+[Event landing page](https://deploy-preview-70--ipn-member-portal.netlify.app/events/global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional)
 
-Guest test state is stored in a host-only, HTTP-only, SameSite browser cookie for 24 hours, not a process-global map or database. Fresh serverless instances can read it; another browser sees its own state. It is not an authentication cookie, grants no account access, and its contents are validated before rendering. Use sample details. The preview inbox renders the existing email templates immediately, personalized from that browser's latest test RSVP. RSVP cancellation/unsubscribe remain in that browser; all template stages are shown for review rather than scheduled. Signup stops at a clearly labeled simulated confirmation: no user or verification email is created. Real email verification, delivery and timing still need a separate integration test environment.
+The preview no longer has fixture events, sample passwords, fake sessions, test banners, simulated signup, an email inbox or special view query parameters. `/event-preview/emails`, `/join` and `/api/events/membership` are removed. Optional signup uses ordinary `/register`.
 
-Defense in depth: sandbox routes bypass live services; Supabase client factories refuse access; generic portal/auth/API routes are blocked or redirected; analytics is disabled; the guest sender is disabled even if live-email settings are inherited. Netlify background handlers use the platform's `context.deploy.context` to stop all deploy-preview invocations before side effects, because build-context environment variables are not guaranteed at function runtime. Production handler behavior is unchanged. References: [Netlify runtime variables](https://docs.netlify.com/build/functions/environment-variables/) and [function context](https://docs.netlify.com/build/functions/api/).
+Guest enrollment is enabled only in Production, so its button is absent on the deploy preview. Ordinary member login, RSVP and registration use the connected backend. **The hosted preview is no longer a safe sandbox for test submissions.** Use local QA to exercise guest/member flows without side effects.
 
-To reproduce the hosted build locally (stop the development server first):
+## Isolated local QA
 
 ```sh
-CONTEXT=deploy-preview REVIEW_ID=70 BRANCH=feature/guest-event-rsvp DEPLOY_PRIME_URL=http://127.0.0.1:4341 npm run build
-npx playwright test -c playwright.guest-sandbox.config.ts
+npm ci
+npm run qa:install
+npm run qa:guest-events
 ```
 
-The runner starts a production server on port 4341 with integration credentials and build-context variables stripped. Tests cover desktop/phone guest signup, personalized inbox, cancellation surviving refresh, browser isolation, simulated member login and blocked unrelated writes.
+For manual review run `npm run guest-events:dev`, then open http://localhost:4331/events/guest-rsvp-preview . Use `localhost`, matching the server's request origin. The runner creates an ignored `.qa-guest/` copy with fixture Supabase/action boundaries. It strips integration credentials, never copies `.env` files, intercepts account creation and never queues real email. Shipping code imports no mock modules.
 
-## Local review
+Only in this local copy: `member@example.com` / `preview-password` exercises sign-in; `rsvp-retry@example.com` with the same password exercises partial-success retry. Browser tests set isolated cookies for other states. Query parameters cannot impersonate members. Registration uses the real UI; location lookup returns no candidates and final account creation is intercepted with a QA error. These substitutions are not deployed.
 
-Run `npm ci`, `npm run qa:install`, then `npm run guest-events:dev`.
+The fixture reproduces the November 3, 2026 event and expires after its end. Update timestamps for future QA. Location details and related events remain in production but are absent from the fixture.
 
-- Event: http://127.0.0.1:4331/events/guest-rsvp-preview
-- Signed-in state: http://127.0.0.1:4331/events/guest-rsvp-preview?view=member
-- Already registered: http://127.0.0.1:4331/events/guest-rsvp-preview?view=registered
-- Email sequence: http://127.0.0.1:4331/event-preview/emails
-- Optional account signup: http://127.0.0.1:4331/join
-- Expired link recovery: http://127.0.0.1:4331/join?expired=1
+## Verification and limits
 
-For the local member login dialog, use **member@example.com / preview-password**. Any incorrect password produces a login error. **rsvp-retry@example.com / preview-password** demonstrates successful login with a failed RSVP, then a one-click retry. `?view=member-only` hides guest enrollment while retaining member sign-in/RSVP.
+Locked dependencies and browser runtime installed. Lint and production build pass. Seventy-three focused checks cover validation, transactional SQL, consent, verified-email linking, counts, cancellation rollback, leases, delivery deduplication, auth restrictions and existing registration/onboarding. Ten browser workflows cover 1440/1280/390px, full content, guest/member flows, focus/keyboard behavior, retries, duplicate submission, direct registration, short-phone scrolling and removed routes.
 
-The local development launcher strips integration credentials, uses in-memory registrations, and disables email delivery. The preview join link deliberately goes to example.com. Demo behavior is disabled on production deployments; the explicitly scoped PR #70 build is a sandbox. The fixture includes both complete original event-description paragraphs supplied by Justin. The fixture reproduces the November 3, 2026 event and will stop accepting RSVPs after its end; update fixture dates for future QA sessions. The existing location-details and related-events sections are omitted from the fixture but unchanged in the application.
+The migration passed PGlite tests before application. The release checker successfully read production schema using existing Supabase credentials; local placeholder email/signing values were used for that read-only exercise. Actual Production variable presence/scopes were verified separately through Netlify. Mock email tests do not establish inbox delivery, provider verification or live auth success. No live account/email test was performed. RSVP and conversion are not attendance measurements.
 
-## Emails and identity
+Fresh read-only visual review returned **GO** at all three widths, with local guest/member interaction and no browser warnings/errors. See [design review](design-qa.md). Historical concept/sandbox images remain as design history, not current instructions. Current evidence: [guest dialog](screenshots/1440-form.png), [member login](screenshots/1280-login-modal.png), [direct registration](screenshots/390-optional-signup.png).
 
-| Message | When | Recipient |
-| --- | --- | --- |
-| RSVP confirmation | Queued atomically with the RSVP; processing begins after the response | Every new guest RSVP |
-| 24-hour reminder | 24 hours before the event; skipped if that window has passed | Active guests |
-| 1-hour reminder | 1 hour before the event; skipped if that window has passed | Active guests |
-| Membership invitation | 24 hours after event end | Guests who explicitly opted in and have not joined |
-| Secure signup/sign-in link | Only when requested | The entered email address |
+## Release and undo
 
-The existing scheduled worker runs every 10 minutes, so reminders can arrive up to one interval after their due time. Direct event links do not require a portal login. Invitations do not claim that a guest attended or promise recordings. The invitation checkbox starts unchecked. Unsubscribing suppresses the invitation associated with that RSVP; event reminders remain. Cancellation suppresses the whole event email sequence and removes any linked member RSVP atomically.
-
-Guest RSVP does not create an account. Optional signup generates a Supabase email verification link and sends it with Resend. Verified email ownership is required before guest RSVPs are associated with an account. New accounts from this path start with directory discoverability/location sharing off; profile details can be added later. Existing password login and the standard registration page remain available. The event-specific member action resolves the event on the server, rechecks eligibility after login, verifies the session and account restrictions, and then calls the existing idempotent member RSVP action. Login never automatically enrolls someone through the generic sign-in route. A failed RSVP after successful login retains the session and offers a retry. Expired links return to the new signup form, and requesting another link preserves the typed identity.
-
-Private guest tables use RLS and no anonymous/authenticated table or RPC grants. The server enforces event eligibility, input/origin checks, a honeypot and persistent HMAC-keyed rate limits. Signed RSVP-management links are limited to one RSVP and confer no member access. These routes and auth callbacks are excluded from portal analytics, and the management page uses no-referrer/noindex metadata. Keep management links private. Rotating the signing secret invalidates existing links.
-
-The outbox stores a stable email payload before sending and uses `guest-event/<job-id>` as the Resend idempotency key. Workers lease jobs; retries stop for manual review after five attempts or 23 hours to avoid resending beyond Resend's idempotency window. Rescheduled fresh jobs are postponed; uncertain deliveries with changed timing need review. Converted guests remain on their original delivery ledger, and member confirmation/reminder jobs skip them to prevent double delivery.
-
-## Verification
-
-Locked dependencies and the repo browser runtime installed successfully. Lint, production build and diff checks pass. The focused suite covers 47 domain, SQL, sender and existing event/auth regression checks. The ten browser workflows exercise 1440/1280/390 px, guest/member states, first-field and success focus, unselected consent, prefilled signup, duplicate submission, errors/retry with retained input, private management, cancellation, unsubscribe, email rendering, dark-system contrast and requesting another signup link, login followed by automatic RSVP, authentication failure, partial success/retry, keyboard focus containment/restoration, Escape/backdrop dismissal and short-phone scrolling.
-
-The migration was executed against local PGlite with private-role checks, duplicate/consent/outbox assertions, verified-email linking, count preservation, bounded leases and transaction rollback on cancellation failure. Email delivery uses a mock Resend client in tests. Actual hosted Supabase verification and Resend inbox delivery remain deployment-stage checks. No attendance data was collected; RSVP and portal conversion must not be presented as attendance.
-
-## Publishing and rollout
-
-Justin approved pushing/opening a PR on November 2, 2026, after restoring the complete description. Merge and production rollout remain separate decisions. Auth/schema ownership should be flagged for Luke during review. This branch is based on `origin/main` at `c9e0787` and is isolated from the active media-intake worktree.
-
-After publishing approval, review/deploy the additive migration `supabase/migrations/20261103033258_guest_event_rsvp.sql` before deploying the new admin event query. Existing events default to guest RSVP disabled. `supabase/schema.sql` remains the older bootstrap snapshot; this additional migration is required for new installations as well.
-
-Production configuration required:
-
-- `GUEST_EVENT_RSVP_ENABLED=true`
-- `GUEST_EVENT_EMAIL_MODE=live` and hosting `CONTEXT=production`
-- `GUEST_EVENT_TOKEN_SECRET` with at least 32 random characters, server-only
-- `NEXT_PUBLIC_SITE_URL=https://members.intercollegiatepsychedelics.net`
-- Existing server-side Supabase credentials and `RESEND_API_KEY`
-- A verified `EVENT_EMAIL_FROM` sender and optional `EVENT_EMAIL_REPLY_TO`
-
-Validate the Supabase email-link expiry configuration (copy currently describes one hour), callback allowlist, verified Resend sender and scheduled worker in an isolated environment before enabling an event. Do not submit a test to a deploy preview sharing production storage; preview email delivery is disabled, but shared production workers may still act on stored data from other features. No staging environment was changed in this task.
-
-Outside the PR #70 sandbox, member RSVP/login on eligible public event pages is independent of the guest feature flag and uses the existing member service. A separate backend is still required to test real auth, database persistence and email delivery.
-
-Enable “Allow guest RSVP without an IPN account” only on the intended event, with the correct direct join URL. Ticket-required events, external-registration events and recordings are excluded. Monitor `guest_event_email_deliveries` for failed/review jobs and reconcile Resend delivery IDs before manually retrying an uncertain send. Cancellation/consent are rechecked at send time. Switching off the feature or an event also stops its guest delivery worker, so account for already registered guests before a rollback. Do not purge the delivery ledger while messages may be retried.
-
-## Evidence
-
-Full-page images are in [screenshots](screenshots). Important views: [desktop form](screenshots/1440-form.png), [phone confirmation](screenshots/390-confirmation.png), [optional signup](screenshots/390-optional-signup.png), [dark-system signup](screenshots/join-dark-system.png), [confirmation email](screenshots/email-rsvp-confirmation.png), [membership invitation](screenshots/email-membership-invitation.png).
+Merge remains Justin's decision. Auth/schema changes warrant Luke's review. Monitor failed/review email jobs and the scheduled function after release. Disabling global/per-event guest flags stops enrollment and guest delivery, so account for existing registrants first. Keep additive tables and the ledger during rollback. New production builds require enabled flags by design; roll back to the prior deployment if the feature must be withdrawn completely.

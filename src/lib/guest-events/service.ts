@@ -6,33 +6,28 @@ import type { GuestRegistration, GuestEmailKind } from "./domain"
 import { guestRsvpAvailable, parseGuestInput, safeWebUrl } from "./domain"
 import { rateKey, guestToken, readGuestToken } from "./tokens"
 import { renderGuestEmail } from "./email-content"
-import { demoEvent, demoEventSlug, demoFind, demoRegister, demoUpdate, guestDemoEnabled, previewGuest } from "./demo"
-import { hostedGuestPreview, previewOrigin } from "./preview-mode"
-import { readPreviewGuest, registerPreviewGuest, savePreviewGuest } from "./preview-store"
 
 export class GuestError extends Error { constructor(message:string,public status=400) { super(message) } }
 export function guestFeatureEnabled() {
-  return guestDemoEnabled() || process.env.GUEST_EVENT_RSVP_ENABLED === "true"
+  return process.env.GUEST_EVENT_RSVP_ENABLED === "true"
 }
 export function guestLiveEmailEnabled() {
-  return !guestDemoEnabled() && process.env.GUEST_EVENT_EMAIL_MODE === "live" && process.env.CONTEXT === "production"
+  // Netlify CONTEXT can be absent at runtime. Scope this mode to Production in Netlify.
+  return process.env.GUEST_EVENT_EMAIL_MODE === "live" && (!process.env.CONTEXT || process.env.CONTEXT === "production")
 }
 export function guestSiteUrl() {
-  if (hostedGuestPreview()) return previewOrigin()
   const raw = process.env.NEXT_PUBLIC_SITE_URL
   if (!raw) throw new Error("Guest event site URL is missing")
   const url = new URL(raw)
-  if (!guestDemoEnabled() && url.protocol !== "https:") throw new Error("Guest event site must use HTTPS")
+  if (url.protocol !== "https:") throw new Error("Guest event site must use HTTPS")
   return url.origin
 }
 export async function readGuestEvent(slug: string): Promise<EventRecord | null> {
-  if (guestDemoEnabled()) return demoEventSlug(slug) ? { ...demoEvent, slug } : null
   const { data,error } = await createAdminClient().from("events").select("*").eq("slug",slug).eq("status","published").eq("is_recording",false).maybeSingle()
   if(error) throw error
   return data as EventRecord | null
 }
 export async function checkGuestRate(request: Request, email:string, scope:string) {
-  if (guestDemoEnabled()) return
   const db=createAdminClient()
   const ip=request.headers.get("x-nf-client-connection-ip") ?? "unknown-proxy"
   for(const [bucket,limit] of [[scope+":"+email,5],["ip:"+ip,60]] as const) {
@@ -62,12 +57,10 @@ export async function submitGuestRsvp(slug:string,input:unknown,request:Request)
   try { clean=parseGuestInput(input) } catch(e) { throw new GuestError((e as Error).message) }
   const event=await readGuestEvent(slug)
   if(!event || !guestRsvpAvailable(event)) throw new GuestError("This event is not accepting guest RSVPs.",409)
-  if(!guestDemoEnabled() && (!guestLiveEmailEnabled() || !process.env.RESEND_API_KEY))
+  if((!guestLiveEmailEnabled() || !process.env.RESEND_API_KEY))
     throw new GuestError("Registration is temporarily unavailable. Please try again shortly.",503)
   await checkGuestRate(request,clean.email,"rsvp:"+event.id)
-  if(hostedGuestPreview()) await registerPreviewGuest(clean)
-  else if(guestDemoEnabled()) demoRegister(clean)
-  else {
+  {
     // Check signing configuration before accepting a registration.
     guestToken(event.id)
     const {error}=await createAdminClient().rpc("register_guest_event",{
@@ -76,19 +69,11 @@ export async function submitGuestRsvp(slug:string,input:unknown,request:Request)
     if(error) throw new GuestError("We couldn't save your RSVP. Please try again.",503)
   }
   return {ok:true,joinUrl:safeWebUrl(event.join_url),calendarUrl:buildGoogleCalendarUrl({...event,join_url:safeWebUrl(event.join_url)}),
-    emailStatus:guestDemoEnabled()?"preview":"queued",demo:guestDemoEnabled()}
+    emailStatus:"queued"}
 }
 export async function readGuestAccess(token:string) {
   const id=readGuestToken(token)
   if(!id) return null
-  if(hostedGuestPreview()) {
-    const saved = await readPreviewGuest()
-    const guest = saved ?? previewGuest
-    return guest.id === id ? {guest,event:demoEvent} : null
-  }
-  if(guestDemoEnabled()) {
-    const guest=demoFind(id); return guest ? {guest,event:demoEvent} : null
-  }
   const db=createAdminClient()
   const {data:guest,error}=await db.from("guest_event_registrations").select("*").eq("id",id).maybeSingle()
   if(error) throw error
@@ -99,15 +84,12 @@ export async function readGuestAccess(token:string) {
 export async function updateGuestPreference(token:string,action:"unsubscribe"|"cancel") {
   const access=await readGuestAccess(token)
   if(!access) throw new GuestError("This link is not valid.",404)
-  const update=action==="unsubscribe" ? {marketing_opt_in:false} : {cancelled_at:new Date().toISOString(),marketing_opt_in:false}
-  if(hostedGuestPreview()) { await savePreviewGuest({...access.guest,...update}); return }
-  if(guestDemoEnabled()) { demoUpdate(access.guest.id,update); return }
   const db=createAdminClient()
   const {error}=await db.rpc("update_guest_event_preference",{p_id:access.guest.id,p_action:action})
   if(error) throw error
 }
 export async function claimGuestRegistrations(userId:string) {
-  if(!guestFeatureEnabled() || guestDemoEnabled()) return
+  if(!guestFeatureEnabled()) return
   const {error}=await createAdminClient().rpc("claim_guest_event_registrations",{p_user_id:userId})
   if(error) throw error
 }

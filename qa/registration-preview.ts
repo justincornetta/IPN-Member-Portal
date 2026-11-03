@@ -3,6 +3,7 @@ import {expect, type Page} from "@playwright/test"
 export async function completeRegistrationPreview(page: Page) {
   await expect(page.getByRole("heading", {name: "Create your account", exact: true})).toBeVisible()
   await expect(page.getByText("Your event RSVP is already confirmed. Creating an IPN account is optional.")).toBeVisible()
+  await expect(page.getByText("Test registration:",{exact:false})).toHaveCount(0)
   await page.getByLabel("Password", {exact:true}).fill("sample-preview-only")
   await page.getByLabel("Confirm password", {exact:true}).fill("sample-preview-only")
   await page.getByRole("button", {name:"Next", exact:true}).click()
@@ -15,6 +16,7 @@ export async function completeRegistrationPreview(page: Page) {
   await page.getByRole("button", {name:"Next", exact:true}).click()
   await page.getByRole("radio", {name:"Social Media", exact:true}).check()
   await page.getByRole("button", {name:"Create account", exact:true}).click()
-  await expect(page.getByRole("heading", {name:"Registration preview complete", exact:true})).toBeVisible()
-  await expect(page.getByRole("status")).toContainText("No account was created and no email was sent.")
+  // Only the isolated QA copy intercepts the real signup action. There is no
+  // simulated success state in the shipping registration component.
+  await expect(page.getByText("QA intercepted account creation; no live account or email was created.",{exact:true})).toBeVisible()
 }

@@ -1,6 +1,5 @@
 import {test,expect} from "@playwright/test"
 import {completeRegistrationPreview} from "../registration-preview"
-import {createHmac} from "node:crypto"
 const dir="docs/guest-event-rsvp/screenshots"
 for(const width of [1440,1280,390])test(`guest flow and member states at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:900})
@@ -27,13 +26,14 @@ for(const width of [1440,1280,390])test(`guest flow and member states at ${width
   await page.screenshot({path:`${dir}/${width}-optional-signup.png`,fullPage:true})
   await completeRegistrationPreview(page)
   await page.screenshot({path:`${dir}/${width}-signup-sent.png`,fullPage:true})
-  await page.goto("/events/guest-rsvp-preview?view=member")
+  await page.context().addCookies([{name:"qa-member",value:"1",url:"http://localhost:4331"}])
+  await page.goto("/events/guest-rsvp-preview")
   await expect(page.getByText("You’re signed in. Reserve your place with one click.")).toBeVisible()
   await page.getByRole("button",{name:"RSVP",exact:true}).click()
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeVisible()
   await expect(page.getByRole("link",{name:/Join IPN free/})).toHaveCount(0)
   await page.screenshot({path:`${dir}/${width}-member.png`,fullPage:true})
-  await page.goto("/events/guest-rsvp-preview?view=registered")
+  await page.reload()
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeVisible()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   expect(errors).toEqual([])
@@ -62,48 +62,7 @@ test("error retains values, retries, duplicate submission and optional account p
   await page.getByLabel("Email",{exact:true}).fill("retry-browser@example.com")
   await page.getByRole("button",{name:"Confirm RSVP",exact:true}).click()
   await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toBeVisible()
-  await page.emulateMedia({colorScheme:"light"})
-  await page.goto("/join?expired=1")
-  await expect(page.getByText("That link has expired or was already used. Request a new link below.")).toBeVisible()
-  await expect(page.getByRole("button",{name:"Email me a sign-up link",exact:true})).toBeVisible()
-  const lightColor=await page.getByRole("heading",{name:"Join IPN — it’s free"}).evaluate(el=>getComputedStyle(el).color)
-  await page.emulateMedia({colorScheme:"dark"})
-  expect(await page.getByRole("heading",{name:"Join IPN — it’s free"}).evaluate(el=>getComputedStyle(el).color)).toBe(lightColor)
-  await page.screenshot({path:`${dir}/join-dark-system.png`,fullPage:true})
-  await page.getByLabel("First name",{exact:true}).fill("Alex")
-  await page.getByLabel("Last name",{exact:true}).fill("Rivera")
-  await page.getByLabel("Email",{exact:true}).fill("another-link@example.com")
-  await page.getByRole("button",{name:"Email me a sign-up link",exact:true}).click()
-  await expect(page.getByRole("heading",{name:"Check your email",exact:true})).toBeVisible()
-  await page.getByRole("button",{name:"Request another link",exact:true}).click()
-  await expect(page.getByLabel("Email",{exact:true})).toHaveValue("another-link@example.com")
 })
-test("emails, private management link, unsubscribe and cancellation",async({page})=>{
-  await page.setViewportSize({width:1440,height:1000})
-  await page.goto("/event-preview/emails")
-  await expect(page.locator("iframe")).toHaveCount(4)
-  await expect(page.frameLocator('iframe[title="rsvp confirmation"]').getByRole("link",{name:"Join event",exact:true})).toHaveAttribute("href","https://example.com/zoom-preview")
-  for(const kind of ["rsvp confirmation","reminder 24h","reminder 1h","membership invitation"]){
-    const frame=page.frameLocator(`iframe[title="${kind}"]`)
-    await expect(frame.getByRole("heading",{level:1})).toBeVisible()
-    await page.locator(`iframe[title="${kind}"]`).screenshot({path:`${dir}/email-${kind.replaceAll(" ","-")}.png`})
-  }
-  await page.screenshot({path:`${dir}/email-sequence.png`,fullPage:true})
-  const id="22222222-2222-4222-8222-222222222222"
-  const sig=createHmac("sha256","local-preview-only-not-for-production-12345").update("guest-event-v1:"+id).digest("base64url")
-  const url=`/events/rsvp/${id}.${sig}`
-  await page.emulateMedia({colorScheme:"dark"})
-  await page.goto(url+"?action=unsubscribe")
-  await page.getByRole("button",{name:"Unsubscribe from invitations",exact:true}).click()
-  await expect(page.getByRole("status")).toContainText("reminders are unchanged")
-  await page.goto(url)
-  await expect(page.getByRole("link",{name:"Join event",exact:true})).toBeVisible()
-  await page.screenshot({path:`${dir}/manage-rsvp.png`,fullPage:true})
-  await page.getByRole("button",{name:"Cancel my RSVP",exact:true}).click()
-  await expect(page.getByRole("link",{name:"Join event",exact:true})).toHaveCount(0)
-  await expect(page.getByText("This RSVP or event is no longer available.",{exact:false})).toBeVisible()
-})
-
 for(const width of [1440,1280,390])test(`member login modal, keyboard and automatic RSVP at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:900})
   const errors:string[]=[]
@@ -146,7 +105,8 @@ for(const width of [1440,1280,390])test(`member login modal, keyboard and automa
   expect(errors).toEqual([])
 })
 test("login success with failed RSVP offers one-click retry; member login works with guest enrollment off",async({page})=>{
-  await page.goto("/events/guest-rsvp-preview?view=member-only")
+  await page.context().addCookies([{name:"qa-guest-disabled",value:"1",url:"http://localhost:4331"}])
+  await page.goto("/events/guest-rsvp-preview")
   await expect(page.getByRole("button",{name:"RSVP without an account",exact:true})).toHaveCount(0)
   await page.getByRole("button",{name:"Sign in & RSVP",exact:true}).click()
   const dialog=page.getByRole("dialog")
@@ -173,4 +133,14 @@ test("guest modal remains scrollable on a short phone viewport and backdrop dism
   await page.mouse.click(2,2)
   await expect(dialog).not.toBeVisible()
   await expect(entry).toBeFocused()
+})
+
+test("production routes have no sandbox inbox or membership email form",async({page})=>{
+  for(const path of ["/event-preview/emails","/join","/api/events/membership"]){
+    const response=await page.goto(path)
+    expect(response?.status()).toBe(404)
+  }
+  await page.goto("/events/guest-rsvp-preview?view=registered")
+  await expect(page.getByRole("heading",{name:"You’re registered",exact:true})).toHaveCount(0)
+  await expect(page.getByText("Test preview.",{exact:false})).toHaveCount(0)
 })

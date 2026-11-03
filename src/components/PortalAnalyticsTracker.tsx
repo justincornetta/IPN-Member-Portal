@@ -4,7 +4,6 @@ import { Suspense, useEffect, useRef } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { trackPortalEvent } from "@/lib/portal-analytics/client"
 import type { PortalAnalyticsEventName } from "@/lib/portal-analytics/events"
-import { hostedGuestPreview } from "@/lib/guest-events/preview-mode"
 
 function pathEvent(pathname: string): PortalAnalyticsEventName | null {
   if (pathname === "/register") return "registration_view"
@@ -15,7 +14,7 @@ function pathEvent(pathname: string): PortalAnalyticsEventName | null {
 function InnerPortalAnalyticsTracker() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const trackingDisabled = hostedGuestPreview() || process.env.NODE_ENV !== "production" || pathname.startsWith("/events/rsvp/") || pathname.startsWith("/auth/")
+  const trackingDisabled = process.env.NODE_ENV !== "production" || pathname.startsWith("/events/rsvp/") || pathname.startsWith("/auth/")
   const currentPathRef = useRef("")
   const pageStartedAtRef = useRef<number | null>(null)
   const clickCountRef = useRef(0)

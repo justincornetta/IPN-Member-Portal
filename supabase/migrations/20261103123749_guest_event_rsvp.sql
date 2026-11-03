@@ -161,18 +161,6 @@ end $$;
 revoke all on function private.cancel_converted_guest_rsvp() from public,anon,authenticated;
 create trigger cancel_converted_guest after delete on public.event_registrations for each row execute function private.cancel_converted_guest_rsvp();
 
--- The existing user-created trigger runs first. Only this optional signup path starts private.
--- This is a privacy preference, not an authorization claim.
-create function private.event_signup_private_profile() returns trigger language plpgsql security definer set search_path=public as $$
-begin
- if new.raw_user_meta_data->>'event_signup'='true' then
-   update profiles set is_discoverable=false,share_location=false,email=new.email where id=new.id;
- end if;
- return new;
-end $$;
-revoke all on function private.event_signup_private_profile() from public,anon,authenticated;
-create trigger zz_event_signup_private_profile after insert on auth.users for each row execute function private.event_signup_private_profile();
-
 -- Cancellation and its member RSVP are changed in one transaction.
 create function public.update_guest_event_preference(p_id uuid,p_action text)
 returns void language plpgsql security invoker set search_path=public as $$

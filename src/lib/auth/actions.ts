@@ -6,7 +6,6 @@ import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isSafeRedirectPath } from "@/lib/auth/redirect"
-import { guestDemoEnabled } from "@/lib/guest-events/demo"
 import { claimGuestRegistrations } from "@/lib/guest-events/service"
 import { setMailchimpSubscription } from "@/lib/mailchimp/actions"
 import { profileMailchimpFields } from "@/lib/mailchimp/status"
@@ -152,7 +151,6 @@ export async function signUp(
   next?: string,
   analytics?: AnalyticsContext,
 ): Promise<{ error: string } | void> {
-  if (guestDemoEnabled()) return { error: "Account creation is disabled in this test preview." }
   if (!FIELD_STATUS_OPTIONS.some((status) => status === data.psychedelic_field_status)) {
     return { error: "Please select your field status." }
   }

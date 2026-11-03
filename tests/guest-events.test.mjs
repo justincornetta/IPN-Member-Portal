@@ -6,7 +6,6 @@ import {resolve,dirname} from "node:path"
 import ts from "typescript"
 import {PGlite} from "@electric-sql/pglite"
 import {parseGuestInput,guestRsvpAvailable,emailSchedule,safeWebUrl} from "../src/lib/guest-events/domain.ts"
-import {guestPreviewBuild} from "../scripts/guest-preview-build.mjs"
 import {guestToken,readGuestToken} from "../src/lib/guest-events/tokens.ts"
 
 const root=resolve(import.meta.dirname,"..")
@@ -73,7 +72,7 @@ async function database(){
  update events set registration_count=greatest(0,registration_count-1) where id=old.event_id;return old;end $$;
  create trigger member_count after insert or delete on event_registrations for each row execute function test_member_count();
  `)
- await db.exec(readFileSync(resolve(root,"supabase/migrations/20261103033258_guest_event_rsvp.sql"),"utf8"))
+ await db.exec(readFileSync(resolve(root,"supabase/migrations/20261103123749_guest_event_rsvp.sql"),"utf8"))
  await db.query("insert into events(id,starts_at,ends_at,status,guest_rsvp_enabled) values($1,now()+interval '3 days',now()+interval '3 days 1 hour','published',true)",[event.id])
  return db
 }
@@ -239,64 +238,6 @@ test("public member RSVP preserves the portal account-ban restriction",async()=>
  assert.equal(result.ok,undefined);assert.equal(result.joinUrl,undefined);assert.equal(h.calls.length,0)
 })
 
-test("hosted sandbox is compiled only for deploy-preview 70, including Netlify pull refs",()=>{
- const keys=["CONTEXT","REVIEW_ID","BRANCH"]
- const saved=keys.map(k=>process.env[k])
- try {
-  for(const [context,id,branch,expected] of [["production","70","feature/guest-event-rsvp","0"],["deploy-preview","71","feature/guest-event-rsvp","0"],["branch-deploy","70","feature/guest-event-rsvp","0"],["deploy-preview","70","pull/70/head","1"],["deploy-preview","70","feature/guest-event-rsvp","1"]]){
-   [process.env.CONTEXT,process.env.REVIEW_ID,process.env.BRANCH]=[context,id,branch]
-   assert.equal(String(Number(guestPreviewBuild(process.env).enabled)),expected)
-  }
-  const previewUrl="https://deploy-preview-70--ipn-member-portal.netlify.app"
-  assert.equal(guestPreviewBuild({CONTEXT:"deploy-preview",DEPLOY_PRIME_URL:previewUrl}).enabled,true)
-  assert.equal(guestPreviewBuild({CONTEXT:"production",DEPLOY_PRIME_URL:previewUrl}).enabled,false)
-  assert.equal(guestPreviewBuild({CONTEXT:"deploy-preview",REVIEW_ID:"71",DEPLOY_PRIME_URL:previewUrl}).enabled,false)
- }finally{keys.forEach((k,i)=>saved[i]===undefined?delete process.env[k]:process.env[k]=saved[i])}
-})
-
-test("hosted sandbox refuses database/auth clients before accessing credentials",async()=>{
- const saved=process.env.IPN_GUEST_SANDBOX_ENABLED;process.env.IPN_GUEST_SANDBOX_ENABLED="1"
- const fail=()=>{throw new Error("LIVE CLIENT REACHED")}
- try {
-  assert.throws(()=>load("src/lib/supabase/admin.ts",{"../guest-events/preview-mode":{hostedGuestPreview:()=>true},"@supabase/supabase-js":{createClient:fail}}).createAdminClient(),/disabled in/)
-  await assert.rejects(()=>load("src/lib/supabase/server.ts",{"../guest-events/preview-mode":{hostedGuestPreview:()=>true},"@supabase/ssr":{createServerClient:fail},"next/headers":{cookies:async()=>({})}}).createClient(),/disabled in/)
-  assert.throws(()=>load("src/lib/supabase/client.ts",{"../guest-events/preview-mode":{hostedGuestPreview:()=>true},"@supabase/ssr":{createBrowserClient:fail}}).createClient(),/disabled in/)
- }finally{if(saved===undefined)delete process.env.IPN_GUEST_SANDBOX_ENABLED;else process.env.IPN_GUEST_SANDBOX_ENABLED=saved}
-})
-
-test("hosted guest RSVP uses per-browser state and cannot deliver even if live flags are inherited",async()=>{
- const keys=["IPN_GUEST_SANDBOX_ENABLED","GUEST_EVENT_EMAIL_MODE","CONTEXT"]
- const saved=keys.map(k=>process.env[k]);[process.env.IPN_GUEST_SANDBOX_ENABLED,process.env.GUEST_EVENT_EMAIL_MODE,process.env.CONTEXT]=["1","live","production"]
- let writes=0
- try {
-  const svc=load("src/lib/guest-events/service.ts",{"./preview-mode":{hostedGuestPreview:()=>true,previewEventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional"},"../supabase/admin":{createAdminClient:()=>{throw new Error("LIVE DATABASE REACHED")}},"resend":{Resend:class{constructor(){throw new Error("LIVE EMAIL REACHED")}}},"./preview-store":{registerPreviewGuest:async()=>writes++}})
-  const result=await svc.submitGuestRsvp("global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional",{firstName:"Test",lastName:"Guest",email:"guest@example.com"},new Request("https://preview.example"))
-  assert.equal(writes,1);assert.equal(result.demo,true);assert.equal(result.emailStatus,"preview")
-  assert.equal((await svc.processGuestEventEmails()).disabled,true)
- }finally{keys.forEach((k,i)=>saved[i]===undefined?delete process.env[k]:process.env[k]=saved[i])}
-})
-
-test("sandbox cookies survive fresh module instances but remain separate between browsers",async()=>{
- const saved=process.env.IPN_GUEST_SANDBOX_ENABLED;process.env.IPN_GUEST_SANDBOX_ENABLED="1"
- const a=new Map(),b=new Map();let jar=a
- const mocks={"./preview-mode":{hostedGuestPreview:()=>true,previewEventSlug:"global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional"},"next/headers":{cookies:async()=>({get:k=>jar.has(k)?{value:jar.get(k)}:undefined,set:(k,v,opts)=>{assert.equal(opts.httpOnly,true);assert.equal(opts.sameSite,"lax");jar.set(k,v)}})}}
- try {
-  const one=load("src/lib/guest-events/preview-store.ts",mocks)
-  const first=await one.registerPreviewGuest({firstName:"Test",lastName:"Guest",email:"guest@example.com",marketingOptIn:true})
-  const two=load("src/lib/guest-events/preview-store.ts",mocks)
-  assert.equal((await two.readPreviewGuest()).id,first.id)
-  jar=b;assert.equal(await two.readPreviewGuest(),null)
-  jar=a;await two.savePreviewGuest({...first,cancelled_at:new Date().toISOString()});assert.ok((await one.readPreviewGuest()).cancelled_at)
-  jar.set("ipn-rsvp-sandbox","invalid");assert.equal(await one.readPreviewGuest(),null)
- }finally{if(saved===undefined)delete process.env.IPN_GUEST_SANDBOX_ENABLED;else process.env.IPN_GUEST_SANDBOX_ENABLED=saved}
-})
-
-test("sandbox route allowlist rejects portal, callbacks, analytics and unrelated APIs",()=>{
- const {previewPathAllowed}=load("src/lib/guest-events/preview-mode.ts")
- for(const path of ["/dashboard","/api/analytics/track","/auth/callback","/login","/api/events/other-event/rsvp","/api/events/membership/extra"])assert.equal(previewPathAllowed(path),false,path)
- for(const path of ["/register","/join","/event-preview/emails","/api/events/membership","/events/guest-rsvp-preview"])assert.equal(previewPathAllowed(path),true,path)
-})
-
 test("all Netlify background handlers stop at the platform's deploy-preview boundary",async()=>{
  const {readdirSync}=nativeRequire("node:fs")
  for(const name of readdirSync(resolve(root,"netlify/functions"))){
@@ -319,3 +260,8 @@ test("event registration prefill expires and rejects invalid or external destina
    assert.equal(parseRegistrationHandoff(JSON.stringify({...value,...override})),null)
  assert.equal(parseRegistrationHandoff("invalid JSON"),null)
 })
+
+test("production-scoped email configuration works when Netlify build CONTEXT is absent at runtime",()=>liveTest(async()=>{
+ delete process.env.CONTEXT
+ const h=workerHarness();assert.equal((await h.run()).sent,1);assert.equal(h.sent.length,1)
+}))

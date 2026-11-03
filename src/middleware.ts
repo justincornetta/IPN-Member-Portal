@@ -1,22 +1,8 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { hostedGuestPreview, previewEventSlug, previewPathAllowed } from "./lib/guest-events/preview-mode"
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  if (hostedGuestPreview()) {
-    if (previewPathAllowed(pathname)) {
-      const response = NextResponse.next({ request })
-      response.headers.set("Cache-Control", "private, no-store")
-      response.headers.set("X-IPN-Preview", "isolated-rsvp")
-      return response
-    }
-    if (request.method !== "GET" || pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Live portal actions are disabled in this test preview." }, { status: 403 })
-    }
-    return NextResponse.redirect(new URL("/events/" + previewEventSlug, request.url))
-  }
 
   if (!pathname.startsWith("/dashboard")) {
     return NextResponse.next({ request })

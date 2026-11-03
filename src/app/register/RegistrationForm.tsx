@@ -199,14 +199,12 @@ function StepLocation({
   errors,
   onVerifiedLocation,
   onLocationStatus,
-  preview = false,
 }: {
   data: FormData
   update: (k: StringFormKey, v: string) => void
   errors: Record<string, string>
   onVerifiedLocation: (location: VerifiedLocation | null) => void
   onLocationStatus: (status: LocationVerificationStatus) => void
-  preview?: boolean
 }) {
   const [atUniversity, setAtUniversity] = useState(false)
   const showStateDropdown = data.country === "United States" || data.country === "Canada"
@@ -248,7 +246,7 @@ function StepLocation({
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="city">City</Label>
-        {preview ? <TextInput id="city" name="city" value={data.city} onChange={(v) => update("city", v)} required /> : <CityVerificationField
+        <CityVerificationField
           city={data.city}
           state={data.state}
           country={data.country}
@@ -257,8 +255,7 @@ function StepLocation({
           onCityChange={(value) => update("city", value)}
           onVerifiedLocationChange={onVerifiedLocation}
           onStatusChange={onLocationStatus}
-        />}
-        {preview && <p className="text-xs text-zinc-500">Use a sample city. Location lookup is disabled in this test preview.</p>}
+        />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -466,9 +463,9 @@ function StepAbout({
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
-type RegistrationProps = { preview?: boolean; initial?: { firstName: string; lastName: string; email: string }; eventPath?: string }
+type RegistrationProps = { initial?: { firstName: string; lastName: string; email: string }; eventPath?: string }
 
-function RegisterPageContent({preview = false, initial, eventPath}: RegistrationProps) {
+function RegisterPageContent({initial, eventPath}: RegistrationProps) {
   const searchParams = useSearchParams()
   const redirectTo = eventPath || searchParams.get("next") || ""
   const [step, setStep] = useState(1)
@@ -476,20 +473,18 @@ function RegisterPageContent({preview = false, initial, eventPath}: Registration
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [testComplete, setTestComplete] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
   const hasMountedRef = useRef(false)
 
   useEffect(() => {
-    if (preview) return
     trackPortalEvent("registration_step_view", {
       metadata: {
         step,
         stepLabel: STEPS[step - 1],
       },
     })
-  }, [step, preview])
+  }, [step])
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -591,11 +586,6 @@ function RegisterPageContent({preview = false, initial, eventPath}: Registration
     const barriers = applicableFieldBarriers(data.field_status, data.barriers).map((b) =>
       b === "Other" && data.barriers_other ? data.barriers_other : b,
     )
-    if (preview) {
-      setTestComplete(true)
-      setLoading(false)
-      return
-    }
     const analytics = getPortalAnalyticsContext()
     trackPortalEvent("registration_submit", {
       metadata: {
@@ -634,14 +624,6 @@ function RegisterPageContent({preview = false, initial, eventPath}: Registration
     }
   }
 
-  if (testComplete) return <main className="mx-auto w-full max-w-lg px-4 py-12 text-zinc-900">
-    <div role="status" className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-      <h1 className="text-2xl font-semibold">Registration preview complete</h1>
-      <p className="mt-3 text-sm leading-6 text-zinc-600">No account was created and no email was sent.{eventPath && " Your test event RSVP is still confirmed."}</p>
-      <Link href={eventPath || "/events/guest-rsvp-preview"} className="mt-4 inline-flex min-h-11 items-center font-medium text-ipn underline">Back to event</Link>
-    </div>
-  </main>
-
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-4 sm:px-6 sm:py-12">
       <NeuralBackground avoidRef={contentRef} />
@@ -659,7 +641,6 @@ function RegisterPageContent({preview = false, initial, eventPath}: Registration
           <p>Your event RSVP is already confirmed. Creating an IPN account is optional.</p>
           <Link href={eventPath} className="inline-flex min-h-11 items-center font-medium text-ipn underline">Back to event</Link>
         </div>}
-        {preview && <p className="mb-4 text-sm leading-6 text-zinc-600">Test registration: use a sample password. No account or email will be created.</p>}
 
         {/* Progress */}
         <div className="mb-4 grid grid-cols-4 gap-2 sm:mb-8">
@@ -711,7 +692,6 @@ function RegisterPageContent({preview = false, initial, eventPath}: Registration
               errors={errors}
               onVerifiedLocation={handleVerifiedLocation}
               onLocationStatus={() => {}}
-              preview={preview}
             />
           )}
           {step === 3 && (

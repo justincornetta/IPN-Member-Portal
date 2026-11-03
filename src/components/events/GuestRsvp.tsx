@@ -5,11 +5,10 @@ import Link from "next/link"
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/solid"
 import type { PublicRsvpResult } from "@/lib/events/public-rsvp-actions"
 import GuestRegistrationLink from "./GuestRegistrationLink"
-import { hostedGuestPreview } from "@/lib/guest-events/preview-mode"
 
 type Props = {
   slug: string; title: string; date: string
-  signedIn?: boolean; registered?: boolean; allowGuestRsvp?: boolean; preview?: boolean
+  signedIn?: boolean; registered?: boolean; allowGuestRsvp?: boolean
   onMemberRsvp: () => Promise<PublicRsvpResult>
   onSignInRsvp: (credentials: { email: string; password: string }) => Promise<PublicRsvpResult>
   memberJoinUrl?: string | null; memberCalendarUrl?: string | null
@@ -17,7 +16,7 @@ type Props = {
 type Mode = "guest" | "login" | null
 
 export default function GuestRsvp({ slug, title, date, signedIn = false, registered = false,
-  allowGuestRsvp = true, preview = false, onMemberRsvp, onSignInRsvp, memberJoinUrl, memberCalendarUrl }: Props) {
+  allowGuestRsvp = true, onMemberRsvp, onSignInRsvp, memberJoinUrl, memberCalendarUrl }: Props) {
   const [mode, setMode] = useState<Mode>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
@@ -118,7 +117,7 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
         <p className="mt-1 text-sm text-zinc-600">Your RSVP is complete.{!member && " No account needed."}</p>
       </div></div>
       <p className="mt-4 text-sm text-zinc-700">{date}</p>
-      {!member && <p className="mt-2 text-sm text-zinc-600">{hostedGuestPreview() ? <>No email was sent. <Link className="text-ipn underline" href="/event-preview/emails">Open the preview inbox</Link> for confirmation, reminders and your test RSVP management link.</> : "Check your email for confirmation and joining details. Keep the link to view or cancel your RSVP."}</p>}
+      {!member && <p className="mt-2 text-sm text-zinc-600">Check your email for confirmation and joining details. Keep the link to view or cancel your RSVP.</p>}
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
         <a className={button} href={success.calendarUrl} target="_blank" rel="noreferrer">Add to calendar</a>
         {success.joinUrl ? <a href={success.joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-ipn underline">Join event</a> : <p className="text-sm text-zinc-600">Joining details will be available in your event access link.</p>}
@@ -164,7 +163,6 @@ export default function GuestRsvp({ slug, title, date, signedIn = false, registe
         </div>
         {mode === "login" ? <form onSubmit={submitLogin} className="space-y-4">
           <p id="member-rsvp-explanation" className="text-sm leading-6 text-zinc-600">Sign in with your IPN account. We’ll automatically RSVP you for this event.</p>
-          {preview && <p className="rounded-lg bg-zinc-50 p-3 text-xs leading-5 text-zinc-600">Test preview: use member@example.com and password preview-password. No real account is accessed.</p>}
           <label className="block text-sm font-medium">Email<input ref={emailInput} name="email" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} maxLength={254} required disabled={pending} className={field}/></label>
           <label className="block text-sm font-medium">Password<input name="password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} maxLength={1024} required disabled={pending} className={field}/></label>
           <Link href="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-medium text-ipn underline">Forgot password?</Link>

@@ -8,7 +8,6 @@ import EventDateTime from "@/components/events/EventDateTime"
 import type { EventRecord } from "@/lib/events/types"
 import icon from "../../../../assets/purple_icon.png"
 import GuestRsvp from "@/components/events/GuestRsvp"
-import { demoEvent, demoEventSlug, guestDemoEnabled } from "@/lib/guest-events/demo"
 import { guestFeatureEnabled } from "@/lib/guest-events/service"
 import { guestRsvpAvailable, memberRsvpAvailable, safeWebUrl } from "@/lib/guest-events/domain"
 import { buildGoogleCalendarUrl, formatEventDateTime } from "@/lib/events/calendar"
@@ -16,12 +15,10 @@ import { rsvpFromEventPage, signInAndRsvpForEvent } from "@/lib/events/public-rs
 
 type Props = {
   params: Promise<{ slug: string }>
-  searchParams?: Promise<{ view?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  if (guestDemoEnabled() && demoEventSlug(slug)) return { title: `${demoEvent.title} | IPN` }
   const admin = createAdminClient()
   const { data } = await admin
     .from("events")
@@ -44,24 +41,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function PublicEventPage({ params, searchParams }: Props) {
+export default async function PublicEventPage({ params }: Props) {
   const { slug } = await params
-  const demo = guestDemoEnabled() && demoEventSlug(slug)
-  const previewView = demo ? (await searchParams)?.view : undefined
-  const admin = demo ? null : createAdminClient()
-  const supabase = demo ? null : await createClient()
+  const admin = createAdminClient()
+  const supabase = await createClient()
   const now = new Date().toISOString()
 
   const [{ data: event }, { data: { user } }, { data: otherEvents }] = await Promise.all([
-    demo ? Promise.resolve({ data: { ...demoEvent, slug } }) : admin!
+    admin
       .from("events")
       .select("*")
       .eq("slug", slug)
       .eq("status", "published")
       .eq("is_recording", false)
       .single(),
-    demo ? Promise.resolve({ data: { user: previewView === "member" || previewView === "registered" ? { id: "demo-member" } : null } }) : supabase!.auth.getUser(),
-    demo ? Promise.resolve({ data: [] }) : admin!
+    supabase.auth.getUser(),
+    admin
       .from("events")
       .select("slug, title, event_type, starts_at, ends_at, timezone, thumbnail_url")
       .eq("status", "published")
@@ -74,14 +69,14 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
 
   if (!event) notFound()
 
-  if (user && !demo) {
-    const { data: profile } = await supabase!.from("profiles").select("is_banned").eq("id", user.id).maybeSingle()
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("is_banned").eq("id", user.id).maybeSingle()
     if (profile?.is_banned) redirect("/banned")
   }
   const e = event as EventRecord
   const inlineRsvp = memberRsvpAvailable(e)
-  const allowGuestRsvp = guestFeatureEnabled() && guestRsvpAvailable(e) && previewView !== "member-only"
-  const memberRegistration = demo ? { data: previewView === "registered" } : user && inlineRsvp ? await supabase!.from("event_registrations").select("event_id").eq("event_id", e.id).eq("user_id", user.id).maybeSingle() : null
+  const allowGuestRsvp = guestFeatureEnabled() && guestRsvpAvailable(e)
+  const memberRegistration = user && inlineRsvp ? await supabase.from("event_registrations").select("event_id").eq("event_id", e.id).eq("user_id", user.id).maybeSingle() : null
 
   return (
     <div className="flex min-h-full shrink-0 flex-col bg-zinc-50 text-zinc-900">
@@ -155,7 +150,7 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
         )}
 
         {/* CTA */}
-        {inlineRsvp ? <GuestRsvp slug={slug} title={e.title} date={formatEventDateTime(e.starts_at,e.ends_at,e.timezone)} signedIn={Boolean(user)} registered={Boolean(memberRegistration?.data)} allowGuestRsvp={allowGuestRsvp} preview={demo} onMemberRsvp={rsvpFromEventPage.bind(null,slug)} onSignInRsvp={signInAndRsvpForEvent.bind(null,slug)} memberJoinUrl={user ? safeWebUrl(e.join_url) : null} memberCalendarUrl={user ? buildGoogleCalendarUrl(e) : null}/> : <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        {inlineRsvp ? <GuestRsvp slug={slug} title={e.title} date={formatEventDateTime(e.starts_at,e.ends_at,e.timezone)} signedIn={Boolean(user)} registered={Boolean(memberRegistration?.data)} allowGuestRsvp={allowGuestRsvp} onMemberRsvp={rsvpFromEventPage.bind(null,slug)} onSignInRsvp={signInAndRsvpForEvent.bind(null,slug)} memberJoinUrl={user ? safeWebUrl(e.join_url) : null} memberCalendarUrl={user ? buildGoogleCalendarUrl(e) : null}/> : <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
           {user ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>

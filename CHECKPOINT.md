@@ -1,3 +1,45 @@
+# Event RSVP — production-ready PR #70
+
+## Status
+
+Justin approved removing test-specific features and updating PR #70 so the approved flow works after merge. Production prerequisites are prepared. PR https://github.com/justincornetta/IPN-Member-Portal/pull/70 remains open; no merge performed. Working branch `feature/guest-event-rsvp`, worktree `Code/IPN-Member-Portal-guest-rsvp`.
+
+## Last session — November 3, 2026, production preparation
+
+- Removed hosted sandbox detection, fake authentication/sessions, fixture routes, sample credentials/banners, preview inbox, simulated registration and the superseded email-link signup flow. Real member authentication and direct standard registration remain. Full event description/current portal styling retained.
+- Moved fixtures entirely into a disposable ignored local QA copy; production source imports no test modules. Removed `/event-preview/emails`, `/join` and `/api/events/membership`.
+- Applied additive migration to production Supabase project `plgzakxecjlzepzeqiio`; local filename reconciled to recorded remote version `20261103123749_guest_event_rsvp.sql`. Do not apply it again. Verified RLS and no anonymous/authenticated access on all guest tables.
+- Saved Production-only Netlify guest enable/email-live flags and random signing secret. Plan-supported scopes required Builds/Functions/Runtime for secrets, all scopes for flags. Verified existing sender/Supabase/Resend settings present. No preview guest configuration.
+- Enabled guest RSVP only for the published Global Psychedelic Week pilot. Read-only checks found zero guest registrations and zero email jobs. No live test account, RSVP or email was created. Current production code stays unchanged until merge/deploy.
+- Added a production build prerequisite check for configuration/schema. Read-only production schema check passed; live email/provider authentication was not tested.
+- Locked dependencies/browser runtime installed. Lint, production build, 73 focused checks and ten desktop/phone browser workflows passed. Fresh independent design review: GO, no warnings/errors or material blockers. Test counts are passing automated cases, not conversion/attendance metrics.
+- Updating the authorized PR with current release documentation and screenshots; hosted read-only verification follows publication.
+
+## Next steps
+
+1. Finish PR update and verify refreshed deploy preview without submitting forms. Record the commit/deploy result below.
+2. Justin reviews/merges when ready; Luke should review auth/schema changes. No merge authorization supplied.
+3. After deployment, monitor real guest email jobs and scheduled worker. Live auth/provider delivery remains unexercised; never represent mock testing as inbox delivery verification.
+
+## Open decisions / known issues
+
+- Hosted preview is no longer a sandbox. Normal member auth/RSVP/registration use the connected backend. Guest enrollment is Production-only and absent there. Use local QA for side-effect-free testing.
+- Local QA fixture expires after the November 3 event. Update fixture timestamps for future tests. Local signup is intercepted at its final action; no shipped test notices remain.
+- Other events stay guest-disabled until individually enabled. Opt-in checkbox permits one post-event membership invitation, not future-event/newsletter subscription.
+- Signing-key rotation invalidates guest management links. Disabling flags stops guest enrollment and delivery; preserve the outbox ledger during rollback.
+- Existing Next.js middleware deprecation warning remains. Unrelated media worktree/credential files were not changed.
+- Tin Can relay unavailable earlier this session; milestone sync will be retried. Notion is not edited directly.
+
+## References
+
+- PR: https://github.com/justincornetta/IPN-Member-Portal/pull/70
+- Preview: https://deploy-preview-70--ipn-member-portal.netlify.app/events/global-psychedelic-week-so-you-want-to-be-a-psychedelic-professional
+- Current implementation/rollout/QA: `docs/guest-event-rsvp/README.md`; current design review is the final entry in `design-qa.md`.
+
+---
+
+# Historical checkpoints (superseded by current status above)
+
 # Event RSVP — member login and guest modals
 
 ## Status

@@ -40,9 +40,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/forgot-password?expired=1`)
   }
 
-  if (searchParams.get("source") === "guest-signup") {
-    return NextResponse.redirect(`${origin}/join?expired=1`)
-  }
 
   return NextResponse.redirect(`${origin}/login?error=Could+not+verify+your+email`)
 }
