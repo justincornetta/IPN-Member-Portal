@@ -14,7 +14,12 @@ Owner reviews http://127.0.0.1:4341/dashboard , /dashboard/resources?tab=newslet
 ## Known issues / references
 Existing Next.js middleware deprecation warning. Website dynamic refresh needs JavaScript; no-JS sees saved November snapshot. Public feeds contain recent entries; static historical entries and newsletter archive link retained. November uses the actual email's animated website artwork. Tin Can relay unavailable; concise Notion milestone request attempted, no direct Notion edit. Full implementation, release limits and screenshots: `docs/news-sync/README.md`. No PR yet.
 
+
 ---
+
+# Combined RSVP counts and test cleanup — November 3, 2026
+
+Status: implemented on fix/combined-rsvp-slack-total from origin/main538bd27; Justin requests new PR and removal of his confirmed tests. Member event Slack now reads events.registration_count, matching guest alerts. Cleanup migration generated via Supabase CLI:20261103160122_remove_event_test_rsvps.sql. Exact +1,+5,+8 addresses and pilot event only; converted records untouched. Cascades email jobs, existing trigger decrements count, stops if targeted email is sending, safe to rerun. Production untouched. Historical Slack messages unchanged. Local dependencies/browser runtime installed. Build/lint,27 targeted checks and10 browser workflows passed. PR #73 open: https://github.com/justincornetta/IPN-Member-Portal/pull/73 . Commit457c07a. Next: review PR and apply cleanup during authorized rollout; no merge performed.
 
 # Guest RSVP Slack notifications — November 3, 2026
 
