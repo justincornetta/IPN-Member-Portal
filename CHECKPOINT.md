@@ -1,3 +1,19 @@
+# RSVP analytics PR published — November 3, 2026
+
+## Status
+Justin explicitly approved push and PR publication. PR [#78](https://github.com/justincornetta/IPN-Member-Portal/pull/78) is open on `feature/event-rsvp-analytics`. No merge authorized or performed; production unchanged.
+
+## Last session
+Confirmed the report is integrated into the existing Analytics → Engagement → Member Portal Activity panel, using current analytics collection, profiles and admin access controls. The standalone sample-data page exists only in the disposable local QA copy. Synced current main `b6a3a3d`; resolved the checkpoint-only merge conflict by preserving both histories. Final lint and production build passed after sync. Prior 36 calculation checks, 15 browser scenarios and independent design GO remain applicable; no application code changed in publication. GitHub connector returned integration 403 for PR creation, so used already-authenticated GitHub CLI.
+
+## Next steps / open decisions
+Review PR and its Netlify checks. Admin preview: https://deploy-preview-78--ipn-member-portal.netlify.app/dashboard/admin?report=engagement&view=portal-activity . Admin authentication required; do not submit test RSVP/account forms against its connected backend. Read-only hosted verification is recorded in the PR body and root checkpoint after deployment. Await separate merge decision.
+
+## Known limits / references
+Observed analytics, not current RSVP roster; anonymous guests remain aggregate, same-session account attribution and 90-day retention limits apply. No migration, new provider, live RSVP test, email or Slack send. Local fixture review remains available on port 4331. Methodology/screenshots: `docs/guest-event-rsvp/analytics.md`. Existing middleware warning; Tin Can relay unavailable. Implementation commits `4fb60e8`, `fd66d0b`; current-main sync `0d0ddde`.
+
+---
+
 # Event totals and member analytics drill-down — November 3, 2026
 
 ## Status
