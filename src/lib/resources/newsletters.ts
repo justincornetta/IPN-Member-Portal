@@ -1,4 +1,5 @@
 import type { ResourceRecord } from "./types"
+import newsletterSnapshot from "./newsletter-snapshot.json"
 
 export const MAILCHIMP_NEWSLETTER_ARCHIVE_URL =
   "https://us10.campaign-archive.com/home/?u=7c3bc2754f93c026395a7a78e&id=e7bcf08ab8"
@@ -47,7 +48,7 @@ const NEWSLETTER_SUMMARIES: Record<string, string> = {
     "The May update highlights IPN Labs, PsychedelX opportunities, conferences, and major psychedelic policy developments.",
 }
 
-export const DEFAULT_NEWSLETTERS: ResourceRecord[] = [
+const LEGACY_NEWSLETTERS: ResourceRecord[] = [
   {
     id: "newsletter-september-2026",
     slug: "newsletter-september-2026",
@@ -145,6 +146,11 @@ export const DEFAULT_NEWSLETTERS: ResourceRecord[] = [
   },
 ]
 
+export const DEFAULT_NEWSLETTERS: ResourceRecord[] = [
+  ...newsletterSnapshot as ResourceRecord[],
+  ...LEGACY_NEWSLETTERS.filter(old => !newsletterSnapshot.some(item => item.slug === old.slug)),
+].sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+
 export function withNewsletterCoverImage(resource: ResourceRecord) {
   if (resource.resource_type !== "newsletter") return resource
 
@@ -153,7 +159,7 @@ export function withNewsletterCoverImage(resource: ResourceRecord) {
 
   return {
     ...resource,
-    description: NEWSLETTER_SUMMARIES[resource.slug] ?? resource.description,
+    description: resource.description ?? NEWSLETTER_SUMMARIES[resource.slug],
     image_url: resource.image_url ?? cover.image_url,
     image_alt: resource.image_alt ?? cover.image_alt,
     thumbnail_url: resource.thumbnail_url ?? cover.thumbnail_url,

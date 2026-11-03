@@ -1,3 +1,22 @@
+# Newsletter and Substack sync — November 3, 2026
+
+## Status
+Prepared and tested locally on `fix/automatic-newsletter-import`, checkout `Code/IPN-Member-Portal-content-sync`. Awaiting owner review before any push, PR, deployment or live import. Companion website checkout `website-redesign/Code/ipn-website-news-sync`, branch `fix/automatic-news-feeds`.
+
+## Last session
+Replaced credential/AI-dependent monthly import with public Mailchimp RSS ingestion, all available member issues, idempotent upsert and read-back verification. Six-hour job now waits for completion, runs all month and surfaces failures. Added November/October public-source fallback. Verified all four live Substack feed items already exist in production portal; improved internal failure reporting. Website now loads both public feeds via a cached same-origin endpoint, preserves static content on failure, and ships November in HTML.
+
+Portal locked dependencies/browser runtime, lint, production build and 12 focused tests pass. Website build, two endpoint tests, four Python tests and 1,803-reference audit pass. Eight desktop/phone browser routes plus three future-publication/outage scenarios pass. No browser errors. Persistence uses a test client; live writes/scheduler/CDN remain release verification, not completed tests.
+
+## Next steps / open decisions
+Owner reviews http://127.0.0.1:4341/dashboard , /dashboard/resources?tab=newsletters and http://127.0.0.1:8041/news/ . Publish only after approval. Then run/verify live import and scheduled completion, and check deployed website endpoint/cache behavior. No schema/auth changes.
+
+## Known issues / references
+Existing Next.js middleware deprecation warning. Website dynamic refresh needs JavaScript; no-JS sees saved November snapshot. Public feeds contain recent entries; static historical entries and newsletter archive link retained. November uses the actual email's animated website artwork. Tin Can relay unavailable; concise Notion milestone request attempted, no direct Notion edit. Full implementation, release limits and screenshots: `docs/news-sync/README.md`. No PR yet.
+
+
+---
+
 # Combined RSVP counts and test cleanup — November 3, 2026
 
 Status: implemented on fix/combined-rsvp-slack-total from origin/main538bd27; Justin requests new PR and removal of his confirmed tests. Member event Slack now reads events.registration_count, matching guest alerts. Cleanup migration generated via Supabase CLI:20261103160122_remove_event_test_rsvps.sql. Exact +1,+5,+8 addresses and pilot event only; converted records untouched. Cascades email jobs, existing trigger decrements count, stops if targeted email is sending, safe to rerun. Production untouched. Historical Slack messages unchanged. Local dependencies/browser runtime installed. Build/lint,27 targeted checks and10 browser workflows passed. PR #73 open: https://github.com/justincornetta/IPN-Member-Portal/pull/73 . Commit457c07a. Next: review PR and apply cleanup during authorized rollout; no merge performed.
