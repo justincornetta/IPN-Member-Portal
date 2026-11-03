@@ -374,13 +374,20 @@ async function markEndedEvents() {
   return { marked: ids.length }
 }
 
-export async function runContentSync(): Promise<SyncSummary> {
-  const [substack, youtube, eventbrite] = await Promise.all([
-    catchSync(syncSubstack),
+// Keep event access, recordings and cleanup on their existing hourly cadence.
+export async function runOperationalSync(): Promise<Omit<SyncSummary, "substack">> {
+  const [youtube, eventbrite] = await Promise.all([
     catchSync(syncYouTube),
     catchSync(syncEventbrite),
   ])
   const cleanup = await catchSync(markEndedEvents)
+  return { youtube, eventbrite, cleanup }
+}
 
-  return { substack, youtube, eventbrite, cleanup }
+export async function runContentSync(): Promise<SyncSummary> {
+  const [substack, operations] = await Promise.all([
+    catchSync(syncSubstack),
+    runOperationalSync(),
+  ])
+  return { substack, ...operations }
 }

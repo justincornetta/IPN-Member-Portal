@@ -1,5 +1,5 @@
 import type { Context } from "@netlify/functions"
-import { runContentSync } from "../../src/lib/sync/content"
+import { runOperationalSync } from "../../src/lib/sync/content"
 
 declare const Netlify:
   | {
@@ -40,7 +40,7 @@ export default async function handler(request: Request, context: Context) {
     })
   }
 
-  const result = await runContentSync()
+  const result = await runOperationalSync()
 
   const ok = !Object.values(result).some(value => "error" in value)
   return new Response(JSON.stringify({ ok, result }), {

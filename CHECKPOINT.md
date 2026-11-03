@@ -1,3 +1,9 @@
+# Daily publication sync — November 3, 2026
+
+Status: implemented and verified locally; publishing with owner authorization. GitHub workflow runs at 11:17 UTC daily (06:17 EST / 07:17 EDT) for Substack and newsletters. Existing hourly Netlify job now runs only YouTube/Eventbrite/ended-event operations, preserving timely ticket access. Website refresh unchanged. Lockfile install, browser runtime, lint, production build, seven focused tests and eight desktop/mobile browser routes pass; no page/console errors. Independent review GO. Next: merge PR, verify production schedule and run workflow once. No open decisions; existing framework middleware warning remains.
+
+---
+
 # Newsletter and Substack sync — November 3, 2026
 
 ## Status

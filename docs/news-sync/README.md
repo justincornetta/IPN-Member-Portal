@@ -1,6 +1,8 @@
+Daily schedule update: the GitHub content-sync workflow runs once daily at 11:17 UTC (06:17 EST / 07:17 EDT), syncing articles and newsletters. The hourly Netlify function now handles only existing event/recording operations; it no longer fetches Substack. Manual GitHub runs remain available. Website refresh is unchanged.
+
 # Automatic newsletter and article updates
 
-Prepared locally November 3, 2026. Nothing pushed, deployed or written to production.
+Newsletter auto-updates were published November 3, 2026. This follow-up reduces publication checks to daily.
 
 ## Portal
 
