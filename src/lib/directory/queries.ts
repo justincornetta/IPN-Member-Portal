@@ -1,5 +1,6 @@
 import type { createClient } from "@/lib/supabase/server"
 import type { DirectoryEducation, DirectoryMember } from "./types"
+import { readRows } from "./read-rows.ts"
 
 export const DIRECTORY_PAGE_SIZE = 60
 
@@ -27,6 +28,7 @@ export function buildDirectoryProfilesQuery(supabase: SupabaseClient, filters: D
     .select(DIRECTORY_MEMBER_SELECT, { count: "exact" })
     .eq("is_discoverable", true)
     .order("first_name", { ascending: true })
+    .order("id", { ascending: true })
 
   if (filters.tab === "school" && filters.userSchool) {
     query = query.eq("school", filters.userSchool)
@@ -58,10 +60,15 @@ export async function getContactMapForMembers(
 ): Promise<Map<string, { email: string | null; whatsapp_url: string | null }>> {
   if (memberIds.length === 0) return new Map()
 
-  const { data: contacts } = await supabase
-    .from("member_contacts")
-    .select("user_id, email, whatsapp_url")
-    .in("user_id", memberIds)
+  const batches = []
+  for (let start = 0; start < memberIds.length; start += 100) {
+    const ids = memberIds.slice(start, start + 100)
+    batches.push(readRows((from, to) => supabase
+      .from("member_contacts")
+      .select("user_id, email, whatsapp_url")
+      .in("user_id", ids).order("user_id").range(from, to)))
+  }
+  const contacts = (await Promise.all(batches)).flat()
 
   return new Map(
     (contacts ?? []).map((c) => [
@@ -80,11 +87,16 @@ export async function getEducationMapForMembers(
 ): Promise<Map<string, DirectoryEducation[]>> {
   if (memberIds.length === 0) return new Map()
 
-  const { data: educationRows } = await supabase
-    .from("member_education")
-    .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
-    .in("user_id", memberIds)
-    .order("sort_order", { ascending: true })
+  const batches = []
+  for (let start = 0; start < memberIds.length; start += 100) {
+    const ids = memberIds.slice(start, start + 100)
+    batches.push(readRows((from, to) => supabase
+      .from("member_education")
+      .select("id, user_id, institution, education_level, degree_credential, area_of_study, status, graduation_year, sort_order")
+      .in("user_id", ids)
+      .order("sort_order", { ascending: true }).order("id").range(from, to)))
+  }
+  const educationRows = (await Promise.all(batches)).flat()
 
   const educationByUser = new Map<string, DirectoryEducation[]>()
   for (const entry of educationRows ?? []) {

@@ -39,6 +39,9 @@
   ],
   "exclude": [
     "node_modules",
-    ".qa-guest", ".qa-news", "qa/news"
+    ".qa-guest",
+    ".qa-news",
+    "qa/news",
+    ".qa-performance"
   ]
 }

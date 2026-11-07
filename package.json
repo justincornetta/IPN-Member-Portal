@@ -25,7 +25,9 @@
     "clean": "node scripts/clean.mjs",
     "guest-events:dev": "node scripts/guest-events-dev.mjs",
     "qa:guest-events": "playwright test -c playwright.guest-events.config.ts",
-    "release:check": "node scripts/check-guest-release.mjs"
+    "release:check": "node scripts/check-guest-release.mjs",
+    "performance:dev": "node scripts/performance-dev.mjs",
+    "qa:performance": "playwright test -c playwright.performance.config.ts"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",

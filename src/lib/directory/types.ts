@@ -3,6 +3,13 @@ export type DirectoryContact = {
   whatsapp_url: string | null
 }
 
+export type DirectorySummary = {
+  totalMembers: number
+  mappedMembers: number
+  cities: number
+  countries: number
+}
+
 export type DirectoryEducation = {
   id: string
   institution: string

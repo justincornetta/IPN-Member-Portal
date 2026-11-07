@@ -1,0 +1,83 @@
+{
+  "baselineCommit": "209730a2401b34abbd2339cf5bc4cfd065fbdcd2",
+  "conditions": {
+    "members": 125,
+    "latencyPerQueryMs": 150,
+    "authLatencyMs": 0,
+    "note": "Controlled synthetic server-data benchmark; excludes network, hosting cold starts, browser rendering and real database cost. Baseline page code uses current enrichment helpers, with identical query counts for these 60-member list fixtures."
+  },
+  "runs": [
+    {
+      "route": "Community",
+      "mode": "before",
+      "durationMs": 1227,
+      "queries": 10
+    },
+    {
+      "route": "Community",
+      "mode": "after",
+      "durationMs": 304,
+      "queries": 9
+    },
+    {
+      "route": "Events",
+      "mode": "before",
+      "durationMs": 607,
+      "queries": 6
+    },
+    {
+      "route": "Events",
+      "mode": "after",
+      "durationMs": 303,
+      "queries": 5
+    },
+    {
+      "route": "Community",
+      "mode": "before",
+      "durationMs": 1212,
+      "queries": 10
+    },
+    {
+      "route": "Community",
+      "mode": "after",
+      "durationMs": 306,
+      "queries": 9
+    },
+    {
+      "route": "Events",
+      "mode": "before",
+      "durationMs": 606,
+      "queries": 6
+    },
+    {
+      "route": "Events",
+      "mode": "after",
+      "durationMs": 303,
+      "queries": 5
+    },
+    {
+      "route": "Community",
+      "mode": "before",
+      "durationMs": 1215,
+      "queries": 10
+    },
+    {
+      "route": "Community",
+      "mode": "after",
+      "durationMs": 303,
+      "queries": 9
+    },
+    {
+      "route": "Events",
+      "mode": "before",
+      "durationMs": 605,
+      "queries": 6
+    },
+    {
+      "route": "Events",
+      "mode": "after",
+      "durationMs": 301,
+      "queries": 5
+    }
+  ]
+}

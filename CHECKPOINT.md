@@ -1,3 +1,21 @@
+# Community and Events performance — November 7, 2026
+
+## Status
+Implemented and locally verified in `Code/IPN-Member-Portal-performance`, branch `fix/community-events-performance`, base main `209730a`. Local preview only; no push, PR or deployment authorized/performed.
+
+## Last session
+Parallelized independent Community data reads and Events registration lookups; Events fetches only the selected section. Added full-population directory summary with matching map eligibility and complete database pagination, expected-error retry UI, route skeletons and sidebar pending feedback. All data stays in the existing authenticated RLS context. Coordinated ownership with the directory chat: only optional summary type/prop added to DirectoryClient here; cards, summary consumption and connection/page-state fixes remain there.
+
+Locked install/browser runtime, lint and production build passed. Eight focused loader tests and eight browser scenarios passed at 1440/1280/390, including slow/failure/retry states with no page/console errors or overlays. Independent design review GO after fixing mobile label width and local preview redirect. Controlled 150 ms/read benchmark (median of three): Community 1215→304 ms, Events 606→303 ms; synthetic server-data path, not production click latency. Full suite: 232 passed, two unrelated base failures reproduced (Instagram account fixture mismatch; newsletter JSON import attribute under Node 24).
+
+## Next steps / open decisions
+Justin reviews http://127.0.0.1:4341/performance-preview (server left running, fictional data, normal/slow/error/reset modes). Directory chat integrates the local performance commit before combined QA, consumes the summary and handles load-more error/retry without dropping rows. Await explicit publication approval; use pr-documentation when opening a PR. No PR yet.
+
+## Known issues / references
+Actual production signed-in latency, RLS and external mutations are not verified by fixture QA. Search/map work still scales with matching population. Existing middleware deprecation warning and two unrelated full-suite failures remain. Tin Can relay unavailable; Notion milestone summary pending. Methodology, benchmark and screenshots: `docs/navigation-performance/README.md`. Directory chat: `01a1b7e1-3e2b-7613-9fde-f1b8146b1ae9`.
+
+---
+
 # RSVP analytics moved into Zoom — November 3, 2026
 
 ## Status

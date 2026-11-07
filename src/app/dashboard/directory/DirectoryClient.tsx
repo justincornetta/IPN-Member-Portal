@@ -9,6 +9,7 @@ import type {
   DirectoryMapCity,
   DirectoryMember,
   DirectoryParams,
+  DirectorySummary,
 } from "@/lib/directory/types"
 import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 import { loadMoreDirectoryMembers } from "@/lib/directory/actions"
@@ -327,6 +328,7 @@ function FilterDrawer({
 }
 
 type Props = {
+  directorySummary?: DirectorySummary
   members: DirectoryMember[]
   hasMore: boolean
   mapCities: DirectoryMapCity[]

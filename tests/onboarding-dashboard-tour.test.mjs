@@ -332,7 +332,8 @@ test("events hub and event detail use the standardized full event layout", async
   assert.doesNotMatch(communityEvent, /View event/)
   assert.match(communityEvent, /AddToCalendarButton/)
   assert.match(communityEvent, /You’re registered/)
-  assert.match(eventsPage, /conference_meetup_rsvps/)
+  assert.match(eventsPage, /loadEventsHub/)
+  assert.match(await readFile(new URL("../src/lib/events/load-hub.ts", import.meta.url), "utf8"), /conference_meetup_rsvps/)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {
