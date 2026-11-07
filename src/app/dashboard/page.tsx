@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import {
   ArrowRightIcon,
   CalendarDaysIcon,
@@ -232,6 +233,8 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  if (!user) redirect("/login")
+
   const now = new Date().toISOString()
   const onboardingResultPromise = (async () => {
     const fullResult = await supabase
@@ -280,6 +283,7 @@ export default async function DashboardPage() {
     conferenceParticipationResult,
     meetupParticipationResult,
     connectionParticipationResult,
+    featuredConnectionResult,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -344,6 +348,10 @@ export default async function DashboardPage() {
       .from("connections")
       .select("id", { count: "exact", head: true })
       .eq("requester_id", user!.id),
+    supabase
+      .from("connections")
+      .select("requester_id, addressee_id, status")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
   ])
 
   const profile = profileResult.data as MemberProfile | null
@@ -393,10 +401,7 @@ export default async function DashboardPage() {
   })
   const gettingStartedComplete = gettingStartedSummary.completedCount === gettingStartedSummary.totalCount
   const showGettingStarted = !gettingStartedComplete || !onboardingProgress?.getting_started_success_seen_at
-  const { data: featuredConnectionRows } = await supabase
-    .from("connections")
-    .select("requester_id, addressee_id, status")
-    .or(`requester_id.eq.${user!.id},addressee_id.eq.${user!.id}`)
+  const featuredConnectionRows = featuredConnectionResult.data
   const acceptedConnectionIds = new Set(
     (featuredConnectionRows ?? [])
       .filter((connection) => connection.status === "accepted")
@@ -422,15 +427,6 @@ export default async function DashboardPage() {
     acceptedConnectionIds,
   )
   const featuredMemberIds = featuredMembers.map((member) => member.id)
-  const [featuredEducationMap, featuredContactMap] = await Promise.all([
-      getEducationMapForMembers(supabase, featuredMemberIds),
-      getContactMapForMembers(supabase, featuredMemberIds),
-    ])
-  const featuredMembersWithDetails = featuredMembers.map((member) => ({
-    ...member,
-    education: featuredEducationMap.get(member.id) ?? [],
-    contact: featuredContactMap.get(member.id) ?? null,
-  }))
   const featuredConnectionMap: Record<string, ConnectionEntry> = {}
   for (const connection of featuredConnectionRows ?? []) {
     const otherId = connection.requester_id === user!.id
@@ -450,39 +446,25 @@ export default async function DashboardPage() {
   )
   const eventIds = rawUpcomingEvents.map((event) => event.id)
   const conferenceIds = conferenceRecords.map((conference) => conference.id)
-  let registrations: { event_id: string }[] = []
-  let tickets: { event_id: string }[] = []
-  let registeredMeetupIds: string[] = []
-
-  if (eventIds.length) {
-    const [registrationResult, ticketResult] = await Promise.all([
-      supabase
-        .from("event_registrations")
-        .select("event_id")
-        .eq("user_id", user!.id)
-        .in("event_id", eventIds),
-      user?.email
-        ? supabase
-            .from("event_ticket_access")
-            .select("event_id")
-            .in("event_id", eventIds)
-            .eq("attendee_email_normalized", user.email.trim().toLowerCase())
-        : Promise.resolve({ data: [] }),
-    ])
-
-    registrations = (registrationResult.data ?? []) as { event_id: string }[]
-    tickets = (ticketResult.data ?? []) as { event_id: string }[]
-  }
-
-  if (conferenceIds.length) {
-    const { data: meetupRsvps } = await supabase
-      .from("conference_meetup_rsvps")
-      .select("meetup_id")
-      .eq("user_id", user!.id)
-      .in("conference_id", conferenceIds)
-
-    registeredMeetupIds = (meetupRsvps ?? []).map((row) => row.meetup_id)
-  }
+  // Featured profiles, event registrations and meetup state are independent.
+  const [featuredEducationMap, featuredContactMap, registrationResult, ticketResult, meetupResult] = await Promise.all([
+    getEducationMapForMembers(supabase, featuredMemberIds),
+    getContactMapForMembers(supabase, featuredMemberIds),
+    eventIds.length ? supabase.from("event_registrations").select("event_id")
+      .eq("user_id", user.id).in("event_id", eventIds) : Promise.resolve({ data: [] }),
+    eventIds.length && user.email ? supabase.from("event_ticket_access").select("event_id")
+      .in("event_id", eventIds).eq("attendee_email_normalized", user.email.trim().toLowerCase()) : Promise.resolve({ data: [] }),
+    conferenceIds.length ? supabase.from("conference_meetup_rsvps").select("meetup_id")
+      .eq("user_id", user.id).in("conference_id", conferenceIds) : Promise.resolve({ data: [] }),
+  ])
+  const registrations = registrationResult.data ?? []
+  const tickets = ticketResult.data ?? []
+  const registeredMeetupIds = (meetupResult.data ?? []).map(row => row.meetup_id)
+  const featuredMembersWithDetails = featuredMembers.map(member => ({
+    ...member,
+    education: featuredEducationMap.get(member.id) ?? [],
+    contact: featuredContactMap.get(member.id) ?? null,
+  }))
 
   const registeredIds = new Set(
     registrations.map((registration) => registration.event_id),

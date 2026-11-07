@@ -1,3 +1,18 @@
+# PR 79 signed-in access repair — November 7, 2026
+
+## Status
+Justin reported the hosted Home server error and authorized diagnosis, fixes and continued testing toward roughly one-second navigation. Updating the same approved PR; no merge.
+
+## Last session
+Netlify logs confirmed Home's new strict enrichment read threw “Directory data could not be loaded.” Read-only schema inspection confirmed `member_contacts` is absent; no contact RPC exists. Added a narrowly scoped fallback for missing-table codes PGRST205/42P01 in optional contact enrichment, leaving contacts null and keeping all other failures strict. No contact lookup fallback to less-restricted data and no database/auth/RLS changes. Accepted-profile contact lookup still reports its unavailable state. Home now validates a missing user explicitly and starts independent featured-member and event/meetup reads together.
+
+Lint/build and 45 focused data/connection/onboarding checks pass. Eight prior performance browser flows passed; new real Home → Community → Events → Home regression with a missing contacts table passed after correcting the desktop Dashboard link selector. Local QA used the deployed schema's missing-table response. Hosted signed-in verification and timing measurement follow deployment; do not confuse earlier synthetic timings with observed user latency.
+
+## Next steps / open decisions
+Deploy this PR revision, verify Home/Community/Events under Justin's existing signed-in session and measure repeated content-ready transitions. Keep PR unmerged for Justin's review. Existing full-suite unrelated failures and middleware warning remain. Optional private contacts remain unavailable until a separately reviewed contact-store rollout; no migration made here. Tin Can remains unavailable.
+
+---
+
 # Combined directory and performance PR — November 7, 2026
 
 ## Status

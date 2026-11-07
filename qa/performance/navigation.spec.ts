@@ -79,3 +79,16 @@ test("preview controls preserve the host and apply failure and reset modes",asyn
   await page.getByRole("link",{name:"Reset preview",exact:true}).click()
   await expect(page.getByRole("button",{name:/Member 0000 Example/})).toBeVisible()
 })
+
+test("signed-in Home and Community survive the deployed schema without contacts",async({page,context})=>{
+  await context.addCookies([{name:"qa-missing",value:"member_contacts",domain:"127.0.0.1",path:"/"}])
+  await page.goto("/dashboard")
+  await expect(page.getByRole("heading",{name:/Good (morning|afternoon|evening), Preview/})).toBeVisible()
+  await expect(page.getByRole("heading",{name:"Members to know",exact:true})).toBeVisible()
+  await page.getByRole("link",{name:"Community",exact:true}).click()
+  await expect(page.getByRole("button",{name:/Member 0000 Example/})).toBeVisible()
+  await page.getByRole("link",{name:"Events",exact:true}).click()
+  await expect(page.getByRole("heading",{name:"Community research conversation",exact:true})).toBeVisible()
+  await page.getByRole("link",{name:"Dashboard",exact:true}).click()
+  await expect(page.getByRole("heading",{name:/Good (morning|afternoon|evening), Preview/})).toBeVisible()
+})

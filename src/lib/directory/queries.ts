@@ -1,5 +1,6 @@
 import type { createClient } from "@/lib/supabase/server"
 import type { DirectoryEducation, DirectoryMember } from "./types"
+import { DataReadError } from "../data-read-error.ts"
 import { readRows } from "./read-rows.ts"
 
 export const DIRECTORY_PAGE_SIZE = 60
@@ -68,7 +69,13 @@ export async function getContactMapForMembers(
       .select("user_id, email, whatsapp_url")
       .in("user_id", ids).order("user_id").range(from, to)))
   }
-  const contacts = (await Promise.all(batches)).flat()
+  const contacts = (await Promise.all(batches).catch(error => {
+    // Older deployed schemas have no optional contact store. Keep browsing
+    // available without substituting contacts from a less restricted source.
+    // Reopening an accepted profile still reports unavailable contact details.
+    if (error instanceof DataReadError && ["42P01", "PGRST205"].includes(error.code ?? "")) return []
+    throw error
+  })).flat()
 
   return new Map(
     (contacts ?? []).map((c) => [

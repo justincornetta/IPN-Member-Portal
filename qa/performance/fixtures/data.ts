@@ -29,7 +29,7 @@ export function sampleData(count = 125): Record<string, Row[]> {
     event_registrations:[],event_ticket_access:[],conference_meetup_rsvps:[],resources:[],past_conferences:[],conference_rsvps:[]}
 }
 export type QueryRecord = {table:string; fields:string; started:number; ended?:number; filters:string[]}
-export function makeClient(data = sampleData(), options: {latencyMs?:number; failTable?:string; records?:QueryRecord[]} = {}) {
+export function makeClient(data = sampleData(), options: {latencyMs?:number; failTable?:string; missingTable?:string; missingCode?:string; records?:QueryRecord[]} = {}) {
   class Query {
     private predicates: ((row:Row)=>boolean)[] = []
     private ordering: {key:string; asc:boolean}[] = []
@@ -60,6 +60,7 @@ export function makeClient(data = sampleData(), options: {latencyMs?:number; fai
       options.records?.push(record)
       await new Promise(resolve=>setTimeout(resolve,options.latencyMs??0))
       record.ended=Date.now()
+      if(options.missingTable===this.table)return {data:null,error:{code:options.missingCode??"PGRST205",message:"Table not found in schema cache"},count:null}
       if(options.failTable===this.table)return {data:null,error:{message:"Simulated query failure"},count:null}
       const all=(data[this.table]??[]).filter(r=>this.predicates.every(p=>p(r))).sort((a,b)=>{
         for(const {key,asc} of this.ordering){const c=String(a[key]??"").localeCompare(String(b[key]??""));if(c)return asc?c:-c}return 0})

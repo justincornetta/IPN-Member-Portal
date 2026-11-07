@@ -97,3 +97,13 @@ test("Events requests only the selected section and parallelizes registration lo
 test("Events failures do not present the empty-state message", async()=>{
   await assert.rejects(loadEventsHub(makeClient(sampleData(),{failTable:"events"}),previewUser,false),/could not be loaded/)
 })
+
+test("missing optional contacts do not block members or fabricate private contact details", async () => {
+  for (const missingCode of ["PGRST205", "42P01"]) {
+    const result = await loadDirectory(makeClient(sampleData(), {missingTable:"member_contacts", missingCode}),previewUser.id,{})
+    assert.equal(result.members.length,60)
+    assert.equal(result.directorySummary.totalMembers,125)
+    assert.ok(result.members.every(member=>member.contact===null))
+  }
+  await assert.rejects(loadDirectory(makeClient(sampleData(), {missingTable:"member_education"}),previewUser.id,{}),/could not be loaded/)
+})

@@ -41,3 +41,7 @@ Reduction = (before − after) / before. Reproduce with `node --experimental-str
 - Existing Next middleware deprecation warning remains. No live authentication, production RLS or external mutation verification is claimed.
 
 Independent product-design review: GO for local preview after correcting mobile label space and the preview redirect. Reviewer verified loading/error states at 1440/1280/390, reduced-motion animation disabled, bottom controls clear of mobile navigation, successful retry/reset and no page/console errors. Screenshots are in `screenshots/` (desktop/tablet/phone, loading and error). Existing card presentation belongs to the directory chat; the focused navigation feedback follows the current light portal appearance.
+
+## Hosted access regression repair
+
+The first signed-in preview failed on Home because the deployed database has no `member_contacts` table. The initial stricter loader exposed this previously ignored error. Missing-table errors PGRST205/42P01 now leave optional contacts unavailable without blocking Home or Community; other query failures remain strict. No privileged fallback, schema change or auth change. Accepted-profile details still show their unavailable warning. Home independent reads were also moved into parallel stages. Lint/build, 45 focused checks and the missing-table browser journey pass. Hosted measurements will be recorded after deployment.
