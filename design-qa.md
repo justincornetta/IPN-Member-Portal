@@ -1,6 +1,6 @@
 # Directory option 1 — local design QA
 
-**GO for local review, November 7, 2026. Publishing awaits Justin's approval.**
+**GO for local review, November 7, 2026. Justin approved publication; review continues in PR #79 before any merge.**
 
 Target: [selected ImageGen option 1](docs/directory-cards/selected-option-1.png). Implementation uses the existing light portal theme and IPN purple, as selected by Justin. The generated board is a visual direction, not a pixel-exact screenshot of the existing navigation shell.
 

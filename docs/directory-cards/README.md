@@ -26,7 +26,7 @@ Run `npm ci`, `npm run qa:install`, and `npm run directory:dev`. Open http://127
 
 Opening the deliverable in Justin’s Chrome produced a development hydration warning from Grammarly-injected body attributes (`data-new-gr-c-s-check-loaded` / `data-gr-ext-installed`). Clean Chromium QA passed without this warning. No extension settings or global hydration suppression were changed.
 
-This fixture QA does not validate production authentication, RLS configuration, actual network latency, delivery of notifications, or physical devices. The performance chat reproduced two unrelated existing full-suite failures (Instagram account fixture mismatch and Node 24 newsletter JSON import attributes); the focused checks above pass. Existing Next middleware deprecation warning remains. No migration, push, PR or deployment is part of this local handoff.
+This fixture QA does not validate production authentication, RLS configuration, actual network latency, delivery of notifications, or physical devices. The performance chat reproduced two unrelated existing full-suite failures (Instagram account fixture mismatch and Node 24 newsletter JSON import attributes); the focused checks above pass. Existing Next middleware deprecation warning remains. No migration is included. The reviewed local handoff was subsequently published with Justin’s approval in [PR #79](https://github.com/justincornetta/IPN-Member-Portal/pull/79); merge awaits review.
 
 ## Review evidence
 

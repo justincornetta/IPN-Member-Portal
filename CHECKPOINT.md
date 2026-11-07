@@ -1,3 +1,19 @@
+# Combined directory and performance PR — November 7, 2026
+
+## Status
+Justin approved publishing the combined changes. PR [#79](https://github.com/justincornetta/IPN-Member-Portal/pull/79) is open from `fix/directory-cards-connections`, including performance `7b287a9` and directory `f18a876`. No merge authorized or performed.
+
+## Last session
+Confirmed clean local clone, no cloud placeholders, and unchanged base main `209730a`. Published the previously reviewed and tested combined implementation. PR includes user-visible changes, three before/after screenshots, calculation methodology, relevant checks and known gaps. Previous local QA remains applicable: lint/build, focused data/connection checks, directory and performance browser workflows, and independent design GO. No application code changed during publication.
+
+## Next steps / open decisions
+Verify Netlify's latest deploy for this branch and review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard/directory (requires sign-in). Justin reviews the hosted preview before deciding whether to merge. Local fixture preview remains http://127.0.0.1:4342/dashboard/directory.
+
+## Known issues / references
+Live auth/RLS, notification delivery and production latency are not established by local fixture checks. Existing Instagram fixture mismatch and Node 24 newsletter JSON-import test failures remain; relevant tests pass. Existing middleware warning remains. Tin Can relay unavailable. Details: `docs/directory-cards/README.md`, `docs/navigation-performance/README.md`, `design-qa.md`.
+
+---
+
 # Directory option 1 and Logan's fixes — November 7, 2026
 
 ## Status
