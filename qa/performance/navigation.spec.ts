@@ -70,10 +70,10 @@ test("failed events read shows error and retry restores the page",async({page,co
   await expect(page.getByRole("heading",{name:"Community research conversation",exact:true})).toBeVisible()
 })
 
-test("preview controls preserve the host and apply failure and reset modes",async({page})=>{
+test("preview controls preserve the host and apply failure and reset modes",async({page,baseURL})=>{
   await page.goto("/performance-preview")
   await page.getByRole("link",{name:"Try Community error state",exact:true}).click()
-  await expect(page).toHaveURL("http://127.0.0.1:4341/dashboard/directory")
+  await expect(page).toHaveURL(new URL("/dashboard/directory",baseURL).toString())
   await expect(page.getByRole("alert").filter({hasText:"We couldn’t load this page."})).toBeVisible()
   await page.goto("/performance-preview")
   await page.getByRole("link",{name:"Reset preview",exact:true}).click()

@@ -1,3 +1,21 @@
+# Directory option 1 and Logan's fixes — November 7, 2026
+
+## Status
+Implemented and locally verified in `Code/IPN-Member-Portal-directory`, branch `fix/directory-cards-connections`. Integrated performance commit `0ef4407` locally as `7b287a9` from base main `209730a`. Local review only; no push, PR, merge or deployment.
+
+## Last session
+Justin selected option 1 for desktop/mobile. Built compact horizontal directory cards with complete names, current affiliation, subdued stage/location and no card interest tags. Interests remain in profiles and search/filters. Explicit affiliation now takes precedence over historical education. Connect preserves the expanded list and scroll/focus after Next revalidation, returns authoritative state/contact data, and shows pending/failure/retry feedback. Contact access is rechecked on reopening accepted profiles. Load-more errors preserve rows and allow retry. Full-result summary consumption is integrated with the performance chat's loaders.
+
+Locked dependency/browser install completed. Lint and production build pass; 22 focused tests pass, ten directory browser scenarios pass, and all eight integrated performance scenarios are verified (one test-port assertion fixed and rerun). Independent design GO at 1440/1280/390/320 with no P1/P2 blockers. No console/page errors or overlays in final directory checks. Details/screenshots: `docs/directory-cards/README.md` and `design-qa.md`.
+
+## Next steps / open decisions
+Justin reviews http://127.0.0.1:4342/dashboard/directory. The local server remains running with fictional members and simulated connection writes; no live notifications or member mutations occurred. Await explicit publishing approval before push/PR; apply pr-documentation then. No PR exists for this work.
+
+## Known issues / limits
+Fixture QA does not establish production authentication/RLS, notification delivery, actual live latency or physical-device behavior. The performance chat reproduced two unrelated base-suite failures (Instagram account fixture mismatch and Node24 newsletter JSON import); relevant checks pass. Existing middleware deprecation remains. Tin Can relay unavailable; milestone summary delivery to Cornbot failed. Chrome deliverable tab shows a Grammarly body-attribute hydration warning; clean-browser QA passed. Older dirty clone and the performance clone remain untouched.
+
+---
+
 # Community and Events performance — November 7, 2026
 
 ## Status

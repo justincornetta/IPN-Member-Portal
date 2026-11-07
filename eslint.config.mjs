@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     ".qa-guest/**",
     ".qa-news/**",
     ".qa-performance/**",
+    ".qa-directory/**",
+    "test-results/**",
+    "test-results-performance/**",
+    "playwright-report/**",
     ".vercel/**",
   ]),
 ]);

@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState, useEffect, useTransition, useCallback, useMemo } from "react"
+import { useState, useEffect, useTransition, useCallback, useMemo, useRef } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { PERSONA_OPTIONS } from "@/lib/constants/registration"
 import type {
@@ -10,10 +10,14 @@ import type {
   DirectoryMember,
   DirectoryParams,
   DirectorySummary,
+  DirectoryContact,
 } from "@/lib/directory/types"
+import { CheckIcon, ChevronRightIcon } from "@heroicons/react/24/outline"
+import { memberAffiliation, memberStage, memberLocation } from "@/lib/directory/presentation"
+import { directoryQueryKey, reconcileDirectoryMembers } from "@/lib/directory/browsing-state"
 import { memberMatchesDirectorySearch } from "@/lib/directory/search"
 import { loadMoreDirectoryMembers } from "@/lib/directory/actions"
-import MemberProfileModal, { getInitials, AvatarCircle, PersonaBadge } from "@/components/directory/MemberProfileModal"
+import MemberProfileModal, { getInitials } from "@/components/directory/MemberProfileModal"
 import RequestsPanel, { type ConnectionRow } from "./RequestsPanel"
 
 const MapDirectoryView = dynamic(() => import("./MapDirectoryView"), {
@@ -70,71 +74,34 @@ function MemberCard({
   isSelf: boolean
   onOpen: (m: DirectoryMember) => void
 }) {
-  const initials = getInitials(member.first_name, member.last_name)
-  const institution = member.education?.[0]?.institution ?? member.school ?? member.affiliation
-  const tags = member.interest_tags ?? []
+  const name = [member.first_name, member.last_name].filter(Boolean).join(" ") || "Member"
+  const affiliation = memberAffiliation(member)
+  const metadata = [memberStage(member.persona), memberLocation(member)].filter(Boolean).join(" · ")
   const isConnected = connectionEntry?.status === "accepted"
-  const visibleTags = tags.slice(0, 3)
 
   return (
     <button
       type="button"
       onClick={() => onOpen(member)}
+      aria-label={`View ${name}'s profile${isSelf ? " (you)" : ""}${isConnected ? " (connected)" : ""}`}
       data-analytics-event="curated_click"
       data-analytics-id={`directory-profile-card-${member.id}`}
       data-analytics-label="Directory profile card"
-      className="group flex w-full cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm transition duration-150 ease-out hover:border-ipn hover:shadow-lg sm:flex-col sm:items-center sm:gap-4 sm:rounded-xl sm:px-4 sm:pb-5 sm:pt-6 sm:hover:[transform:translateY(-6px)]"
+      className="group flex min-w-0 w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3.5 text-left shadow-sm transition-colors hover:border-ipn/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn sm:items-start sm:gap-4 sm:p-5"
     >
-      <div className="relative">
-        <AvatarCircle avatarUrl={member.avatar_url} initials={initials} />
-        {isConnected && (
-          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 ring-2 ring-white">
-            <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
-          </span>
-        )}
-      </div>
-      <span className="min-w-0 flex-1 sm:w-full">
-        <span className="flex min-w-0 items-center gap-2 sm:block">
-          <span className="truncate text-base font-semibold leading-tight text-zinc-900 group-hover:text-ipn sm:block sm:text-center sm:text-sm">
-            {member.first_name} {member.last_name}
-          </span>
-          {member.persona && (
-            <span className="flex-shrink-0 rounded-full bg-ipn-light px-2 py-0.5 text-[10px] font-semibold text-ipn sm:hidden">
-              {member.persona}
-            </span>
-          )}
-        </span>
-        <span className="mt-1 hidden flex-wrap gap-1.5 sm:flex sm:justify-center">
-          {isSelf && (
-            <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
-              You
-            </span>
-          )}
-          <PersonaBadge persona={member.persona} />
-        </span>
-        {institution && (
-          <span className="mt-0.5 block truncate text-sm text-zinc-500 sm:mt-1.5 sm:text-center sm:text-xs sm:font-medium sm:text-zinc-600">
-            {institution}
-          </span>
-        )}
-        <span className="mt-2 flex flex-wrap gap-1.5 sm:mt-2 sm:justify-center">
-          {visibleTags.length > 0 ? visibleTags.map((tag) => (
-            <span
-              key={tag}
-              className="max-w-full rounded-full border border-ipn/15 bg-ipn/5 px-2 py-0.5 text-[11px] font-medium leading-tight text-ipn sm:text-xs"
-            >
-              {tag}
-            </span>
-          )) : (
-            <span className="text-xs text-zinc-400">No interests yet</span>
-          )}
-        </span>
+      <span className="relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ipn text-base font-semibold text-white sm:h-14 sm:w-14 sm:text-lg">
+        {member.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={member.avatar_url} alt="" width={56} height={56} className="h-full w-full rounded-full object-cover" />
+        ) : getInitials(member.first_name, member.last_name)}
+        {isConnected && <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-green-700 p-0.5 ring-2 ring-white"><CheckIcon className="h-3 w-3" aria-hidden="true" /></span>}
       </span>
-      <svg className="h-5 w-5 flex-shrink-0 text-zinc-400 sm:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
-      </svg>
+      <span className="min-w-0 flex-1">
+        <span className="block text-base leading-snug font-semibold text-zinc-900 [overflow-wrap:anywhere] group-hover:text-ipn sm:text-lg">{name}</span>
+        {affiliation && <span className="mt-0.5 block text-sm leading-5 text-zinc-700 [overflow-wrap:anywhere]">{affiliation}</span>}
+        {metadata && <span className="mt-1.5 block text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere] sm:mt-2 sm:text-sm">{metadata}</span>}
+      </span>
+      <ChevronRightIcon className="h-4 w-4 shrink-0 text-zinc-400 sm:hidden" aria-hidden="true" />
     </button>
   )
 }
@@ -352,6 +319,7 @@ export default function DirectoryClient({
   hasMore: initialHasMore,
   mapCities,
   totalMemberCount,
+  directorySummary,
   showSchoolTab,
   currentParams,
   schools,
@@ -377,20 +345,30 @@ export default function DirectoryClient({
   const [loadedMembers, setLoadedMembers] = useState(members)
   const [hasMore, setHasMore] = useState(initialHasMore)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [prevMembers, setPrevMembers] = useState(members)
+  const queryKey = directoryQueryKey(currentParams, view, currentUserId)
+  const queryKeyRef = useRef(queryKey)
+  useEffect(() => { queryKeyRef.current = queryKey }, [queryKey])
+  const loadingMoreRef = useRef(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [serverSnapshot, setServerSnapshot] = useState({ queryKey, members, connections: initialConnectionMap })
   const [connectionState, setConnectionState] = useState(() => ({
     source: initialConnectionMap,
     value: initialConnectionMap,
   }))
 
-  // The server sends a fresh (capped) page whenever filters/search/tab/view
-  // change via navigation — reset local "load more" state to match. (Adjusting
-  // state during render, not in an effect, per React's guidance for resetting
-  // state when a prop changes.)
-  if (members !== prevMembers) {
-    setPrevMembers(members)
+  if (serverSnapshot.queryKey !== queryKey) {
+    setServerSnapshot({ queryKey, members, connections: initialConnectionMap })
     setLoadedMembers(members)
     setHasMore(initialHasMore)
+    setSelectedMemberId(null)
+    setSearchInput(currentParams.q)
+    setLoadError(null)
+    setLoadingMore(false)
+  } else if (serverSnapshot.members !== members || serverSnapshot.connections !== initialConnectionMap) {
+    setServerSnapshot({ queryKey, members, connections: initialConnectionMap })
+    setLoadedMembers(reconcileDirectoryMembers(loadedMembers, members, initialConnectionMap, currentUserId))
+    // A refresh of page one cannot restore a "load more" button already exhausted.
+    if (loadedMembers.length <= members.length) setHasMore(initialHasMore)
   }
 
   const filteredMembers = useMemo(
@@ -399,17 +377,26 @@ export default function DirectoryClient({
   )
 
   async function loadMore() {
+    if (loadingMoreRef.current) return
+    const requestedQuery = queryKey
+    loadingMoreRef.current = true
     setLoadingMore(true)
-    const result = await loadMoreDirectoryMembers(loadedMembers.length, {
-      tab: currentParams.tab,
-      personas: currentParams.personas,
-      school: currentParams.school,
-      field: currentParams.field,
-      tags: currentParams.tags,
-    })
-    setLoadedMembers((prev) => [...prev, ...result.members])
-    setHasMore(result.hasMore)
-    setLoadingMore(false)
+    setLoadError(null)
+    try {
+      const result = await loadMoreDirectoryMembers(loadedMembers.length, {
+        tab: currentParams.tab, personas: currentParams.personas, school: currentParams.school,
+        field: currentParams.field, tags: currentParams.tags,
+      })
+      if (queryKeyRef.current !== requestedQuery) return
+      if (result.error !== undefined) { setLoadError("More members could not load. Please try again."); return }
+      setLoadedMembers((previous) => reconcileDirectoryMembers(previous, result.members, connMap, currentUserId))
+      setHasMore(result.hasMore)
+    } catch {
+      if (queryKeyRef.current === requestedQuery) setLoadError("More members could not load. Please try again.")
+    } finally {
+      loadingMoreRef.current = false
+      if (queryKeyRef.current === requestedQuery) setLoadingMore(false)
+    }
   }
   const filteredMapCities = useMemo(() => {
     if (!searchInput.trim()) return mapCities
@@ -473,25 +460,24 @@ export default function DirectoryClient({
         .join("|") || "empty",
     [filteredMapCities],
   )
-  const connMap = connectionState.source === initialConnectionMap
-    ? connectionState.value
-    : initialConnectionMap
-  const closeModal = useCallback(() => setSelectedMemberId(null), [])
+  if (connectionState.source !== initialConnectionMap) {
+    setConnectionState({ source: initialConnectionMap, value: initialConnectionMap })
+  }
+  const connMap = connectionState.value
+  const closeModal = useCallback(() => setSelectedMemberId(null), [setSelectedMemberId])
   const openMember = useCallback((member: DirectoryMember) => {
     setSelectedMemberId(member.id)
-  }, [])
-  const updateConnectionMap = useCallback((memberId: string, entry: ConnectionEntry) => {
+  }, [setSelectedMemberId])
+  const updateConnectionMap = useCallback((memberId: string, entry: ConnectionEntry, contact?: DirectoryContact | null) => {
+    setLoadedMembers((current) => current.map((member) => member.id === memberId
+      ? { ...member, contact: entry.status === "accepted" ? contact ?? null : null } : member))
     setConnectionState((current) => {
-      const base = current.source === initialConnectionMap
-        ? current.value
-        : initialConnectionMap
-
       return {
-        source: initialConnectionMap,
-        value: { ...base, [memberId]: entry },
+        source: current.source,
+        value: { ...current.value, [memberId]: entry },
       }
     })
-  }, [initialConnectionMap])
+  }, [setLoadedMembers, setConnectionState])
 
   const buildUrl = useCallback((
     overrides: Partial<DirectoryParams>,
@@ -513,7 +499,7 @@ export default function DirectoryClient({
   const clearSearch = useCallback(() => {
     setSearchInput("")
     startTransition(() => router.replace(buildUrl({ q: "" })))
-  }, [buildUrl, router])
+  }, [buildUrl, router, setSearchInput])
 
   // Filtering the already-loaded page is instant, but the loaded page is
   // capped — once the debounced query settles, also re-fetch from the server
@@ -593,8 +579,12 @@ export default function DirectoryClient({
   const displayedMemberCount = hasSettledSearch
     ? totalMemberCount
     : (isMapView ? mapMemberCount : filteredMembers.length)
-  const displayedCityCount = isMapView ? filteredMapCities.length : listLocationCounts.cities
-  const displayedCountryCount = isMapView ? mapCountryCount : listLocationCounts.countries
+  const displayedCityCount = hasSettledSearch && directorySummary
+    ? directorySummary.cities
+    : (isMapView ? filteredMapCities.length : listLocationCounts.cities)
+  const displayedCountryCount = hasSettledSearch && directorySummary
+    ? directorySummary.countries
+    : (isMapView ? mapCountryCount : listLocationCounts.countries)
 
   return (
     <div>
@@ -625,7 +615,8 @@ export default function DirectoryClient({
           </svg>
           <input
             type="text"
-            placeholder="Search members by name, school, or keywords"
+            placeholder="Search members"
+            aria-label="Search members by name, school, or keywords"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-9 text-base shadow-sm placeholder:text-zinc-400 focus:border-ipn focus:outline-none focus:ring-1 focus:ring-ipn sm:text-sm"
@@ -803,7 +794,7 @@ export default function DirectoryClient({
             </p>
           )}
         </div>
-        <div className="grid w-full grid-cols-2 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:self-auto">
+        <div className="inline-flex self-end rounded-xl border border-zinc-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:self-auto">
           {(["list", "map"] as const).map((option) => (
             <button
               key={option}
@@ -833,7 +824,7 @@ export default function DirectoryClient({
         </div>
       ) : filteredMembers.length > 0 ? (
         <div className="flex flex-col gap-4">
-          <div className={`grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4 transition-opacity ${isPending ? "opacity-50" : ""}`}>
+          <div className={`grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-5 xl:grid-cols-3 transition-opacity ${isPending ? "opacity-50" : ""}`}>
             {filteredMembers.map((member) => (
               <MemberCard
                 key={member.id}
@@ -844,6 +835,7 @@ export default function DirectoryClient({
               />
             ))}
           </div>
+          {loadError && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
           {hasMore && (
             <button
               type="button"
@@ -894,11 +886,12 @@ export default function DirectoryClient({
 
       {selectedMember && (
         <MemberProfileModal
+          key={selectedMember.id}
           member={selectedMember}
           connectionEntry={connMap[selectedMember.id]}
           isSelf={selectedMember.id === currentUserId}
-          onConnectionChange={(entry) =>
-            updateConnectionMap(selectedMember.id, entry)
+          onConnectionChange={(entry, contact) =>
+            updateConnectionMap(selectedMember.id, entry, contact)
           }
           onClose={closeModal}
         />

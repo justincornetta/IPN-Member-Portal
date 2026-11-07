@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState, useTransition, type RefObject } from "react"
 import { PERSONA_OPTIONS } from "@/lib/constants/registration"
-import type { ConnectionEntry, DirectoryMember } from "@/lib/directory/types"
-import { sendConnectionRequest, acceptConnection, removeConnection } from "@/lib/connections/actions"
+import type { ConnectionEntry, DirectoryMember, DirectoryContact } from "@/lib/directory/types"
+import { sendConnectionRequest, acceptConnection, removeConnection, getConnectionDetails } from "@/lib/connections/actions"
+import { memberAffiliation, memberLocation } from "@/lib/directory/presentation"
+import type { ConnectionActionResult } from "@/lib/connections/types"
 import { educationLevelLabel } from "@/lib/members/education"
 
 // DB values are the display labels — this is an identity map kept for future flexibility
@@ -46,6 +47,36 @@ export function PersonaBadge({ persona }: { persona: string | null }) {
   )
 }
 
+function useDialogFocus(ref: RefObject<HTMLDivElement | null>, onClose: () => void) {
+  const closeRef = useRef(onClose)
+  useEffect(() => { closeRef.current = onClose }, [onClose])
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    const dialog = ref.current
+    dialog?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true })
+    function onKey(event: KeyboardEvent) {
+      const dialogs = document.querySelectorAll('[role="dialog"]')
+      if (dialogs[dialogs.length - 1] !== dialog) return
+      if (event.key === "Escape") { event.preventDefault(); closeRef.current(); return }
+      if (event.key !== "Tab" || !dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]',
+      )).filter((element) => element.getClientRects().length > 0)
+      const first = focusable[0], last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus()
+      }
+    }
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      if (previous?.isConnected) previous.focus({ preventScroll: true })
+    }
+  }, [ref])
+}
+
 function ConfirmRemoveModal({
   name,
   mode = "remove",
@@ -57,11 +88,8 @@ function ConfirmRemoveModal({
   onConfirm: () => void
   onCancel: () => void
 }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onCancel() }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onCancel])
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef, onCancel)
 
   const title = mode === "cancel" ? "Cancel request?" : "Remove connection?"
   const body = mode === "cancel"
@@ -72,11 +100,15 @@ function ConfirmRemoveModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 px-0 sm:items-center sm:px-4" onClick={onCancel}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-connection-title"
         className="w-full max-w-sm rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.5rem)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+        <h2 id="confirm-connection-title" className="text-base font-semibold text-zinc-900">{title}</h2>
         <p className="mt-2 text-sm text-zinc-500">{body}</p>
         <div className="mt-5 flex gap-3">
           <button type="button" onClick={onCancel}
@@ -108,30 +140,75 @@ export default function MemberProfileModal({
   member: DirectoryMember
   connectionEntry: ConnectionEntry | undefined
   isSelf: boolean
-  onConnectionChange: (entry: ConnectionEntry) => void
+  onConnectionChange: (entry: ConnectionEntry, contact?: DirectoryContact | null) => void
   onClose: () => void
 }) {
-  const router = useRouter()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
+  const busyRef = useRef(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionContact, setActionContact] = useState<DirectoryContact | null | undefined>(undefined)
+  const connectionChangeRef = useRef(onConnectionChange)
+  useEffect(() => { connectionChangeRef.current = onConnectionChange }, [onConnectionChange])
+  const [contactWarning, setContactWarning] = useState<string | null>(null)
+  useDialogFocus(dialogRef, onClose)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const initials = getInitials(member.first_name, member.last_name)
-  const location = [member.city, member.state].filter(Boolean).join(", ")
-  const institution = member.education?.[0]?.institution ?? member.school ?? member.affiliation
+  const location = memberLocation(member)
+  const institution = memberAffiliation(member)
+  const contact = actionContact
   const isConnected = connectionEntry?.status === "accepted"
   const isPendingOutgoing = connectionEntry?.status === "pending" && connectionEntry.amRequester
 
   useEffect(() => {
+    const previous = document.body.style.overflow
     document.body.style.overflow = "hidden"
-    return () => { document.body.style.overflow = "" }
+    return () => { document.body.style.overflow = previous }
   }, [])
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
-    }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onClose])
+    if (!isConnected) return
+    let cancelled = false
+    // Reopening a later-page profile must not rely on a retained contact snapshot.
+    getConnectionDetails(member.id).then((result) => {
+      if (cancelled) return
+      if (result.error || !result.entry) {
+        setActionContact(null)
+        setContactWarning(result.error ?? "Contact details could not load.")
+        return
+      }
+      setActionContact(result.contact)
+      setContactWarning(result.contactWarning ?? null)
+      connectionChangeRef.current(result.entry, result.contact)
+    }).catch(() => {
+      if (!cancelled) {
+        setActionContact(null)
+        setContactWarning("Contact details could not load. Reopen this profile to try again.")
+      }
+    })
+    return () => { cancelled = true }
+  }, [isConnected, member.id])
+
+  function runConnectionAction(action: () => Promise<ConnectionActionResult>) {
+    if (busyRef.current) return
+    busyRef.current = true
+    setActionError(null)
+    startTransition(async () => {
+      try {
+        const result = await action()
+        if (result.error) { setActionError(result.error); return }
+        if (!result.entry) { setActionError("Could not confirm the connection. Please try again."); return }
+        setActionContact(result.contact)
+        setContactWarning(result.contactWarning ?? null)
+        onConnectionChange(result.entry, result.contact)
+        setConfirmRemove(false)
+      } catch {
+        setActionError("The connection could not be updated. Please try again.")
+      } finally {
+        busyRef.current = false
+      }
+    })
+  }
 
   return (
     <div
@@ -139,6 +216,11 @@ export default function MemberProfileModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-profile-title"
+        aria-busy={isPending}
         className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => e.stopPropagation()}
@@ -147,7 +229,7 @@ export default function MemberProfileModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:text-zinc-600"
+          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-ipn"
           aria-label="Close"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -167,7 +249,7 @@ export default function MemberProfileModal({
               </div>
             )}
           </div>
-          <h2 className="mt-4 text-xl font-semibold text-zinc-900">
+          <h2 id="member-profile-title" className="mt-4 text-xl font-semibold text-zinc-900">
             {member.first_name} {member.last_name}
           </h2>
           {(isSelf || member.persona) && (
@@ -244,17 +326,17 @@ export default function MemberProfileModal({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Contact</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {member.contact?.email && (
+                {contact?.email && (
                   <a
-                    href={`mailto:${member.contact.email}`}
+                    href={`mailto:${contact.email}`}
                     className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-ipn hover:text-ipn"
                   >
                     Email
                   </a>
                 )}
-                {member.contact?.whatsapp_url && (
+                {contact?.whatsapp_url && (
                   <a
-                    href={member.contact.whatsapp_url}
+                    href={contact.whatsapp_url}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
@@ -262,14 +344,18 @@ export default function MemberProfileModal({
                     WhatsApp
                   </a>
                 )}
-                {!member.contact?.email && !member.contact?.whatsapp_url && (
-                  <p className="text-sm text-zinc-500">No contact details added yet.</p>
+                {!contact?.email && !contact?.whatsapp_url && (
+                  <p className="text-sm text-zinc-500">{actionContact === undefined ? "Loading contact details…" : contactWarning ?? "No contact details added yet."}</p>
                 )}
               </div>
             </div>
           )}
         </div>
 
+        <div role="status" aria-live="polite" className="px-6">
+          {isPending && <p className="pb-3 text-sm text-zinc-600">Updating connection…</p>}
+          {actionError && <p role="alert" className="pb-3 text-sm text-red-700">{actionError}</p>}
+        </div>
         {/* Footer */}
         <div className="flex flex-col gap-3 border-t border-zinc-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           {isSelf ? (
@@ -292,6 +378,7 @@ export default function MemberProfileModal({
             <button
               type="button"
               onClick={() => setConfirmRemove(true)}
+              disabled={isPending}
               data-analytics-event="curated_click"
               data-analytics-id={`connection-remove-start-${member.id}`}
               data-analytics-label="Remove connection"
@@ -303,6 +390,7 @@ export default function MemberProfileModal({
             <button
               type="button"
               onClick={() => setConfirmRemove(true)}
+              disabled={isPending}
               data-analytics-event="curated_click"
               data-analytics-id={`connection-cancel-start-${member.id}`}
               data-analytics-label="Cancel connection request"
@@ -359,13 +447,8 @@ export default function MemberProfileModal({
               return (
                 <button
                   type="button"
-                  onClick={() => {
-                    onConnectionChange({ status: "accepted", amRequester: false })
-                    startTransition(async () => {
-                      const result = await acceptConnection(member.id)
-                      if (!result.error) router.refresh()
-                    })
-                  }}
+                  onClick={() => runConnectionAction(() => acceptConnection(member.id))}
+                  disabled={isPending}
                   data-analytics-event="curated_click"
                   data-analytics-id={`connection-accept-${member.id}`}
                   data-analytics-label="Accept connection request"
@@ -379,13 +462,8 @@ export default function MemberProfileModal({
             return (
               <button
                 type="button"
-                onClick={() => {
-                  onConnectionChange({ status: "pending", amRequester: true })
-                  startTransition(async () => {
-                    const result = await sendConnectionRequest(member.id)
-                    if (!result.error) router.refresh()
-                  })
-                }}
+                onClick={() => runConnectionAction(() => sendConnectionRequest(member.id))}
+                disabled={isPending}
                 data-analytics-event="curated_click"
                 data-analytics-id={`connection-request-${member.id}`}
                 data-analytics-label="Send connection request"
@@ -399,7 +477,7 @@ export default function MemberProfileModal({
 
         {!isSelf && (!connectionEntry || connectionEntry.status === "declined") && (
           <p className="px-6 pb-4 text-center text-xs text-zinc-400">
-            Connecting lets you share email and WhatsApp details with each other.
+            Once accepted, you can share email and WhatsApp details with each other.
           </p>
         )}
       </div>
@@ -409,12 +487,8 @@ export default function MemberProfileModal({
           name={`${member.first_name ?? ""} ${member.last_name ?? ""}`.trim()}
           mode={isPendingOutgoing ? "cancel" : "remove"}
           onConfirm={() => {
-            onConnectionChange({ status: "declined", amRequester: true })
-            startTransition(async () => {
-              const result = await removeConnection(member.id)
-              if (!result.error) router.refresh()
-            })
             setConfirmRemove(false)
+            runConnectionAction(() => removeConnection(member.id))
           }}
           onCancel={() => setConfirmRemove(false)}
         />
