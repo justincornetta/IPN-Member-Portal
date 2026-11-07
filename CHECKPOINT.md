@@ -1,13 +1,15 @@
-# Home full-load optimization — November 7, 2026
+# Home full loads verified — November 7, 2026
 
 ## Status
-Locally verified follow-up to approved PR #79. Sharing verified user/profile reads per request, removing unused Home contact prefetch, and replacing exact participation counts with existence probes. No persistent private-data cache, database changes, or merge.
+PR #79 updated with `be3269e` and fixture correction `4affed8`. Netlify deploy `6aefb6b20b64ffad83ed5e30` ready; header/redirect checks pass. No merge. Five subsequent full Home reloads all below one second; first request after deployment still slower.
 
 ## Last session
-Baseline five full reloads: 7428/675/910/3053/841 ms, median 910 ms. Netlify confirms server-side variance, including initialization in the slowest request. Lint/build, 45 focused tests and all 11 browser workflows pass; account-switch, sign-out and suspended-user behavior verified locally. No browser errors or overlays.
+Implemented per-request verified user/profile sharing, removed unused Home private-contact prefetch, and replaced five exact participation counts with existence probes. Middleware/auth/role/suspension validation remains, with no persistent private-data cache or database changes. Local production build/lint and 45 focused tests pass; 11 browser scenarios cover account changes, sign-out/suspension redirects, missing contacts, navigation and retry states without browser errors. New fixture type issue caught by deploy build was corrected and checked locally before the ready revision.
 
-## Next steps / open decisions
-Push the authorized PR revision, verify hosted signed-in Home reloads, and document the measured range separately from warm tab switching. Consistent sub-second cold loads remain unproven. Justin retains merge decision.
+Hosted full Home reloads: first 2390 ms; subsequent 734/723/858/705/780 ms (median 734 ms, range 705–858 ms). All six requests returned 200. Home/Community/Events navigation remains working, with no browser errors. Prior baseline was 7428/675/910/3053/841 ms; server logs show startup/variable server latency. Timings include browser-control overhead; this is a small uncontrolled series, not a guaranteed speedup percentage or universal cold-load promise.
+
+## Next steps / open decisions / known issues
+Review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard and PR https://github.com/justincornetta/IPN-Member-Portal/pull/79 . Typical warmed full reloads now meet the target in this session; consistent sub-second first loads require further startup/hosting work. No hosting-plan change or spend authorized/performed. Optional contact store is still absent. Existing unrelated base test failures remain. Raw evidence: docs/navigation-performance/hosted-measurements.json. Cornbot milestone request b169bbd41bc2f4d789fa was accepted for Notion routing.
 
 ---
 
