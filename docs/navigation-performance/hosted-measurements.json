@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-07",
+  "commit": "80cf845",
+  "deployment": "6aefb098665214227bd93a14",
+  "environment": "Signed-in hosted PR79, existing desktop in-app browser session, real backend data",
+  "method": "Wall-clock elapsed around browser-control click until a content-specific visible locator resolves. Includes control/locator overhead; excludes later AX snapshots. Five consecutive route cycles, not a cold-load or physical-device guarantee. Community: first member button; first sample used Filters button. Events: No upcoming events yet. Home: Members to know.",
+  "navigationMs": {
+    "Community": [
+      1044,
+      868,
+      410,
+      515,
+      399
+    ],
+    "Events": [
+      794,
+      383,
+      391,
+      390,
+      379
+    ],
+    "Home": [
+      699,
+      491,
+      709,
+      602,
+      490
+    ]
+  },
+  "firstFullHomeLoadMs": 2100,
+  "subsequentFullLoadMs": {
+    "Home": 1572,
+    "Community": 753,
+    "Events": 470
+  },
+  "recordingsHeadingMs": 1410,
+  "notes": [
+    "Events had a valid empty upcoming list; recordings showed167items.",
+    "No new browser errors after repair; retained pre-repair React error timestamp23:13:01UTC excluded.",
+    "Connected-profile missing-contact warning verified read-only; no connection or RSVP mutations."
+  ]
+}

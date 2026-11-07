@@ -1,3 +1,16 @@
+# PR 79 access repair verified on hosted preview — November 7, 2026
+
+## Status
+Repaired and pushed as `80cf845`; Netlify deploy `6aefb098665214227bd93a14` ready. Signed-in hosted access now works. PR #79 remains open and unmerged; Justin reviews before merge.
+
+## Last session
+Confirmed real Home, Community, Events and Recordings content plus the connected-profile contact-unavailable warning. Five repeated click-to-visible-content measurements per route: medians Community0.515s, Events0.390s, Home0.602s; slowest switch1.044s. First full Home load2.1s; later direct loads Home1.572s, Community0.753s, Events0.470s. Recordings heading1.410s with167items rendered. Timings include browser-control overhead and reflect this signed-in desktop session. No new browser errors after the repair; no connection/RSVP mutation tests on hosted data. Missing optional contacts remain unavailable without blocking browsing; no database or auth changes.
+
+## Next steps / open decisions
+Review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard . Target of roughly one second is met for repeated page switches in this session; initial Home loads can still be slower. No claim of a universal cold-load guarantee. Await Justin's merge decision. Details/raw samples: `docs/navigation-performance/hosted-measurements.json`. Local lint/build,45focused tests and9performance browser scenarios passed (new Home regression rerun after selector correction). Existing unrelated full-suite failures remain. Tin Can unavailable.
+
+---
+
 # PR 79 signed-in access repair — November 7, 2026
 
 ## Status
