@@ -1,3 +1,16 @@
+# Home full-load optimization — November 7, 2026
+
+## Status
+Locally verified follow-up to approved PR #79. Sharing verified user/profile reads per request, removing unused Home contact prefetch, and replacing exact participation counts with existence probes. No persistent private-data cache, database changes, or merge.
+
+## Last session
+Baseline five full reloads: 7428/675/910/3053/841 ms, median 910 ms. Netlify confirms server-side variance, including initialization in the slowest request. Lint/build, 45 focused tests and all 11 browser workflows pass; account-switch, sign-out and suspended-user behavior verified locally. No browser errors or overlays.
+
+## Next steps / open decisions
+Push the authorized PR revision, verify hosted signed-in Home reloads, and document the measured range separately from warm tab switching. Consistent sub-second cold loads remain unproven. Justin retains merge decision.
+
+---
+
 # PR 79 access repair verified on hosted preview — November 7, 2026
 
 ## Status

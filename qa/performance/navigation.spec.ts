@@ -92,3 +92,23 @@ test("signed-in Home and Community survive the deployed schema without contacts"
   await page.getByRole("link",{name:"Dashboard",exact:true}).click()
   await expect(page.getByRole("heading",{name:/Good (morning|afternoon|evening), Preview/})).toBeVisible()
 })
+
+
+test("Home viewer reads stay request-scoped across accounts and sign-out", async ({page,context}) => {
+  await page.goto("/dashboard")
+  await expect(page.getByRole("heading",{name:/Good (morning|afternoon|evening), Preview/})).toBeVisible()
+  await context.addCookies([{name:"qa-viewer",value:"second",domain:"127.0.0.1",path:"/"}])
+  await page.reload()
+  await expect(page.getByRole("heading",{name:/Good (morning|afternoon|evening), Second/})).toBeVisible()
+  await expect(page.getByRole("heading",{name:/Good (morning|afternoon|evening), Preview/})).toHaveCount(0)
+  await context.addCookies([{name:"qa-viewer",value:"anonymous",domain:"127.0.0.1",path:"/"}])
+  await page.reload()
+  await expect(page).toHaveURL(/\/login$/)
+})
+
+test("shared viewer reads preserve the suspended-account guard", async ({page,context}) => {
+  await context.addCookies([{name:"qa-viewer",value:"banned",domain:"127.0.0.1",path:"/"}])
+  await page.goto("/dashboard")
+  await expect(page).toHaveURL(/\/banned$/)
+  await expect(page.getByRole("heading",{name:"Account suspended"})).toBeVisible()
+})
