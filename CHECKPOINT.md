@@ -1,3 +1,16 @@
+# Sign-in analytics optimization — November 7, 2026
+
+## Status
+Updating approved PR #79: defer login analytics with Next.js after(), preserving authentication-time timestamps and eventual writes. No merge or admin-page refactor.
+
+## Last session
+Local production build/lint and57focused checks passed. Controlled full-browser production-build comparison covers five before/five after logins, invalid credentials, member/leadership roles, eventual background analytics completion and no Admin route requests on Home. Auth150ms, reads100ms, analytics1000ms are simulated, not hosted measurements; see docs/navigation-performance/sign-in-measurements.json. User-assisted hosted baseline:3748ms click-to-Home, analytics event persisted. No credentials captured. New preview and hosted after measurement pending.
+
+## Next steps / open decisions / known issues
+Deploy same PR revision and ask user to enter credentials directly for the paired after measurement; do not ask for passwords in chat. Admin loads all sections together only on its own route; lazy per-tab data/UI is a separate improvement to consider. Keep auth/RSVP/account checks intact. Existing unrelated base test failures and cold-start variance remain. Tin Can relay unavailable; directory chat coordinated.
+
+---
+
 # Map summary aligned with List — November 7, 2026
 
 ## Status

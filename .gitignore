@@ -63,3 +63,6 @@ next-env.d.ts
 /.qa-directory/
 
 /test-results-performance/
+
+/.qa-sign-in-before/
+/.qa-sign-in-after/

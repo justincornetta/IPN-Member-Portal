@@ -121,7 +121,7 @@ export function sanitizePortalAnalyticsPayload(payload: unknown) {
 }
 
 export async function recordPortalAnalyticsEvent(
-  payload: PortalAnalyticsPayload & { userId?: string | null },
+  payload: PortalAnalyticsPayload & { userId?: string | null; occurredAt?: string },
 ) {
   if (process.env.NODE_ENV !== "production") return
   const sanitized = sanitizePortalAnalyticsPayload(payload)
@@ -129,10 +129,14 @@ export async function recordPortalAnalyticsEvent(
 
   try {
     const admin = createAdminClient()
-    await admin.from("portal_analytics_events").insert({
+    const { error } = await admin.from("portal_analytics_events").insert({
       ...sanitized,
       user_id: payload.userId ?? null,
+      // Trusted server event time, captured before deferred work. Client events
+      // still use the database timestamp through the separate API route.
+      ...(payload.occurredAt ? { occurred_at: payload.occurredAt } : {}),
     })
+    if (error) console.error("[portal-analytics] server event failed:", error.message)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("[portal-analytics] server event failed:", message)
