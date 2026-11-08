@@ -59,3 +59,5 @@ Before this follow-up, five full Home reloads measured 7428, 675, 910, 3053 and 
 ## Map summary presentation
 
 Removed the separate “Live membership map” card and label. Map and List now share the existing plain gray summary markup; counts, filters and map behavior are unchanged. Kit: existing IPN portal light styling, explicitly requested by Justin. Local lint/build pass. Browser checks at 1440/390/320 px verified settled Map/List switching, matching summary typography/counts, no overflow and no console/page errors or framework overlays. Screenshots: `screenshots/map-summary-detail.png` and full desktop/phone captures. Local map tiles use the existing missing-token fallback; no live Mapbox credential was copied. This small presentation change received direct responsive visual review; earlier independent directory design review remains applicable.
+
+Hosted verification at `63c71ee`: globe/controls render, summary reads 120 members · 89 cities · 16 countries using List typography, old label absent, and no browser errors. PR remains unmerged.

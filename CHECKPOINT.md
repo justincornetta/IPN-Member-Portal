@@ -4,10 +4,10 @@
 Updated the approved PR #79 revision: removed the boxed “Live membership map” label/card and reused List's plain gray members/cities/countries summary. Map controls and count calculation are unchanged. No merge.
 
 ## Last session
-Local lint and production build pass. Browser QA at 1440, 390 and 320 px verified settled Map/List switching, identical summary text and computed typography, no horizontal overflow, no page/console errors or framework overlays. Reviewed desktop/phone screenshots. Local fixtures use 125 fictional members across two cities/countries and the existing no-token map fallback; hosted map rendering will be checked after deployment. Evidence is under docs/navigation-performance/screenshots/map-summary-*.png. Kit: existing IPN portal light styling, as explicitly requested in Justin's screenshots (exception to the general dark-plum brand default).
+Local lint and production build pass. Browser QA at 1440, 390 and 320 px verified settled Map/List switching, identical summary text and computed typography, no horizontal overflow, no page/console errors or framework overlays. Reviewed desktop/phone screenshots. Local fixtures use 125 fictional members across two cities/countries and the existing no-token map fallback. Hosted commit 63c71ee (deploy 6aefbe68fc4215de5f0c1a3b) verified signed in: live globe and controls render, summary reads 120 members · 89 cities · 16 countries in the List style, old label absent, no browser errors. Evidence is under docs/navigation-performance/screenshots/map-summary-*.png. Kit: existing IPN portal light styling, as explicitly requested in Justin's screenshots (exception to the general dark-plum brand default).
 
 ## Next steps / open decisions / known issues
-Update the same authorized PR preview, verify the actual map and leave the PR unmerged for Justin. Prior Home performance results/limits remain below. Tin Can relay is unreachable despite Tailscale running/online; doctor found no local version/config problem, so Notion milestone routing is pending. Directory chat coordinated and left this branch unchanged.
+PR #79 is updated; review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard/directory?view=map . Leave it unmerged for Justin. Prior Home performance results/limits remain below. Tin Can relay is unreachable despite Tailscale running/online; doctor found no local version/config problem, so Notion milestone routing is pending. Directory chat coordinated and left this branch unchanged.
 
 ---
 
