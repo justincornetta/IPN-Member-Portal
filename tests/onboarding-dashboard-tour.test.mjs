@@ -196,8 +196,8 @@ test("dashboard derives participation from event, ticket, conference, meetup, or
   assert.match(dashboard, /from\("conference_rsvps"\)/)
   assert.match(dashboard, /from\("conference_meetup_rsvps"\)/)
   assert.match(dashboard, /from\("connections"\)/)
-  assert.match(dashboard, /ticketParticipationResult\.count/)
-  assert.match(dashboard, /meetupParticipationResult\.count/)
+  assert.match(dashboard, /ticketParticipationResult\.data\?\.length/)
+  assert.match(dashboard, /meetupParticipationResult\.data\?\.length/)
   assert.match(dashboard, /participation_completed: participationCompleted/)
   assert.match(conferenceActions, /markOnboardingStepsComplete\(supabase, user\.id, \["event_rsvp"\]\)/)
 })
@@ -332,7 +332,8 @@ test("events hub and event detail use the standardized full event layout", async
   assert.doesNotMatch(communityEvent, /View event/)
   assert.match(communityEvent, /AddToCalendarButton/)
   assert.match(communityEvent, /You’re registered/)
-  assert.match(eventsPage, /conference_meetup_rsvps/)
+  assert.match(eventsPage, /loadEventsHub/)
+  assert.match(await readFile(new URL("../src/lib/events/load-hub.ts", import.meta.url), "utf8"), /conference_meetup_rsvps/)
 })
 
 test("product tour visits only active portal routes in the required sequence", () => {

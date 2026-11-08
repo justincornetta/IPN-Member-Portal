@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { getDashboardProfile, getDashboardViewer } from "@/lib/supabase/dashboard-viewer"
 import Sidebar from "@/components/Sidebar"
 import FeedbackFooter from "@/components/FeedbackFooter"
 import { ProductTourProvider } from "@/components/product-tour/ProductTourProvider"
@@ -9,19 +9,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { supabase, user } = await getDashboardViewer()
 
   if (!user) redirect("/login")
 
   const [profileResult, pendingResult, tourProgressResult] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("first_name, last_name, avatar_url, role, is_banned")
-      .eq("id", user.id)
-      .single(),
+    getDashboardProfile(user.id),
     supabase
       .from("connections")
       .select("id", { count: "exact", head: true })

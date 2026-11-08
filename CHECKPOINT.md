@@ -1,3 +1,126 @@
+# Sign-in analytics verified — November 7, 2026
+
+## Status
+PR #79 updated with6d7482c; Netlify deploy6aefc1d492e7484edbe62c80 ready. Login success/failure analytics now completes after the response with the original authentication timestamp. No merge or Admin refactor.
+
+## Last session
+Local lint/production build and57focused checks pass. Controlled full-browser production builds: five interleaved runs per version, median1834ms before versus824ms after, with fixed simulated auth150ms, reads100ms and analytics1000ms. Four member/one leadership session per version reached Home without requesting Admin routes; invalid credentials returned in219ms and analytics subsequently completed. Checks cover deferred writes, timestamps, roles, safe redirects and RSVP association; no browser errors/overlays.
+
+User-assisted hosted sign-ins: before3748ms at00:24:02UTC; after3002ms at00:28:53UTC. Both are real credential submissions in an existing desktop session, measured from click to Members to know visible, including browser-control overhead. One sample per deployment, with uncontrolled startup/network/cache variance; not a robust average or first-visit guarantee. Both success analytics writes confirmed in Supabase, after event time00:28:55.125UTC. No credentials recorded; no browser errors. Raw data: docs/navigation-performance/sign-in-measurements.json.
+
+## Next steps / open decisions / known issues
+Review PR https://github.com/justincornetta/IPN-Member-Portal/pull/79 and preview https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard . Luke should review this auth-path scheduling change; auth/RSVP/security checks remain intact. Admin currently loads its sections/data together only on the Admin route. Loading data and charts per selected Admin tab is a worthwhile separate leadership improvement, not yet implemented. Initial login remains above one second in this live sample. Existing unrelated base test failures and server-startup variance remain. Tin Can relay unavailable; directory chat coordinated. Local4350/4351 timing servers stopped after QA.
+
+---
+
+# Map summary aligned with List — November 7, 2026
+
+## Status
+Updated the approved PR #79 revision: removed the boxed “Live membership map” label/card and reused List's plain gray members/cities/countries summary. Map controls and count calculation are unchanged. No merge.
+
+## Last session
+Local lint and production build pass. Browser QA at 1440, 390 and 320 px verified settled Map/List switching, identical summary text and computed typography, no horizontal overflow, no page/console errors or framework overlays. Reviewed desktop/phone screenshots. Local fixtures use 125 fictional members across two cities/countries and the existing no-token map fallback. Hosted commit 63c71ee (deploy 6aefbe68fc4215de5f0c1a3b) verified signed in: live globe and controls render, summary reads 120 members · 89 cities · 16 countries in the List style, old label absent, no browser errors. Evidence is under docs/navigation-performance/screenshots/map-summary-*.png. Kit: existing IPN portal light styling, as explicitly requested in Justin's screenshots (exception to the general dark-plum brand default).
+
+## Next steps / open decisions / known issues
+PR #79 is updated; review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard/directory?view=map . Leave it unmerged for Justin. Prior Home performance results/limits remain below. Tin Can relay is unreachable despite Tailscale running/online; doctor found no local version/config problem, so Notion milestone routing is pending. Directory chat coordinated and left this branch unchanged.
+
+---
+
+# Home full loads verified — November 7, 2026
+
+## Status
+PR #79 updated with `be3269e` and fixture correction `4affed8`. Netlify deploy `6aefb6b20b64ffad83ed5e30` ready; header/redirect checks pass. No merge. Five subsequent full Home reloads all below one second; first request after deployment still slower.
+
+## Last session
+Implemented per-request verified user/profile sharing, removed unused Home private-contact prefetch, and replaced five exact participation counts with existence probes. Middleware/auth/role/suspension validation remains, with no persistent private-data cache or database changes. Local production build/lint and 45 focused tests pass; 11 browser scenarios cover account changes, sign-out/suspension redirects, missing contacts, navigation and retry states without browser errors. New fixture type issue caught by deploy build was corrected and checked locally before the ready revision.
+
+Hosted full Home reloads: first 2390 ms; subsequent 734/723/858/705/780 ms (median 734 ms, range 705–858 ms). All six requests returned 200. Home/Community/Events navigation remains working, with no browser errors. Prior baseline was 7428/675/910/3053/841 ms; server logs show startup/variable server latency. Timings include browser-control overhead; this is a small uncontrolled series, not a guaranteed speedup percentage or universal cold-load promise.
+
+## Next steps / open decisions / known issues
+Review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard and PR https://github.com/justincornetta/IPN-Member-Portal/pull/79 . Typical warmed full reloads now meet the target in this session; consistent sub-second first loads require further startup/hosting work. No hosting-plan change or spend authorized/performed. Optional contact store is still absent. Existing unrelated base test failures remain. Raw evidence: docs/navigation-performance/hosted-measurements.json. Cornbot milestone request b169bbd41bc2f4d789fa was accepted for Notion routing.
+
+---
+
+# PR 79 access repair verified on hosted preview — November 7, 2026
+
+## Status
+Repaired and pushed as `80cf845`; Netlify deploy `6aefb098665214227bd93a14` ready. Signed-in hosted access now works. PR #79 remains open and unmerged; Justin reviews before merge.
+
+## Last session
+Confirmed real Home, Community, Events and Recordings content plus the connected-profile contact-unavailable warning. Five repeated click-to-visible-content measurements per route: medians Community0.515s, Events0.390s, Home0.602s; slowest switch1.044s. First full Home load2.1s; later direct loads Home1.572s, Community0.753s, Events0.470s. Recordings heading1.410s with167items rendered. Timings include browser-control overhead and reflect this signed-in desktop session. No new browser errors after the repair; no connection/RSVP mutation tests on hosted data. Missing optional contacts remain unavailable without blocking browsing; no database or auth changes.
+
+## Next steps / open decisions
+Review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard . Target of roughly one second is met for repeated page switches in this session; initial Home loads can still be slower. No claim of a universal cold-load guarantee. Await Justin's merge decision. Details/raw samples: `docs/navigation-performance/hosted-measurements.json`. Local lint/build,45focused tests and9performance browser scenarios passed (new Home regression rerun after selector correction). Existing unrelated full-suite failures remain. Tin Can unavailable.
+
+---
+
+# PR 79 signed-in access repair — November 7, 2026
+
+## Status
+Justin reported the hosted Home server error and authorized diagnosis, fixes and continued testing toward roughly one-second navigation. Updating the same approved PR; no merge.
+
+## Last session
+Netlify logs confirmed Home's new strict enrichment read threw “Directory data could not be loaded.” Read-only schema inspection confirmed `member_contacts` is absent; no contact RPC exists. Added a narrowly scoped fallback for missing-table codes PGRST205/42P01 in optional contact enrichment, leaving contacts null and keeping all other failures strict. No contact lookup fallback to less-restricted data and no database/auth/RLS changes. Accepted-profile contact lookup still reports its unavailable state. Home now validates a missing user explicitly and starts independent featured-member and event/meetup reads together.
+
+Lint/build and 45 focused data/connection/onboarding checks pass. Eight prior performance browser flows passed; new real Home → Community → Events → Home regression with a missing contacts table passed after correcting the desktop Dashboard link selector. Local QA used the deployed schema's missing-table response. Hosted signed-in verification and timing measurement follow deployment; do not confuse earlier synthetic timings with observed user latency.
+
+## Next steps / open decisions
+Deploy this PR revision, verify Home/Community/Events under Justin's existing signed-in session and measure repeated content-ready transitions. Keep PR unmerged for Justin's review. Existing full-suite unrelated failures and middleware warning remain. Optional private contacts remain unavailable until a separately reviewed contact-store rollout; no migration made here. Tin Can remains unavailable.
+
+---
+
+# Combined directory and performance PR — November 7, 2026
+
+## Status
+Justin approved publishing the combined changes. PR [#79](https://github.com/justincornetta/IPN-Member-Portal/pull/79) is open from `fix/directory-cards-connections`, including performance `7b287a9` and directory `f18a876`. No merge authorized or performed.
+
+## Last session
+Confirmed clean local clone, no cloud placeholders, and unchanged base main `209730a`. Published the previously reviewed and tested combined implementation. PR includes user-visible changes, three before/after screenshots, calculation methodology, relevant checks and known gaps. Previous local QA remains applicable: lint/build, focused data/connection checks, directory and performance browser workflows, and independent design GO. No application code changed during publication.
+
+## Next steps / open decisions
+Verify Netlify's latest deploy for this branch and review https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard/directory (requires sign-in). Justin reviews the hosted preview before deciding whether to merge. Local fixture preview remains http://127.0.0.1:4342/dashboard/directory.
+
+## Known issues / references
+Live auth/RLS, notification delivery and production latency are not established by local fixture checks. Existing Instagram fixture mismatch and Node 24 newsletter JSON-import test failures remain; relevant tests pass. Existing middleware warning remains. Tin Can relay unavailable. Details: `docs/directory-cards/README.md`, `docs/navigation-performance/README.md`, `design-qa.md`.
+
+---
+
+# Directory option 1 and Logan's fixes — November 7, 2026
+
+## Status
+Implemented and locally verified in `Code/IPN-Member-Portal-directory`, branch `fix/directory-cards-connections`. Integrated performance commit `0ef4407` locally as `7b287a9` from base main `209730a`. Local review only; no push, PR, merge or deployment.
+
+## Last session
+Justin selected option 1 for desktop/mobile. Built compact horizontal directory cards with complete names, current affiliation, subdued stage/location and no card interest tags. Interests remain in profiles and search/filters. Explicit affiliation now takes precedence over historical education. Connect preserves the expanded list and scroll/focus after Next revalidation, returns authoritative state/contact data, and shows pending/failure/retry feedback. Contact access is rechecked on reopening accepted profiles. Load-more errors preserve rows and allow retry. Full-result summary consumption is integrated with the performance chat's loaders.
+
+Locked dependency/browser install completed. Lint and production build pass; 22 focused tests pass, ten directory browser scenarios pass, and all eight integrated performance scenarios are verified (one test-port assertion fixed and rerun). Independent design GO at 1440/1280/390/320 with no P1/P2 blockers. No console/page errors or overlays in final directory checks. Details/screenshots: `docs/directory-cards/README.md` and `design-qa.md`.
+
+## Next steps / open decisions
+Justin reviews http://127.0.0.1:4342/dashboard/directory. The local server remains running with fictional members and simulated connection writes; no live notifications or member mutations occurred. Await explicit publishing approval before push/PR; apply pr-documentation then. No PR exists for this work.
+
+## Known issues / limits
+Fixture QA does not establish production authentication/RLS, notification delivery, actual live latency or physical-device behavior. The performance chat reproduced two unrelated base-suite failures (Instagram account fixture mismatch and Node24 newsletter JSON import); relevant checks pass. Existing middleware deprecation remains. Tin Can relay unavailable; milestone summary delivery to Cornbot failed. Chrome deliverable tab shows a Grammarly body-attribute hydration warning; clean-browser QA passed. Older dirty clone and the performance clone remain untouched.
+
+---
+
+# Community and Events performance — November 7, 2026
+
+## Status
+Implemented and locally verified in `Code/IPN-Member-Portal-performance`, branch `fix/community-events-performance`, base main `209730a`. Local preview only; no push, PR or deployment authorized/performed.
+
+## Last session
+Parallelized independent Community data reads and Events registration lookups; Events fetches only the selected section. Added full-population directory summary with matching map eligibility and complete database pagination, expected-error retry UI, route skeletons and sidebar pending feedback. All data stays in the existing authenticated RLS context. Coordinated ownership with the directory chat: only optional summary type/prop added to DirectoryClient here; cards, summary consumption and connection/page-state fixes remain there.
+
+Locked install/browser runtime, lint and production build passed. Eight focused loader tests and eight browser scenarios passed at 1440/1280/390, including slow/failure/retry states with no page/console errors or overlays. Independent design review GO after fixing mobile label width and local preview redirect. Controlled 150 ms/read benchmark (median of three): Community 1215→304 ms, Events 606→303 ms; synthetic server-data path, not production click latency. Full suite: 232 passed, two unrelated base failures reproduced (Instagram account fixture mismatch; newsletter JSON import attribute under Node 24).
+
+## Next steps / open decisions
+Justin reviews http://127.0.0.1:4341/performance-preview (server left running, fictional data, normal/slow/error/reset modes). Directory chat integrates the local performance commit before combined QA, consumes the summary and handles load-more error/retry without dropping rows. Await explicit publication approval; use pr-documentation when opening a PR. No PR yet.
+
+## Known issues / references
+Actual production signed-in latency, RLS and external mutations are not verified by fixture QA. Search/map work still scales with matching population. Existing middleware deprecation warning and two unrelated full-suite failures remain. Tin Can relay unavailable; Notion milestone summary pending. Methodology, benchmark and screenshots: `docs/navigation-performance/README.md`. Directory chat: `01a1b7e1-3e2b-7613-9fde-f1b8146b1ae9`.
+
+---
+
 # RSVP analytics moved into Zoom — November 3, 2026
 
 ## Status

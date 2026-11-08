@@ -2,43 +2,66 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import type { ConnectionActionResult } from "./types"
+import type { ConnectionEntry } from "../directory/types"
 import { markOnboardingStepsComplete } from "@/lib/onboarding/progress"
 import {
   notifyConnectionRequestAccepted,
   notifyConnectionRequestReceived,
 } from "@/lib/member-notifications/email-service"
 
+// Contact access stays on the authenticated, RLS-scoped client.
+async function connectionResult(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  otherUserId: string,
+  entry: ConnectionEntry,
+): Promise<ConnectionActionResult> {
+  if (entry.status !== "accepted") return { entry, contact: null }
+  const { data, error } = await supabase.from("member_contacts")
+    .select("email, whatsapp_url").eq("user_id", otherUserId).maybeSingle()
+  return {
+    entry,
+    contact: error ? null : data,
+    ...(error ? { contactWarning: "Connected, but contact details could not load. Reopen this profile to try again." } : {}),
+  }
+}
+
 export async function sendConnectionRequest(
   addresseeId: string,
-): Promise<{ error?: string }> {
+): Promise<ConnectionActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
   // If they already sent us a request, auto-accept instead
-  const { data: reverse } = await supabase
+  const { data: reverse, error: reverseError } = await supabase
     .from("connections")
     .select("id, status")
     .eq("requester_id", addresseeId)
     .eq("addressee_id", user.id)
     .maybeSingle()
 
+  if (reverseError) return { error: "Could not check the connection. Please try again." }
+  if (addresseeId === user.id) return { error: "You cannot connect with yourself." }
+
   if (reverse?.status === "pending") {
     return acceptConnection(addresseeId)
   }
   if (reverse?.status === "accepted") {
-    return {}
+    return connectionResult(supabase, addresseeId, { status: "accepted", amRequester: false })
   }
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("connections")
     .select("id, status")
     .eq("requester_id", user.id)
     .eq("addressee_id", addresseeId)
     .maybeSingle()
 
+  if (existingError) return { error: "Could not check the connection. Please try again." }
+
   if (existing?.status === "pending" || existing?.status === "accepted") {
-    return {}
+    return connectionResult(supabase, addresseeId, { status: existing.status, amRequester: true })
   }
 
   const updatedAt = new Date().toISOString()
@@ -61,12 +84,12 @@ export async function sendConnectionRequest(
   })
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/directory")
-  return {}
+  return { entry: { status: "pending", amRequester: true }, contact: null }
 }
 
 export async function acceptConnection(
   requesterId: string,
-): Promise<{ error?: string }> {
+): Promise<ConnectionActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
@@ -100,7 +123,7 @@ export async function acceptConnection(
     connection = existingConnection
   }
 
-  if (!connection) return {}
+  if (!connection) return { error: "This request is no longer available. Please refresh and try again." }
   await notifyConnectionRequestAccepted({
     connectionId: connection.id,
     requesterUserId: connection.requester_id,
@@ -108,12 +131,12 @@ export async function acceptConnection(
     sourceVersion: connection.updated_at,
   })
   revalidatePath("/dashboard/directory")
-  return {}
+  return connectionResult(supabase, requesterId, { status: "accepted", amRequester: false })
 }
 
 export async function declineConnection(
   requesterId: string,
-): Promise<{ error?: string }> {
+): Promise<ConnectionActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
@@ -126,12 +149,12 @@ export async function declineConnection(
 
   if (error) return { error: error.message }
   revalidatePath("/dashboard/directory")
-  return {}
+  return { entry: { status: "declined", amRequester: false }, contact: null }
 }
 
 export async function removeConnection(
   otherUserId: string,
-): Promise<{ error?: string }> {
+): Promise<ConnectionActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
@@ -145,5 +168,22 @@ export async function removeConnection(
 
   if (error) return { error: error.message }
   revalidatePath("/dashboard/directory")
-  return {}
+  return { entry: { status: "declined", amRequester: true }, contact: null }
+}
+
+/** Refresh a single profile's authorized connection/contact state, including later pages. */
+export async function getConnectionDetails(otherUserId: string): Promise<ConnectionActionResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+  const { data, error } = await supabase.from("connections")
+    .select("requester_id, addressee_id, status")
+    .or(`and(requester_id.eq.${user.id},addressee_id.eq.${otherUserId}),and(requester_id.eq.${otherUserId},addressee_id.eq.${user.id})`)
+  if (error) return { error: "Connection details could not load. Please try again." }
+  const row = data?.find((item) => item.status === "accepted")
+    ?? data?.find((item) => item.status === "pending")
+  return connectionResult(supabase, otherUserId, {
+    status: row?.status ?? "declined",
+    amRequester: row ? row.requester_id === user.id : true,
+  })
 }

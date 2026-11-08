@@ -1,0 +1,269 @@
+{
+  "method": "Local production builds: real login UI/action/redirect/Home, simulated auth150ms, database100ms per read, analytics1000ms. Wall time from click to Members to know visible. Fresh browser context each run; includes automation overhead. No live auth, DB, RSVP or analytics writes.",
+  "before": [
+    {
+      "elapsedMs": 1840,
+      "role": "member",
+      "analyticsCompleteAtVisible": true,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1154
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 1836,
+      "role": "member",
+      "analyticsCompleteAtVisible": true,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1153
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 1834,
+      "role": "member",
+      "analyticsCompleteAtVisible": true,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 151
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 151
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1153
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 1834,
+      "role": "member",
+      "analyticsCompleteAtVisible": true,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 151
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 151
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1153
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 1827,
+      "role": "admin",
+      "analyticsCompleteAtVisible": true,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1153
+        }
+      ],
+      "adminRequests": 0
+    }
+  ],
+  "after": [
+    {
+      "elapsedMs": 815,
+      "role": "member",
+      "analyticsCompleteAtVisible": false,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 410
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1411
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 824,
+      "role": "member",
+      "analyticsCompleteAtVisible": false,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 152
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 370
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1371
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 827,
+      "role": "member",
+      "analyticsCompleteAtVisible": false,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 151
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 368
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1369
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 820,
+      "role": "member",
+      "analyticsCompleteAtVisible": false,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 150
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 368
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1368
+        }
+      ],
+      "adminRequests": 0
+    },
+    {
+      "elapsedMs": 831,
+      "role": "admin",
+      "analyticsCompleteAtVisible": false,
+      "events": [
+        {
+          "event": "auth-start",
+          "relativeMs": 0
+        },
+        {
+          "event": "auth-complete",
+          "relativeMs": 150
+        },
+        {
+          "event": "sign_in_success-start",
+          "relativeMs": 369
+        },
+        {
+          "event": "sign_in_success-complete",
+          "relativeMs": 1370
+        }
+      ],
+      "adminRequests": 0
+    }
+  ],
+  "invalidCredentialsMs": 219,
+  "hosted": {
+    "baselineCommit": "5a23bd6",
+    "baselineStartedAt": "2026-11-08T00:24:02.044Z",
+    "baselineClickToHomeMs": 3748,
+    "method": "Existing signed-in desktop browser reauthenticates through the real password form. User enters credentials directly; automation times Sign in click until Members to know is visible. Includes control/locator overhead. One before and one after sample, different deployments; network/server startup/cache variation is uncontrolled. Not a fresh-browser first-visit guarantee.",
+    "baselineAnalyticsPersisted": true,
+    "afterCommit": "6d7482c4adb679ff0979ef93e39d4ff66221c27b",
+    "afterDeployment": "6aefc1d492e7484edbe62c80",
+    "afterStartedAt": "2026-11-08T00:28:53.920Z",
+    "afterClickToHomeMs": 3002,
+    "afterAnalyticsPersisted": true,
+    "afterAnalyticsOccurredAt": "2026-11-08T00:28:55.125Z",
+    "browserErrors": [],
+    "netlifyPostLoginBeforeMs": 2019.803997,
+    "netlifyPostLoginAfterMs": 1819.302388,
+    "netlifyTimingNote": "Diagnostic request duration, not directly interchangeable with click-to-visible-content timing; background work and platform timing boundaries may differ."
+  },
+  "localMediansMs": {
+    "before": 1834,
+    "after": 824
+  }
+}

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { acceptConnection, declineConnection, removeConnection } from "@/lib/connections/actions"
 import MemberProfileModal, { getInitials, AvatarCircle } from "@/components/directory/MemberProfileModal"
-import type { ConnectionEntry, DirectoryMember } from "@/lib/directory/types"
+import type { ConnectionEntry, DirectoryMember, DirectoryContact } from "@/lib/directory/types"
 
 export type ConnectionRow = {
   id: string
@@ -29,7 +29,8 @@ function OutgoingCard({
   onView: (member: DirectoryMember, entry: ConnectionEntry) => void
 }) {
   const addressee = row.addressee
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const initials = getInitials(addressee.first_name, addressee.last_name)
 
   return (
@@ -50,15 +51,23 @@ function OutgoingCard({
           View profile
         </button>
         <button
+          disabled={isPending}
           onClick={() => {
-            onCancelled(row.addressee_id)
-            startTransition(() => { removeConnection(row.addressee_id) })
+            setError(null)
+            startTransition(async () => {
+              try {
+                const result = await removeConnection(row.addressee_id)
+                if (result.error) setError(result.error)
+                else onCancelled(row.addressee_id)
+              } catch { setError("Could not cancel the request. Please try again.") }
+            })
           }}
           className="min-h-11 rounded-md border border-ipn bg-transparent px-3 py-1.5 text-xs font-medium text-ipn transition hover:bg-ipn/5"
         >
-          Cancel request
+          {isPending ? "Cancelling…" : "Cancel request"}
         </button>
       </div>
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     </div>
   )
 }
@@ -108,11 +117,12 @@ function RequestCard({
   onView,
 }: {
   row: ConnectionRow
-  onAccepted: (id: string) => void
+  onAccepted: (id: string, contact?: DirectoryContact | null) => void
   onDeclined: (id: string) => void
   onView: (member: DirectoryMember, entry: ConnectionEntry) => void
 }) {
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const requester = row.requester
   if (!requester) return null
   const initials = getInitials(requester.first_name, requester.last_name)
@@ -135,9 +145,13 @@ function RequestCard({
         </button>
         <button
           onClick={() => {
+            setError(null)
             startTransition(async () => {
-              const result = await acceptConnection(row.requester_id)
-              if (!result.error) onAccepted(row.requester_id)
+              try {
+                const result = await acceptConnection(row.requester_id)
+                if (result.error) setError(result.error)
+                else onAccepted(row.requester_id, result.contact)
+              } catch { setError("Could not accept the request. Please try again.") }
             })
           }}
           disabled={isPending}
@@ -147,9 +161,13 @@ function RequestCard({
         </button>
         <button
           onClick={() => {
+            setError(null)
             startTransition(async () => {
-              const result = await declineConnection(row.requester_id)
-              if (!result.error) onDeclined(row.id)
+              try {
+                const result = await declineConnection(row.requester_id)
+                if (result.error) setError(result.error)
+                else onDeclined(row.id)
+              } catch { setError("Could not decline the request. Please try again.") }
             })
           }}
           disabled={isPending}
@@ -158,6 +176,7 @@ function RequestCard({
           Decline
         </button>
       </div>
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     </div>
   )
 }
@@ -187,11 +206,11 @@ export default function RequestsPanel({ userId, accepted: initialAccepted, incom
     ))
   }
 
-  function handleAccepted(requesterId: string) {
+  function handleAccepted(requesterId: string, contact?: DirectoryContact | null) {
     const row = incoming.find((c) => c.requester_id === requesterId)
     if (row) {
       setIncoming((prev) => prev.filter((c) => c.requester_id !== requesterId))
-      setAccepted((prev) => [{ ...row, status: "accepted" }, ...prev])
+      setAccepted((prev) => [{ ...row, status: "accepted", requester: { ...row.requester, contact: contact ?? null } }, ...prev.filter(c => c.id !== row.id)])
     }
   }
 
@@ -203,14 +222,15 @@ export default function RequestsPanel({ userId, accepted: initialAccepted, incom
     setOutgoing((prev) => prev.filter((c) => c.addressee_id !== addresseeId))
   }
 
-  function handleModalConnectionChange(member: DirectoryMember, prevEntry: ConnectionEntry | undefined, nextEntry: ConnectionEntry) {
+  function handleModalConnectionChange(member: DirectoryMember, prevEntry: ConnectionEntry | undefined, nextEntry: ConnectionEntry, contact?: DirectoryContact | null) {
     if (prevEntry?.status === "accepted" && nextEntry.status === "declined") {
       handleRemoved(member.id)
     } else if (prevEntry?.status === "pending" && !prevEntry.amRequester && nextEntry.status === "accepted") {
-      handleAccepted(member.id)
+      handleAccepted(member.id, contact)
     } else if (prevEntry?.status === "pending" && prevEntry.amRequester && nextEntry.status === "declined") {
       handleCancelledOutgoing(member.id)
     }
+    setSelectedMember({ ...member, contact: nextEntry.status === "accepted" ? contact ?? null : null })
     setSelectedEntry(nextEntry)
   }
 
@@ -270,7 +290,7 @@ export default function RequestsPanel({ userId, accepted: initialAccepted, incom
           member={selectedMember}
           connectionEntry={selectedEntry}
           isSelf={selectedMember.id === userId}
-          onConnectionChange={(entry) => handleModalConnectionChange(selectedMember, selectedEntry, entry)}
+          onConnectionChange={(entry, contact) => handleModalConnectionChange(selectedMember, selectedEntry, entry, contact)}
           onClose={() => {
             setSelectedMember(null)
             setSelectedEntry(undefined)

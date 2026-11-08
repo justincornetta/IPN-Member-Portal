@@ -39,6 +39,13 @@
   ],
   "exclude": [
     "node_modules",
-    ".qa-guest", ".qa-news", "qa/news"
+    ".qa-guest",
+    ".qa-news",
+    "qa/news",
+    ".qa-performance",
+    ".qa-directory",
+    ".qa-sign-in-before",
+    ".qa-sign-in-after",
+    "qa/directory/fixtures"
   ]
 }

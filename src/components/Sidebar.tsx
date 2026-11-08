@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import NavigationHint from "@/components/navigation/NavigationHint"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
@@ -149,6 +150,7 @@ function NavContent({
             >
               <span className={active ? "text-ipn" : "text-zinc-400"}>{item.icon}</span>
               <span className="flex-1">{item.label}</span>
+              <NavigationHint label={item.label} />
               {isDirectory && pendingRequestCount > 0 && (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                   {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
@@ -343,6 +345,7 @@ export default function Sidebar({ firstName, lastName, email, avatarUrl, pending
               >
                 <span className={active ? "text-ipn" : "text-zinc-400"}>{item.icon}</span>
                 <span className="max-w-full truncate">{item.label}</span>
+                <span className="absolute left-2 top-1"><NavigationHint label={item.label} /></span>
                 {isDirectory && pendingRequestCount > 0 && (
                   <span className="absolute right-3 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
                     {pendingRequestCount > 9 ? "9+" : pendingRequestCount}

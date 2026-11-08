@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import {
   ArrowRightIcon,
   CalendarDaysIcon,
@@ -6,12 +7,11 @@ import {
 } from "@heroicons/react/24/outline"
 import InviteFriendsCard from "@/components/InviteFriendsCard"
 import { WhatsAppIcon } from "@/components/community/WhatsAppCommunityCard"
-import { createClient } from "@/lib/supabase/server"
+import { getDashboardProfile, getDashboardViewer } from "@/lib/supabase/dashboard-viewer"
 import { withTicketRegistrationState } from "@/lib/events/tickets"
 import type { EventRecord, EventWithRegistration } from "@/lib/events/types"
 import type { ConnectionEntry, DirectoryMapMember } from "@/lib/directory/types"
 import {
-  getContactMapForMembers,
   getEducationMapForMembers,
 } from "@/lib/directory/queries"
 import type { ConferenceRecord } from "@/lib/conferences/types"
@@ -227,10 +227,9 @@ function greetingForDate(date: Date) {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { supabase, user } = await getDashboardViewer()
+
+  if (!user) redirect("/login")
 
   const now = new Date().toISOString()
   const onboardingResultPromise = (async () => {
@@ -280,12 +279,9 @@ export default async function DashboardPage() {
     conferenceParticipationResult,
     meetupParticipationResult,
     connectionParticipationResult,
+    featuredConnectionResult,
   ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("first_name, persona, affiliation, school, field, avatar_url, bio, interest_tags, role_and_goals, inspiration, linkedin_url, whatsapp_url")
-      .eq("id", user!.id)
-      .single(),
+    getDashboardProfile(user.id),
     supabase
       .from("member_education")
       .select("institution, degree_credential, area_of_study")
@@ -324,26 +320,30 @@ export default async function DashboardPage() {
     onboardingResultPromise,
     supabase
       .from("event_registrations")
-      .select("event_id", { count: "exact", head: true })
+      .select("event_id").limit(1)
       .eq("user_id", user!.id),
     user?.email
       ? supabase
           .from("event_ticket_access")
-          .select("event_id", { count: "exact", head: true })
+          .select("event_id").limit(1)
           .eq("attendee_email_normalized", user.email.trim().toLowerCase())
-      : Promise.resolve({ count: 0 }),
+      : Promise.resolve({ data: [] }),
     supabase
       .from("conference_rsvps")
-      .select("conference_id", { count: "exact", head: true })
+      .select("conference_id").limit(1)
       .eq("user_id", user!.id),
     supabase
       .from("conference_meetup_rsvps")
-      .select("meetup_id", { count: "exact", head: true })
+      .select("meetup_id").limit(1)
       .eq("user_id", user!.id),
     supabase
       .from("connections")
-      .select("id", { count: "exact", head: true })
+      .select("id").limit(1)
       .eq("requester_id", user!.id),
+    supabase
+      .from("connections")
+      .select("requester_id, addressee_id, status")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
   ])
 
   const profile = profileResult.data as MemberProfile | null
@@ -376,11 +376,11 @@ export default async function DashboardPage() {
     profileCompletion.totalCount,
   )
   const participationCompleted = [
-    eventParticipationResult.count,
-    ticketParticipationResult.count,
-    conferenceParticipationResult.count,
-    meetupParticipationResult.count,
-    connectionParticipationResult.count,
+    eventParticipationResult.data?.length,
+    ticketParticipationResult.data?.length,
+    conferenceParticipationResult.data?.length,
+    meetupParticipationResult.data?.length,
+    connectionParticipationResult.data?.length,
   ].some((count) => (count ?? 0) > 0)
   const gettingStartedSummary = activationSummary({
     whatsapp_completed_at: onboardingProgress?.whatsapp_completed_at ?? null,
@@ -393,10 +393,7 @@ export default async function DashboardPage() {
   })
   const gettingStartedComplete = gettingStartedSummary.completedCount === gettingStartedSummary.totalCount
   const showGettingStarted = !gettingStartedComplete || !onboardingProgress?.getting_started_success_seen_at
-  const { data: featuredConnectionRows } = await supabase
-    .from("connections")
-    .select("requester_id, addressee_id, status")
-    .or(`requester_id.eq.${user!.id},addressee_id.eq.${user!.id}`)
+  const featuredConnectionRows = featuredConnectionResult.data
   const acceptedConnectionIds = new Set(
     (featuredConnectionRows ?? [])
       .filter((connection) => connection.status === "accepted")
@@ -422,15 +419,6 @@ export default async function DashboardPage() {
     acceptedConnectionIds,
   )
   const featuredMemberIds = featuredMembers.map((member) => member.id)
-  const [featuredEducationMap, featuredContactMap] = await Promise.all([
-      getEducationMapForMembers(supabase, featuredMemberIds),
-      getContactMapForMembers(supabase, featuredMemberIds),
-    ])
-  const featuredMembersWithDetails = featuredMembers.map((member) => ({
-    ...member,
-    education: featuredEducationMap.get(member.id) ?? [],
-    contact: featuredContactMap.get(member.id) ?? null,
-  }))
   const featuredConnectionMap: Record<string, ConnectionEntry> = {}
   for (const connection of featuredConnectionRows ?? []) {
     const otherId = connection.requester_id === user!.id
@@ -450,39 +438,26 @@ export default async function DashboardPage() {
   )
   const eventIds = rawUpcomingEvents.map((event) => event.id)
   const conferenceIds = conferenceRecords.map((conference) => conference.id)
-  let registrations: { event_id: string }[] = []
-  let tickets: { event_id: string }[] = []
-  let registeredMeetupIds: string[] = []
-
-  if (eventIds.length) {
-    const [registrationResult, ticketResult] = await Promise.all([
-      supabase
-        .from("event_registrations")
-        .select("event_id")
-        .eq("user_id", user!.id)
-        .in("event_id", eventIds),
-      user?.email
-        ? supabase
-            .from("event_ticket_access")
-            .select("event_id")
-            .in("event_id", eventIds)
-            .eq("attendee_email_normalized", user.email.trim().toLowerCase())
-        : Promise.resolve({ data: [] }),
-    ])
-
-    registrations = (registrationResult.data ?? []) as { event_id: string }[]
-    tickets = (ticketResult.data ?? []) as { event_id: string }[]
-  }
-
-  if (conferenceIds.length) {
-    const { data: meetupRsvps } = await supabase
-      .from("conference_meetup_rsvps")
-      .select("meetup_id")
-      .eq("user_id", user!.id)
-      .in("conference_id", conferenceIds)
-
-    registeredMeetupIds = (meetupRsvps ?? []).map((row) => row.meetup_id)
-  }
+  // Featured profiles, event registrations and meetup state are independent.
+  const [featuredEducationMap, registrationResult, ticketResult, meetupResult] = await Promise.all([
+    getEducationMapForMembers(supabase, featuredMemberIds),
+    eventIds.length ? supabase.from("event_registrations").select("event_id")
+      .eq("user_id", user.id).in("event_id", eventIds) : Promise.resolve({ data: [] }),
+    eventIds.length && user.email ? supabase.from("event_ticket_access").select("event_id")
+      .in("event_id", eventIds).eq("attendee_email_normalized", user.email.trim().toLowerCase()) : Promise.resolve({ data: [] }),
+    conferenceIds.length ? supabase.from("conference_meetup_rsvps").select("meetup_id")
+      .eq("user_id", user.id).in("conference_id", conferenceIds) : Promise.resolve({ data: [] }),
+  ])
+  const registrations = registrationResult.data ?? []
+  const tickets = ticketResult.data ?? []
+  const registeredMeetupIds = (meetupResult.data ?? []).map(row => row.meetup_id)
+  const featuredMembersWithDetails = featuredMembers.map(member => ({
+    ...member,
+    education: featuredEducationMap.get(member.id) ?? [],
+    // Recommendations exclude accepted connections. The modal rechecks contact
+    // access when opened, so Home does not need a private-contact prefetch.
+    contact: null,
+  }))
 
   const registeredIds = new Set(
     registrations.map((registration) => registration.event_id),

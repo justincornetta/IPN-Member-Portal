@@ -1,0 +1,73 @@
+# Community and Events performance — local review, November 7, 2026
+
+Status: implemented locally on `fix/community-events-performance`, based on main `209730a`. No push, PR or deployment. The directory chat owns compact cards, connection reconciliation and consumption of the server summary prop.
+
+## What changed
+
+Community launches independent metadata/member reads together, then loads education and authorized contacts in parallel for ordinary browsing. Reuses connection data for the pending badge. Paginates complete metadata/search/map populations instead of assuming the first database page contains everyone; contact/education ID batches stay bounded to 100 IDs per request. Data remains per-request, authenticated and subject to existing RLS, without cross-user caching or auth changes.
+
+Events loads only Upcoming or Recordings, according to the selected URL tab. Registration, ticket and meetup state are independent parallel reads. Existing ticket gates and chat-link masking remain.
+
+Dashboard navigation now has route loading feedback, reduced-motion-aware skeletons and a pending indicator. Expected Community/Events read failures show a retry state instead of false empty results; unexpected failures use route error boundaries. Mobile pending dots sit outside label flow, preserving full navigation labels.
+
+## Summary contract for the directory chat
+
+Optional `directorySummary: {totalMembers, mappedMembers, cities, countries}` is calculated from the full committed search/filter/tab population. Geographic counts include only discoverable members sharing location, with nonempty city and finite coordinates within latitude/longitude bounds. City identity uses normalized city/country plus coordinates rounded to two decimals; countries use trimmed case-normalized nonempty values. Blank countries do not add a country. List and map use the same population; only eligible members appear on the map. Failures render an error, never zero-filled counts. The existing client only declares this optional prop in this commit; the sibling chat consumes it. Its connection/pagination work must catch load-more failures and preserve existing rows.
+
+## Preview and reproduction
+
+Run `npm ci`, `npm run qa:install`, then `npm run performance:dev`. Open http://127.0.0.1:4341/performance-preview . Choose Community or Events, slower reads, error state, or reset. Slow mode adds 800 ms per read; switching from Events to Community shows loading feedback before content. Reset clears the simulated failure.
+
+The preview runs real page/layout components in `.qa-performance`, with 125 fictional members and sample events. Fixture factories replace database/auth integrations only in that disposable tree. No environment files are copied; API/integration mutations are disabled. Preview routes are absent from the production build. Member and event actions are outside this preview's scope.
+
+## Measurements
+
+Controlled server-data benchmark in `benchmark.json`: 125 members, 150 ms per simulated database read, zero auth latency, median of three runs. Before uses the actual page source at `209730a`; after uses the extracted loaders. Both use current enrichment helpers with identical request counts for the 60-row browse fixture.
+
+| Route | Before | After | Reduction |
+| --- | ---: | ---: | ---: |
+| Community | 1215 ms | 304 ms | 75% |
+| Events | 606 ms | 303 ms | 50% |
+
+Reduction = (before − after) / before. Reproduce with `node --experimental-strip-types qa/performance/benchmark.mjs`. These timings demonstrate fewer sequential waits; they do not measure production database execution, auth, network, server cold starts, browser rendering, or click-to-content time. Real signed-in latency needs measurement after an approved release. Full search and maps still scale with the matching population.
+
+## Verification
+
+- Locked dependency install and repository Chromium installation passed.
+- ESLint and optimized production build passed with placeholder public Supabase configuration.
+- Eight focused loader tests passed: full-result geography, privacy, search beyond 1,000 rows, combined filters, parallel stages, failures, connection counts and ticket/recording behavior.
+- Eight browser scenarios passed at 1440, 1280 and 390 px: both routes, recordings, load-more, late-member search, slow navigation, both retry states, and preview control links. No console/page errors or framework overlays in these flows.
+- Full `npm test`: 232 passed, two unrelated failures reproduced from unchanged base files: Instagram archive fixture account ID conflicts with current snapshot; newsletter JSON import lacks Node 24's required import attribute. No changes made to those unrelated files.
+- Existing Next middleware deprecation warning remains. No live authentication, production RLS or external mutation verification is claimed.
+
+Independent product-design review: GO for local preview after correcting mobile label space and the preview redirect. Reviewer verified loading/error states at 1440/1280/390, reduced-motion animation disabled, bottom controls clear of mobile navigation, successful retry/reset and no page/console errors. Screenshots are in `screenshots/` (desktop/tablet/phone, loading and error). Existing card presentation belongs to the directory chat; the focused navigation feedback follows the current light portal appearance.
+
+## Hosted access regression repair
+
+The first signed-in preview failed on Home because the deployed database has no `member_contacts` table. The initial stricter loader exposed this previously ignored error. Missing-table errors PGRST205/42P01 now leave optional contacts unavailable without blocking Home or Community; other query failures remain strict. No privileged fallback, schema change or auth change. Accepted-profile details still show their unavailable warning. Home independent reads were also moved into parallel stages. Lint/build, 45 focused checks and the missing-table browser journey pass. Hosted verification at `80cf845` succeeded under the existing signed-in session: Home, Community, Events, Recordings and connected-profile read-only contact warning. No new browser errors or server crash logs after deployment.
+
+Five click-to-visible-content samples per route, measured around browser-control click and content-specific visibility waits (including automation overhead), yielded medians: Community515ms, Events390ms, Home602ms. Ranges: Community399–1044ms, Events379–794ms, Home490–709ms. First full Home load2100ms; subsequent full loads Home1572ms, Community753ms, Events470ms. Recordings heading1410ms and167recordings rendered. These are observed hosted measurements, not the earlier synthetic benchmark. No guarantee for cold starts, other networks/devices, or heavier upcoming-event populations. Raw samples and exact scope: `hosted-measurements.json`.
+
+## Full Home load follow-up
+
+Home and its layout now share the verified Supabase user and own-profile read through React request-scoped `cache`; no result is shared across requests or persisted. Middleware still verifies the session; suspended-account and role checks are preserved. Home no longer prefetches private contacts for non-connected recommendations (the modal checks access on open). Five participation probes now ask for one matching row rather than an exact historical count.
+
+Local lint, production build and 45 focused tests pass. All 11 performance browser scenarios pass, including account changes between requests, sign-out redirects, suspended-account redirects, missing optional contacts, real Home/navigation rendering, desktop/phone flows and retry states. No console/page errors or framework overlays. The UI is unchanged; prior design review remains applicable.
+
+Before this follow-up, five full Home reloads measured 7428, 675, 910, 3053 and 841 ms (median 910 ms). Netlify request durations were 6544, 561, 815, 2848 and 740 ms; the slowest request included server initialization. Full reload measurements include browser-control overhead and differ from warm client-side navigation. Hosted after measurements at `4affed8`: first request after deployment 2390 ms; five subsequent full reloads 734/723/858/705/780 ms, median 734 ms, range 705–858 ms. All six server requests returned 200; browser errors were empty, and Home → Community → Events → Home remained working. These are full reloads, not client-side switches. The small uncontrolled series does not support a causal percentage reduction or a consistently sub-second cold-load claim. The initial preview build caught a test-fixture auth response type mismatch added after the first local build; correction passed production build/lint and rerun account-change/suspension browser checks before the successful deploy.
+
+## Map summary presentation
+
+Removed the separate “Live membership map” card and label. Map and List now share the existing plain gray summary markup; counts, filters and map behavior are unchanged. Kit: existing IPN portal light styling, explicitly requested by Justin. Local lint/build pass. Browser checks at 1440/390/320 px verified settled Map/List switching, matching summary typography/counts, no overflow and no console/page errors or framework overlays. Screenshots: `screenshots/map-summary-detail.png` and full desktop/phone captures. Local map tiles use the existing missing-token fallback; no live Mapbox credential was copied. This small presentation change received direct responsive visual review; earlier independent directory design review remains applicable.
+
+Hosted verification at `63c71ee`: globe/controls render, summary reads 120 members · 89 cities · 16 countries using List typography, old label absent, and no browser errors. PR remains unmerged.
+
+## Sign-in analytics follow-up
+
+Sign-in success and failure analytics now use Next.js `after`, so the response does not wait for their database insert. The timestamp is captured at authentication completion to retain funnel ordering. Verified user ID and sanitized fields are preserved; neither credentials nor tokens enter measurements. Authentication, safe destination checks, RSVP linking and account checks remain unchanged. Database insert errors are logged.
+
+Local lint, production build and 57 focused checks pass. Reproducible browser comparison: run `QA_SIGN_IN_BASELINE=1 node scripts/sign-in-qa.mjs` and `node scripts/sign-in-qa.mjs` in separate terminals, then `node qa/sign-in/measure.mjs`. These create isolated production builds on localhost4350/4351 using the actual sign-in action and Home renderer with fake auth150ms, database100ms/read, analytics1000ms. No environment files/live integration credentials are copied; admin clients fail closed and external mutations are disabled. Five interleaved runs per revision (four member, one leadership), plus invalid credentials, verify content before analytics completion only after the change, eventual analytics completion, roles, and no Admin page requests on Home. Raw data/medians: `sign-in-measurements.json`. This controlled result is not live-provider latency.
+
+Hosted baseline on November7 New York time:3748ms from Sign in click to Home content, with success analytics confirmed in the database. One live before/after pair cannot isolate cold-start, network or caching variance. After `6d7482c` deployed, the second real credential submission measured3002ms. Success analytics persisted with the captured timestamp00:28:55.125UTC, and the browser reported no errors. This is one sample per version in the existing desktop session, including browser-control overhead; do not generalize it as a measured average or a causal percentage reduction.
+
+Leadership follow-up candidate: Admin currently fetches analytics, member inventory, permissions and other sections together and statically imports the analytics dashboard/content editor. Loading only the chosen Admin tab could improve leadership's Admin experience. These reports are not imported by Home, and neither member nor leadership Home tests requested Admin routes. This change does not refactor Admin or change permissions. UI unchanged; existing visual review remains applicable.

@@ -1,5 +1,6 @@
 "use server"
 
+import { DataReadError } from "@/lib/data-read-error"
 import { createClient } from "@/lib/supabase/server"
 import {
   attachContacts,
@@ -20,33 +21,42 @@ export type LoadMoreDirectoryFilters = {
 export async function loadMoreDirectoryMembers(
   offset: number,
   filters: LoadMoreDirectoryFilters,
-): Promise<{ members: DirectoryMember[]; hasMore: boolean }> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+): Promise<{ members: DirectoryMember[]; hasMore: boolean; error?: never } | { error: string }> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  if (!user) return { members: [], hasMore: false }
+    if (!user) throw new DataReadError("Please sign in again to load more members.")
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("school")
-    .eq("id", user.id)
-    .single()
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("school")
+      .eq("id", user.id)
+      .single()
 
-  const { data: members, count } = await buildDirectoryProfilesQuery(supabase, {
-    ...filters,
-    userSchool: profile?.school ?? null,
-  }).range(offset, offset + DIRECTORY_PAGE_SIZE - 1)
+    if (profileError) throw new DataReadError("Unable to load your directory preferences.")
 
-  // "Load more" only ever runs when there's no active free-text search (the
-  // search box switches to a full server refetch instead), so no fuzzy match
-  // is needed here — just the same server-side filters as the initial page.
-  const withEducation = await attachEducation(supabase, (members ?? []) as DirectoryMember[])
-  const withContacts = await attachContacts(supabase, withEducation)
+    const { data: members, count, error } = await buildDirectoryProfilesQuery(supabase, {
+      ...filters,
+      userSchool: profile?.school ?? null,
+    }).range(offset, offset + DIRECTORY_PAGE_SIZE - 1)
 
-  return {
-    members: withContacts,
-    hasMore: offset + DIRECTORY_PAGE_SIZE < (count ?? 0),
+    if (error || count == null) throw new DataReadError("Unable to load more members. Please try again.")
+
+    // "Load more" only ever runs when there's no active free-text search (the
+    // search box switches to a full server refetch instead), so no fuzzy match
+    // is needed here — just the same server-side filters as the initial page.
+    const withEducation = await attachEducation(supabase, (members ?? []) as DirectoryMember[])
+    const withContacts = await attachContacts(supabase, withEducation)
+
+    return {
+      members: withContacts,
+      hasMore: offset + DIRECTORY_PAGE_SIZE < (count ?? 0),
+    }
+  } catch (error) {
+    if (error instanceof DataReadError) return { error: error.message }
+    throw error
   }
 }

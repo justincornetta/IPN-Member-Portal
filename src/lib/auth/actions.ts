@@ -132,6 +132,7 @@ async function recordAuthAnalyticsEvent(
   analytics: AnalyticsContext | undefined,
   userId?: string | null,
   errorCode?: string,
+  occurredAt?: string,
 ) {
   if (!analytics?.sessionId) return
   await recordPortalAnalyticsEvent({
@@ -143,6 +144,7 @@ async function recordAuthAnalyticsEvent(
     referrer: analytics.referrer,
     userId,
     errorCode,
+    occurredAt,
   })
 }
 
@@ -274,15 +276,18 @@ export async function signIn(
         ? signInError
         : new Error("Could not reach the authentication server."),
     }))
+  const occurredAt = new Date().toISOString()
   if (error) {
-    await recordAuthAnalyticsEvent("sign_in_error", analytics, null, error.message)
+    after(() => recordAuthAnalyticsEvent("sign_in_error", analytics, null, error.message, occurredAt))
     return { error: error.message }
   }
   let destination = isSafeRedirectPath(next) ? next : "/dashboard"
   if (destination.startsWith("/events/")) {
     destination = `/dashboard${destination}`
   }
-  await recordAuthAnalyticsEvent("sign_in_success", analytics, authData.user?.id)
+  // Analytics must not delay the redirect (or the invalid-password response).
+  // after() keeps this work alive on the host after the response is sent.
+  after(() => recordAuthAnalyticsEvent("sign_in_success", analytics, authData.user?.id, undefined, occurredAt))
   if (authData.user) await claimGuestRegistrations(authData.user.id).catch(() => console.error("[guest-events] RSVP association needs retry"))
   redirect(destination)
 }

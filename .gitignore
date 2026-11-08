@@ -58,3 +58,11 @@ next-env.d.ts
 /.qa-guest/
 
 /.qa-news/
+
+/.qa-performance/
+/.qa-directory/
+
+/test-results-performance/
+
+/.qa-sign-in-before/
+/.qa-sign-in-after/

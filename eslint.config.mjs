@@ -16,6 +16,13 @@ const eslintConfig = defineConfig([
     ".netlify/**",
     ".qa-guest/**",
     ".qa-news/**",
+    ".qa-performance/**",
+    ".qa-directory/**",
+    ".qa-sign-in-before/**",
+    ".qa-sign-in-after/**",
+    "test-results/**",
+    "test-results-performance/**",
+    "playwright-report/**",
     ".vercel/**",
   ]),
 ]);

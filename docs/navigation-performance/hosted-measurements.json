@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-07",
+  "commit": "80cf845",
+  "deployment": "6aefb098665214227bd93a14",
+  "environment": "Signed-in hosted PR79, existing desktop in-app browser session, real backend data",
+  "method": "Wall-clock elapsed around browser-control click until a content-specific visible locator resolves. Includes control/locator overhead; excludes later AX snapshots. Five consecutive route cycles, not a cold-load or physical-device guarantee. Community: first member button; first sample used Filters button. Events: No upcoming events yet. Home: Members to know.",
+  "navigationMs": {
+    "Community": [
+      1044,
+      868,
+      410,
+      515,
+      399
+    ],
+    "Events": [
+      794,
+      383,
+      391,
+      390,
+      379
+    ],
+    "Home": [
+      699,
+      491,
+      709,
+      602,
+      490
+    ]
+  },
+  "firstFullHomeLoadMs": 2100,
+  "subsequentFullLoadMs": {
+    "Home": 1572,
+    "Community": 753,
+    "Events": 470
+  },
+  "recordingsHeadingMs": 1410,
+  "notes": [
+    "Events had a valid empty upcoming list; recordings showed167items.",
+    "No new browser errors after repair; retained pre-repair React error timestamp23:13:01UTC excluded.",
+    "Connected-profile missing-contact warning verified read-only; no connection or RSVP mutations."
+  ],
+  "homeFollowUp": {
+    "commit": "4affed837d756ccf8e124562f649427ed8429679",
+    "deployment": "6aefb6b20b64ffad83ed5e30",
+    "measuredAt": "2026-11-07T23:40:37Z",
+    "method": "Full browser reload until Members to know is visible; browser-control wall time, including command and locator overhead, excluding later AX snapshots. Same authenticated desktop browser. No throttling. First request after ready separated from five immediately subsequent reloads.",
+    "beforeFullReloadMs": [
+      7428,
+      675,
+      910,
+      3053,
+      841
+    ],
+    "firstAfterDeploymentMs": 2390,
+    "subsequentFullReloadMs": [
+      734,
+      723,
+      858,
+      705,
+      780
+    ],
+    "subsequentMedianMs": 734,
+    "allSixMedianMs": 757,
+    "netlifyRequestMsInOrder": [
+      1509.307505,
+      530.369047,
+      601.839633,
+      765.218316,
+      657.06738,
+      632.439934
+    ],
+    "notes": [
+      "All six Home requests returned 200. No browser errors. Home/Community/Events navigation verified after deployment.",
+      "All five immediately subsequent reloads were below one second; first request was not. No consistent sub-second cold-load claim.",
+      "Before samples demonstrate high variance, including server initialization on the 6544 ms request. This small uncontrolled series cannot isolate a causal percentage improvement.",
+      "Build initially failed on a newly added test-fixture auth response type; corrected fixture and reran production build, lint and affected browser checks before successful deployment."
+    ]
+  }
+}
