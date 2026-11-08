@@ -249,8 +249,18 @@
     "baselineCommit": "5a23bd6",
     "baselineStartedAt": "2026-11-08T00:24:02.044Z",
     "baselineClickToHomeMs": 3748,
-    "method": "Existing signed-in desktop browser reauthenticates through the real password form. User enters credentials directly; automation times Sign in click until Members to know is visible. Includes control/locator overhead. One sample; after measurement pending.",
-    "baselineAnalyticsPersisted": true
+    "method": "Existing signed-in desktop browser reauthenticates through the real password form. User enters credentials directly; automation times Sign in click until Members to know is visible. Includes control/locator overhead. One before and one after sample, different deployments; network/server startup/cache variation is uncontrolled. Not a fresh-browser first-visit guarantee.",
+    "baselineAnalyticsPersisted": true,
+    "afterCommit": "6d7482c4adb679ff0979ef93e39d4ff66221c27b",
+    "afterDeployment": "6aefc1d492e7484edbe62c80",
+    "afterStartedAt": "2026-11-08T00:28:53.920Z",
+    "afterClickToHomeMs": 3002,
+    "afterAnalyticsPersisted": true,
+    "afterAnalyticsOccurredAt": "2026-11-08T00:28:55.125Z",
+    "browserErrors": [],
+    "netlifyPostLoginBeforeMs": 2019.803997,
+    "netlifyPostLoginAfterMs": 1819.302388,
+    "netlifyTimingNote": "Diagnostic request duration, not directly interchangeable with click-to-visible-content timing; background work and platform timing boundaries may differ."
   },
   "localMediansMs": {
     "before": 1834,

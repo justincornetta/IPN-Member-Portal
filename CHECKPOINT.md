@@ -1,13 +1,15 @@
-# Sign-in analytics optimization — November 7, 2026
+# Sign-in analytics verified — November 7, 2026
 
 ## Status
-Updating approved PR #79: defer login analytics with Next.js after(), preserving authentication-time timestamps and eventual writes. No merge or admin-page refactor.
+PR #79 updated with6d7482c; Netlify deploy6aefc1d492e7484edbe62c80 ready. Login success/failure analytics now completes after the response with the original authentication timestamp. No merge or Admin refactor.
 
 ## Last session
-Local production build/lint and57focused checks passed. Controlled full-browser production-build comparison covers five before/five after logins, invalid credentials, member/leadership roles, eventual background analytics completion and no Admin route requests on Home. Auth150ms, reads100ms, analytics1000ms are simulated, not hosted measurements; see docs/navigation-performance/sign-in-measurements.json. User-assisted hosted baseline:3748ms click-to-Home, analytics event persisted. No credentials captured. New preview and hosted after measurement pending.
+Local lint/production build and57focused checks pass. Controlled full-browser production builds: five interleaved runs per version, median1834ms before versus824ms after, with fixed simulated auth150ms, reads100ms and analytics1000ms. Four member/one leadership session per version reached Home without requesting Admin routes; invalid credentials returned in219ms and analytics subsequently completed. Checks cover deferred writes, timestamps, roles, safe redirects and RSVP association; no browser errors/overlays.
+
+User-assisted hosted sign-ins: before3748ms at00:24:02UTC; after3002ms at00:28:53UTC. Both are real credential submissions in an existing desktop session, measured from click to Members to know visible, including browser-control overhead. One sample per deployment, with uncontrolled startup/network/cache variance; not a robust average or first-visit guarantee. Both success analytics writes confirmed in Supabase, after event time00:28:55.125UTC. No credentials recorded; no browser errors. Raw data: docs/navigation-performance/sign-in-measurements.json.
 
 ## Next steps / open decisions / known issues
-Deploy same PR revision and ask user to enter credentials directly for the paired after measurement; do not ask for passwords in chat. Admin loads all sections together only on its own route; lazy per-tab data/UI is a separate improvement to consider. Keep auth/RSVP/account checks intact. Existing unrelated base test failures and cold-start variance remain. Tin Can relay unavailable; directory chat coordinated.
+Review PR https://github.com/justincornetta/IPN-Member-Portal/pull/79 and preview https://deploy-preview-79--ipn-member-portal.netlify.app/dashboard . Luke should review this auth-path scheduling change; auth/RSVP/security checks remain intact. Admin currently loads its sections/data together only on the Admin route. Loading data and charts per selected Admin tab is a worthwhile separate leadership improvement, not yet implemented. Initial login remains above one second in this live sample. Existing unrelated base test failures and server-startup variance remain. Tin Can relay unavailable; directory chat coordinated. Local4350/4351 timing servers stopped after QA.
 
 ---
 
