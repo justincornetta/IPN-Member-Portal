@@ -23,6 +23,7 @@ import { readCash, integrationReady } from "./integrations"
 
 import { drainJobs } from "./worker"
 import { isExcludedRequest } from "./request-exclusions"
+import { mediaJobsFor, withMediaSlackChange } from "./slack-media"
 type DB = ReturnType<typeof createAdminClient>
 export type Context = {
   db: DB | null
@@ -377,7 +378,12 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
     integrations: { ...integrationReady(), pending }
   }
 }
-function jobsFor(r: WorkflowRequest, event: string) {
+function jobsFor(
+  r: WorkflowRequest,
+  event: string,
+  previous?: WorkflowRequest,
+  note = ""
+) {
   if (r.deletedAt) return []
   const jobs: { target: string; recipientId?: string }[] = []
   if (r.kind === "expense") {
@@ -388,15 +394,8 @@ function jobsFor(r: WorkflowRequest, event: string) {
       jobs.push({ target: "slack_expense" })
       jobs.push({ target: "slack_dm", recipientId: r.requesterId })
     }
-  } else if (event !== "comment" && event !== "edit") {
-    jobs.push({ target: "slack_media" })
-    if (r.status === "needs_information")
-      jobs.push({ target: "slack_dm", recipientId: r.requesterId })
-    if (
-      ["production", "publication", "saved"].includes(event) &&
-      r.media!.productionOwnerId
-    )
-      jobs.push({ target: "slack_dm", recipientId: r.media!.productionOwnerId })
+  } else {
+    jobs.push(...mediaJobsFor(r, event, previous, note))
   }
   return jobs
 }
@@ -405,8 +404,10 @@ async function save(
   r: WorkflowRequest,
   expected: number,
   event: string,
-  note: string
+  note: string,
+  previous?: WorkflowRequest
 ) {
+  r = withMediaSlackChange(r, event, previous, note)
   if (c.demo)
     return demoWrite((s) => {
       const index = s.requests.findIndex((x) => x.id === r.id)
@@ -433,7 +434,7 @@ async function save(
     p_actor_name: c.user.name,
     p_event: event,
     p_note: note,
-    p_jobs: jobsFor(r, event)
+    p_jobs: jobsFor(r, event, previous, note)
   })
   if (error) {
     if (error.code === "40001" || error.code === "23505")
@@ -483,7 +484,7 @@ export async function change(c: Context, id: string, value: unknown) {
     )
       throw new WorkflowError("This bank entry is already matched.")
   }
-  return save(c, result.record, current.revision, result.event, result.note)
+  return save(c, result.record, current.revision, result.event, result.note, current)
 }
 export async function retry(c: Context) {
   if (c.user.id !== c.approverId)

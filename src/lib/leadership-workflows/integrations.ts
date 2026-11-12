@@ -9,9 +9,17 @@ import {
   type WorkflowRequest
 } from "./domain"
 import type { IntegrationJob } from "./worker"
+import {
+  mediaOwnerId,
+  mediaParentMessage,
+  mediaThreadReplyMessage,
+  shouldBroadcastMediaReply,
+  shouldUpdateMediaParent,
+  type SlackPersonRef
+} from "./slack-media"
+export { DIRECTOR_SLACK_ID } from "./slack-media"
 type DB = ReturnType<typeof createAdminClient>
 export const FINANCE_SHEET_ID = "1hG9oRgo19vH9HH54kYIWDy8YeJaQdUtNJdJAARpfnmE"
-export const DIRECTOR_SLACK_ID = "U0C5PPBBEK1"
 export const APPROVER_SLACK_ID = "U061Z7YC3DX"
 const site = () =>
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -333,20 +341,7 @@ export async function deliverJob(db: DB, job: IntegrationJob) {
     return { channel: result.channel, ts: result.ts }
   }
   if (job.target === "slack_media") {
-    const m = r.media!
-    const channel = process.env.WORKFLOW_MEDIA_SLACK_CHANNEL_ID || "C088ZJBM0QY"
-    const destination = m.destinationUrl
-      ? `\n*Link to include:* ${escapeSlack(m.destinationUrl)}\n*Where:* ${escapeSlack(m.linkPlacement || "")}`
-      : ""
-    const message = `${m.urgent ? "🚩 URGENT · " : ""}<@${DIRECTOR_SLACK_ID}> · ${job.event === "submitted" ? "New media request" : STATUS_LABELS[r.status]}\n*${escapeSlack(r.title)}* · ${escapeSlack(m.team)}\nFrom ${escapeSlack(r.requesterName)} · Post by ${m.postedBy}\n${escapeSlack(m.brief).slice(0, 1800)}${destination}\n<${requestUrl(r)}|Open request>`
-    const result = await slack("chat.postMessage", {
-      channel,
-      text: message,
-      parse: "none",
-      unfurl_links: false,
-      client_msg_id: job.id
-    })
-    return { channel: result.channel, ts: result.ts }
+    return deliverMediaSlack(db, job, r)
   }
   const { data: settings } = await db
     .from("leadership_workflow_settings")
@@ -368,7 +363,7 @@ export async function deliverJob(db: DB, job: IntegrationJob) {
   const message =
     r.kind === "expense"
       ? `Your expense request “${escapeSlack(r.title)}” is now *${STATUS_LABELS[r.status]}*.\n${usd(r.expense!.amountCents)} · <${requestUrl(r)}|View details and review notes>`
-      : `Media request “${escapeSlack(r.title)}” needs your attention: *${STATUS_LABELS[r.status]}*.\n<${requestUrl(r)}|View assignment and notes>`
+      : `Media request “${escapeSlack(r.title)}” needs information.\n<${requestUrl(r)}|Open the request and add the missing details>`
   const result = await slack("chat.postMessage", {
     channel: opened.channel.id,
     text: message,
@@ -377,6 +372,185 @@ export async function deliverJob(db: DB, job: IntegrationJob) {
     client_msg_id: job.id
   })
   return { channel: result.channel, ts: result.ts }
+}
+
+type SlackRef = { channel: string; ts: string }
+function slackRefFrom(value: unknown): SlackRef | null {
+  if (!value || typeof value !== "object") return null
+  const row = value as { channel?: unknown; ts?: unknown }
+  if (
+    typeof row.channel === "string" &&
+    typeof row.ts === "string" &&
+    row.channel &&
+    row.ts
+  )
+    return { channel: row.channel, ts: row.ts }
+  return null
+}
+async function persistMediaSlackRef(
+  db: DB,
+  requestId: string,
+  channel: string,
+  ts: string
+) {
+  const merge = async (revision: number, data: WorkflowRequest) => {
+    if (data.slackTs) return true
+    const next = { ...data, slackChannel: channel, slackTs: ts }
+    const { data: updated } = await db
+      .from("leadership_requests")
+      .update({ data: next })
+      .eq("id", requestId)
+      .eq("revision", revision)
+      .select("id")
+    return !!(updated && updated.length)
+  }
+  const { data: row } = await db
+    .from("leadership_requests")
+    .select("data, revision")
+    .eq("id", requestId)
+    .single()
+  if (!row?.data) return
+  if (await merge(row.revision, row.data as WorkflowRequest)) return
+  const { data: retry } = await db
+    .from("leadership_requests")
+    .select("data, revision")
+    .eq("id", requestId)
+    .single()
+  if (retry?.data) await merge(retry.revision, retry.data as WorkflowRequest)
+}
+async function findLegacyMediaThread(db: DB, requestId: string) {
+  const { data } = await db
+    .from("leadership_integration_jobs")
+    .select("event, result, created_at")
+    .eq("request_id", requestId)
+    .eq("target", "slack_media")
+    .eq("state", "done")
+    .order("created_at")
+  const refs = (data ?? []).map((job) => ({
+    event: job.event as string,
+    ref: slackRefFrom(job.result)
+  }))
+  return (
+    refs.find((job) => job.event === "submitted" && job.ref)?.ref ||
+    refs.find((job) => job.ref)?.ref ||
+    null
+  )
+}
+async function loadProfile(
+  db: DB,
+  id: string
+): Promise<{ id: string; name: string; email: string } | null> {
+  if (!id) return null
+  const { data } = await db
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .eq("id", id)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id,
+    name:
+      [data.first_name, data.last_name].filter(Boolean).join(" ") || "IPN member",
+    email: data.email || ""
+  }
+}
+async function resolveSlackUserId(db: DB, profileId: string) {
+  if (!profileId) return
+  const { data: settings } = await db
+    .from("leadership_workflow_settings")
+    .select("slack_user_ids")
+    .eq("singleton", true)
+    .single()
+  const mapped = settings?.slack_user_ids?.[profileId]
+  if (typeof mapped === "string" && mapped) return mapped
+  const profile = await loadProfile(db, profileId)
+  if (!profile?.email) return
+  try {
+    const lookup = await slack("users.lookupByEmail", { email: profile.email })
+    const userId = lookup.user?.id
+    return typeof userId === "string" ? userId : undefined
+  } catch {
+    return
+  }
+}
+async function slackPerson(
+  db: DB,
+  profileId: string,
+  fallbackName?: string
+): Promise<SlackPersonRef | undefined> {
+  if (!profileId && !fallbackName) return
+  const profile = profileId ? await loadProfile(db, profileId) : null
+  const name = profile?.name || fallbackName
+  if (!name) return
+  const slackId = profileId ? await resolveSlackUserId(db, profileId) : undefined
+  return { name, slackId }
+}
+async function deliverMediaSlack(
+  db: DB,
+  job: IntegrationJob,
+  latest: WorkflowRequest
+) {
+  const channel = process.env.WORKFLOW_MEDIA_SLACK_CHANNEL_ID || "C088ZJBM0QY"
+  const snapshot = (job.payload as WorkflowRequest | undefined) || latest
+  const change = snapshot.slackChange
+  const owner = await slackPerson(db, mediaOwnerId(snapshot))
+  const submitter = await slackPerson(
+    db,
+    snapshot.requesterId,
+    snapshot.requesterName
+  )
+  let thread =
+    slackRefFrom({
+      channel: latest.slackChannel,
+      ts: latest.slackTs
+    }) || (await findLegacyMediaThread(db, job.request_id))
+  if (thread && !latest.slackTs)
+    await persistMediaSlackRef(db, job.request_id, thread.channel, thread.ts)
+  const parentRequest = latest.media ? latest : snapshot
+  if (job.event === "submitted") {
+    if (thread) return { channel: thread.channel, ts: thread.ts, parent: true }
+    const result = await slack("chat.postMessage", {
+      channel,
+      client_msg_id: job.id,
+      ...mediaParentMessage(snapshot, {
+        tagDirector: true,
+        ownerName: owner?.name
+      })
+    })
+    await persistMediaSlackRef(db, job.request_id, result.channel, result.ts)
+    return { channel: result.channel, ts: result.ts, parent: true }
+  }
+  if (!change || !shouldUpdateMediaParent(change))
+    return { skipped: "No Slack media update" }
+  if (!thread) {
+    const result = await slack("chat.postMessage", {
+      channel,
+      client_msg_id: `${job.id}:parent`,
+      ...mediaParentMessage(parentRequest, {
+        tagDirector: false,
+        ownerName: owner?.name
+      })
+    })
+    thread = { channel: result.channel, ts: result.ts }
+    await persistMediaSlackRef(db, job.request_id, thread.channel, thread.ts)
+  } else {
+    await slack("chat.update", {
+      channel: thread.channel,
+      ts: thread.ts,
+      ...mediaParentMessage(parentRequest, {
+        tagDirector: false,
+        ownerName: owner?.name
+      })
+    })
+  }
+  const reply = await slack("chat.postMessage", {
+    channel: thread.channel,
+    thread_ts: thread.ts,
+    client_msg_id: job.id,
+    ...(shouldBroadcastMediaReply(change) ? { reply_broadcast: true } : {}),
+    ...mediaThreadReplyMessage(change, { submitter, owner })
+  })
+  return { channel: reply.channel, ts: reply.ts, thread_ts: thread.ts }
 }
 export function parseSlackAction(raw: string) {
   let payload: Record<string, unknown>

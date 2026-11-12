@@ -64,6 +64,7 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       if (path === "./request-exclusions") return exclusions
       if (path === "./integrations") return { readCash: async () => null, integrationReady: () => ({ slack: false, sheets: false }) }
       if (path === "./worker") return { drainJobs: async () => {} }
+      if (path === "./slack-media") return { mediaJobsFor: () => [], withMediaSlackChange: (r) => r }
       return nativeRequire(path)
     }
     new Function("require", "module", "exports", compiled)(require, mockModule, mockModule.exports)
