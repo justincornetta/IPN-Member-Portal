@@ -20,6 +20,7 @@ import {
   FIELD_STATUS_OPTIONS,
   fieldBarrierError,
   applicableFieldBarriers,
+  referralSourceNeedsDetail,
 } from "@/lib/constants/registration"
 import {
   compactEducationEntries,
@@ -148,6 +149,11 @@ async function recordAuthAnalyticsEvent(
   })
 }
 
+function referralSourceDetail(data: RegistrationData): string | null {
+  if (!referralSourceNeedsDetail(data.referral_source)) return null
+  return data.referral_source_other?.trim() || null
+}
+
 export async function signUp(
   data: RegistrationData,
   next?: string,
@@ -159,7 +165,7 @@ export async function signUp(
   const barrierError = fieldBarrierError(data.psychedelic_field_status, data.psychedelic_field_barriers)
   if (barrierError) return { error: barrierError }
 
-  if (data.referral_source === "Other" && !data.referral_source_other?.trim()) {
+  if (referralSourceNeedsDetail(data.referral_source) && !data.referral_source_other?.trim()) {
     return { error: "Please tell us how you heard about IPN." }
   }
   if (STUDENT_BACKGROUNDS.has(data.persona) && !data.school?.trim()) {
@@ -193,9 +199,7 @@ export async function signUp(
         inspiration: data.inspiration,
         support_needs: data.support_needs,
         referral_source: data.referral_source,
-        referral_source_other: data.referral_source === "Other"
-          ? data.referral_source_other?.trim() || null
-          : null,
+        referral_source_other: referralSourceDetail(data),
       },
     },
   })
@@ -211,9 +215,7 @@ export async function signUp(
       .from("profiles")
       .update({
         email: data.email,
-        referral_source_other: data.referral_source === "Other"
-          ? data.referral_source_other?.trim() || null
-          : null,
+        referral_source_other: referralSourceDetail(data),
       })
       .eq("id", authData.user.id)
 
