@@ -22,6 +22,7 @@ import {
   canonicalPsychedelicFieldBarrier,
   PERSONA_OPTIONS,
   REFERRAL_OPTIONS,
+  REFERRAL_SOURCES_WITH_DETAIL,
 } from "../src/lib/constants/registration.ts"
 import {
   buildAnalyticsGeocodeLookup,
@@ -38,7 +39,9 @@ import {
 import { assembleServerEventAnalytics } from "../src/lib/admin/analytics/events.ts"
 import { buildMailchimpAudienceMetrics } from "../src/lib/admin/analytics/mailchimp.ts"
 import {
+  buildCategoryVariantMap,
   buildOtherVariantItems,
+  categoryWithoutDetails,
   OTHER_WITHOUT_DETAILS,
 } from "../src/lib/admin/analytics/other-variants.ts"
 import {
@@ -205,6 +208,54 @@ test("other category drill-down groups raw variants without crowding charts", ()
     { label: "Aspiring Student", value: 2 },
     { label: OTHER_WITHOUT_DETAILS, value: 2 },
   ])
+})
+
+test("event and organization referral drill-downs group details case-insensitively", () => {
+  const entries = [
+    { canonicalLabel: "Event / Conference", rawValues: ["  MAPS  2026 "] },
+    { canonicalLabel: "Event / Conference", rawValues: ["maps 2026"] },
+    { canonicalLabel: "Event / Conference", rawValues: ["MAPS 2026"] },
+    { canonicalLabel: "Event / Conference", rawValues: ["Event / Conference"] },
+    { canonicalLabel: "Event / Conference", rawValues: [] },
+    { canonicalLabel: "Academic / Professional Organization", rawValues: ["NYU Psychedelic Club"] },
+    { canonicalLabel: "Academic / Professional Organization", rawValues: ["nyu psychedelic club"] },
+    { canonicalLabel: "Academic / Professional Organization", rawValues: [""] },
+    { canonicalLabel: "Other", rawValues: ["A podcast"] },
+    { canonicalLabel: "Social Media", rawValues: ["Social Media"] },
+  ]
+
+  assert.deepEqual(buildOtherVariantItems(entries, "Event / Conference"), [
+    { label: "MAPS 2026", value: 3 },
+    { label: categoryWithoutDetails("Event / Conference"), value: 2 },
+  ])
+  assert.deepEqual(buildOtherVariantItems(entries, "Academic / Professional Organization"), [
+    { label: "NYU Psychedelic Club", value: 2 },
+    { label: categoryWithoutDetails("Academic / Professional Organization"), value: 1 },
+  ])
+  assert.deepEqual(buildCategoryVariantMap(entries, REFERRAL_SOURCES_WITH_DETAIL), {
+    "Event / Conference": [
+      { label: "MAPS 2026", value: 3 },
+      { label: categoryWithoutDetails("Event / Conference"), value: 2 },
+    ],
+    "Academic / Professional Organization": [
+      { label: "NYU Psychedelic Club", value: 2 },
+      { label: categoryWithoutDetails("Academic / Professional Organization"), value: 1 },
+    ],
+    Other: [
+      { label: "A podcast", value: 1 },
+    ],
+  })
+})
+
+test("analytics dashboard opens category response modals for referral details", async () => {
+  const [shell, directory] = await Promise.all([
+    readFileSync(new URL("../src/app/dashboard/admin/AnalyticsDashboardShell.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../src/lib/admin/analytics/member-directory.ts", import.meta.url), "utf8"),
+  ])
+  assert.match(shell, /buildCategoryVariantMap\([\s\S]*?REFERRAL_SOURCES_WITH_DETAIL/)
+  assert.match(shell, /aria-label=\{`View raw \$\{item\.label\} responses for \$\{title\}`\}/)
+  assert.match(shell, /\{\`\$\{category\} responses\`\}/)
+  assert.match(directory, /referralSourceNeedsDetail\(profileReferralSource\)/)
 })
 
 test("country centroids map Germany when a city coordinate is unavailable", () => {

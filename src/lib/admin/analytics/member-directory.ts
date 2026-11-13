@@ -12,6 +12,7 @@ import {
   canonicalPsychedelicFieldStatus,
   canonicalReferralSource,
 } from "./normalization"
+import { referralSourceNeedsDetail } from "@/lib/constants/registration"
 import {
   analyticsLocationKey,
   buildAnalyticsGeocodeLookup,
@@ -300,7 +301,7 @@ export function mergeMemberDirectoryRow(
       : [],
     referralSource: [
       profileReferralSource
-        ? profileReferralSource === "Other"
+        ? referralSourceNeedsDetail(profileReferralSource)
           ? firstText(profile?.referral_source_other, profileReferralSource)
           : profileReferralSource
         : rawLegacyValue(legacy, "referral_source", legacy?.referral_source),

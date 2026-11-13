@@ -25,6 +25,9 @@ import {
   applicableFieldBarriers,
   fieldBarrierError,
   REFERRAL_OPTIONS,
+  referralSourceNeedsDetail,
+  referralSourceDetailLabel,
+  referralSourceDetailPlaceholder,
   STEPS,
 } from "@/lib/constants/registration"
 import { readRegistrationHandoff, parseRegistrationHandoff } from "@/lib/guest-events/registration-handoff"
@@ -440,18 +443,18 @@ function StepAbout({
               checked={data.referral_source === opt}
               onChange={() => {
                 update("referral_source", opt)
-                if (opt !== "Other") update("referral_source_other", "")
+                update("referral_source_other", "")
               }}
               className="accent-ipn" />
             <span className="text-sm text-zinc-700">{opt}</span>
           </label>
         ))}
-        {data.referral_source === "Other" && (
+        {referralSourceNeedsDetail(data.referral_source) && (
           <div className="ml-6 flex flex-col gap-1">
-            <Label htmlFor="referral_source_other">Please tell us more</Label>
+            <Label htmlFor="referral_source_other">{referralSourceDetailLabel(data.referral_source)}</Label>
             <TextInput id="referral_source_other" name="referral_source_other"
               value={data.referral_source_other} onChange={(v) => update("referral_source_other", v)}
-              placeholder="How did you hear about IPN?" required />
+              placeholder={referralSourceDetailPlaceholder(data.referral_source)} required />
             <FieldError msg={errors.referral_source_other} />
           </div>
         )}
@@ -558,7 +561,7 @@ function RegisterPageContent({initial, eventPath}: RegistrationProps) {
     }
     if (s === 4) {
       if (!data.referral_source) e.referral_source = "Please select one"
-      if (data.referral_source === "Other" && !data.referral_source_other.trim())
+      if (referralSourceNeedsDetail(data.referral_source) && !data.referral_source_other.trim())
         e.referral_source_other = "Please add a few details"
     }
     setErrors(e)
@@ -615,7 +618,9 @@ function RegisterPageContent({initial, eventPath}: RegistrationProps) {
       inspiration: data.inspiration,
       support_needs: data.support_needs,
       referral_source: data.referral_source,
-      referral_source_other: data.referral_source === "Other" ? data.referral_source_other.trim() : null,
+      referral_source_other: referralSourceNeedsDetail(data.referral_source)
+        ? data.referral_source_other.trim()
+        : null,
     }, registrationDestination(redirectTo), analytics)
 
     if (result?.error) {

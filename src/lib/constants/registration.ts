@@ -163,6 +163,28 @@ export const REFERRAL_OPTIONS = [
   "Other",
 ] as const
 
+export const REFERRAL_SOURCES_WITH_DETAIL = [
+  "Event / Conference",
+  "Academic / Professional Organization",
+  "Other",
+] as const
+
+export function referralSourceNeedsDetail(source: string) {
+  return REFERRAL_SOURCES_WITH_DETAIL.some((option) => option === source)
+}
+
+export function referralSourceDetailLabel(source: string) {
+  if (source === "Event / Conference") return "Which event or conference?"
+  if (source === "Academic / Professional Organization") return "Which organization referred you?"
+  return "Please tell us more"
+}
+
+export function referralSourceDetailPlaceholder(source: string) {
+  if (source === "Event / Conference") return "Event or conference name"
+  if (source === "Academic / Professional Organization") return "Organization name"
+  return "How did you hear about IPN?"
+}
+
 export const STEPS = [
   "Account",
   "Location",
