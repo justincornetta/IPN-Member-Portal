@@ -56,7 +56,7 @@ test("queued notifications for deleted media skip delivery even with an older jo
   }).outputText
   new Function("require", "module", "exports", compiled)((path) => {
     if (path === "node:crypto") return {}
-    if (path === "./domain" || path === "./slack-signature") return {}
+    if (path === "./domain" || path === "./slack-signature" || path === "./slack-media") return {}
     throw new Error(`Unexpected import: ${path}`)
   }, mockModule, mockModule.exports)
   const db = { from() {

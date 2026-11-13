@@ -119,6 +119,20 @@ export type Expense = {
   receiptUrl: string
   bankTransactionId?: string
 }
+export type MediaSlackChange = {
+  event: string
+  statusChanged: boolean
+  previousStatus?: Status
+  status: Status
+  ownerChanged: boolean
+  previousOwnerId: string
+  ownerId: string
+  scheduledDateChanged: boolean
+  previousScheduledDate: string
+  scheduledDate: string
+  note: string
+  publishedUrl: string
+}
 export type WorkflowRequest = {
   id: string
   kind: Kind
@@ -134,6 +148,9 @@ export type WorkflowRequest = {
   deletedBy?: string
   media?: MediaBrief
   expense?: Expense
+  slackChannel?: string
+  slackTs?: string
+  slackChange?: MediaSlackChange
 }
 export type Activity = {
   id: string
