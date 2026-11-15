@@ -10,6 +10,7 @@ Preflight on October 5, 2026:
 - Google service-account authentication and read access to the finance tracker passed.
 - The existing mixer media request is Accepted, with five pending delivery jobs.
 - The expense named **Testing** is marked Purchased for $45.00, with eight pending delivery jobs. Justin confirmed it is simulated and authorized its exclusion. Set `WORKFLOW_EXCLUDED_REQUEST_IDS` to its stable ID (`e6e42ae8-9f5e-416d-986e-1bf105f4a222`) in all deployed contexts. This hides it from live workflow reads, denies mutations, and marks delivery jobs skipped while preserving its original history.
+- The October 6, 2026 expense named **TEST — Slack approval check (do not purchase)** ($1.00, request `6d4e4dce-0a2a-4c08-8ea6-5cfe34e6d6ab`) was a controlled Slack/Sheets live test and synced to Expense Requests row 6. It is built into `BUILT_IN_EXCLUDED_REQUEST_IDS` so it stays hidden from live workflow reads, cannot be mutated, and new delivery jobs are skipped. The existing sheet row is not removed automatically.
 - Agnes has no matching portal profile. She needs an eligible leadership account for testing ownership/review herself; Slack tagging uses her configured Slack ID independently.
 - Next.js and Sharp runtime dependencies were updated for the recorded security advisories. Verify the updated lockfile and browser QA before publishing.
 
