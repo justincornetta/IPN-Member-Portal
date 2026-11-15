@@ -238,21 +238,20 @@ export async function readCash(): Promise<Cash | null> {
     source: "IPN Finance Dashboard & Forecast"
   }
 }
-async function rowFor(tab: string, column: string, id: string) {
-  const ids = await values(`'${tab}'!${column}6:${column}1000`)
+async function expenseRequestRow(id: string) {
+  const ids = await values(`'Expense Requests'!A6:A1000`)
   const index = ids.findIndex((r: unknown[]) => r[0] === id)
   if (index >= 0) return index + 6
-  const occupied = column === "A" ? ids : await values(`'${tab}'!A6:A1000`)
-  const row = occupied.length + 6
+  const row = ids.length + 6
   if (row > 1000)
-    throw new Error(`${tab} needs more rows before sync can continue.`)
+    throw new Error("Expense Requests needs more rows before sync can continue.")
   return row
 }
 export async function syncExpense(r: WorkflowRequest) {
   const e = r.expense!
   const approved =
     !!e.approvedAt && !["pending", "rejected", "cancelled"].includes(r.status)
-  const row = await rowFor("Expense Requests", "A", r.id)
+  const row = await expenseRequestRow(r.id)
   const data = [
     r.id,
     r.submittedAt,
@@ -282,32 +281,10 @@ export async function syncExpense(r: WorkflowRequest) {
     e.bankTransactionId || "",
     r.revision
   ]
-  const updates = [
-    { range: `'Expense Requests'!A${row}:U${row}`, values: [data] }
-  ]
-  if (["purchased", "reimbursed"].includes(r.status)) {
-    const tx = await rowFor("Transactions", "J", r.id)
-    const existing = await values(`Transactions!A${tx}:L${tx}`)
-    const old = existing[0] ?? []
-    const txn = [
-      serial(e.paidDate),
-      e.account,
-      r.title,
-      -e.actualAmountCents! / 100,
-      "Expense",
-      old[5] || "Uncategorized / Review",
-      old[6] || "No",
-      old[7] || "Needs review",
-      old[8] || `Portal request ${r.id}`,
-      r.id,
-      e.receiptUrl,
-      e.bankTransactionId || ""
-    ]
-    updates.push({ range: `Transactions!A${tx}:L${tx}`, values: [txn] })
-  }
+  // The bank row in Transactions is the only cash record. Match Request ID at close.
   await sheets("values:batchUpdate", "POST", {
     valueInputOption: "RAW",
-    data: updates
+    data: [{ range: `'Expense Requests'!A${row}:U${row}`, values: [data] }]
   })
   return { requestRow: row }
 }
