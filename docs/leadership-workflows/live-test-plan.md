@@ -31,8 +31,8 @@ Have a leadership member submit a real intended expense. Verify:
 1. `#expense-tracking` receives the details, current dated Relay cash projection, and Approve/Reject actions.
 2. Justin clicks Approve in Slack. The portal changes to approved/awaiting purchase, the submitter receives a Slack DM, and exactly one Expense Requests row is synchronized by stable Request ID.
 3. Approval leaves actual cash unchanged.
-4. After a real purchase, record actual amount/date, Relay as paying account, and a receipt link. Verify exactly one Transactions row, the approved request's updated state, and one corresponding cash reduction.
-5. Refresh/retry and verify the tracker still contains one request row and one payment row.
+4. After a real purchase, record actual amount/date, Relay as paying account, and a receipt link. Verify the Expense Requests row is updated to Purchased and that the portal did not add or change a Transactions row. The bank row remains the only cash record and is matched by Request ID at close.
+5. Refresh/retry and verify the tracker still contains one Expense Requests row and that Transactions is unchanged by the portal.
 
 Test rejection with another clearly identified, unpurchased request and verify the reason and submitter notification. Verify another leader cannot approve or see a different member's expense. Validate reimbursement only for an actual preapproved personal payment; simulated purchase/reimbursement tests require a separate test tracker.
 
