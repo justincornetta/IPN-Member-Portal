@@ -1,3 +1,4 @@
+import EventArtwork from "@/components/events/EventArtwork"
 import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
@@ -114,14 +115,7 @@ export default async function PublicEventPage({ params }: Props) {
       {/* Content */}
       <div className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
         {/* Hero image */}
-        <div className="aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-sm">
-          {e.thumbnail_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={e.thumbnail_url} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_28%,#18181b_70%)]" />
-          )}
-        </div>
+        <EventArtwork src={e.thumbnail_url} className="w-full rounded-xl shadow-sm" />
 
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <span className="rounded-md bg-ipn-light px-2 py-1 text-xs font-medium text-ipn">
@@ -217,14 +211,7 @@ export default async function PublicEventPage({ params }: Props) {
                   href={`/events/${ev.slug}`}
                   className="group flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition hover:border-ipn/30 hover:bg-ipn/5"
                 >
-                  <div className="aspect-video w-20 flex-shrink-0 overflow-hidden rounded-md bg-zinc-100">
-                    {ev.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={ev.thumbnail_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,#a78bfa_0,#664fa1_28%,#18181b_70%)]" />
-                    )}
-                  </div>
+                  <EventArtwork src={ev.thumbnail_url} className="w-20 flex-shrink-0 rounded-md" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="rounded bg-ipn-light px-1.5 py-0.5 text-[10px] font-medium text-ipn">

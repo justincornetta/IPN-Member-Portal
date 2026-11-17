@@ -1,6 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import EventArtwork from "@/components/events/EventArtwork"
+import styles from "@/components/events/EventArtworkCard.module.css"
 import { ArrowRightIcon, CheckIcon, MapPinIcon } from "@heroicons/react/24/outline"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
@@ -78,25 +80,17 @@ function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
     : activity.event
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm lg:grid lg:grid-cols-[13rem_minmax(0,1fr)_12.5rem] lg:items-stretch">
+    <article className={`${styles.card} ${styles.flush} overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm`}>
+      <div className={styles.layout}>
       <Link
         href={href}
-        className="relative block aspect-video overflow-hidden bg-ipn-light sm:aspect-[2.1/1] lg:aspect-auto lg:min-h-52"
+        className={styles.artwork}
         aria-label={`View ${title}`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl || "/purple_icon.png"}
-          alt=""
-          className={`h-full w-full ${
-            imageUrl
-              ? `object-cover ${isCommunity ? "object-left" : "object-center"}`
-              : "object-contain p-12"
-          }`}
-        />
+        <EventArtwork src={imageUrl} />
       </Link>
 
-      <div className="min-w-0 p-5 lg:flex lg:flex-col lg:justify-center lg:px-7">
+      <div className={styles.body}>
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`w-fit rounded-md px-2.5 py-1 text-xs font-semibold ${
@@ -136,20 +130,20 @@ function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
             timezone={schedule.timezone}
           />
           {location && (
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5" title={location}>
               <MapPinIcon className="h-5 w-5 flex-none" aria-hidden="true" />
-              <span>{location}</span>
+              <span className="truncate">{location}</span>
             </span>
           )}
         </div>
         {schedule.description && (
-          <p className="mt-4 line-clamp-2 text-sm leading-6 text-zinc-600">
+          <p className={`${styles.summary} mt-3 line-clamp-2 text-sm leading-6 text-zinc-600`}>
             {schedule.description}
           </p>
         )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-zinc-100 p-5 lg:justify-center lg:border-l lg:border-t-0">
+      <div className={`${styles.actions} flex flex-col gap-3`}>
         <Link
           href={href}
           className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-ipn px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ipn-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ipn"
@@ -163,6 +157,7 @@ function ActivitySpotlight({ activity }: { activity: DashboardActivity }) {
           label="Add to calendar"
           className="w-full"
         />
+      </div>
       </div>
     </article>
   )
