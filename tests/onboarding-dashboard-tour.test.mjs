@@ -316,7 +316,7 @@ test("events hub and event detail use the standardized full event layout", async
   assert.match(eventsPage, /Browse, RSVP to, and join upcoming IPN Labs and community events, or explore past events\./)
   assert.match(eventCard, /<EventArtwork src=\{event\.thumbnail_url\}/)
   assert.ok(eventCard.indexOf("Speakers:") < eventCard.indexOf("Location:"))
-  assert.ok(eventCard.indexOf("Cancel RSVP", eventCard.indexOf("!registered")) < eventCard.lastIndexOf("You’re registered"))
+  assert.ok(eventCard.lastIndexOf("You’re registered") < eventCard.indexOf("Cancel RSVP", eventCard.indexOf("!registered")))
   assert.match(eventCard, /You’re registered/)
   assert.match(eventCard, /AddToCalendarButton event=\{event\} compact/)
   assert.match(communityEvent, /sm:grid-cols-\[220px_1fr\]/)
