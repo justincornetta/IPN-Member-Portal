@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import EventArtwork from "@/components/events/EventArtwork"
+import styles from "./EventArtworkCard.module.css"
 import AddToCalendarButton from "@/components/events/AddToCalendarButton"
 import EventDateTime from "@/components/events/EventDateTime"
 import ExternalRegistrationAction from "@/components/events/ExternalRegistrationAction"
@@ -21,54 +23,6 @@ function hasEventChat(event: EventWithRegistration) {
   return event.chat_platform === "whatsapp"
     && event.chat_status === "active"
     && Boolean(event.chat_external_url)
-}
-
-function DateBadge({ startsAt }: { startsAt: string }) {
-  const date = new Date(startsAt)
-  const month = new Intl.DateTimeFormat("en", { month: "short" }).format(date)
-  const day = new Intl.DateTimeFormat("en", { day: "2-digit" }).format(date)
-  const weekday = new Intl.DateTimeFormat("en", { weekday: "short" }).format(date)
-
-  return (
-    <span className="flex w-14 flex-col items-center justify-center text-center">
-      <span className="text-[11px] font-semibold uppercase leading-none text-ipn">{weekday}</span>
-      <span className="mt-2 text-3xl font-semibold leading-none text-ipn">{day}</span>
-      <span className="mt-2 text-[11px] uppercase leading-none text-zinc-500">{month}</span>
-    </span>
-  )
-}
-
-function EventArtwork({
-  event,
-  compact = false,
-}: {
-  event: EventWithRegistration
-  compact?: boolean
-}) {
-  return (
-    <div className="relative h-full min-h-36 overflow-hidden rounded-lg bg-ipn-light sm:min-h-40">
-      {event.thumbnail_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={event.thumbnail_url}
-          alt=""
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src="/purple_icon.png"
-          alt=""
-          className="h-full w-full object-contain p-12"
-        />
-      )}
-      {compact && (
-        <div className="absolute left-3 top-3">
-          <DateBadge startsAt={event.starts_at} />
-        </div>
-      )}
-    </div>
-  )
 }
 
 function ConfirmationModal({
@@ -219,26 +173,20 @@ export default function EventCard({ event, variant = "full" }: Props) {
   }
 
   return (
-    <article className={`rounded-xl border border-zinc-200 bg-white p-3 shadow-sm ${isCompact ? "" : "sm:p-5"}`}>
-      <div className={`grid gap-4 ${isFeatured ? "xl:grid-cols-[4.5rem_minmax(18rem,0.9fr)_minmax(0,1.1fr)] xl:gap-6" : isCompact ? "" : "sm:grid-cols-[220px_1fr]"}`}>
-        {isFeatured && (
-          <div className="hidden items-start justify-center pt-2 xl:flex">
-            <DateBadge startsAt={event.starts_at} />
-          </div>
-        )}
+    <article className={`${styles.card} ${!isCompact && !isLockedTicketedEvent && !error && !unrsvpConfirming ? styles.flush : ""} overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm`}>
+      <div className={styles.layout}>
         <Link
           href={`/dashboard/events/${event.slug}`}
           data-analytics-event="curated_click"
           data-analytics-id={`event-detail-artwork-${event.slug}`}
           data-analytics-label="Event detail artwork"
-          className="block"
+          aria-label={`View ${event.title}`}
+          className={styles.artwork}
         >
-          <div className={isFeatured ? "aspect-video" : "h-full"}>
-            <EventArtwork event={event} compact={isCompact} />
-          </div>
+          <EventArtwork src={event.thumbnail_url} />
         </Link>
 
-        <div className="flex min-w-0 flex-col">
+        <div className={styles.body}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-ipn-light px-2 py-1 text-[11px] font-medium text-ipn">
               {event.event_type}
@@ -257,20 +205,20 @@ export default function EventCard({ event, variant = "full" }: Props) {
             data-analytics-event="curated_click"
             data-analytics-id={`event-detail-title-${event.slug}`}
             data-analytics-label="Event detail title"
-            className="mt-2 group"
+            className="mt-2 block group"
           >
-            <h2 className={`${isFeatured ? "text-xl" : "text-base"} font-semibold leading-snug text-zinc-900 group-hover:text-ipn`}>
+            <h2 title={event.title} className={`${isFeatured ? "text-xl" : "text-base"} font-semibold leading-snug text-zinc-900 group-hover:text-ipn`}>
               {event.title}
             </h2>
           </Link>
 
           {event.summary && (
-            <p className={`mt-2 text-sm leading-6 text-zinc-500 ${isCompact ? "max-h-12 overflow-hidden" : isFeatured ? "line-clamp-4" : ""}`}>
+            <p className={`${styles.summary} mt-2 text-sm leading-6 text-zinc-500 ${isCompact ? "line-clamp-2" : ""}`}>
               {event.summary}
             </p>
           )}
 
-          <div className="mt-3 flex flex-col gap-1 text-xs leading-5 text-zinc-400">
+          <div className={`${styles.metadata} mt-3 flex flex-col gap-1 text-xs leading-5 text-zinc-400`}>
             {!isFeatured && event.speakers && (
               <p>
                 <span className="font-medium text-zinc-500">Speakers:</span>{" "}
@@ -285,11 +233,13 @@ export default function EventCard({ event, variant = "full" }: Props) {
             )}
           </div>
 
-          <div className="mt-auto pt-4">
+        </div>
+
+          <div className={styles.actions}>
             {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
             {isFeatured ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className={`${styles.actionsRow} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
                 <span
                   className={`inline-flex min-h-9 items-center self-start rounded-md px-3 text-xs font-semibold ${
                     usesExternalRegistration
@@ -305,7 +255,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                       ? "You’re registered"
                       : "Not registered"}
                 </span>
-                <div className="flex flex-col-reverse gap-2 min-[420px]:flex-row min-[420px]:justify-end">
+                <div className={`${styles.primaryActions} flex flex-col-reverse gap-2 min-[420px]:flex-row min-[420px]:justify-end`}>
                   <AddToCalendarButton event={event} compact />
                   <Link
                     href={`/dashboard/events/${event.slug}`}
@@ -317,7 +267,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 </div>
               </div>
             ) : usesExternalRegistration ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className={`${styles.actionsRow} flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`}>
                 {isLockedTicketedEvent ? (
                   <p className="max-w-xl text-xs leading-5 text-zinc-500">
                     Register on Eventbrite with the same email you use for this
@@ -329,7 +279,7 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     {externalRegistrationStatus(event.registration_provider)}
                   </span>
                 )}
-                <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+                <div className={`${styles.primaryActions} grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end`}>
                   <AddToCalendarButton event={event} compact />
                   {event.registration_url && (
                     <ExternalRegistrationAction
@@ -341,11 +291,11 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 </div>
               </div>
             ) : !registered ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className={`${styles.actionsRow} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
                 <div className="min-h-8 text-xs font-medium text-zinc-400">
                   {countLabel}
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+                <div className={`${styles.primaryActions} grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end`}>
                   <AddToCalendarButton event={event} compact />
                   <button
                     type="button"
@@ -361,8 +311,8 @@ export default function EventCard({ event, variant = "full" }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+              <div className={`${styles.actionsRow} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+                <div className={`${styles.statusActions} grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
                   {countLabel && (
                     <span className="rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs font-medium text-zinc-600">
                       {countLabel}
@@ -424,8 +374,8 @@ export default function EventCard({ event, variant = "full" }: Props) {
                     You’re registered
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5 sm:items-end">
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <div className={`${styles.primaryGroup} flex flex-col gap-1.5 sm:items-end`}>
+                  <div className={`${styles.primaryActions} grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center`}>
                     <AddToCalendarButton event={event} compact />
                     {canJoin && event.join_url ? (
                       <button
@@ -456,7 +406,6 @@ export default function EventCard({ event, variant = "full" }: Props) {
               </div>
             )}
           </div>
-        </div>
       </div>
 
       {confirmOpen && (

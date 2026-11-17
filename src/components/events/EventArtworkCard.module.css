@@ -1,0 +1,50 @@
+.card { container-type: inline-size; }
+.layout { display: grid; }
+.artwork { display: block; min-width: 0; }
+.body { min-width: 0; padding: 1rem; }
+.actions { min-width: 0; border-top: 1px solid #f4f4f5; padding: 1rem; }
+
+/* Only use the horizontal composition when the card itself has enough room.
+   Narrow pages (including member detail) stack rather than squeezing text. */
+@container (min-width: 68rem) {
+  .flush .layout {
+    grid-template-columns: 28rem minmax(0, 1fr) 12.5rem;
+    align-items: stretch;
+  }
+  .flush .artwork { align-self: start; }
+  .flush .body { align-self: center; padding-block: .75rem; }
+  .flush .body h2, .flush .body h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+  }
+  .flush .summary {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.25rem;
+  }
+  .flush .metadata { margin-top: .5rem; }
+  .flush .metadata p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .flush .actions {
+    border-top: 0;
+    border-left: 1px solid #f4f4f5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: .75rem;
+  }
+  .flush .actionsRow { flex-direction: column; align-items: stretch; gap: .5rem; }
+  .flush .primaryGroup { display: flex; flex-direction: column; align-items: stretch; width: 100%; }
+  .flush .primaryActions, .flush .statusActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .375rem;
+  }
+  .flush .statusActions > * { min-width: 0; padding-inline: .25rem; font-size: .6875rem; }
+  .flush .actions button, .flush .actions a { min-height: 2.5rem; }
+}

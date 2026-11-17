@@ -1,5 +1,7 @@
 "use server"
 
+import { EVENT_ARTWORK_EXTENSIONS, eventArtworkUploadError } from "@/lib/events/artwork"
+
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -963,12 +965,18 @@ export async function uploadContentImage(
   if (!file) return { error: "No file provided" }
 
   const admin = createAdminClient()
-  const path = `content/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+  // Only event artwork bypasses the JPEG cropper; preserve its original format.
+  const eventArtwork = formData.get("imageMode") === "event-artwork"
+  const validationError = eventArtwork ? eventArtworkUploadError(file) : null
+  if (validationError) return { error: validationError }
+  const contentType = eventArtwork ? file.type : "image/jpeg"
+  const extension = eventArtwork ? EVENT_ARTWORK_EXTENSIONS[file.type] : "jpg"
+  const path = `content/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
   const buffer = await file.arrayBuffer()
 
   const { error } = await admin.storage
     .from("content-images")
-    .upload(path, buffer, { contentType: "image/jpeg", upsert: false })
+    .upload(path, buffer, { contentType, upsert: false })
 
   if (error) return { error: error.message }
 

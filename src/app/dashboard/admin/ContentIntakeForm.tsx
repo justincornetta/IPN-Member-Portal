@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect, useCallback, useRef } from "react"
 import Cropper from "react-easy-crop"
+import { eventArtworkUploadError } from "@/lib/events/artwork"
 import type { Area } from "react-easy-crop"
 import {
   publishAdminContent,
@@ -146,7 +147,7 @@ function NavRow({
 
 // ─── Image upload with 16:9 crop ──────────────────────────────────────────────
 
-function ImageUploadField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+function ImageUploadField({ value, onChange, eventArtwork = false }: { value: string; onChange: (url: string) => void; eventArtwork?: boolean }) {
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -157,10 +158,29 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => setCroppedAreaPixels(pixels), [])
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ""
+    if (eventArtwork) {
+      const validationError = eventArtworkUploadError(file)
+      if (validationError) { setUploadError(validationError); return }
+      setUploading(true)
+      setUploadError(null)
+      try {
+        const fd = new FormData()
+        fd.append("file", file)
+        fd.append("imageMode", "event-artwork")
+        const result = await uploadContentImage(fd)
+        if (result.error) setUploadError(result.error)
+        else if (result.url) onChange(result.url)
+      } catch {
+        setUploadError("The image could not be uploaded. Please try again.")
+      } finally {
+        setUploading(false)
+      }
+      return
+    }
     const reader = new FileReader()
     reader.onload = () => setCropSrc(reader.result as string)
     reader.readAsDataURL(file)
@@ -178,6 +198,8 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
       const result = await uploadContentImage(fd)
       if (result.error) setUploadError(result.error)
       else if (result.url) onChange(result.url)
+    } catch {
+      setUploadError("The image could not be uploaded. Please try again.")
     } finally {
       setUploading(false)
     }
@@ -186,16 +208,16 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
   return (
     <div className="flex flex-col gap-2">
       {value && (
-        <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-lg bg-zinc-100">
+        <div className={`relative ${eventArtwork ? "aspect-[2/1]" : "aspect-video"} w-full max-w-sm overflow-hidden rounded-lg bg-zinc-100`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="h-full w-full object-cover" />
-          <button
+          <img src={value} alt="" className={`h-full w-full ${eventArtwork ? "object-contain" : "object-cover"}`} />
+          {!eventArtwork && <button
             type="button"
             onClick={() => onChange("")}
             className="absolute right-2 top-2 min-h-8 cursor-pointer rounded-md bg-black/50 px-2 py-1 text-xs text-white transition hover:bg-black/70"
           >
             Remove
-          </button>
+          </button>}
         </div>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -207,16 +229,18 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (url: 
         >
           {uploading ? "Uploading…" : value ? "Replace" : "Upload image"}
         </button>
+        {eventArtwork && value && <button type="button" onClick={() => onChange("")} disabled={uploading} className="min-h-11 rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-600">Remove</button>}
         <span className="text-xs text-zinc-400 sm:shrink-0">or paste a URL</span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          aria-label={eventArtwork ? "Event artwork URL" : "Image URL"}
           placeholder="https://..."
           className="min-h-11 min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-ipn focus:ring-2 focus:ring-ipn/20"
         />
       </div>
       {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+      <input ref={fileInputRef} type="file" accept={eventArtwork ? "image/jpeg,image/png,image/webp,image/gif" : "image/*"} className="hidden" onChange={handleFileChange} />
 
       {/* Crop modal */}
       {cropSrc && (
@@ -476,8 +500,8 @@ function EventForm({ initial, onSubmit, pending }: {
             <Field label="Speakers" hint="Comma-separated names shown below the title (e.g. 'Dr. Jane Smith, Dr. John Doe')">
               <input value={f.speakers} onChange={(e) => set("speakers", e.target.value)} className={inputCls()} placeholder="Dr. Jane Smith, Dr. John Doe" />
             </Field>
-            <Field label="Thumbnail" hint="Uploaded at 1280×720 (16:9). Used on event cards and the public event page.">
-              <ImageUploadField value={f.imageUrl} onChange={(url) => set("imageUrl", url)} />
+            <Field label="Thumbnail" hint="Recommended: 1200×600 (2:1), up to 900 KB. Original image is preserved without cropping. Other ratios fit within a neutral 2:1 frame.">
+              <ImageUploadField eventArtwork value={f.imageUrl} onChange={(url) => set("imageUrl", url)} />
             </Field>
             <Field label="Slug" hint="URL path for this event, auto-generated from the title if left blank (e.g. 'ipn-labs-psilocybin-update').">
               <input value={f.slug} onChange={(e) => set("slug", e.target.value)} className={inputCls()} placeholder="auto-generated" />
