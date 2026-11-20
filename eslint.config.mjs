@@ -18,6 +18,7 @@ const eslintConfig = defineConfig([
     ".qa-news/**",
     ".qa-performance/**",
     ".qa-directory/**",
+    ".qa-onboarding/**",
     ".qa-sign-in-before/**",
     ".qa-sign-in-after/**",
     "test-results/**",

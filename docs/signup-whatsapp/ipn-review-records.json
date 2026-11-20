@@ -1,0 +1,156 @@
+[
+  {
+    "route": "welcome",
+    "width": 1440,
+    "height": 900,
+    "dims": {
+      "w": 1440,
+      "h": 900,
+      "sw": 1440,
+      "sh": 900
+    },
+    "links": [
+      "Continue →"
+    ]
+  },
+  {
+    "route": "whatsapp",
+    "width": 1440,
+    "height": 900,
+    "dims": {
+      "w": 1440,
+      "h": 900,
+      "sw": 1440,
+      "sh": 900
+    },
+    "links": [
+      "1Welcome",
+      "Join channel",
+      "Continue to member portal"
+    ]
+  },
+  {
+    "route": "welcome",
+    "width": 1280,
+    "height": 800,
+    "dims": {
+      "w": 1280,
+      "h": 800,
+      "sw": 1280,
+      "sh": 800
+    },
+    "links": [
+      "Continue →"
+    ]
+  },
+  {
+    "route": "whatsapp",
+    "width": 1280,
+    "height": 800,
+    "dims": {
+      "w": 1280,
+      "h": 800,
+      "sw": 1280,
+      "sh": 800
+    },
+    "links": [
+      "1Welcome",
+      "Join channel",
+      "Continue to member portal"
+    ]
+  },
+  {
+    "route": "welcome",
+    "width": 390,
+    "height": 844,
+    "dims": {
+      "w": 390,
+      "h": 844,
+      "sw": 390,
+      "sh": 844
+    },
+    "links": [
+      "Continue →"
+    ]
+  },
+  {
+    "route": "whatsapp",
+    "width": 390,
+    "height": 844,
+    "dims": {
+      "w": 390,
+      "h": 844,
+      "sw": 390,
+      "sh": 861
+    },
+    "links": [
+      "1Welcome",
+      "Join channel",
+      "Continue to member portal"
+    ]
+  },
+  {
+    "route": "welcome",
+    "width": 320,
+    "height": 568,
+    "dims": {
+      "w": 320,
+      "h": 568,
+      "sw": 320,
+      "sh": 568
+    },
+    "links": [
+      "Continue →"
+    ]
+  },
+  {
+    "route": "whatsapp",
+    "width": 320,
+    "height": 568,
+    "dims": {
+      "w": 320,
+      "h": 568,
+      "sw": 320,
+      "sh": 644
+    },
+    "links": [
+      "1Welcome",
+      "Join channel",
+      "Continue to member portal"
+    ]
+  },
+  {
+    "route": "welcome",
+    "width": 800,
+    "height": 600,
+    "dims": {
+      "w": 800,
+      "h": 600,
+      "sw": 800,
+      "sh": 600
+    },
+    "links": [
+      "Continue →"
+    ]
+  },
+  {
+    "route": "whatsapp",
+    "width": 800,
+    "height": 600,
+    "dims": {
+      "w": 800,
+      "h": 600,
+      "sw": 800,
+      "sh": 774
+    },
+    "links": [
+      "1Welcome",
+      "Join channel",
+      "Continue to member portal"
+    ]
+  },
+  {
+    "errors": [],
+    "errorText": "Intercollegiate\nPsychedelics Network\n1\nWelcome\n2\nWhatsApp\n3\nMember portal\n\nMEMBER COMMUNITY\n\nMeet the community on WhatsApp\n\nConnect in focused spaces for conversations, resources, and real-world opportunities.\n\nCHOOSE A CHANNEL\n\nGeneral\nSTART HERE\nLabs Events\nConferences\n\nGeneral\n\nIntroductions, ask questions, and general topic discussions.\n\nWelcome to IPN! This is the place to introduce yourself, ask questions, and connect with fellow members around the world.\n\nStart by sharing a bit about yourself so others can get to know you.\n\nYOUR FIRST MESSAGE\n\nShare your name, where you’re based, your background, and what you’re studying or working on.\n\nSCAN TO JOIN\n\nScan to join General\n\nThe QR code could not be loaded.\n\nTry again\n\nScan with your phone, or open the channel in a new tab.\n\nJoin channel\n\nAllow new tabs for this site, then try again.\n\nOR\nContinue to member portal"
+  }
+]

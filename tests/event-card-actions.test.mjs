@@ -25,9 +25,9 @@ const dependencies = {
   "@/lib/events/external-registration": external,
   "@/lib/portal-analytics/client": { getPortalAnalyticsContext: () => ({}) },
 }
-const module = { exports: {} }
-vm.runInNewContext(js, { module, exports: module.exports, require: name => name in dependencies ? dependencies[name] : require(name) })
-const EventCard = module.exports.default
+const compiledModule = { exports: {} }
+vm.runInNewContext(js, { module: compiledModule, exports: compiledModule.exports, require: name => name in dependencies ? dependencies[name] : require(name) })
+const EventCard = compiledModule.exports.default
 const now = Date.parse("2026-11-17T18:00:00Z")
 const event = {
   id: "example", slug: "example", title: "IPN Member Office Hours", event_type: "Other",
