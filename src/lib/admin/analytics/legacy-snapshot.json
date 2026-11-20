@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-19T19:12:24.966Z",
+  "generatedAt": "2026-11-20T18:49:12.136Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -9,7 +9,7 @@
       "mode": "Server snapshot",
       "lastPull": "2026-07-06T02:41:21.482864+00:00",
       "note": "2089 deduped records",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
       "lastSuccessfulAt": "2026-07-06T02:41:21.482864+00:00"
     },
     {
@@ -17,60 +17,60 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-19T19:10:03.932580+00:00",
-      "note": "1928 subscribers",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:10:03.932580+00:00"
+      "lastPull": "2026-11-20T18:47:50.421465+00:00",
+      "note": "1929 subscribers",
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:47:50.421465+00:00"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-19T19:10:06.217009+00:00",
-      "note": "4859 followers",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:10:06.217009+00:00"
+      "lastPull": "2026-11-20T18:47:51.777641+00:00",
+      "note": "4868 followers",
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:47:51.777641+00:00"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-11-19T19:10:06.619720+00:00",
+      "lastPull": "2026-11-20T18:47:52.024526+00:00",
       "note": "3134 followers",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:10:06.619720+00:00"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:47:52.024526+00:00"
     },
     {
       "id": "website",
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-19T19:11:02.292520+00:00",
+      "lastPull": "2026-11-20T18:48:03.159611+00:00",
       "note": "3 sessions in 30d",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:11:02.292520+00:00"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:48:03.159611+00:00"
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-19T19:11:27.193054+00:00",
+      "lastPull": "2026-11-20T18:48:16.793399+00:00",
       "note": "6 events",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:11:27.193054+00:00"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:48:16.793399+00:00"
     },
     {
       "id": "eventbrite",
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-19T19:12:13.809841+00:00",
+      "lastPull": "2026-11-20T18:49:06.516352+00:00",
       "note": "10 events",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:12:13.809841+00:00"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:49:06.516352+00:00"
     },
     {
       "id": "webapp",
@@ -79,8 +79,8 @@
       "mode": "Manual/TBD",
       "lastPull": null,
       "note": "Live Supabase portal metrics shown separately",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:12:13.843Z"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:49:06.555Z"
     },
     {
       "id": "whatsapp",
@@ -89,8 +89,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "Community metrics data model pending",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:12:13.843Z"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:49:06.555Z"
     },
     {
       "id": "search-console",
@@ -99,8 +99,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "SEO query metrics pending",
-      "lastAttemptedAt": "2026-11-19T19:12:13.843Z",
-      "lastSuccessfulAt": "2026-11-19T19:12:13.843Z"
+      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastSuccessfulAt": "2026-11-20T18:49:06.555Z"
     }
   ],
   "overview": {
@@ -955,20 +955,20 @@
   },
   "marketing": {
     "summary": {
-      "totalSubscribers": 1580,
+      "totalSubscribers": 1583,
       "totalLists": 1,
       "totalCampaigns": 195,
       "avgOpenRate": 24.2,
       "avgClickRate": 1.7,
-      "totalUnsubscribes": 384,
-      "pulledAt": "2026-11-19T19:10:03.932580+00:00"
+      "totalUnsubscribes": 386,
+      "pulledAt": "2026-11-20T18:47:50.421465+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
-        "members": 1580,
-        "unsubscribeCount": 349,
+        "members": 1583,
+        "unsubscribeCount": 351,
         "openRate": 42.61993769470405,
         "clickRate": 3.6292834890965735
       }
@@ -1088,10 +1088,10 @@
         "month": "2022-05",
         "campaigns": 1,
         "sent": 519,
-        "opens": 172,
+        "opens": 173,
         "clicks": 42,
         "unsubscribes": 5,
-        "openRate": 33.1,
+        "openRate": 33.3,
         "clickRate": 8.1
       },
       {
@@ -1518,7 +1518,7 @@
         "month": "2026-06",
         "campaigns": 2,
         "sent": 3230,
-        "opens": 801,
+        "opens": 802,
         "clicks": 76,
         "unsubscribes": 14,
         "openRate": 24.8,
@@ -1568,10 +1568,10 @@
         "month": "2026-11",
         "campaigns": 4,
         "sent": 6350,
-        "opens": 1665,
+        "opens": 1674,
         "clicks": 130,
-        "unsubscribes": 24,
-        "openRate": 26.2,
+        "unsubscribes": 26,
+        "openRate": 26.4,
         "clickRate": 2
       }
     ],
@@ -1657,11 +1657,11 @@
         "date": "2026-11-17T22:01:05+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1586,
-        "opens": 424,
-        "openRate": 26.9,
+        "opens": 428,
+        "openRate": 27.1,
         "clicks": 20,
         "clickRate": 1.3,
-        "unsubscribes": 4,
+        "unsubscribes": 5,
         "clickDetail": [
           {
             "url": "https://members.intercollegiatepsychedelics.net/events/ipn-member-office-hours-december-3-2026",
@@ -1708,11 +1708,11 @@
         "date": "2026-11-15T15:00:00+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1586,
-        "opens": 408,
-        "openRate": 25.8,
+        "opens": 410,
+        "openRate": 26,
         "clicks": 15,
         "clickRate": 0.9,
-        "unsubscribes": 2,
+        "unsubscribes": 3,
         "clickDetail": [
           {
             "url": "https://docs.google.com/forms/d/e/1FAIpQLSdQvUy6ZMaufHDcbpXaBlfjBcGR6035kyg9M3Y3X6RTKRD-qA/viewform",
@@ -1795,8 +1795,8 @@
         "date": "2026-11-13T14:08:17+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1587,
-        "opens": 429,
-        "openRate": 27.2,
+        "opens": 432,
+        "openRate": 27.4,
         "clicks": 41,
         "clickRate": 2.6,
         "unsubscribes": 4,
@@ -2365,8 +2365,8 @@
         "date": "2026-06-25T17:12:15+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1608,
-        "opens": 285,
-        "openRate": 18.2,
+        "opens": 286,
+        "openRate": 18.3,
         "clicks": 45,
         "clickRate": 2.9,
         "unsubscribes": 3,
@@ -12679,8 +12679,8 @@
         "date": "2022-05-09T18:58:09+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 519,
-        "opens": 172,
-        "openRate": 33.5,
+        "opens": 173,
+        "openRate": 33.7,
         "clicks": 42,
         "clickRate": 8.2,
         "unsubscribes": 5,
@@ -15525,11 +15525,11 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4859,
-        "engagementRate": 1.32,
+        "followers": 4868,
+        "engagementRate": 1.34,
         "postsThisMonth": 1,
         "status": "live",
-        "updatedAt": "2026-11-19T19:10:06.217009+00:00"
+        "updatedAt": "2026-11-20T18:47:51.777641+00:00"
       },
       {
         "id": "facebook",
@@ -15538,7 +15538,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-11-19T19:10:06.619720+00:00"
+        "updatedAt": "2026-11-20T18:47:52.024526+00:00"
       },
       {
         "id": "linkedin",
@@ -16128,15 +16128,15 @@
         "posts": 0
       },
       {
-        "date": "2026-11-19T19:10:06.217009+00:00",
+        "date": "2026-11-20T18:47:51.777641+00:00",
         "month": "2026-11",
         "channel": "instagram",
-        "followers": 4859,
-        "engagementRate": 1.32,
+        "followers": 4868,
+        "engagementRate": 1.34,
         "posts": 1
       },
       {
-        "date": "2026-11-19T19:10:06.619720+00:00",
+        "date": "2026-11-20T18:47:52.024526+00:00",
         "month": "2026-11",
         "channel": "facebook",
         "followers": 3134,
@@ -16150,11 +16150,11 @@
         "date": "2026-11-13T15:35:22+0000",
         "type": "CAROUSEL_ALBUM",
         "caption": "Leadership applications are open! 🌱\n\nGetting started in the psychedelic field isn’t easy. Maybe you just want to learn. Maybe you’re ready to build a career but can’t find the resources, professional development, or hands-on experience to get there. That’s true in every disciplin",
-        "likes": 56,
+        "likes": 57,
         "comments": 8,
-        "engagement": 64,
+        "engagement": 65,
         "permalink": "https://www.instagram.com/p/Dfr9z7WpVL-/",
-        "lastObservedAt": "2026-11-19T19:10:06.217009+00:00"
+        "lastObservedAt": "2026-11-20T18:47:51.777641+00:00"
       },
       {
         "id": "17919326709244686",
@@ -16205,8 +16205,8 @@
       "bounce_rate": 0.67,
       "avg_session_duration": 83.7,
       "new_users_30d": 2,
-      "sessions_prev_30d": 739,
-      "unique_visitors_prev_30d": 608,
+      "sessions_prev_30d": 720,
+      "unique_visitors_prev_30d": 593,
       "sessions_mom_pct": -99.6,
       "visitors_mom_pct": -99.7,
       "new_vs_returning": {
@@ -16304,15 +16304,6 @@
       }
     ],
     "dailyTrend": [
-      {
-        "date": "2026-08-21",
-        "sessions": 10,
-        "users": 8,
-        "pageviews": 10,
-        "bounceRate": 70,
-        "avgDuration": 16.22,
-        "newUsers": 7
-      },
       {
         "date": "2026-08-22",
         "sessions": 7,
@@ -16992,7 +16983,7 @@
         "bounceRate": 100
       }
     ],
-    "pulledAt": "2026-11-19T19:11:02.292520+00:00"
+    "pulledAt": "2026-11-20T18:48:03.159611+00:00"
   },
   "events": {
     "zoom": {
@@ -17005,7 +16996,7 @@
         "avgDurationMin": 31.8,
         "repeatRatePct": 30,
         "uniqueAttendees": 10,
-        "pulledAt": "2026-11-19T19:11:27.193054+00:00"
+        "pulledAt": "2026-11-20T18:48:16.793399+00:00"
       },
       "byMonth": [
         {
@@ -18213,36 +18204,25 @@
           "participantEmails": [],
           "participants": [],
           "registrations": []
+        },
+        {
+          "id": "zGewCKLPTRSp+uuSK3DNfQ==",
+          "topic": "IPN Leadership Interview: Zenon Demko",
+          "date": "2026-11-19T21:56:44Z",
+          "program": "Other",
+          "type": "internal",
+          "attendees": 3,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 22.1,
+          "retentionPct": 55.2,
+          "repeatPct": 33.33333333333333,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
         }
       ],
       "upcomingEvents": [
-        {
-          "id": "85295225062",
-          "topic": "IPN Leadership Interview: Zenon Demko",
-          "date": "2026-11-19T22:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
-          "id": "81100622388",
-          "topic": "Gavin Hutchison - IPN Interview (Systems & Automation Coordinator)",
-          "date": "2026-11-20T15:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
-        {
-          "id": "82075120878",
-          "topic": "Tristan Mayshark - IPN Interview (Systems & Automation Coordinator)",
-          "date": "2026-11-20T17:30:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
         {
           "id": "81451225582",
           "topic": "IPN Leadership Interview: Zoe Talman",
@@ -18256,6 +18236,15 @@
           "id": "89025512753",
           "topic": "IPN Community Task Force Weekly Syncs",
           "date": "2026-11-22T16:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "84740293472",
+          "topic": "Justin <> Joe sync: FYP and training access roles",
+          "date": "2026-11-24T00:30:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
@@ -18297,7 +18286,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-11-19T19:12:13.809841+00:00"
+        "pulledAt": "2026-11-20T18:49:06.516352+00:00"
       },
       "events": [
         {
