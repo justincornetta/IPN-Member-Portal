@@ -1,3 +1,25 @@
+# Signup WhatsApp navigation repair — November 20, 2026
+
+## Status
+Implemented and verified locally on `fix/signup-whatsapp-navigation`, based on main `4e80e78`, in `Code/IPN-Member-Portal-signup-fix`. Awaiting Justin's explicit publication approval. No push, PR, merge, deployment or production data changes.
+
+## Last session
+Reproduced the member screenshot: the fixed-height desktop WhatsApp panel clips the Continue link at 1440×1080. At 800×600, fixed column minimums also push the link outside the window. Replaced fixed height with a content-driven minimum, allowed page growth/scrolling and fitted columns to narrow desktop widths. Production edits are CSS only; signup/auth/progress logic unchanged.
+
+Installed lockfile dependencies and browser runtime. Lint, production build and 29 focused tests pass. All 20 browser scenarios pass across final matrix and corrected error-scenario rerun: nine viewport sizes, all three channels, both motion modes, keyboard/reduced motion, Welcome navigation, QR failure/popup blocking and same-device local handoff. Browser console/page errors and overlays absent. Independent visual review found no material blocker in the scoped WhatsApp repair; detailed evidence is under `docs/signup-whatsapp/`.
+
+Initial build hit a full disk; removed only generated `.next` outputs from four inactive clones and recovered ~2.4 GB. A pre-existing lint failure in an event-card test was fixed by renaming its local `module` variable; all six affected tests pass.
+
+## Next steps
+Show Justin the before/after and local verification. After explicit approval, publish branch and open PR using pr-documentation skill, verify hosted preview, then obtain separate merge decision. Local fixture preview: http://127.0.0.1:4360/onboarding/whatsapp?motion=editorial .
+
+## Open decisions / known issues / references
+Publication and merge are not authorized yet. No live account, authentication persistence, email or real WhatsApp joining was tested; isolated QA replaces those services and uses the real onboarding pages/styles. Existing middleware deprecation warning remains. Reviewer observed pre-existing Welcome feature-copy overlap at 320×568, outside the changed WhatsApp selectors; continuation remains reachable and it is a separate follow-up. Existing narrow-label wrapping is non-blocking.
+
+Docs: `Code/IPN-Member-Portal-signup-fix/docs/signup-whatsapp/README.md`, screenshots and design review. Commit: see the local branch log for `fix clipped WhatsApp onboarding continuation`. No PR yet.
+
+---
+
 # Sign-in analytics verified — November 7, 2026
 
 ## Status

@@ -61,6 +61,7 @@ next-env.d.ts
 
 /.qa-performance/
 /.qa-directory/
+/.qa-onboarding/
 
 /test-results-performance/
 
