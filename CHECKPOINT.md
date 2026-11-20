@@ -1,3 +1,16 @@
+# Signup repair PR published — November 20, 2026
+
+## Status
+Justin approved pushing and opening a PR. PR https://github.com/justincornetta/IPN-Member-Portal/pull/85 is open from fix/signup-whatsapp-navigation. Tested code commit f5df67d deployed successfully as Netlify 6b007c929ff4d0320da4820b. No merge authorized or performed.
+
+## Last session
+Netlify preview, header and redirect checks pass; Supabase Preview and Pages changed skipped. Preview URL: https://deploy-preview-85--ipn-member-portal.netlify.app/onboarding/whatsapp?motion=editorial . Browser visit correctly redirected to sign-in with no console errors. Awaiting user sign-in to complete hosted protected-page verification. Local lint/build, 29 focused checks, 20 browser scenarios and independent visual GO remain applicable; no app code changed during publication.
+
+## Next steps / open decisions / known issues
+After user signs into preview, verify all channel continuation controls and navigate to dashboard. Update PR verification notes. Merge requires separate approval. Tin Can relay unreachable; doctor confirms local tailnet/config valid but relay unavailable, so Notion summary sync and canonical skill refresh could not complete; PR follows the available local skill summary and explicit user PR standard. Existing Welcome small-phone overlap is separate.
+
+---
+
 # Signup WhatsApp navigation repair — November 20, 2026
 
 ## Status
