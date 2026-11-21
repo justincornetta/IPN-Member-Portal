@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T18:49:12.136Z",
+  "generatedAt": "2026-11-21T17:49:02.566Z",
   "dashboardRepo": "/home/runner/work/IPN-Member-Portal/IPN-Member-Portal",
   "dataSources": [
     {
@@ -9,7 +9,7 @@
       "mode": "Server snapshot",
       "lastPull": "2026-07-06T02:41:21.482864+00:00",
       "note": "2089 deduped records",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
       "lastSuccessfulAt": "2026-07-06T02:41:21.482864+00:00"
     },
     {
@@ -17,60 +17,60 @@
       "label": "Mailchimp",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-20T18:47:50.421465+00:00",
-      "note": "1929 subscribers",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:47:50.421465+00:00"
+      "lastPull": "2026-11-21T17:47:43.657030+00:00",
+      "note": "1934 subscribers",
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:47:43.657030+00:00"
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-20T18:47:51.777641+00:00",
-      "note": "4868 followers",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:47:51.777641+00:00"
+      "lastPull": "2026-11-21T17:47:44.515583+00:00",
+      "note": "4870 followers",
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:47:44.515583+00:00"
     },
     {
       "id": "facebook",
       "label": "Facebook",
       "status": "success",
       "mode": "Basic API snapshot",
-      "lastPull": "2026-11-20T18:47:52.024526+00:00",
+      "lastPull": "2026-11-21T17:47:44.711186+00:00",
       "note": "3134 followers",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:47:52.024526+00:00"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:47:44.711186+00:00"
     },
     {
       "id": "website",
       "label": "Website / GA4",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-20T18:48:03.159611+00:00",
+      "lastPull": "2026-11-21T17:47:55.649367+00:00",
       "note": "3 sessions in 30d",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:48:03.159611+00:00"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:47:55.649367+00:00"
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-20T18:48:16.793399+00:00",
+      "lastPull": "2026-11-21T17:48:10.515453+00:00",
       "note": "6 events",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:48:16.793399+00:00"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:48:10.515453+00:00"
     },
     {
       "id": "eventbrite",
       "label": "Eventbrite",
       "status": "success",
       "mode": "API snapshot",
-      "lastPull": "2026-11-20T18:49:06.516352+00:00",
+      "lastPull": "2026-11-21T17:48:57.547036+00:00",
       "note": "10 events",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:49:06.516352+00:00"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:48:57.547036+00:00"
     },
     {
       "id": "webapp",
@@ -79,8 +79,8 @@
       "mode": "Manual/TBD",
       "lastPull": null,
       "note": "Live Supabase portal metrics shown separately",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:49:06.555Z"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:48:57.581Z"
     },
     {
       "id": "whatsapp",
@@ -89,8 +89,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "Community metrics data model pending",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:49:06.555Z"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:48:57.581Z"
     },
     {
       "id": "search-console",
@@ -99,8 +99,8 @@
       "mode": "Future integration",
       "lastPull": null,
       "note": "SEO query metrics pending",
-      "lastAttemptedAt": "2026-11-20T18:49:06.555Z",
-      "lastSuccessfulAt": "2026-11-20T18:49:06.555Z"
+      "lastAttemptedAt": "2026-11-21T17:48:57.581Z",
+      "lastSuccessfulAt": "2026-11-21T17:48:57.581Z"
     }
   ],
   "overview": {
@@ -960,17 +960,17 @@
       "totalCampaigns": 195,
       "avgOpenRate": 24.2,
       "avgClickRate": 1.7,
-      "totalUnsubscribes": 386,
-      "pulledAt": "2026-11-20T18:47:50.421465+00:00"
+      "totalUnsubscribes": 387,
+      "pulledAt": "2026-11-21T17:47:43.657030+00:00"
     },
     "lists": [
       {
         "id": "e7bcf08ab8",
         "name": "Intercollegiate Psychedelics Network",
         "members": 1583,
-        "unsubscribeCount": 351,
-        "openRate": 42.61993769470405,
-        "clickRate": 3.6292834890965735
+        "unsubscribeCount": 352,
+        "openRate": 42.7281905101253,
+        "clickRate": 3.5186174951006595
       }
     ],
     "monthly": [
@@ -1568,9 +1568,9 @@
         "month": "2026-11",
         "campaigns": 4,
         "sent": 6350,
-        "opens": 1674,
+        "opens": 1677,
         "clicks": 130,
-        "unsubscribes": 26,
+        "unsubscribes": 27,
         "openRate": 26.4,
         "clickRate": 2
       }
@@ -1657,8 +1657,8 @@
         "date": "2026-11-17T22:01:05+00:00",
         "listName": "Intercollegiate Psychedelics Network",
         "sent": 1586,
-        "opens": 428,
-        "openRate": 27.1,
+        "opens": 431,
+        "openRate": 27.3,
         "clicks": 20,
         "clickRate": 1.3,
         "unsubscribes": 5,
@@ -1712,7 +1712,7 @@
         "openRate": 26,
         "clicks": 15,
         "clickRate": 0.9,
-        "unsubscribes": 3,
+        "unsubscribes": 4,
         "clickDetail": [
           {
             "url": "https://docs.google.com/forms/d/e/1FAIpQLSdQvUy6ZMaufHDcbpXaBlfjBcGR6035kyg9M3Y3X6RTKRD-qA/viewform",
@@ -15525,11 +15525,11 @@
       {
         "id": "instagram",
         "label": "Instagram",
-        "followers": 4868,
-        "engagementRate": 1.34,
+        "followers": 4870,
+        "engagementRate": 1.33,
         "postsThisMonth": 1,
         "status": "live",
-        "updatedAt": "2026-11-20T18:47:51.777641+00:00"
+        "updatedAt": "2026-11-21T17:47:44.515583+00:00"
       },
       {
         "id": "facebook",
@@ -15538,7 +15538,7 @@
         "engagementRate": 0,
         "postsThisMonth": 0,
         "status": "basic",
-        "updatedAt": "2026-11-20T18:47:52.024526+00:00"
+        "updatedAt": "2026-11-21T17:47:44.711186+00:00"
       },
       {
         "id": "linkedin",
@@ -16128,15 +16128,15 @@
         "posts": 0
       },
       {
-        "date": "2026-11-20T18:47:51.777641+00:00",
+        "date": "2026-11-21T17:47:44.515583+00:00",
         "month": "2026-11",
         "channel": "instagram",
-        "followers": 4868,
-        "engagementRate": 1.34,
+        "followers": 4870,
+        "engagementRate": 1.33,
         "posts": 1
       },
       {
-        "date": "2026-11-20T18:47:52.024526+00:00",
+        "date": "2026-11-21T17:47:44.711186+00:00",
         "month": "2026-11",
         "channel": "facebook",
         "followers": 3134,
@@ -16154,7 +16154,7 @@
         "comments": 8,
         "engagement": 65,
         "permalink": "https://www.instagram.com/p/Dfr9z7WpVL-/",
-        "lastObservedAt": "2026-11-20T18:47:51.777641+00:00"
+        "lastObservedAt": "2026-11-21T17:47:44.515583+00:00"
       },
       {
         "id": "17919326709244686",
@@ -16205,8 +16205,8 @@
       "bounce_rate": 0.67,
       "avg_session_duration": 83.7,
       "new_users_30d": 2,
-      "sessions_prev_30d": 720,
-      "unique_visitors_prev_30d": 593,
+      "sessions_prev_30d": 704,
+      "unique_visitors_prev_30d": 582,
       "sessions_mom_pct": -99.6,
       "visitors_mom_pct": -99.7,
       "new_vs_returning": {
@@ -16304,15 +16304,6 @@
       }
     ],
     "dailyTrend": [
-      {
-        "date": "2026-08-22",
-        "sessions": 7,
-        "users": 7,
-        "pageviews": 9,
-        "bounceRate": 86,
-        "avgDuration": 22.08,
-        "newUsers": 7
-      },
       {
         "date": "2026-08-23",
         "sessions": 11,
@@ -16983,7 +16974,7 @@
         "bounceRate": 100
       }
     ],
-    "pulledAt": "2026-11-20T18:48:03.159611+00:00"
+    "pulledAt": "2026-11-21T17:47:55.649367+00:00"
   },
   "events": {
     "zoom": {
@@ -16996,7 +16987,7 @@
         "avgDurationMin": 31.8,
         "repeatRatePct": 30,
         "uniqueAttendees": 10,
-        "pulledAt": "2026-11-20T18:48:16.793399+00:00"
+        "pulledAt": "2026-11-21T17:48:10.515453+00:00"
       },
       "byMonth": [
         {
@@ -18220,18 +18211,25 @@
           "participantEmails": [],
           "participants": [],
           "registrations": []
+        },
+        {
+          "id": "B0JpWPblQQ+vIPKifVSIUA==",
+          "topic": "IPN Leadership Interview: Zoe Talman",
+          "date": "2026-11-20T18:54:17Z",
+          "program": "Other",
+          "type": "internal",
+          "attendees": 3,
+          "registrants": null,
+          "registrationSource": null,
+          "avgDuration": 13.6,
+          "retentionPct": 41.3,
+          "repeatPct": 66.66666666666666,
+          "participantEmails": [],
+          "participants": [],
+          "registrations": []
         }
       ],
       "upcomingEvents": [
-        {
-          "id": "81451225582",
-          "topic": "IPN Leadership Interview: Zoe Talman",
-          "date": "2026-11-20T19:00:00Z",
-          "program": "Other",
-          "type": "internal",
-          "registrants": 0,
-          "registrations": []
-        },
         {
           "id": "89025512753",
           "topic": "IPN Community Task Force Weekly Syncs",
@@ -18245,6 +18243,24 @@
           "id": "84740293472",
           "topic": "Justin <> Joe sync: FYP and training access roles",
           "date": "2026-11-24T00:30:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "88284023195",
+          "topic": "IPN Leadership Interview: Niko Bezanis",
+          "date": "2026-11-24T15:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "87854108621",
+          "topic": "IPN Leadership Interview: Grayson Parr",
+          "date": "2026-11-24T17:00:00Z",
           "program": "Other",
           "type": "internal",
           "registrants": 0,
@@ -18269,6 +18285,42 @@
           "registrations": []
         },
         {
+          "id": "85297972453",
+          "topic": "IPN Leadership Interview: Amber Swaim",
+          "date": "2026-11-30T16:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "89982517235",
+          "topic": "IPN Leadership Interview: Joseph Hughes",
+          "date": "2026-12-01T23:00:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "85998734252",
+          "topic": "IPN Leadership Interview: Sezen Ingilok Ucal",
+          "date": "2026-12-02T20:30:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
+          "id": "85720749613",
+          "topic": "IPN Leadership Interview: Stamatia",
+          "date": "2026-12-02T21:45:00Z",
+          "program": "Other",
+          "type": "internal",
+          "registrants": 0,
+          "registrations": []
+        },
+        {
           "id": "87133003003",
           "topic": "IPN Member Office Hours",
           "date": "2026-12-04T00:00:00Z",
@@ -18286,7 +18338,7 @@
         "grossRevenue": 6969.47,
         "activeEvents": 0,
         "upcomingEvents": 0,
-        "pulledAt": "2026-11-20T18:49:06.516352+00:00"
+        "pulledAt": "2026-11-21T17:48:57.547036+00:00"
       },
       "events": [
         {
