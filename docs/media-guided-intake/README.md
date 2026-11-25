@@ -55,3 +55,28 @@ The [shared design-review skill](https://app.notion.com/p/3f22386c248f81bb8420f0
 ## Publication
 
 Justin approved pushing the reviewed branch and opening a PR on November 1, 2026. [PR #68](https://github.com/justincornetta/IPN-Member-Portal/pull/68) includes these verification results and screenshots; its Netlify preview will be linked in the PR once available. Production has not been changed. Merge remains a separate decision.
+
+## TBD dates and asset-only requests (November 25, 2026)
+
+Requested by Rosie (IPN assistant) with Justin's approval (Nov 25, 9:57 AM ET: "Send the Forge request with the extras"). Three media requests (a partner media kit, a Vital placeholder and an Office Hours update) were waiting on it.
+
+**A. Post by accepts TBD.** Step 2 has a "Date is TBD" checkbox under the date. A request needs a date or TBD, never neither and never both. TBD is stored explicitly as `postedByTbd: true` with `postedBy: ""`; dated requests keep `postedByTbd: false` and older records without the field read as dated. Review, request detail, queue and the #media-space post show "TBD".
+
+**B. Asset-only requests.** A new toggle, "Asset for partner/internal use, not posted", is stored as `assetOnly: true`. When it is on:
+
+- the date reads "Needed by" with the hint "The day the asset should be ready, not a posting date.";
+- platforms are N/A, "For partners: Instagram" and "For partners: LinkedIn" (regular requests keep today's list; the API rejects mixing the two lists);
+- Slack says "Needed by", adds "Asset for partner/internal use, not posted by IPN", and labels the Media team's date "Planned delivery date";
+- the queue labels the date "Needed by" and tags the row "Asset only, not posted by IPN"; the calendar does not show it as an IPN post.
+
+**C. Extras.**
+
+1. New status "Delivered: Ready for partner use" (`delivered`), only for asset-only requests. It needs a Media owner and a final Drive/Canva link. Asset-only requests can't be marked Published or given a published link; regular requests can't be marked Delivered.
+2. For asset-only requests, step 3 becomes "Partner captions and usage notes". Copy is optional; partner captions are stored in `caption` and usage notes in `usageNotes`.
+3. "Placeholder, not ready for production" checkbox (`placeholder: true`), shown on the request, in the queue and at the top of the Slack post.
+4. The calendar lists TBD and asset-only requests under "TBD and needed-by requests" below the grid instead of hiding them. Delivered, Published and cancelled requests drop off that list.
+5. Editing a submitted request uses the same rules and controls. As before, edits don't post to Slack; the Slack post refreshes on the next status, owner or planned-date change.
+
+No database migration: the request body is JSON and the new fields are optional, so existing requests are unchanged.
+
+Verification: `tests/leadership-media-tbd-asset.test.mjs` (domain and Slack formatting for A, B and C) and `qa/leadership/media-tbd-asset.spec.ts` (local browser flow at 1440 and 390 px). Screenshots are in [screenshots/tbd-asset](screenshots/tbd-asset/).

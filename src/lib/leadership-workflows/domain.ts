@@ -6,6 +6,7 @@ export const MEDIA_STATUSES = [
   "director_review",
   "ready_to_post",
   "posted",
+  "delivered",
   "needs_information",
   "cancelled"
 ] as const
@@ -29,6 +30,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   director_review: "Draft Complete: Pending Review",
   ready_to_post: "Approved: Ready to Publish",
   posted: "Published",
+  delivered: "Delivered: Ready for partner use",
   pending: "Pending approval",
   approved: "Awaiting purchase",
   rejected: "Rejected",
@@ -56,6 +58,47 @@ export const MEDIA_FORMATS = [
   "Email Campaign",
   "Other"
 ] as const
+export const MEDIA_PLATFORMS = [
+  "Media to advise",
+  "Instagram",
+  "LinkedIn",
+  "Newsletter",
+  "Email",
+  "Website / blog",
+  "Member portal"
+] as const
+// Asset-only requests are made for partners or internal use; IPN does not post them.
+export const ASSET_PLATFORMS = [
+  "N/A",
+  "For partners: Instagram",
+  "For partners: LinkedIn"
+] as const
+export function mediaPlatformChoices(assetOnly?: boolean): readonly string[] {
+  return assetOnly ? ASSET_PLATFORMS : MEDIA_PLATFORMS
+}
+// The first choice ("Media to advise" or "N/A") cannot be combined with others.
+export function toggleMediaPlatform(
+  current: string[],
+  value: string,
+  assetOnly?: boolean
+): string[] {
+  const fallback = mediaPlatformChoices(assetOnly)[0]
+  if (value === fallback) return [value]
+  const next = current.includes(value)
+    ? current.filter((item) => item !== value)
+    : [...current.filter((item) => item !== fallback), value]
+  return next.length ? next : [fallback]
+}
+// "Needed by" for asset-only requests, "Post by" otherwise.
+export function mediaDateLabel(media: Pick<MediaBrief, "assetOnly">) {
+  return media.assetOnly ? "Needed by" : "Post by"
+}
+// Returns "TBD", the YYYY-MM-DD date, or "" when neither is set (older records).
+export function mediaDeadline(
+  media: Pick<MediaBrief, "postedBy" | "postedByTbd">
+) {
+  return media.postedByTbd ? "TBD" : media.postedBy
+}
 export function mediaFormats(media: MediaBrief): string[] {
   return media.formats?.length
     ? media.formats
@@ -78,7 +121,10 @@ export type MediaBrief = {
   type: "event" | "announcement" | "campaign" | "educational"
   team: string
   brief: string
-  postedBy: string
+  postedBy: string // YYYY-MM-DD, or "" when postedByTbd is true.
+  postedByTbd?: boolean
+  assetOnly?: boolean // Asset for partner/internal use; IPN does not post it.
+  placeholder?: boolean // Placeholder, not ready for production.
   urgent: boolean
   platforms: string[]
   format: string
@@ -87,6 +133,7 @@ export type MediaBrief = {
   headline: string
   body?: string // Legacy requests; new copy is stored in caption.
   caption: string
+  usageNotes?: string // Asset-only: how partners may use the asset.
   additionalDetails?: string
   links: AssetLink[]
   destinationUrl?: string
@@ -132,6 +179,7 @@ export type MediaSlackChange = {
   scheduledDate: string
   note: string
   publishedUrl: string
+  assetOnly?: boolean
 }
 export type WorkflowRequest = {
   id: string
@@ -303,8 +351,31 @@ export function parseMedia(value: unknown): MediaBrief {
     false,
     20002
   )
-  if (v.needsCopyHelp !== true && !headline && !caption)
+  const assetOnly = v.assetOnly === true
+  // Asset-only requests may skip copy: partner captions are optional.
+  if (!assetOnly && v.needsCopyHelp !== true && !headline && !caption)
     throw new WorkflowError("Choose copywriting help or provide draft copy.")
+  const postedByTbd = v.postedByTbd === true
+  const dateLabel = assetOnly ? "Needed-by date" : "Posted-by date"
+  if (postedByTbd && text(v.postedBy, dateLabel, false, 10))
+    throw new WorkflowError(`Choose a ${dateLabel.toLowerCase()} or TBD, not both.`)
+  if (!postedByTbd && !text(v.postedBy, dateLabel, false, 10))
+    throw new WorkflowError(`Choose a ${dateLabel.toLowerCase()} or mark it TBD.`)
+  const platforms = strings(
+    v.platforms ?? [mediaPlatformChoices(assetOnly)[0]]
+  )
+  const assetChoices: readonly string[] = ASSET_PLATFORMS
+  if (
+    !platforms.length ||
+    (assetOnly
+      ? platforms.some((p) => !assetChoices.includes(p))
+      : platforms.some((p) => assetChoices.includes(p)))
+  )
+    throw new WorkflowError(
+      assetOnly
+        ? "Choose N/A or a partner platform for an asset-only request."
+        : "Partner and N/A platforms are only for asset-only requests."
+    )
   const formats =
     v.formats === undefined
       ? [text(v.format, "Media format", false, 100) || "Media to advise"]
@@ -337,9 +408,12 @@ export function parseMedia(value: unknown): MediaBrief {
     type: type as MediaBrief["type"],
     team: text(v.team, "Team / project", true, 150),
     brief: text(v.brief, "Idea / brief", true),
-    postedBy: date(v.postedBy, "Posted-by date"),
+    postedBy: postedByTbd ? "" : date(v.postedBy, dateLabel),
+    postedByTbd,
+    assetOnly,
+    placeholder: v.placeholder === true,
     urgent: v.urgent === true,
-    platforms: strings(v.platforms ?? ["Media to advise"]),
+    platforms,
     formats: uniqueFormats,
     format: uniqueFormats.join(", "),
     destinationUrl,
@@ -347,6 +421,7 @@ export function parseMedia(value: unknown): MediaBrief {
     needsCopyHelp: v.needsCopyHelp === true,
     headline,
     caption,
+    usageNotes: text(v.usageNotes, "Usage notes", false, 10000),
     additionalDetails: text(v.additionalDetails, "Additional details", false, 10000),
     links: links
       .map((l) => {
@@ -421,10 +496,16 @@ export function canRead(
   )
 }
 // Show every stage; validate its prerequisites when saving rather than hide it.
-export function mediaNextStatuses(status: Status): Status[] {
+// Asset-only requests end at Delivered; posted requests end at Published.
+export function mediaStages(assetOnly?: boolean): Status[] {
+  return MEDIA_STATUSES.filter((stage) =>
+    assetOnly ? stage !== "posted" : stage !== "delivered"
+  )
+}
+export function mediaNextStatuses(status: Status, assetOnly?: boolean): Status[] {
   return status === "posted"
     ? []
-    : MEDIA_STATUSES.filter((stage) => stage !== status)
+    : mediaStages(assetOnly).filter((stage) => stage !== status)
 }
 export function applyChange(
   current: WorkflowRequest,
@@ -474,7 +555,7 @@ export function applyChange(
       const desiredStatus = text(v.status, "Status", true) as Status
       if (
         desiredStatus !== current.status &&
-        !mediaNextStatuses(current.status).includes(desiredStatus)
+        !mediaNextStatuses(current.status, m.assetOnly).includes(desiredStatus)
       )
         throw new WorkflowError(
           "That status change is not available from the current stage."
@@ -560,6 +641,10 @@ export function applyChange(
             "Add both the published link and actual posting date."
           )
         publicationPosted = Boolean(publishedUrl && postedDate)
+        if (publicationPosted && m.assetOnly)
+          throw new WorkflowError(
+            "IPN does not post asset-only requests. Mark them Delivered instead."
+          )
         const old = m.deliverables[0]
         v.deliverables = [
           {
@@ -683,20 +768,26 @@ export function applyChange(
       }
     } else if (action === "status") {
       const status = text(v.status, "Status", true) as Status
-      if (!mediaNextStatuses(record.status).includes(status))
+      if (!mediaNextStatuses(record.status, m.assetOnly).includes(status))
         throw new WorkflowError(
-          "That status change is not available from the current stage."
+          m.assetOnly && status === "posted"
+            ? "IPN does not post asset-only requests. Mark them Delivered instead."
+            : !m.assetOnly && status === "delivered"
+              ? "Delivered is only for asset-only requests."
+              : "That status change is not available from the current stage."
         )
       if (status === "needs_information" && !note)
         throw new WorkflowError("Explain what information is needed.")
-      if (["assigned", "in_production", "director_review", "ready_to_post"].includes(status) && !m.productionOwnerId)
+      if (["assigned", "in_production", "director_review", "ready_to_post", "delivered"].includes(status) && !m.productionOwnerId)
         throw new WorkflowError("Select a media owner first.")
       if (
-        status === "ready_to_post" &&
+        (status === "ready_to_post" || status === "delivered") &&
         (!m.deliverables.length || m.deliverables.some((d) => !d.assetUrl))
       )
         throw new WorkflowError(
-          "Add a final Drive or Canva link before the request is ready to publish."
+          status === "delivered"
+            ? "Add a final Drive or Canva link before marking the asset delivered."
+            : "Add a final Drive or Canva link before the request is ready to publish."
         )
       if (
         status === "posted" &&

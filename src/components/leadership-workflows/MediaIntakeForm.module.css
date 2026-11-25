@@ -43,6 +43,8 @@
 .field :is(input, select, textarea) { width: 100%; min-width: 0; border: 1px solid #e2d6ee88; border-radius: 8px; padding: 10px 12px; background: #2b1a40; color: #f8f4fc; font-size: 16px; font-weight: 400; }
 .field textarea { resize: vertical; }
 .field input[type="date"] { min-height: 46px; }
+.field input:disabled { opacity: .5; }
+.field .chip { align-self: flex-start; font-weight: 400; }
 .field :is(input, textarea)::placeholder { color: #e2d6eeaa; }
 .columns, .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .card { display: flex; align-items: flex-start; gap: 12px; padding: 15px; border: 1px solid #e2d6ee66; border-radius: 10px; cursor: pointer; }

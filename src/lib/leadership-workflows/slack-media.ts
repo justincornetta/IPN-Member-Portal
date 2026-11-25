@@ -24,13 +24,15 @@ export const MEDIA_STATUS_EMOJI: Partial<Record<Status, string>> = {
   director_review: ":eyes:",
   ready_to_post: ":large_green_circle:",
   posted: ":tada:",
+  delivered: ":package:",
   needs_information: ":raising_hand:",
   cancelled: ":no_entry_sign:"
 }
 const BROADCAST_STATUSES = new Set<Status>([
   "needs_information",
   "cancelled",
-  "posted"
+  "posted",
+  "delivered"
 ])
 export type SlackPersonRef = { name: string; slackId?: string }
 export type MediaJobSpec = { target: string; recipientId?: string }
@@ -77,6 +79,14 @@ export function formatMediaDate(value?: string | null) {
   })
 }
 
+// "Requested post by" / "Needed by" value: TBD, a formatted date, or "Not set".
+export function formatMediaDeadline(media: {
+  postedBy?: string
+  postedByTbd?: boolean
+}) {
+  return media.postedByTbd ? "TBD" : formatMediaDate(media.postedBy)
+}
+
 export function mediaStatusEmoji(status: Status) {
   return MEDIA_STATUS_EMOJI[status] || ""
 }
@@ -112,7 +122,8 @@ export function detectMediaSlackChange(
     previousScheduledDate: mediaScheduledDate(previous),
     scheduledDate: mediaScheduledDate(next),
     note,
-    publishedUrl: mediaPublishedUrl(next)
+    publishedUrl: mediaPublishedUrl(next),
+    ...(next.media?.assetOnly ? { assetOnly: true } : {})
   }
 }
 
@@ -192,6 +203,8 @@ function parentLines(
   const m = r.media!
   const lines: string[] = []
   if (m.urgent) lines.push(":triangular_flag_on_post: URGENT")
+  if (m.placeholder)
+    lines.push(":construction: Placeholder, not ready for production")
   lines.push(
     options.tagDirector
       ? `<@${DIRECTOR_SLACK_ID}>, new media request`
@@ -205,11 +218,13 @@ function parentLines(
     `${MEDIA_TYPE_LABELS[m.type] || displayField(m.type)} · ${escapeSlack(m.team) || "Not set"}`
   )
   lines.push(`From ${escapeSlack(r.requesterName) || "Not set"}`)
+  if (m.assetOnly)
+    lines.push("*Use:* Asset for partner/internal use, not posted by IPN")
   lines.push(
-    `:calendar: *Requested post by:* ${formatMediaDate(m.postedBy)}`
+    `:calendar: *${m.assetOnly ? "Needed by" : "Requested post by"}:* ${formatMediaDeadline(m)}`
   )
   lines.push(
-    `:calendar: *Planned post date:* ${formatMediaDate(mediaScheduledDate(r))}`
+    `:calendar: *${m.assetOnly ? "Planned delivery date" : "Planned post date"}:* ${formatMediaDate(mediaScheduledDate(r))}`
   )
   lines.push(`*Platforms:* ${displayField(m.platforms?.join(", "))}`)
   lines.push(`*Formats:* ${displayField(mediaFormats(m).join(", "))}`)
@@ -280,15 +295,18 @@ export function renderMediaThreadReply(
     )
   }
   if (change.scheduledDateChanged) {
+    const planned = change.assetOnly
+      ? "Planned delivery date"
+      : "Planned post date"
     if (!change.scheduledDate)
-      lines.push(":calendar: Planned post date cleared")
+      lines.push(`:calendar: ${planned} cleared`)
     else if (!change.previousScheduledDate)
       lines.push(
-        `:calendar: Planned post date set to ${formatMediaDate(change.scheduledDate)}`
+        `:calendar: ${planned} set to ${formatMediaDate(change.scheduledDate)}`
       )
     else
       lines.push(
-        `:calendar: Planned post date: ${formatMediaDate(change.previousScheduledDate)} → ${formatMediaDate(change.scheduledDate)}`
+        `:calendar: ${planned}: ${formatMediaDate(change.previousScheduledDate)} → ${formatMediaDate(change.scheduledDate)}`
       )
   }
   if (change.status === "posted" && change.publishedUrl)
