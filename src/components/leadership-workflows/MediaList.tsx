@@ -12,7 +12,7 @@ export const MEDIA_COLUMNS = [
   { key: "submitted", label: "Submitted date" },
   { key: "status", label: "Status" },
   { key: "owner", label: "Media Owner" },
-  { key: "deadline", label: "Publish by date" }
+  { key: "deadline", label: "Post or needed by" }
 ] as const
 export type MediaSortKey = (typeof MEDIA_COLUMNS)[number]["key"]
 export type SortDirection = "asc" | "desc"
@@ -168,6 +168,16 @@ export default function MediaList({
                       Urgent
                     </span>
                   )}
+                  {r.media!.assetOnly && (
+                    <span className="mt-1 block text-xs font-medium text-zinc-500">
+                      Asset only, not posted by IPN
+                    </span>
+                  )}
+                  {r.media!.placeholder && (
+                    <span className="mt-1 block text-xs font-semibold text-amber-700">
+                      Placeholder
+                    </span>
+                  )}
                 </th>
                 <td className="px-4 py-4 text-zinc-600">
                   {mediaListValue(r, "type", people)}
@@ -184,7 +194,7 @@ export default function MediaList({
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${r.status === "posted" ? "bg-emerald-50 text-emerald-800" : r.status === "cancelled" ? "bg-zinc-100 text-zinc-600" : "bg-ipn-light text-ipn"}`}
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${r.status === "posted" || r.status === "delivered" ? "bg-emerald-50 text-emerald-800" : r.status === "cancelled" ? "bg-zinc-100 text-zinc-600" : "bg-ipn-light text-ipn"}`}
                   >
                     {STATUS_LABELS[r.status]}
                   </span>
@@ -193,7 +203,14 @@ export default function MediaList({
                   {mediaListValue(r, "owner", people)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 font-medium">
-                  {r.media!.postedBy ? (
+                  {r.media!.assetOnly && (
+                    <span className="block text-xs font-normal text-zinc-500">
+                      Needed by
+                    </span>
+                  )}
+                  {r.media!.postedByTbd ? (
+                    "TBD"
+                  ) : r.media!.postedBy ? (
                     <time dateTime={r.media!.postedBy}>
                       {deadline(r.media!.postedBy)}
                     </time>
@@ -207,8 +224,9 @@ export default function MediaList({
         </table>
       </div>
       <p className="mt-2 text-xs text-zinc-500">
-        Select a row to open its request. Publish by date is the requested
-        posting deadline. Scroll sideways on smaller screens to see all columns.
+        Select a row to open its request. Post or needed by is the requested
+        posting deadline, or the day an asset-only request should be ready.
+        Scroll sideways on smaller screens to see all columns.
       </p>
     </div>
   )

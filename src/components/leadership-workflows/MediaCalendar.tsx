@@ -19,12 +19,27 @@ export default function MediaCalendar({
   const [year, monthNumber] = month.split("-").map(Number)
   const first = new Date(Date.UTC(year, monthNumber - 1, 1))
   const days = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
-  const entries = records
-    .filter((r) => r.media && r.status !== "cancelled")
+  const active = records.filter((r) => r.media && r.status !== "cancelled")
+  // Asset-only and TBD requests are not IPN posts with a fixed date; list them below the grid.
+  const unscheduled = active
+    .filter(
+      (r) =>
+        (r.media!.assetOnly || r.media!.postedByTbd) &&
+        !["posted", "delivered"].includes(r.status)
+    )
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.media!.postedByTbd)) -
+          Number(Boolean(b.media!.postedByTbd)) ||
+        a.media!.postedBy.localeCompare(b.media!.postedBy) ||
+        a.title.localeCompare(b.title)
+    )
+  const entries = active
+    .filter((r) => !r.media!.assetOnly)
     .flatMap((r) => {
       const media = r.media!
       const deadlines =
-        r.status === "posted"
+        r.status === "posted" || media.postedByTbd
           ? []
           : [
               {
@@ -113,7 +128,8 @@ export default function MediaCalendar({
       </div>
       <p className="mt-3 text-xs text-zinc-500">
         View request deadlines, scheduled posts and actual posting dates. Select
-        an entry to open its request. Cancelled requests are excluded.
+        an entry to open its request. Cancelled requests are excluded. Requests
+        with a TBD date and asset-only requests are listed below the calendar.
       </p>
       <div className="mt-4 hidden grid-cols-7 gap-1 md:grid">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -152,6 +168,43 @@ export default function MediaCalendar({
           No media deadlines or posts this month.
         </p>
       )}
+      <div className="mt-6 border-t border-zinc-200 pt-4">
+        <h3 className="text-sm font-semibold">TBD and needed-by requests</h3>
+        <p className="mt-1 text-xs text-zinc-500">
+          Not on the calendar: no fixed post date yet, or an asset IPN won&apos;t
+          post.
+        </p>
+        {unscheduled.length ? (
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {unscheduled.map((r) => {
+              const date = r.media!.postedByTbd
+                ? "TBD"
+                : r.media!.postedBy
+                  ? new Date(`${r.media!.postedBy}T12:00:00Z`).toLocaleDateString(
+                      "en-US",
+                      { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }
+                    )
+                  : "Not set"
+              return (
+                <li key={r.id}>
+                  <button
+                    onClick={() => open(r.id)}
+                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-2 text-left text-xs hover:border-ipn focus:outline-none focus-visible:ring-2 focus-visible:ring-ipn"
+                  >
+                    <span className="block font-semibold">
+                      {r.media!.assetOnly ? "Needed by" : "Post by"} {date} ·{" "}
+                      {STATUS_LABELS[r.status]}
+                    </span>
+                    <span className="mt-1 block break-words">{r.title}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500">None right now.</p>
+        )}
+      </div>
     </section>
   )
 }

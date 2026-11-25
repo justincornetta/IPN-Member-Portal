@@ -2,7 +2,7 @@
 
 import { cloneElement, useEffect, useId, useRef, useState, type FormEvent, type ReactElement } from "react"
 import {
-  MEDIA_FORMATS, mediaFormats, text, date, url,
+  MEDIA_FORMATS, mediaFormats, mediaDateLabel, mediaPlatformChoices, toggleMediaPlatform, text, date, url,
   type Bootstrap, type MediaBrief
 } from "@/lib/leadership-workflows/domain"
 import styles from "./MediaIntakeForm.module.css"
@@ -21,7 +21,6 @@ const types = [
   ["campaign", "Campaign", "A push across several posts"],
   ["educational", "Educational content", "Teach or explain something"]
 ] as const
-const platforms = ["Media to advise", "Instagram", "LinkedIn", "Newsletter", "Email", "Website / blog", "Member portal"]
 
 function toggleChoice(current: string[], value: string) {
   if (value === "Media to advise") return [value]
@@ -69,6 +68,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
   const prefix = useId()
   const patch = (values: Partial<MediaBrief>) => setMedia((previous) => ({ ...previous, ...values }))
   const supportingLinks = links.split(/\n/).map((value) => value.trim()).filter(Boolean)
+  const dateLabel = mediaDateLabel(media)
+  const assetOnly = Boolean(media.assetOnly)
 
   useEffect(() => {
     const target = error
@@ -96,17 +97,22 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
         field = "eventDetails"; text(media.eventDetails, "Event details")
       }
       if (index === 1) {
-        field = "postedBy"; date(media.postedBy, "Post-by date")
+        field = "postedBy"
+        if (!media.postedByTbd) {
+          if (!media.postedBy) throw new Error(`Choose a ${dateLabel.toLowerCase()} date or mark it TBD.`)
+          date(media.postedBy, `${dateLabel} date`)
+        }
       }
       if (index === 2) {
         field = "copyChoice"
-        if (!copyChoice) throw new Error("Choose who will write the copy.")
+        if (!copyChoice && !media.assetOnly) throw new Error("Choose who will write the copy.")
         field = "headline"
         text(media.headline, "Headline", false, 1000)
-        if (copyChoice === "self" && !media.headline.trim() && !media.caption.trim()) {
+        if (!media.assetOnly && copyChoice === "self" && !media.headline.trim() && !media.caption.trim()) {
           throw new Error("Add a headline or post caption, or choose copywriting help.")
         }
-        field = "caption"; text(media.caption, "Post caption", false, 20002)
+        field = "caption"; text(media.caption, media.assetOnly ? "Partner captions" : "Post caption", false, 20002)
+        field = "usageNotes"; text(media.usageNotes, "Usage notes", false, 10000)
         field = "links"
         if (supportingLinks.length > 20) throw new Error("Use at most 20 supporting links.")
         supportingLinks.forEach((link) => url(link, "Supporting material", true))
@@ -161,11 +167,15 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
     { label: "Team", value: media.team, step: 0 },
     { label: "Brief", value: media.brief, step: 0 },
     ...(media.eventDetails ? [{ label: "Event details", value: media.eventDetails, step: 0 }] : []),
-    { label: "Post by", value: media.postedBy ? new Date(`${media.postedBy}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "", step: 1 },
+    ...(assetOnly ? [{ label: "Use", value: "Asset for partner/internal use, not posted by IPN", step: 1 }] : []),
+    { label: dateLabel, value: media.postedByTbd ? "TBD" : media.postedBy ? new Date(`${media.postedBy}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "", step: 1 },
     { label: "Where", value: media.platforms.join(", "), step: 1 },
     { label: "Format", value: mediaFormats(media).join(", "), step: 1 },
     ...(media.urgent ? [{ label: "Priority", value: "Urgent — alert Agnes", step: 1 }] : []),
-    { label: "Copy", value: [copyChoice === "help" ? "Media team to draft" : "I'll provide the copy", media.headline, media.caption].filter(Boolean).join("\n\n"), step: 2 },
+    ...(media.placeholder ? [{ label: "Placeholder", value: "Not ready for production", step: 1 }] : []),
+    assetOnly
+      ? { label: "Captions", value: [copyChoice === "help" ? "Media team to draft" : copyChoice === "self" ? "I'll provide them" : "", media.caption, media.usageNotes ? `Usage notes: ${media.usageNotes}` : ""].filter(Boolean).join("\n\n") || "None", step: 2 }
+      : { label: "Copy", value: [copyChoice === "help" ? "Media team to draft" : "I'll provide the copy", media.headline, media.caption].filter(Boolean).join("\n\n"), step: 2 },
     { label: "Files", value: supportingLinks.join("\n") || "None", step: 2 },
     ...(media.destinationUrl ? [{ label: "Link for readers", value: `${media.destinationUrl}\n${media.linkPlacement}`, step: 2 }] : [])
   ]
@@ -186,8 +196,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
       </ol>
     </nav>
     <section aria-labelledby={`${prefix}-heading`}>
-      <h3 ref={heading} tabIndex={-1} id={`${prefix}-heading`}>{headings[step]}</h3>
-      <p className={styles.intro}>{introductions[step]}</p>
+      <h3 ref={heading} tabIndex={-1} id={`${prefix}-heading`}>{step === 2 && assetOnly ? "Partner captions and usage notes" : headings[step]}</h3>
+      <p className={styles.intro}>{step === 2 && assetOnly ? "Optional. Add captions partners can post and how they may use the asset." : introductions[step]}</p>
       {error && <p id={`${prefix}-error`} className={styles.error} role="alert">{error.message}</p>}
       <fieldset disabled={busy} className={styles.fields}>
         <legend className="sr-only">{steps[step]}</legend>
@@ -206,7 +216,7 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
           {media.type === "event" && <Field label="Existing event">
             <select value={media.eventId} onChange={(event) => {
               const selected = data.events.find((item) => item.id === event.target.value)
-              patch({ eventId: selected?.id || "", eventDetails: selected?.details || "", brief: selected?.details || "", postedBy: selected?.postedBy || "" })
+              patch({ eventId: selected?.id || "", eventDetails: selected?.details || "", brief: selected?.details || "", postedBy: selected?.postedBy || "", postedByTbd: false })
               setTitle(selected?.title || "")
             }}>
               <option value="">Write an event brief from scratch</option>
@@ -223,12 +233,24 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
           <Field label="What's it about?"><textarea {...fieldProps("brief")} rows={4} required maxLength={8000} value={media.brief} onChange={(e) => patch({ brief: e.target.value })} /></Field>
         </>}
         {step === 1 && <>
-          <Field label="Post by" hint="The last day it can go live — not the event date.">
-            <input {...fieldProps("postedBy")} type="date" required value={media.postedBy} onChange={(e) => patch({ postedBy: e.target.value })} />
-          </Field>
-          <fieldset><legend>Where should it go?</legend><div className={styles.chips}>
-            {platforms.map((platform) => <label key={platform} className={styles.chip}>
-              <input type="checkbox" checked={media.platforms.includes(platform)} onChange={() => patch({ platforms: toggleChoice(media.platforms, platform) })} />{platform}
+          <label className={styles.card}>
+            <input type="checkbox" checked={assetOnly} onChange={(e) => patch({ assetOnly: e.target.checked, platforms: [mediaPlatformChoices(e.target.checked)[0]] })} />
+            <span><strong>Asset for partner/internal use, not posted</strong><span className={styles.hint}>For example, a media kit partners will post. IPN won&apos;t publish it.</span></span>
+          </label>
+          <div className={styles.field}>
+            <Field label={dateLabel} hint={assetOnly ? "The day the asset should be ready, not a posting date." : "The last day it can go live — not the event date."}>
+              <input {...fieldProps("postedBy")} type="date" required={!media.postedByTbd} disabled={media.postedByTbd} value={media.postedBy} onChange={(e) => patch({ postedBy: e.target.value })} />
+            </Field>
+            <label className={styles.chip}>
+              <input type="checkbox" checked={Boolean(media.postedByTbd)} onChange={(e) => {
+                patch({ postedByTbd: e.target.checked, postedBy: "" })
+                if (e.target.checked && error?.field === "postedBy") setError(null)
+              }} />Date is TBD
+            </label>
+          </div>
+          <fieldset><legend>{assetOnly ? "Where will it be used?" : "Where should it go?"}</legend><div className={styles.chips}>
+            {mediaPlatformChoices(assetOnly).map((platform) => <label key={platform} className={styles.chip}>
+              <input type="checkbox" checked={media.platforms.includes(platform)} onChange={() => patch({ platforms: toggleMediaPlatform(media.platforms, platform, assetOnly) })} />{platform}
             </label>)}
           </div></fieldset>
           <fieldset><legend>What format?</legend><div className={styles.chips}>
@@ -244,18 +266,28 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
             <input type="checkbox" checked={media.urgent} onChange={(e) => patch({ urgent: e.target.checked })} />
             <span><strong>This is urgent</strong><span className={styles.hint}>Alerts Agnes when you send. She&apos;ll still review the brief.</span></span>
           </label>
+          <label className={styles.card}>
+            <input type="checkbox" checked={Boolean(media.placeholder)} onChange={(e) => patch({ placeholder: e.target.checked })} />
+            <span><strong>Placeholder, not ready for production</strong><span className={styles.hint}>Holds a spot. The Media team won&apos;t start until you confirm the details.</span></span>
+          </label>
         </>}
         {step === 2 && <>
           <fieldset {...fieldProps("copyChoice")} tabIndex={-1}>
-            <legend>Who&apos;s writing the copy?</legend>
+            <legend>{assetOnly ? "Who's writing partner captions? (optional)" : "Who's writing the copy?"}</legend>
             <div className={styles.cards}>
-              {[["self", "I'll write it", "I have a headline or caption ready"], ["help", "Help me write it", "The Media team drafts from my brief"]].map(([value, label, hint]) => <label key={value} className={styles.card}>
+              {(assetOnly
+                ? [["self", "I'll write them", "I have captions ready"], ["help", "Help me write them", "The Media team drafts from my brief"]]
+                : [["self", "I'll write it", "I have a headline or caption ready"], ["help", "Help me write it", "The Media team drafts from my brief"]]
+              ).map(([value, label, hint]) => <label key={value} className={styles.card}>
                 <input type="radio" name={`${prefix}-copy`} checked={copyChoice === value} onChange={() => { setCopyChoice(value); patch({ needsCopyHelp: value === "help" }) }} />
                 <span><strong>{label}</strong><span className={styles.hint}>{hint}</span></span>
               </label>)}
             </div>
           </fieldset>
-          {(copyChoice === "self" || media.headline || media.caption) && <>
+          {assetOnly ? <>
+            <Field label="Partner captions (optional)" hint="Text partners can post with the asset."><textarea {...fieldProps("caption")} rows={5} maxLength={20002} value={media.caption} onChange={(e) => patch({ caption: e.target.value })} /></Field>
+            <Field label="Usage notes (optional)" hint="Who may use it, where, and any rules, such as tagging IPN."><textarea {...fieldProps("usageNotes")} rows={3} maxLength={10000} value={media.usageNotes || ""} onChange={(e) => patch({ usageNotes: e.target.value })} /></Field>
+          </> : (copyChoice === "self" || media.headline || media.caption) && <>
             <Field label="Headline"><input {...fieldProps("headline")} maxLength={1000} value={media.headline} onChange={(e) => patch({ headline: e.target.value })} /></Field>
             <Field label="Post caption"><textarea {...fieldProps("caption")} rows={5} maxLength={20002} value={media.caption} onChange={(e) => patch({ caption: e.target.value })} /></Field>
           </>}

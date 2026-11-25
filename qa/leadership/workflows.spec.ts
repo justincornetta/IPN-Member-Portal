@@ -728,7 +728,7 @@ test("media list default deadline ordering, column sorting, search and row openi
   await expect(table.getByRole("columnheader")).toHaveCount(7)
   await expect(page.getByLabel("Sort media by")).toHaveValue("deadline")
   await expect(
-    table.getByRole("columnheader", { name: /Publish by date/ })
+    table.getByRole("columnheader", { name: /Post or needed by/ })
   ).toHaveAttribute("aria-sort", "ascending")
   await expect(titles).toHaveText([
     "Zeta Campaign",
@@ -742,7 +742,7 @@ test("media list default deadline ordering, column sorting, search and row openi
     "Urgent"
   )
   await table
-    .getByRole("button", { name: "Sort by Publish by date", exact: true })
+    .getByRole("button", { name: "Sort by Post or needed by", exact: true })
     .click()
   await expect(titles).toHaveText([
     "Alpha Seminar",
@@ -750,7 +750,7 @@ test("media list default deadline ordering, column sorting, search and row openi
     "Zeta Campaign"
   ])
   await expect(
-    table.getByRole("columnheader", { name: /Publish by date/ })
+    table.getByRole("columnheader", { name: /Post or needed by/ })
   ).toHaveAttribute("aria-sort", "descending")
   await page.getByLabel("Sort media by").selectOption("title")
   await expect(titles).toHaveText([

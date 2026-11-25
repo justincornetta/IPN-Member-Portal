@@ -12,8 +12,13 @@ import {
 } from "react"
 import {
   MEDIA_FORMATS,
+  mediaDateLabel,
+  mediaDeadline,
   mediaFormats,
+  mediaPlatformChoices,
   mediaPostCaption,
+  mediaStages,
+  toggleMediaPlatform,
   EXPENSE_STATUSES,
   MEDIA_STATUSES,
   STATUS_LABELS,
@@ -106,7 +111,7 @@ function Field({
 function Badge({ record }: { record: WorkflowRequest }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${["posted", "purchased", "reimbursed"].includes(record.status) ? "bg-emerald-50 text-emerald-800" : record.status === "rejected" || record.status === "cancelled" ? "bg-zinc-100 text-zinc-600" : "bg-ipn-light text-ipn"}`}
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${["posted", "delivered", "purchased", "reimbursed"].includes(record.status) ? "bg-emerald-50 text-emerald-800" : record.status === "rejected" || record.status === "cancelled" ? "bg-zinc-100 text-zinc-600" : "bg-ipn-light text-ipn"}`}
     >
       {STATUS_LABELS[record.status]}
     </span>
@@ -945,7 +950,8 @@ function RequestForm({
                           eventId: ev?.id || "",
                           eventDetails: ev?.details || "",
                           brief: ev?.details || "",
-                          postedBy: ev?.postedBy || ""
+                          postedBy: ev?.postedBy || "",
+                          postedByTbd: false
                         })
                         setTitle(ev?.title || "")
                       }}
@@ -991,18 +997,57 @@ function RequestForm({
                 />
               </Field>
             </div>
-            <Field
-              label="When does this need to be posted by?"
-              hint="The latest date this content should be published, rather than the event date. This appears as a deadline in the calendar."
-            >
+            <label className="flex min-h-11 items-start gap-2 py-1 text-sm sm:col-span-2">
               <input
-                type="date"
-                className={input}
-                value={media.postedBy}
-                onChange={(e) => m({ postedBy: e.target.value })}
-                required
+                type="checkbox"
+                className="mt-0.5"
+                checked={Boolean(media.assetOnly)}
+                onChange={(e) =>
+                  m({
+                    assetOnly: e.target.checked,
+                    platforms: [mediaPlatformChoices(e.target.checked)[0]]
+                  })
+                }
               />
-            </Field>
+              <span>
+                <span className="font-medium">
+                  Asset for partner/internal use, not posted
+                </span>
+                <span className="block text-xs text-zinc-500">
+                  For example, a media kit partners will post. IPN won&apos;t
+                  publish it.
+                </span>
+              </span>
+            </label>
+            <div>
+              <Field
+                label={mediaDateLabel(media)}
+                hint={
+                  media.assetOnly
+                    ? "The day the asset should be ready, not a posting date."
+                    : "The latest date this content should be published, rather than the event date. This appears as a deadline in the calendar."
+                }
+              >
+                <input
+                  type="date"
+                  className={`${input} disabled:bg-zinc-50 disabled:text-zinc-400`}
+                  value={media.postedBy}
+                  onChange={(e) => m({ postedBy: e.target.value })}
+                  disabled={media.postedByTbd}
+                  required={!media.postedByTbd}
+                />
+              </Field>
+              <label className="mt-1 flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(media.postedByTbd)}
+                  onChange={(e) =>
+                    m({ postedByTbd: e.target.checked, postedBy: "" })
+                  }
+                />
+                Date is TBD
+              </label>
+            </div>
             <div>
               <p className="mb-1.5 text-sm font-medium text-zinc-700">
                 Media format
@@ -1058,40 +1103,24 @@ function RequestForm({
             </div>
             <div className="sm:col-span-2">
               <p className="mb-2 text-sm font-medium text-zinc-700">
-                Requested platforms
+                {media.assetOnly ? "Where will it be used?" : "Requested platforms"}
               </p>
               <div className="flex flex-wrap gap-4">
-                {[
-                  "Media to advise",
-                  "Instagram",
-                  "LinkedIn",
-                  "Newsletter",
-                  "Email",
-                  "Website / blog",
-                  "Member portal"
-                ].map((platform) => (
+                {mediaPlatformChoices(media.assetOnly).map((platform) => (
                   <label
                     key={platform}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex min-h-11 items-center gap-2 text-sm"
                   >
                     <input
                       type="checkbox"
                       checked={media.platforms.includes(platform)}
-                      onChange={(e) =>
+                      onChange={() =>
                         m({
-                          platforms: e.target.checked
-                            ? platform === "Media to advise"
-                              ? [platform]
-                              : [
-                                  ...media.platforms.filter(
-                                    (p) => p !== "Media to advise"
-                                  ),
-                                  platform
-                                ]
-                            : media.platforms.filter((p) => p !== platform)
-                                  .length
-                              ? media.platforms.filter((p) => p !== platform)
-                              : ["Media to advise"]
+                          platforms: toggleMediaPlatform(
+                            media.platforms,
+                            platform,
+                            media.assetOnly
+                          )
                         })
                       }
                     />
@@ -1100,9 +1129,9 @@ function RequestForm({
                 ))}
               </div>
               <p className="mt-2 text-xs text-zinc-500">
-                Where should this content appear? Select all that apply. Email
-                covers direct email campaigns; Newsletter is the regular IPN
-                newsletter.
+                {media.assetOnly
+                  ? "Choose N/A, or where partners will post it. IPN won't publish it."
+                  : "Where should this content appear? Select all that apply. Email covers direct email campaigns; Newsletter is the regular IPN newsletter."}
               </p>
             </div>
             <label className="flex items-center gap-2 text-sm">
@@ -1117,6 +1146,23 @@ function RequestForm({
               Use Urgent for time-sensitive requests. Agnes still needs to
               review and accept the brief.
             </p>
+            <label className="flex min-h-11 items-start gap-2 py-1 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={Boolean(media.placeholder)}
+                onChange={(e) => m({ placeholder: e.target.checked })}
+              />
+              <span>
+                <span className="font-medium">
+                  Placeholder, not ready for production
+                </span>
+                <span className="block text-xs text-zinc-500">
+                  Holds a spot. The Media team won&apos;t start until you
+                  confirm the details.
+                </span>
+              </span>
+            </label>
             <section
               aria-label="Link to include"
               className="rounded-xl border border-ipn/20 bg-ipn-light/40 p-4 sm:col-span-2"
@@ -1159,24 +1205,32 @@ function RequestForm({
             <div className="sm:col-span-2">
               <details className="rounded-xl border border-zinc-200 p-4" open>
                 <summary className="cursor-pointer text-sm font-medium">
-                  Draft copy and supporting materials
+                  {media.assetOnly
+                    ? "Partner captions, usage notes and supporting materials"
+                    : "Draft copy and supporting materials"}
                 </summary>
                 <div className="mt-4 flex flex-col gap-4">
                   <Field
-                    label="Draft copy"
-                    hint="Choose copywriting help, or supply a headline or post caption yourself."
+                    label={media.assetOnly ? "Partner captions (optional)" : "Draft copy"}
+                    hint={
+                      media.assetOnly
+                        ? "Optional. Choose copywriting help, or add captions partners can post."
+                        : "Choose copywriting help, or supply a headline or post caption yourself."
+                    }
                   >
                     <select
                       className={input}
                       value={copyChoice}
-                      required
+                      required={!media.assetOnly}
                       onChange={(e) => {
                         setCopyChoice(e.target.value)
                         m({ needsCopyHelp: e.target.value === "help" })
                       }}
                     >
                       <option value="">
-                        Choose how the copy will be written
+                        {media.assetOnly
+                          ? "No partner captions needed"
+                          : "Choose how the copy will be written"}
                       </option>
                       <option value="help">Need copywriting help</option>
                       <option value="self">I will provide the copy</option>
@@ -1188,7 +1242,33 @@ function RequestForm({
                       any suggested wording or reference material below.
                     </p>
                   )}
-                  {copyChoice && (
+                  {media.assetOnly ? (
+                    <>
+                      <Field
+                        label="Partner captions"
+                        hint="Text partners can post with the asset."
+                      >
+                        <textarea
+                          className={input}
+                          rows={5}
+                          value={media.caption}
+                          onChange={(e) => m({ caption: e.target.value })}
+                        />
+                      </Field>
+                      <Field
+                        label="Usage notes (optional)"
+                        hint="Who may use it, where, and any rules, such as tagging IPN."
+                      >
+                        <textarea
+                          className={input}
+                          rows={3}
+                          maxLength={10000}
+                          value={media.usageNotes || ""}
+                          onChange={(e) => m({ usageNotes: e.target.value })}
+                        />
+                      </Field>
+                    </>
+                  ) : copyChoice && (
                     <>
                       <Field
                         label="Headline"
@@ -1288,7 +1368,10 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
   const overview = [
     ["Submitter", r.requesterName],
     ["Submitted date", r.submittedAt.slice(0, 10)],
-    ["Publish by date", media.postedBy],
+    [media.assetOnly ? "Needed by" : "Publish by date", mediaDeadline(media) || "Not set"],
+    ...(media.assetOnly
+      ? [["Use", "Asset for partner/internal use, not posted by IPN"]]
+      : []),
     ["Request type", requestType],
     ["Team / project", media.team],
     ["Requested platforms", media.platforms.join(", ")],
@@ -1308,6 +1391,14 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
             <div>
               <dt className="font-semibold text-zinc-600">Priority</dt>
               <dd className="mt-1 font-semibold text-amber-700">Urgent</dd>
+            </div>
+          )}
+          {media.placeholder && (
+            <div>
+              <dt className="font-semibold text-zinc-600">Production</dt>
+              <dd className="mt-1 font-semibold text-amber-700">
+                Placeholder, not ready for production
+              </dd>
             </div>
           )}
         </dl>
@@ -1334,8 +1425,8 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
           </div>
         )}
       </MediaSection>
-      {(media.needsCopyHelp || media.headline || caption) && (
-        <MediaSection title="Draft copy">
+      {(media.needsCopyHelp || media.headline || caption || media.usageNotes) && (
+        <MediaSection title={media.assetOnly ? "Partner captions and usage notes" : "Draft copy"}>
           {media.needsCopyHelp && (
             <p className="rounded-lg bg-ipn-light/50 px-3 py-2 text-sm text-ipn-dark">
               Copywriting requested from the Media team.
@@ -1343,7 +1434,8 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
           )}
           {[
             ["Headline", media.headline],
-            ["Post caption", caption]
+            [media.assetOnly ? "Partner captions" : "Post caption", caption],
+            ["Usage notes", media.usageNotes || ""]
           ].map(([label, value]) => value ? (
               <div key={label}>
                 <h4 className="text-sm font-semibold text-zinc-700">{label}</h4>
@@ -1590,6 +1682,7 @@ function Production({
     postedDate: publication?.postedDate || ""
   })
   const locked = r.status === "posted"
+  const assetOnly = Boolean(r.media!.assetOnly)
   const legacyMultiple = r.media!.deliverables.length > 1
   const update = (patch: Partial<typeof details>) =>
     setDetails({ ...details, ...patch })
@@ -1635,9 +1728,9 @@ function Production({
               </dl>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Move request to" hint="Choose the stage that reflects the work. Approved: Ready to Publish confirms final review of the asset.">
+              <Field label="Move request to" hint={assetOnly ? "Choose the stage that reflects the work. Delivered means the asset is ready for partners; IPN does not post it." : "Choose the stage that reflects the work. Approved: Ready to Publish confirms final review of the asset."}>
                 <select className={input} value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-                  {MEDIA_STATUSES.map((stage) => (
+                  {mediaStages(assetOnly).map((stage) => (
                     <option key={stage} value={stage}>{STATUS_LABELS[stage]}</option>
                   ))}
                 </select>
@@ -1667,18 +1760,18 @@ function Production({
                   <Field label="Final asset link (Drive / Canva)" hint="Link to the finished content or a folder containing its assets. Required before Approved: Ready to Publish.">
                     <input type="url" className={input} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
                   </Field>
-                  <Field label="Scheduled posting date" hint="The planned posting date, shown in the media calendar. Leave blank until scheduled.">
+                  <Field label={assetOnly ? "Planned delivery date" : "Scheduled posting date"} hint={assetOnly ? "When the Media team plans to have the asset ready." : "The planned posting date, shown in the media calendar. Leave blank until scheduled."}>
                     <input type="date" className={input} value={details.scheduledDate} onChange={(e) => update({ scheduledDate: e.target.value })} />
                   </Field>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                {!assetOnly && <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Published link" hint="Add the live post, video or sent campaign link after publication.">
                     <input type="url" className={input} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
                   </Field>
                   <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Published.">
                     <input type="date" className={input} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
                   </Field>
-                </div>
+                </div>}
               </>
             )}
           </MediaSection>
