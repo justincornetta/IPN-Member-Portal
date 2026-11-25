@@ -1,6 +1,9 @@
 import {
+  EVENT_FIELD_LABELS,
   STATUS_LABELS,
   mediaFormats,
+  mediaPostCaption,
+  type MediaEdit,
   type MediaSlackChange,
   type Status,
   type WorkflowRequest
@@ -103,13 +106,77 @@ export function mentionOrName(person?: SlackPersonRef | null, empty = "Not set")
   return escapeSlack(person.name)
 }
 
+const list = (values?: string[]) => (values || []).filter(Boolean).join(", ")
+const linkList = (r: WorkflowRequest) =>
+  (r.media?.links || []).map((l) => l.url).join("\n")
+
+// Compare the fields a requester can edit and describe each change.
+export function detectMediaEdits(
+  previous: WorkflowRequest,
+  next: WorkflowRequest
+): MediaEdit[] {
+  const a = previous.media
+  const b = next.media
+  if (!a || !b) return []
+  const edits: MediaEdit[] = []
+  const short = (label: string, from: string, to: string) => {
+    if (from.trim() !== to.trim())
+      edits.push({ label, from: from.trim(), to: to.trim() })
+  }
+  const long = (label: string, from: string, to: string) => {
+    if (from.trim() !== to.trim()) edits.push({ label, text: to.trim() })
+  }
+  const isEvent = b.type === "event"
+  short("Idea name", previous.title, next.title)
+  short("Request type", MEDIA_TYPE_LABELS[a.type] || a.type, MEDIA_TYPE_LABELS[b.type] || b.type)
+  short("Team / project", a.team, b.team)
+  short(
+    b.assetOnly ? "Needed by" : "Requested post by",
+    formatMediaDeadline(a),
+    formatMediaDeadline(b)
+  )
+  short(
+    "Use",
+    a.assetOnly ? "Asset for partner/internal use" : "Posted by IPN",
+    b.assetOnly ? "Asset for partner/internal use" : "Posted by IPN"
+  )
+  short("Priority", a.urgent ? "Urgent" : "Standard", b.urgent ? "Urgent" : "Standard")
+  short(
+    "Placeholder",
+    a.placeholder ? "Yes, not ready for production" : "No",
+    b.placeholder ? "Yes, not ready for production" : "No"
+  )
+  short("Platforms", list(a.platforms), list(b.platforms))
+  short("Formats", list(mediaFormats(a)), list(mediaFormats(b)))
+  for (const [key, label] of EVENT_FIELD_LABELS)
+    short(label, a.eventFields?.[key] || "", b.eventFields?.[key] || "")
+  if (!b.eventFields) long("Event details", a.eventDetails || "", b.eventDetails || "")
+  long(isEvent ? "Event description" : "Brief", a.brief, b.brief)
+  short(
+    "Copywriting",
+    a.needsCopyHelp ? "Media team drafts" : "Requester writes",
+    b.needsCopyHelp ? "Media team drafts" : "Requester writes"
+  )
+  long(b.assetOnly ? "Partner captions" : "Caption", mediaPostCaption(a), mediaPostCaption(b))
+  long("Usage notes", a.usageNotes || "", b.usageNotes || "")
+  short("Link to include", a.destinationUrl || "", b.destinationUrl || "")
+  short("Where to include it", a.linkPlacement || "", b.linkPlacement || "")
+  long("Files", linkList(previous), linkList(next))
+  long("Additional details", a.additionalDetails || "", b.additionalDetails || "")
+  return edits
+}
+
 export function detectMediaSlackChange(
   previous: WorkflowRequest | undefined,
   next: WorkflowRequest,
   event: string,
-  note = ""
+  note = "",
+  actorName = ""
 ): MediaSlackChange {
+  const edits =
+    event === "edit" && previous ? detectMediaEdits(previous, next) : []
   return {
+    ...(edits.length ? { edits, editedBy: actorName } : {}),
     event,
     statusChanged: !!previous && previous.status !== next.status,
     previousStatus: previous?.status,
@@ -131,14 +198,9 @@ export function shouldNotifyMediaSlack(
   event: string,
   change?: MediaSlackChange | null
 ) {
-  if (event === "comment" || event === "edit") return false
+  if (event === "comment") return false
   if (event === "submitted") return true
-  return !!(
-    change &&
-    (change.statusChanged ||
-      change.ownerChanged ||
-      change.scheduledDateChanged)
-  )
+  return shouldUpdateMediaParent(change)
 }
 
 export function shouldBroadcastMediaReply(change?: MediaSlackChange | null) {
@@ -150,7 +212,8 @@ export function shouldUpdateMediaParent(change?: MediaSlackChange | null) {
     change &&
     (change.statusChanged ||
       change.ownerChanged ||
-      change.scheduledDateChanged)
+      change.scheduledDateChanged ||
+      change.edits?.length)
   )
 }
 
@@ -161,7 +224,7 @@ export function mediaJobsFor(
   note = ""
 ): MediaJobSpec[] {
   if (r.kind !== "media" || r.deletedAt) return []
-  if (event === "comment" || event === "edit") return []
+  if (event === "comment") return []
   const change =
     event === "submitted"
       ? null
@@ -182,7 +245,8 @@ export function withMediaSlackChange(
   r: WorkflowRequest,
   event: string,
   previous?: WorkflowRequest,
-  note = ""
+  note = "",
+  actorName = ""
 ): WorkflowRequest {
   if (r.kind !== "media") return r
   const next = { ...r }
@@ -190,7 +254,7 @@ export function withMediaSlackChange(
     delete next.slackChange
     return next
   }
-  const slackChange = detectMediaSlackChange(previous, r, event, note)
+  const slackChange = detectMediaSlackChange(previous, r, event, note, actorName)
   if (shouldNotifyMediaSlack(event, slackChange)) next.slackChange = slackChange
   else delete next.slackChange
   return next
@@ -234,8 +298,23 @@ function parentLines(
     }`
   )
   lines.push(`*Where:* ${displayField(m.linkPlacement)}`)
+  // Slack section text is capped at 3,000 characters, so event fields share
+  // the brief's 1,800-character budget.
+  let briefBudget = 1800
+  if (m.eventFields) {
+    lines.push("")
+    for (const [key, label] of EVENT_FIELD_LABELS) {
+      const value = m.eventFields[key]
+      if (!value) continue
+      const line = `*${label}:* ${escapeSlack(
+        value.length > 200 ? `${value.slice(0, 199)}…` : value
+      )}`
+      lines.push(line)
+      briefBudget -= line.length + 1
+    }
+  }
   lines.push("")
-  lines.push(displayField(m.brief?.slice(0, 1800)))
+  lines.push(displayField(m.brief?.slice(0, Math.max(500, briefBudget))))
   return lines
 }
 
@@ -279,7 +358,47 @@ export function renderMediaThreadReply(
   change: MediaSlackChange,
   options: { submitter?: SlackPersonRef; owner?: SlackPersonRef } = {}
 ) {
-  const lines = [mentionOrName(options.submitter, "Submitter")]
+  const mentions = [mentionOrName(options.submitter, "Submitter")]
+  // Edits matter most to whoever is producing the content.
+  if (
+    change.edits?.length &&
+    !change.ownerChanged &&
+    options.owner &&
+    (options.owner.slackId || options.owner.name) &&
+    mentionOrName(options.owner) !== mentions[0]
+  )
+    mentions.push(mentionOrName(options.owner))
+  const lines = [mentions.join(" ")]
+  if (change.edits?.length) {
+    lines.push(
+      `:pencil2: *Request edited${change.editedBy ? ` by ${escapeSlack(change.editedBy)}` : ""}*`
+    )
+    let budget = 2400
+    for (const edit of change.edits) {
+      const label = `*${escapeSlack(edit.label)}*`
+      if (edit.text !== undefined) {
+        if (!edit.text) {
+          lines.push(`• ${label}: _removed_`)
+          continue
+        }
+        const limit = Math.max(200, Math.min(1500, budget))
+        const body =
+          edit.text.length > limit ? `${edit.text.slice(0, limit - 1)}…` : edit.text
+        budget -= body.length
+        lines.push(`• ${label} updated:`)
+        lines.push(
+          escapeSlack(body)
+            .split("\n")
+            .map((line) => `>${line ? ` ${line}` : ""}`)
+            .join("\n")
+        )
+      } else {
+        const from = edit.from ? `~${escapeSlack(edit.from)}~ → ` : ""
+        const to = edit.to ? escapeSlack(edit.to) : "_removed_"
+        lines.push(`• ${label}: ${from}${to}`)
+      }
+    }
+  }
   if (change.ownerChanged && change.ownerId)
     lines.push(
       `:hammer_and_wrench: Assigned to ${mentionOrName(options.owner, "Unassigned")}`

@@ -18,15 +18,21 @@ import {
   mediaPlatformChoices,
   mediaPostCaption,
   mediaStages,
+  missingPublicationFields,
+  emptyEventFields,
+  hasEventFields,
   toggleMediaPlatform,
+  EVENT_FIELD_LABELS,
   EXPENSE_STATUSES,
   MEDIA_STATUSES,
   STATUS_LABELS,
   usd,
   unpaidCents,
   type Bootstrap,
+  type EventFields,
   type Kind,
   type MediaBrief,
+  type PublicationField,
   type Person,
   type WorkflowRequest
 } from "@/lib/leadership-workflows/domain"
@@ -66,6 +72,39 @@ const emptyMedia: MediaBrief = {
   deliverables: [],
   productionOwnerId: "",
   publisherId: ""
+}
+const eventFieldHints: Record<keyof EventFields, string> = {
+  name: "The event's public title.",
+  kind: "For example: IPN Labs, Webinar, Workshop or Meetup.",
+  time: "Date, start and end time, and time zone.",
+  leader: "Who is leading it, speaking or hosting.",
+  howTo: "Where it happens, or how people join online."
+}
+function EventFieldInputs({
+  fields,
+  onChange
+}: {
+  fields: EventFields
+  onChange: (patch: Partial<EventFields>) => void
+}) {
+  return (
+    <>
+      {EVENT_FIELD_LABELS.map(([key, label]) => (
+        <div
+          key={key}
+          className={key === "kind" || key === "time" ? undefined : "sm:col-span-2"}
+        >
+          <Field label={label} hint={eventFieldHints[key]}>
+            <input
+              className={input}
+              value={fields[key]}
+              onChange={(e) => onChange({ [key]: e.target.value })}
+            />
+          </Field>
+        </div>
+      ))}
+    </>
+  )
 }
 function Field({
   label,
@@ -765,7 +804,12 @@ function RequestForm({
     [title, setTitle] = useState(record?.title || ""),
     [media, setMedia] = useState<MediaBrief>(
       record?.media
-        ? { ...record.media, body: undefined, caption: mediaPostCaption(record.media) }
+        ? {
+            ...record.media,
+            headline: "",
+            body: undefined,
+            caption: mediaPostCaption(record.media)
+          }
         : { ...emptyMedia, team: data.user.team || "" }
     ),
     [links, setLinks] = useState(
@@ -780,13 +824,17 @@ function RequestForm({
       record?.media
         ? record.media.needsCopyHelp
           ? "help"
-          : record.media.headline || mediaPostCaption(record.media)
+          : mediaPostCaption(record.media)
             ? "self"
             : ""
         : ""
     )
   const m = (patch: Partial<MediaBrief>) =>
     setMedia((previous) => ({ ...previous, ...patch }))
+  const eventFields = media.eventFields ?? emptyEventFields()
+  // Older requests kept event details as one block of text.
+  const legacyEventDetails =
+    !media.eventFields && Boolean(media.eventDetails.trim())
   async function submit(e: FormEvent) {
     e.preventDefault()
     try {
@@ -799,6 +847,10 @@ function RequestForm({
           ? {
               media: {
                 ...media,
+                eventFields:
+                  media.type === "event" && !legacyEventDetails
+                    ? eventFields
+                    : undefined,
                 links: links
                   .split(/\n/)
                   .map((url) => ({
@@ -911,7 +963,8 @@ function RequestForm({
                   m({
                     type: e.target.value as MediaBrief["type"],
                     eventId: "",
-                    eventDetails: ""
+                    eventDetails: "",
+                    eventFields: undefined
                   })
                 }
               >
@@ -937,7 +990,7 @@ function RequestForm({
                 <div className="sm:col-span-2">
                   <Field
                     label="Existing event"
-                    hint="Select an event to prefill its details, then check and update the brief."
+                    hint="Select an event to prefill the fields below, then check and update them. Its registration link fills Link to include further down."
                   >
                     <select
                       className={input}
@@ -948,8 +1001,14 @@ function RequestForm({
                         )
                         m({
                           eventId: ev?.id || "",
-                          eventDetails: ev?.details || "",
-                          brief: ev?.details || "",
+                          eventDetails: "",
+                          eventFields: ev
+                            ? { ...ev.fields }
+                            : emptyEventFields(),
+                          brief: ev?.description || "",
+                          ...(ev?.registrationUrl
+                            ? { destinationUrl: ev.registrationUrl }
+                            : {}),
                           postedBy: ev?.postedBy || "",
                           postedByTbd: false
                         })
@@ -967,30 +1026,42 @@ function RequestForm({
                     </select>
                   </Field>
                 </div>
-                <div className="sm:col-span-2">
-                  <Field
-                    label="Event details"
-                    hint="Include date, time, timezone, location, speakers and the registration link."
-                  >
-                    <textarea
-                      className={input}
-                      rows={3}
-                      value={media.eventDetails}
-                      onChange={(e) => m({ eventDetails: e.target.value })}
-                      placeholder="Date, time, timezone, location, speaker, and registration link"
-                    />
-                  </Field>
-                </div>
+                {legacyEventDetails ? (
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Event details"
+                      hint="Written before events had separate fields. Select an event above to switch to the new fields."
+                    >
+                      <textarea
+                        className={`${input} resize-y`}
+                        rows={4}
+                        value={media.eventDetails}
+                        onChange={(e) => m({ eventDetails: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                ) : (
+                  <EventFieldInputs
+                    fields={eventFields}
+                    onChange={(patch) =>
+                      m({ eventFields: { ...eventFields, ...patch } })
+                    }
+                  />
+                )}
               </>
             )}
             <div className="sm:col-span-2">
               <Field
-                label="Idea / brief"
-                hint="Who is this for, what should they know, and what should they do?"
+                label={media.type === "event" ? "Event description" : "Idea / brief"}
+                hint={
+                  media.type === "event"
+                    ? "What the event is about, who it's for, and what people should do."
+                    : "Who is this for, what should they know, and what should they do?"
+                }
               >
                 <textarea
-                  className={input}
-                  rows={4}
+                  className={`${input} resize-y`}
+                  rows={media.type === "event" ? 6 : 4}
                   value={media.brief}
                   onChange={(e) => m({ brief: e.target.value })}
                   required
@@ -1215,7 +1286,7 @@ function RequestForm({
                     hint={
                       media.assetOnly
                         ? "Optional. Choose copywriting help, or add captions partners can post."
-                        : "Choose copywriting help, or supply a headline or post caption yourself."
+                        : "Choose copywriting help, or write the post caption yourself."
                     }
                   >
                     <select
@@ -1249,8 +1320,8 @@ function RequestForm({
                         hint="Text partners can post with the asset."
                       >
                         <textarea
-                          className={input}
-                          rows={5}
+                          className={`${input} resize-y`}
+                          rows={14}
                           value={media.caption}
                           onChange={(e) => m({ caption: e.target.value })}
                         />
@@ -1271,26 +1342,12 @@ function RequestForm({
                   ) : copyChoice && (
                     <>
                       <Field
-                        label="Headline"
-                        hint="A short opening line or title for the content."
-                      >
-                        <input
-                          className={input}
-                          value={media.headline}
-                          required={
-                            copyChoice === "self" &&
-                            !media.caption.trim()
-                          }
-                          onChange={(e) => m({ headline: e.target.value })}
-                        />
-                      </Field>
-                      <Field
                         label="Post caption"
-                        hint="The full text for the post: main message, key details, call to action and any useful links."
+                        hint="The full text for the post: headline or opening line, main message, key details, call to action and any useful links."
                       >
                         <textarea
-                          className={input}
-                          rows={5}
+                          className={`${input} resize-y`}
+                          rows={14}
                           value={media.caption}
                           onChange={(e) => m({ caption: e.target.value })}
                         />
@@ -1358,6 +1415,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
   const media = r.media!
   const caption = mediaPostCaption(media)
   const eventDetails = media.eventDetails.trim()
+  const eventFields = hasEventFields(media.eventFields) ? media.eventFields : undefined
   const brief = media.brief.trim()
   const requestType = {
     event: "Event",
@@ -1403,12 +1461,34 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
           )}
         </dl>
       </MediaSection>
+      {eventFields && (
+        <MediaSection title="Event details">
+          <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+            {EVENT_FIELD_LABELS.filter(([key]) => eventFields[key]).map(
+              ([key, label]) => (
+                <div key={key} className="min-w-0">
+                  <dt className="font-semibold text-zinc-600">{label}</dt>
+                  <dd className="mt-1 whitespace-pre-wrap break-words text-zinc-900">
+                    {eventFields[key]}
+                  </dd>
+                </div>
+              )
+            )}
+          </dl>
+        </MediaSection>
+      )}
       <MediaSection
-        title={eventDetails ? "Brief and event details" : "Request brief"}
+        title={
+          eventFields
+            ? "Event description"
+            : eventDetails
+              ? "Brief and event details"
+              : "Request brief"
+        }
       >
         {brief !== eventDetails && (
           <div>
-            {eventDetails && (
+            {eventDetails && !eventFields && (
               <h4 className="mb-2 text-sm font-semibold">Idea / brief</h4>
             )}
             <p className="whitespace-pre-wrap break-words text-sm leading-7">
@@ -1416,7 +1496,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
             </p>
           </div>
         )}
-        {eventDetails && (
+        {eventDetails && !eventFields && (
           <div>
             <h4 className="mb-2 text-sm font-semibold">Event details</h4>
             <p className="whitespace-pre-wrap break-words text-sm leading-7">
@@ -1425,7 +1505,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
           </div>
         )}
       </MediaSection>
-      {(media.needsCopyHelp || media.headline || caption || media.usageNotes) && (
+      {(media.needsCopyHelp || caption || media.usageNotes) && (
         <MediaSection title={media.assetOnly ? "Partner captions and usage notes" : "Draft copy"}>
           {media.needsCopyHelp && (
             <p className="rounded-lg bg-ipn-light/50 px-3 py-2 text-sm text-ipn-dark">
@@ -1433,7 +1513,6 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
             </p>
           )}
           {[
-            ["Headline", media.headline],
             [media.assetOnly ? "Partner captions" : "Post caption", caption],
             ["Usage notes", media.usageNotes || ""]
           ].map(([label, value]) => value ? (
@@ -1684,8 +1763,22 @@ function Production({
   const locked = r.status === "posted"
   const assetOnly = Boolean(r.media!.assetOnly)
   const legacyMultiple = r.media!.deliverables.length > 1
-  const update = (patch: Partial<typeof details>) =>
+  const [problem, setProblem] = useState<{
+    message: string
+    fields: PublicationField[]
+  } | null>(null)
+  const update = (patch: Partial<typeof details>) => {
     setDetails({ ...details, ...patch })
+    if (problem)
+      setProblem({
+        ...problem,
+        fields: problem.fields.filter((field) => !(field in patch))
+      })
+  }
+  const invalid = (field: PublicationField) =>
+    problem?.fields.includes(field) || undefined
+  const fieldClass = (field: PublicationField) =>
+    invalid(field) ? `${input} border-red-500 ring-2 ring-red-500/15` : input
   const name = (id?: string) =>
     people.find((person) => person.id === id)?.name || "Unassigned"
   return (
@@ -1697,13 +1790,40 @@ function Production({
       <form
         onSubmit={(event) => {
           event.preventDefault()
+          const form = event.currentTarget
+          const missing = legacyMultiple
+            ? null
+            : missingPublicationFields(r.status, status, assetOnly, details) ||
+              (!owner &&
+              !assetOnly &&
+              (status === "posted" ||
+                (details.publishedUrl.trim() && details.postedDate))
+                ? {
+                    message: "Select a media owner before recording publication.",
+                    fields: []
+                  }
+                : null)
+          setProblem(missing)
+          if (missing) {
+            const first = missing.fields[0]
+            if (first)
+              form
+                .querySelector<HTMLInputElement>(`[data-field="${first}"]`)
+                ?.focus()
+            return
+          }
           void save({
             action: "media_save",
             ownerId: owner,
             status,
             note: reviewNote,
             publication: details
-          }).catch(() => {})
+          }).catch((e) =>
+            setProblem({
+              message: e instanceof Error ? e.message : "Unable to save.",
+              fields: []
+            })
+          )
         }}
       >
         <fieldset disabled={busy || locked} className="mt-4 flex flex-col gap-4">
@@ -1758,7 +1878,7 @@ function Production({
               <>
                 <div className="grid gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2">
                   <Field label="Final asset link (Drive / Canva)" hint="Link to the finished content or a folder containing its assets. Required before Approved: Ready to Publish.">
-                    <input type="url" className={input} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
+                    <input type="url" data-field="assetUrl" aria-invalid={invalid("assetUrl")} className={fieldClass("assetUrl")} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
                   </Field>
                   <Field label={assetOnly ? "Planned delivery date" : "Scheduled posting date"} hint={assetOnly ? "When the Media team plans to have the asset ready." : "The planned posting date, shown in the media calendar. Leave blank until scheduled."}>
                     <input type="date" className={input} value={details.scheduledDate} onChange={(e) => update({ scheduledDate: e.target.value })} />
@@ -1766,15 +1886,20 @@ function Production({
                 </div>
                 {!assetOnly && <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Published link" hint="Add the live post, video or sent campaign link after publication.">
-                    <input type="url" className={input} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
+                    <input type="url" data-field="publishedUrl" aria-invalid={invalid("publishedUrl")} className={fieldClass("publishedUrl")} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
                   </Field>
-                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Published.">
-                    <input type="date" className={input} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
+                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the request Published.">
+                    <input type="date" data-field="postedDate" aria-invalid={invalid("postedDate")} className={fieldClass("postedDate")} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
                   </Field>
                 </div>}
               </>
             )}
           </MediaSection>
+          {problem && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {problem.message}
+            </p>
+          )}
           {!locked && <button className={`${primary} self-start`}>{busy ? "Saving…" : "Save"}</button>}
         </fieldset>
       </form>

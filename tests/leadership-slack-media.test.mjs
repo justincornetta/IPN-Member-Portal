@@ -452,3 +452,104 @@ test("withMediaSlackChange stores a snapshot only when Slack should post", () =>
   )
   assert.equal(noop.slackChange, undefined)
 })
+
+test("parent message lists separate event fields before the event description", () => {
+  const r = submitted()
+  r.media.type = "event"
+  r.media.brief = "Monthly office hours"
+  r.media.eventFields = {
+    name: "IPN Member Office Hours",
+    kind: "Office hours",
+    time: "Thu, Dec 3 at 7:00 PM EST",
+    leader: "IPN directors",
+    howTo: "Online · Zoom"
+  }
+  const text = renderMediaParentText(r)
+  assert.match(text, /\*Event name:\* IPN Member Office Hours\n\*Kind of event:\* Office hours\n\*Date and time:\* Thu, Dec 3 at 7:00 PM EST/)
+  assert.match(text, /\*How to join:\* Online · Zoom\n\nMonthly office hours/)
+})
+
+test("long event fields stay within the brief's Slack text budget", () => {
+  const r = submitted()
+  r.media.type = "event"
+  r.media.brief = "b".repeat(5000)
+  r.media.eventFields = {
+    name: "n".repeat(300),
+    kind: "k".repeat(150),
+    time: "t".repeat(300),
+    leader: "l".repeat(1000),
+    howTo: "h".repeat(2000)
+  }
+  const body = mediaParentMessage(r).blocks[0].text.text
+  const plain = mediaParentMessage({ ...r, media: { ...r.media, eventFields: undefined } }).blocks[0].text.text
+  assert.ok(body.length <= plain.length + 60, `${body.length} vs ${plain.length}`)
+  assert.match(body, /\*Speaker or host:\* l{199}…\n/)
+})
+
+function edit(r, actor, mediaChanges, title = r.title) {
+  return applyChange(
+    r,
+    { revision: r.revision, action: "edit", title, media: { ...r.media, ...mediaChanges } },
+    actor,
+    justin.id,
+    people,
+    now
+  ).record
+}
+
+test("edits to an existing request post a clear thread reply and refresh the parent", () => {
+  let r = save(submitted(), justin, { ownerId: luke.id, status: "assigned", publication: publication() })
+  const previous = r
+  const edited = edit(r, justin, {
+    needsCopyHelp: false,
+    caption: "Join IPN this fall!\n\nApply by Dec 1: link in bio.",
+    postedBy: "2026-12-01",
+    platforms: ["Instagram", "LinkedIn"]
+  })
+  const tagged = withMediaSlackChange(edited, "edit", previous, "", "Justin Cornetta")
+  const change = tagged.slackChange
+  assert.ok(change, "edit should notify Slack")
+  assert.deepEqual(change.edits.map((e) => e.label), ["Requested post by", "Platforms", "Copywriting", "Caption"])
+  assert.equal(shouldUpdateMediaParent(change), true)
+  assert.deepEqual(mediaJobsFor(tagged, "edit", previous), [{ target: "slack_media" }])
+  const reply = renderMediaThreadReply(change, {
+    submitter: { name: "Justin Cornetta", slackId: "UJUSTIN" },
+    owner: { name: "Luke Strong", slackId: "ULUKE" }
+  })
+  assert.equal(
+    reply,
+    [
+      "<@UJUSTIN> <@ULUKE>",
+      ":pencil2: *Request edited by Justin Cornetta*",
+      "• *Requested post by*: ~Nov 9, 2026~ → Dec 1, 2026",
+      "• *Platforms*: ~Instagram~ → Instagram, LinkedIn",
+      "• *Copywriting*: ~Media team drafts~ → Requester writes",
+      "• *Caption* updated:",
+      "> Join IPN this fall!\n>\n> Apply by Dec 1: link in bio.",
+      `${MEDIA_STATUS_EMOJI.director_review} Status: ${mediaStatusLabel("assigned")} → ${mediaStatusLabel("director_review")}`
+    ].join("\n")
+  )
+})
+
+test("saving an edit without changes and adding comments stay out of Slack", () => {
+  const r = save(submitted(), justin, { ownerId: luke.id, status: "assigned", publication: publication() })
+  const same = edit(r, justin, {})
+  const unchanged = withMediaSlackChange(same, "edit", r, "", "Justin Cornetta")
+  assert.equal(same.status, "assigned")
+  assert.equal(unchanged.slackChange, undefined)
+  const submittedOnly = submitted()
+  const noop = withMediaSlackChange(edit(submittedOnly, justin, {}), "edit", submittedOnly, "", "Justin Cornetta")
+  assert.equal(noop.slackChange, undefined)
+  assert.deepEqual(mediaJobsFor(noop, "edit", submittedOnly), [])
+  assert.deepEqual(mediaJobsFor(r, "comment", r), [])
+})
+
+test("long edited text is trimmed and cleared fields say removed", () => {
+  const r = submitted({ additionalDetails: "Old notes" })
+  const edited = edit(r, justin, { brief: "x".repeat(4000), additionalDetails: "" })
+  const change = withMediaSlackChange(edited, "edit", r, "", "Justin Cornetta").slackChange
+  const reply = renderMediaThreadReply(change, { submitter: { name: "Justin Cornetta" } })
+  assert.match(reply, /• \*Brief\* updated:\n> x{1499}…/)
+  assert.match(reply, /• \*Additional details\*: _removed_/)
+  assert.doesNotMatch(reply, /Luke/)
+})

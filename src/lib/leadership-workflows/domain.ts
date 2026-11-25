@@ -130,7 +130,7 @@ export type MediaBrief = {
   format: string
   needsCopyHelp: boolean
   formats?: string[]
-  headline: string
+  headline: string // Legacy; new requests keep the headline in caption.
   body?: string // Legacy requests; new copy is stored in caption.
   caption: string
   usageNotes?: string // Asset-only: how partners may use the asset.
@@ -141,7 +141,8 @@ export type MediaBrief = {
   linkConfirmedAt?: string
   linkConfirmedBy?: string
   eventId: string
-  eventDetails: string
+  eventDetails: string // Legacy free text; derived from eventFields for new requests.
+  eventFields?: EventFields
   deliverables: Deliverable[]
   productionOwnerId: string
   publisherId: string
@@ -180,6 +181,15 @@ export type MediaSlackChange = {
   note: string
   publishedUrl: string
   assetOnly?: boolean
+  editedBy?: string
+  edits?: MediaEdit[]
+}
+// One changed request field, for the Slack thread reply after an edit.
+export type MediaEdit = {
+  label: string
+  from?: string // Short fields show old → new.
+  to?: string
+  text?: string // Long fields show the new text.
 }
 export type WorkflowRequest = {
   id: string
@@ -216,10 +226,42 @@ export type BankEntry = {
   account: string
   requestId?: string
 }
+export type EventFields = {
+  name: string
+  kind: string
+  time: string
+  leader: string
+  howTo: string
+}
+export const EVENT_FIELD_LABELS: [keyof EventFields, string][] = [
+  ["name", "Event name"],
+  ["kind", "Kind of event"],
+  ["time", "Date and time"],
+  ["leader", "Speaker or host"],
+  ["howTo", "How to join"]
+]
+export const emptyEventFields = (): EventFields => ({
+  name: "",
+  kind: "",
+  time: "",
+  leader: "",
+  howTo: ""
+})
+export function hasEventFields(fields?: Partial<EventFields>) {
+  return EVENT_FIELD_LABELS.some(([key]) => fields?.[key]?.trim())
+}
+export function eventFieldsText(fields: EventFields) {
+  return EVENT_FIELD_LABELS.filter(([key]) => fields[key])
+    .map(([key, label]) => `${label}: ${fields[key]}`)
+    .join("\n")
+}
 export type EventOption = {
   id: string
   title: string
   details: string
+  fields: EventFields
+  description: string
+  registrationUrl: string // Prefills the request's "Link to include".
   postedBy: string
 }
 export type Cash = {
@@ -329,9 +371,38 @@ function strings(value: unknown): string[] {
     throw new WorkflowError("Choose the requested platforms.")
   return value.map((v) => text(v, "Platform", true, 80))
 }
-export function mediaPostCaption(media: { body?: string; caption?: string }) {
-  return [...new Set([media.body?.trim(), media.caption?.trim()].filter(Boolean))]
-    .join("\n\n")
+// Headline and legacy body copy now live in the post caption.
+export function mediaPostCaption(media: {
+  headline?: string
+  body?: string
+  caption?: string
+}) {
+  return [
+    ...new Set(
+      [media.headline?.trim(), media.body?.trim(), media.caption?.trim()].filter(
+        Boolean
+      )
+    )
+  ].join("\n\n")
+}
+function parseEventFields(
+  type: string,
+  value: unknown,
+  legacyDetails: unknown
+): Pick<MediaBrief, "eventDetails" | "eventFields"> {
+  if (type !== "event" || value == null)
+    return { eventDetails: text(legacyDetails, "Event details") }
+  const v = object(value)
+  const fields: EventFields = {
+    name: text(v.name, "Event name", false, 300),
+    kind: text(v.kind, "Kind of event", false, 150),
+    time: text(v.time, "Date and time", false, 300),
+    leader: text(v.leader, "Speaker or host", false, 1000),
+    howTo: text(v.howTo, "How to join", false, 2000)
+  }
+  return hasEventFields(fields)
+    ? { eventDetails: eventFieldsText(fields), eventFields: fields }
+    : { eventDetails: "" }
 }
 export function parseMedia(value: unknown): MediaBrief {
   const v = object(value)
@@ -341,19 +412,19 @@ export function parseMedia(value: unknown): MediaBrief {
   const links = Array.isArray(v.links) ? v.links : []
   if (links.length > 20)
     throw new WorkflowError("Use at most 20 supporting links.")
-  const headline = text(v.headline, "Headline", false, 1000)
   const caption = text(
     mediaPostCaption({
+      headline: text(v.headline, "Headline", false, 1000),
       body: text(v.body, "Legacy body"),
       caption: text(v.caption, "Post caption", false, 20002)
     }),
     "Post caption",
     false,
-    20002
+    21004
   )
   const assetOnly = v.assetOnly === true
   // Asset-only requests may skip copy: partner captions are optional.
-  if (!assetOnly && v.needsCopyHelp !== true && !headline && !caption)
+  if (!assetOnly && v.needsCopyHelp !== true && !caption)
     throw new WorkflowError("Choose copywriting help or provide draft copy.")
   const postedByTbd = v.postedByTbd === true
   const dateLabel = assetOnly ? "Needed-by date" : "Posted-by date"
@@ -390,13 +461,24 @@ export function parseMedia(value: unknown): MediaBrief {
     throw new WorkflowError(
       "Choose at least one media format, or Media to advise."
     )
-  const destinationUrl = url(v.destinationUrl, "Link to include")
-  const linkPlacement = text(
-    v.linkPlacement,
-    "Where to include the link",
-    Boolean(destinationUrl),
-    1000
-  )
+  // Early drafts kept an event registration link with the event fields; the
+  // request's "Link to include" is now the only link.
+  const draftRegistration =
+    type === "event" && v.eventFields && typeof v.eventFields === "object"
+      ? url(
+          (v.eventFields as Record<string, unknown>).registrationUrl,
+          "Registration link"
+        )
+      : ""
+  const destinationUrl =
+    url(v.destinationUrl, "Link to include") || draftRegistration
+  const linkPlacement =
+    text(
+      v.linkPlacement,
+      "Where to include the link",
+      Boolean(destinationUrl) && !draftRegistration,
+      1000
+    ) || (draftRegistration ? "Event registration link" : "")
   if (linkPlacement && !destinationUrl)
     throw new WorkflowError(
       "Add the destination URL for the link instructions."
@@ -407,7 +489,7 @@ export function parseMedia(value: unknown): MediaBrief {
   return {
     type: type as MediaBrief["type"],
     team: text(v.team, "Team / project", true, 150),
-    brief: text(v.brief, "Idea / brief", true),
+    brief: text(v.brief, type === "event" ? "Event description" : "Idea / brief", true),
     postedBy: postedByTbd ? "" : date(v.postedBy, dateLabel),
     postedByTbd,
     assetOnly,
@@ -419,7 +501,7 @@ export function parseMedia(value: unknown): MediaBrief {
     destinationUrl,
     linkPlacement,
     needsCopyHelp: v.needsCopyHelp === true,
-    headline,
+    headline: "",
     caption,
     usageNotes: text(v.usageNotes, "Usage notes", false, 10000),
     additionalDetails: text(v.additionalDetails, "Additional details", false, 10000),
@@ -434,7 +516,7 @@ export function parseMedia(value: unknown): MediaBrief {
       })
       .filter((l) => l.url),
     eventId: text(v.eventId, "Event", false, 200),
-    eventDetails: text(v.eventDetails, "Event details"),
+    ...parseEventFields(type, v.eventFields, v.eventDetails),
     productionOwnerId: "",
     publisherId: "",
     deliverables: []
@@ -502,6 +584,54 @@ export function mediaStages(assetOnly?: boolean): Status[] {
     assetOnly ? stage !== "posted" : stage !== "delivered"
   )
 }
+export type PublicationField = "assetUrl" | "publishedUrl" | "postedDate"
+export const PUBLICATION_FIELD_LABELS: Record<PublicationField, string> = {
+  assetUrl: "Final asset link",
+  publishedUrl: "Published link",
+  postedDate: "Actual posting date"
+}
+function listLabels(labels: string[]) {
+  return labels.length < 2
+    ? labels.join("")
+    : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`
+}
+// Name the publication fields a media save still needs, so the form can
+// point at them instead of failing with a general message.
+export function missingPublicationFields(
+  current: Status,
+  desired: Status,
+  assetOnly: boolean | undefined,
+  details: Partial<Record<PublicationField, unknown>>
+): { fields: PublicationField[]; message: string } | null {
+  const has = (key: PublicationField) =>
+    typeof details[key] === "string" && Boolean((details[key] as string).trim())
+  const needed = new Set<PublicationField>()
+  if (desired === "ready_to_post" || desired === "delivered")
+    needed.add("assetUrl")
+  // Any stage can move to Published once the live link and date are recorded.
+  if (
+    !assetOnly &&
+    (desired === "posted" || has("publishedUrl") || has("postedDate"))
+  ) {
+    needed.add("publishedUrl")
+    needed.add("postedDate")
+  }
+  const fields = (["assetUrl", "publishedUrl", "postedDate"] as const).filter(
+    (key) => needed.has(key) && !has(key)
+  )
+  if (fields.length) {
+    const names = listLabels(fields.map((key) => PUBLICATION_FIELD_LABELS[key]))
+    return {
+      fields,
+      message:
+        desired !== current &&
+        ["ready_to_post", "delivered", "posted"].includes(desired)
+          ? `To move this to ${STATUS_LABELS[desired]}, add the ${names}.`
+          : `Add the ${names} to record publication.`
+    }
+  }
+  return null
+}
 export function mediaNextStatuses(status: Status, assetOnly?: boolean): Status[] {
   return status === "posted"
     ? []
@@ -560,6 +690,27 @@ export function applyChange(
         throw new WorkflowError(
           "That status change is not available from the current stage."
         )
+      const ownerMissing =
+        !v.ownerId &&
+        ["assigned", "in_production", "director_review", "ready_to_post", "delivered"].includes(desiredStatus)
+      // An unassigned owner is reported first by the status change below.
+      if (m.deliverables.length <= 1 && !ownerMissing) {
+        const missing = missingPublicationFields(
+          current.status,
+          desiredStatus,
+          m.assetOnly,
+          v.publication ? object(v.publication) : {}
+        )
+        if (missing) throw new WorkflowError(missing.message)
+      }
+      const publication = (v.publication || {}) as Record<string, unknown>
+      if (
+        !v.ownerId &&
+        !m.assetOnly &&
+        (desiredStatus === "posted" ||
+          (publication.publishedUrl && publication.postedDate))
+      )
+        throw new WorkflowError("Select a media owner before recording publication.")
       // Validate the whole form in memory, then persist one revision and audit event.
       let result = applyChange(
         current,
@@ -618,7 +769,12 @@ export function applyChange(
         delete record.media.linkConfirmedAt
         delete record.media.linkConfirmedBy
       }
+      const changed =
+        record.title !== current.title ||
+        JSON.stringify(record.media) !== JSON.stringify(m)
+      // Saving the form without changes leaves in-progress work where it is.
       if (
+        changed &&
         !["submitted", "needs_information", "cancelled"].includes(record.status)
       ) {
         record.status = "director_review"
@@ -704,7 +860,7 @@ export function applyChange(
           throw new WorkflowError(
             "Posted deliverables retain their final record."
           )
-        if (["ready", "posted"].includes(status) && !result.assetUrl)
+        if (status === "ready" && !result.assetUrl)
           throw new WorkflowError(
             "Add a final asset link before marking a deliverable ready."
           )
@@ -714,14 +870,6 @@ export function applyChange(
         )
           throw new WorkflowError(
             "Record the publisher, posted date, and published link."
-          )
-        if (
-          status === "posted" &&
-          !["ready_to_post", "posted"].includes(record.status) &&
-          old?.status !== "posted"
-        )
-          throw new WorkflowError(
-            "Complete final review before recording publication."
           )
         return result
       })
@@ -759,13 +907,7 @@ export function applyChange(
         delete m.reviewedAt
         delete m.reviewedBy
       }
-      if (publicationPosted) {
-        if (record.status !== "ready_to_post")
-          throw new WorkflowError(
-            "Complete final review of the final asset before recording publication."
-          )
-        record.status = "posted"
-      }
+      if (publicationPosted) record.status = "posted"
     } else if (action === "status") {
       const status = text(v.status, "Status", true) as Status
       if (!mediaNextStatuses(record.status, m.assetOnly).includes(status))

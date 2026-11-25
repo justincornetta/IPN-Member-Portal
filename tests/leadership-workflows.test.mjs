@@ -12,6 +12,7 @@ import {
   url,
   parseMedia,
   mediaPostCaption,
+  missingPublicationFields,
   cents,
   mediaFormats
 } from "../src/lib/leadership-workflows/domain.ts"
@@ -494,7 +495,7 @@ test("one media owner handles production and publication, with per-deliverable o
   assert.equal(delegated.media.deliverables[0].publisherId, other.id)
 })
 
-test("request publication keeps one record, requires review and records Published atomically", () => {
+test("request publication keeps one record and records Published atomically from any stage", () => {
   let r = createRequest(
     {
       id: randomUUID(),
@@ -523,17 +524,17 @@ test("request publication keeps one record, requires review and records Publishe
   const id = r.media.deliverables[0].id
   assert.equal(r.media.deliverables.length, 1)
   assert.equal(r.media.deliverables[0].platform, "Instagram, LinkedIn")
-  assert.throws(
-    () =>
-      change(r, "publication", member, {
-        ownerId: member.id,
-        publication: {
-          ...publication,
-          publishedUrl: "https://www.instagram.com/p/example/",
-          postedDate: "2026-10-05"
-        }
-      }),
-    /final review/
+  // Publication can be recorded from any stage; final review is not required.
+  assert.equal(
+    change(r, "publication", member, {
+      ownerId: member.id,
+      publication: {
+        ...publication,
+        publishedUrl: "https://www.instagram.com/p/example/",
+        postedDate: "2026-10-05"
+      }
+    }).status,
+    "posted"
   )
   assert.throws(
     () =>
@@ -558,16 +559,15 @@ test("request publication keeps one record, requires review and records Publishe
     publishedUrl: "https://www.instagram.com/p/example/",
     postedDate: "2026-10-05"
   }
-  assert.throws(
-    () =>
-      change(r, "publication", member, {
-        ownerId: member.id,
-        publication: {
-          ...published,
-          assetUrl: "https://www.canva.com/design/revised/edit"
-        }
-      }),
-    /final review/
+  assert.equal(
+    change(r, "publication", member, {
+      ownerId: member.id,
+      publication: {
+        ...published,
+        assetUrl: "https://www.canva.com/design/revised/edit"
+      }
+    }).status,
+    "posted"
   )
   const posted = change(r, "publication", member, {
     ownerId: member.id,
@@ -612,7 +612,7 @@ test("one media save validates owner, status and publication before advancing on
   for (const status of ["assigned", "director_review"])
     r = change(r, "media_save", member, { ownerId: other.id, status, publication })
   const reviewed = structuredClone(r)
-  assert.throws(() => change(r, "media_save", member, { ownerId: member.id, status: "ready_to_post", publication }), /final Drive or Canva/)
+  assert.throws(() => change(r, "media_save", member, { ownerId: member.id, status: "ready_to_post", publication }), /To move this to Approved: Ready to Publish, add the Final asset link\./)
   assert.deepEqual(r, reviewed)
   const final = { ...publication, assetUrl: "https://www.canva.com/design/example/edit" }
   r = change(r, "media_save", member, { ownerId: other.id, status: "ready_to_post", publication: final })
@@ -625,7 +625,8 @@ test("one media save validates owner, status and publication before advancing on
   assert.equal(legacySaved.revision, legacy.revision + 1)
   const complete = { ...final, publishedUrl: "https://example.com/published", postedDate: "2026-10-20" }
   assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "cancelled", publication: complete }), /Clear the publication record/)
-  assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...complete, assetUrl: "https://www.canva.com/design/revised/edit" } }), /final review/)
+  assert.equal(change(reviewed, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...publication, publishedUrl: complete.publishedUrl, postedDate: complete.postedDate } }).status, "posted")
+  assert.throws(() => change(reviewed, "media_save", member, { ownerId: "", status: "posted", publication: complete }), /media owner before recording publication/)
   const pendingReview = change(r, "media_save", member, { ownerId: other.id, status: r.status, publication: { ...final, assetUrl: "https://www.canva.com/design/revised/edit" } })
   assert.equal(pendingReview.status, "director_review")
   assert.equal(pendingReview.media.reviewedBy, undefined)
@@ -736,4 +737,83 @@ test("legacy production requests can enter the combined stage and backward chang
   combined.media.reviewedAt = now.toISOString()
   const returned = change(combined, "status", member, { status: "assigned" })
   assert.equal(returned.media.reviewedAt, undefined)
+})
+
+test("event media briefs store separate event fields and keep legacy event details", () => {
+  const brief = {
+    type: "event",
+    team: "Media",
+    brief: "Monthly office hours with IPN leadership",
+    postedBy: "2026-12-01",
+    platforms: ["Instagram"],
+    needsCopyHelp: true
+  }
+  const fields = {
+    name: "IPN Member Office Hours",
+    kind: "Office hours",
+    time: "Thu, Dec 3, 7:00 PM EST",
+    leader: "IPN directors",
+    howTo: "Online · Zoom"
+  }
+  const parsed = parseMedia({ ...brief, eventFields: fields, eventDetails: "ignored" })
+  assert.deepEqual(parsed.eventFields, fields)
+  assert.match(parsed.eventDetails, /^Event name: IPN Member Office Hours\nKind of event: Office hours/)
+  assert.match(parsed.eventDetails, /How to join: Online · Zoom$/)
+  // Drafts from before the merge kept a registration link in the event fields.
+  const register = "https://members.intercollegiatepsychedelics.net/events/office-hours"
+  const draft = parseMedia({ ...brief, eventFields: { ...fields, registrationUrl: register } })
+  assert.deepEqual(draft.eventFields, fields)
+  assert.equal(draft.destinationUrl, register)
+  assert.equal(draft.linkPlacement, "Event registration link")
+  const kept = parseMedia({ ...brief, destinationUrl: "https://example.com/rsvp", linkPlacement: "Bio", eventFields: { ...fields, registrationUrl: register } })
+  assert.equal(kept.destinationUrl, "https://example.com/rsvp")
+  assert.equal(kept.linkPlacement, "Bio")
+  assert.throws(
+    () => parseMedia({ ...brief, eventFields: { ...fields, registrationUrl: "javascript:alert(1)" } }),
+    /Registration link/
+  )
+  assert.throws(() => parseMedia({ ...brief, destinationUrl: register }), /Where to include the link/)
+  const legacy = parseMedia({ ...brief, eventDetails: "Old free-text details" })
+  assert.equal(legacy.eventDetails, "Old free-text details")
+  assert.equal(legacy.eventFields, undefined)
+  const blank = parseMedia({ ...brief, eventFields: { name: " " } })
+  assert.equal(blank.eventFields, undefined)
+  assert.equal(blank.eventDetails, "")
+  const campaign = parseMedia({ ...brief, type: "campaign", eventFields: fields })
+  assert.equal(campaign.eventFields, undefined)
+  assert.throws(() => parseMedia({ ...brief, brief: "" }), /Event description is required/)
+})
+
+test("headline folds into the post caption and is no longer stored separately", () => {
+  const media = {
+    type: "announcement", team: "Media", brief: "Upcoming meetup",
+    postedBy: "2026-10-20", needsCopyHelp: false
+  }
+  const parsed = parseMedia({ ...media, headline: "Meet us in Denver", caption: "Join us" })
+  assert.equal(parsed.headline, "")
+  assert.equal(parsed.caption, "Meet us in Denver\n\nJoin us")
+  assert.equal(parseMedia({ ...media, headline: "Only a headline" }).caption, "Only a headline")
+  assert.equal(parseMedia({ ...media, headline: "Join us", caption: "Join us" }).caption, "Join us")
+  assert.throws(() => parseMedia(media), /copywriting help/)
+  assert.equal(mediaPostCaption({ headline: "Title", body: "Body", caption: "Caption" }), "Title\n\nBody\n\nCaption")
+})
+
+test("media saves name the publication fields that are still missing", () => {
+  const empty = { assetUrl: "", publishedUrl: "", postedDate: "" }
+  const asset = "https://www.canva.com/design/example/edit"
+  assert.deepEqual(missingPublicationFields("assigned", "posted", false, empty), {
+    fields: ["publishedUrl", "postedDate"],
+    message: "To move this to Published, add the Published link and Actual posting date."
+  })
+  assert.deepEqual(missingPublicationFields("assigned", "ready_to_post", false, empty), {
+    fields: ["assetUrl"],
+    message: "To move this to Approved: Ready to Publish, add the Final asset link."
+  })
+  assert.deepEqual(missingPublicationFields("ready_to_post", "ready_to_post", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "" }), {
+    fields: ["postedDate"],
+    message: "Add the Actual posting date to record publication."
+  })
+  assert.equal(missingPublicationFields("assigned", "posted", false, { ...empty, publishedUrl: "https://example.com/p", postedDate: "2026-11-20" }), null)
+  assert.equal(missingPublicationFields("assigned", "director_review", false, empty), null)
+  assert.deepEqual(missingPublicationFields("assigned", "delivered", true, empty).fields, ["assetUrl"])
 })

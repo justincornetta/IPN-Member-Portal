@@ -5,6 +5,7 @@ import { createRequire } from "node:module"
 import ts from "typescript"
 import { PGlite } from "@electric-sql/pglite"
 import * as domain from "../src/lib/leadership-workflows/domain.ts"
+import * as calendar from "../src/lib/events/calendar.ts"
 import * as exclusions from "../src/lib/leadership-workflows/request-exclusions.ts"
 
 test("signed-in workflow bootstrap loads an empty queue and existing event/conference schemas", async () => {
@@ -19,8 +20,8 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       create table leadership_requests (data jsonb);
       create table leadership_integration_jobs (id text);
       create table leadership_bank_activity (data jsonb);
-      create table events (id text, title text, starts_at text, timezone text, summary text, location_label text, registration_url text);
-      insert into events values ('event', 'Research seminar', '2100-01-10T18:00:00Z', 'UTC', 'Event brief', 'Online', 'https://example.test/register');
+      create table events (id text, slug text, title text, event_type text, starts_at text, ends_at text, timezone text, summary text, description text, speakers text, location_label text, location_details text, registration_url text);
+      insert into events values ('event', 'research-seminar', 'Research seminar', 'IPN Labs', '2100-01-10T18:00:00Z', '2100-01-10T19:00:00Z', 'UTC', 'Event brief', 'Longer event description', 'Dr. Example', 'Online', 'Zoom', 'https://example.test/register');
       create table conferences (id text, name text, timezone text, meetups jsonb);
       insert into conferences values ('conference', 'Annual conference', 'UTC', '[{"id":"meetup","title":"IPN meetup","startsAt":"2100-01-11T18:00:00Z","location":"Conference lobby","description":"Meet the team"}]');
     `)
@@ -60,6 +61,7 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       if (path === "@/lib/supabase/server") return { createClient: async () => ({ ...db, auth: { getUser: async () => ({ data: { user: { id: "leader" } } }) } }) }
       if (path === "@/lib/supabase/admin") return { createAdminClient: () => db }
       if (path === "@/lib/admin/leadership") return { LEADERSHIP_TEAMS: ["Media"] }
+      if (path === "@/lib/events/calendar") return calendar
       if (path === "./domain") return domain
       if (path === "./request-exclusions") return exclusions
       if (path === "./integrations") return { readCash: async () => null, integrationReady: () => ({ slack: false, sheets: false }) }
@@ -80,6 +82,16 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       { id: "conference:conference:meetup", title: "IPN meetup" }
     ])
     assert.match(result.data.events[1].details, /Conference lobby/)
+    assert.deepEqual(result.data.events[0].fields, {
+      name: "Research seminar",
+      kind: "IPN Labs",
+      time: "Sun, Jan 10, 6:00 PM - 7:00 PM UTC",
+      leader: "Dr. Example",
+      howTo: "Online · Zoom"
+    })
+    assert.equal(result.data.events[0].registrationUrl, "https://example.test/register")
+    assert.equal(result.data.events[0].description, "Event brief\n\nLonger event description")
+    assert.equal(result.data.events[1].fields.howTo, "Conference lobby")
     assert.deepEqual(result.data.integrations, { slack: false, sheets: false, pending: 0 })
     await pg.query("insert into leadership_requests values ($1)", [JSON.stringify({ id: "simulated", kind: "expense", requesterId: "leader", status: "purchased" })])
     const previous = process.env.WORKFLOW_EXCLUDED_REQUEST_IDS
