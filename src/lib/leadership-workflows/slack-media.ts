@@ -235,14 +235,23 @@ function parentLines(
     }`
   )
   lines.push(`*Where:* ${displayField(m.linkPlacement)}`)
+  // Slack section text is capped at 3,000 characters, so event fields share
+  // the brief's 1,800-character budget.
+  let briefBudget = 1800
   if (m.eventFields) {
     lines.push("")
-    for (const [key, label] of EVENT_FIELD_LABELS)
-      if (m.eventFields[key])
-        lines.push(`*${label}:* ${escapeSlack(m.eventFields[key])}`)
+    for (const [key, label] of EVENT_FIELD_LABELS) {
+      const value = m.eventFields[key]
+      if (!value) continue
+      const line = `*${label}:* ${escapeSlack(
+        value.length > 200 ? `${value.slice(0, 199)}…` : value
+      )}`
+      lines.push(line)
+      briefBudget -= line.length + 1
+    }
   }
   lines.push("")
-  lines.push(displayField(m.brief?.slice(0, 1800)))
+  lines.push(displayField(m.brief?.slice(0, Math.max(500, briefBudget))))
   return lines
 }
 
