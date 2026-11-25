@@ -192,8 +192,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
     ...(media.urgent ? [{ label: "Priority", value: "Urgent — alert Agnes", step: 1 }] : []),
     ...(media.placeholder ? [{ label: "Placeholder", value: "Not ready for production", step: 1 }] : []),
     assetOnly
-      ? { label: "Captions", value: [copyChoice === "help" ? "Media team to draft" : copyChoice === "self" ? "I'll provide them" : "", media.caption, media.usageNotes ? `Usage notes: ${media.usageNotes}` : ""].filter(Boolean).join("\n\n") || "None", step: 2 }
-      : { label: "Copy", value: [copyChoice === "help" ? "Media team to draft" : "I'll provide the copy", media.caption].filter(Boolean).join("\n\n"), step: 2 },
+      ? { label: "Captions", value: [copyChoice === "help" ? "Help me write them" : copyChoice === "self" ? "I'll write them" : "", media.caption, media.usageNotes ? `Usage notes: ${media.usageNotes}` : ""].filter(Boolean).join("\n\n") || "None", step: 2 }
+      : { label: "Copy", value: [copyChoice === "help" ? "Help me write it" : "I'll write it", media.caption].filter(Boolean).join("\n\n"), step: 2 },
     { label: "Files", value: supportingLinks.join("\n") || "None", step: 2 },
     ...(media.destinationUrl ? [{ label: "Link for readers", value: `${media.destinationUrl}\n${media.linkPlacement}`, step: 2 }] : [])
   ]
