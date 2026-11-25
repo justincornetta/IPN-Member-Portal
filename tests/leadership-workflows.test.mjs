@@ -753,17 +753,26 @@ test("event media briefs store separate event fields and keep legacy event detai
     kind: "Office hours",
     time: "Thu, Dec 3, 7:00 PM EST",
     leader: "IPN directors",
-    howTo: "Online · Zoom",
-    registrationUrl: "https://members.intercollegiatepsychedelics.net/events/office-hours"
+    howTo: "Online · Zoom"
   }
   const parsed = parseMedia({ ...brief, eventFields: fields, eventDetails: "ignored" })
   assert.deepEqual(parsed.eventFields, fields)
   assert.match(parsed.eventDetails, /^Event name: IPN Member Office Hours\nKind of event: Office hours/)
-  assert.match(parsed.eventDetails, /Registration link: https:\/\/members/)
+  assert.match(parsed.eventDetails, /How to join: Online · Zoom$/)
+  // Drafts from before the merge kept a registration link in the event fields.
+  const register = "https://members.intercollegiatepsychedelics.net/events/office-hours"
+  const draft = parseMedia({ ...brief, eventFields: { ...fields, registrationUrl: register } })
+  assert.deepEqual(draft.eventFields, fields)
+  assert.equal(draft.destinationUrl, register)
+  assert.equal(draft.linkPlacement, "Event registration link")
+  const kept = parseMedia({ ...brief, destinationUrl: "https://example.com/rsvp", linkPlacement: "Bio", eventFields: { ...fields, registrationUrl: register } })
+  assert.equal(kept.destinationUrl, "https://example.com/rsvp")
+  assert.equal(kept.linkPlacement, "Bio")
   assert.throws(
     () => parseMedia({ ...brief, eventFields: { ...fields, registrationUrl: "javascript:alert(1)" } }),
     /Registration link/
   )
+  assert.throws(() => parseMedia({ ...brief, destinationUrl: register }), /Where to include the link/)
   const legacy = parseMedia({ ...brief, eventDetails: "Old free-text details" })
   assert.equal(legacy.eventDetails, "Old free-text details")
   assert.equal(legacy.eventFields, undefined)

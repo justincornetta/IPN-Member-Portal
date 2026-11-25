@@ -462,12 +462,11 @@ test("parent message lists separate event fields before the event description", 
     kind: "Office hours",
     time: "Thu, Dec 3 at 7:00 PM EST",
     leader: "IPN directors",
-    howTo: "Online · Zoom",
-    registrationUrl: "https://members.intercollegiatepsychedelics.net/events/office-hours"
+    howTo: "Online · Zoom"
   }
   const text = renderMediaParentText(r)
   assert.match(text, /\*Event name:\* IPN Member Office Hours\n\*Kind of event:\* Office hours\n\*Date and time:\* Thu, Dec 3 at 7:00 PM EST/)
-  assert.match(text, /\*Registration link:\* https:\/\/members\.intercollegiatepsychedelics\.net\/events\/office-hours\n\nMonthly office hours/)
+  assert.match(text, /\*How to join:\* Online · Zoom\n\nMonthly office hours/)
 })
 
 test("long event fields stay within the brief's Slack text budget", () => {
@@ -479,8 +478,7 @@ test("long event fields stay within the brief's Slack text budget", () => {
     kind: "k".repeat(150),
     time: "t".repeat(300),
     leader: "l".repeat(1000),
-    howTo: "h".repeat(2000),
-    registrationUrl: `https://example.test/${"r".repeat(1900)}`
+    howTo: "h".repeat(2000)
   }
   const body = mediaParentMessage(r).blocks[0].text.text
   const plain = mediaParentMessage({ ...r, media: { ...r.media, eventFields: undefined } }).blocks[0].text.text

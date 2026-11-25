@@ -78,8 +78,7 @@ const eventFieldHints: Record<keyof EventFields, string> = {
   kind: "For example: IPN Labs, Webinar, Workshop or Meetup.",
   time: "Date, start and end time, and time zone.",
   leader: "Who is leading it, speaking or hosting.",
-  howTo: "Where it happens, or how people join online.",
-  registrationUrl: "Where people sign up. Must start with https://."
+  howTo: "Where it happens, or how people join online."
 }
 function EventFieldInputs({
   fields,
@@ -93,15 +92,13 @@ function EventFieldInputs({
       {EVENT_FIELD_LABELS.map(([key, label]) => (
         <div
           key={key}
-          className={key === "name" || key === "leader" ? "sm:col-span-2" : undefined}
+          className={key === "kind" || key === "time" ? undefined : "sm:col-span-2"}
         >
           <Field label={label} hint={eventFieldHints[key]}>
             <input
               className={input}
-              type={key === "registrationUrl" ? "url" : "text"}
               value={fields[key]}
               onChange={(e) => onChange({ [key]: e.target.value })}
-              placeholder={key === "registrationUrl" ? "https://…" : undefined}
             />
           </Field>
         </div>
@@ -993,7 +990,7 @@ function RequestForm({
                 <div className="sm:col-span-2">
                   <Field
                     label="Existing event"
-                    hint="Select an event to prefill the fields below, then check and update them."
+                    hint="Select an event to prefill the fields below, then check and update them. Its registration link fills Link to include further down."
                   >
                     <select
                       className={input}
@@ -1009,6 +1006,9 @@ function RequestForm({
                             ? { ...ev.fields }
                             : emptyEventFields(),
                           brief: ev?.description || "",
+                          ...(ev?.registrationUrl
+                            ? { destinationUrl: ev.registrationUrl }
+                            : {}),
                           postedBy: ev?.postedBy || "",
                           postedByTbd: false
                         })
@@ -1469,18 +1469,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
                 <div key={key} className="min-w-0">
                   <dt className="font-semibold text-zinc-600">{label}</dt>
                   <dd className="mt-1 whitespace-pre-wrap break-words text-zinc-900">
-                    {key === "registrationUrl" ? (
-                      <a
-                        href={eventFields[key]}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-ipn underline"
-                      >
-                        {eventFields[key]}
-                      </a>
-                    ) : (
-                      eventFields[key]
-                    )}
+                    {eventFields[key]}
                   </dd>
                 </div>
               )

@@ -223,23 +223,20 @@ export type EventFields = {
   time: string
   leader: string
   howTo: string
-  registrationUrl: string
 }
 export const EVENT_FIELD_LABELS: [keyof EventFields, string][] = [
   ["name", "Event name"],
   ["kind", "Kind of event"],
   ["time", "Date and time"],
   ["leader", "Speaker or host"],
-  ["howTo", "How to join"],
-  ["registrationUrl", "Registration link"]
+  ["howTo", "How to join"]
 ]
 export const emptyEventFields = (): EventFields => ({
   name: "",
   kind: "",
   time: "",
   leader: "",
-  howTo: "",
-  registrationUrl: ""
+  howTo: ""
 })
 export function hasEventFields(fields?: Partial<EventFields>) {
   return EVENT_FIELD_LABELS.some(([key]) => fields?.[key]?.trim())
@@ -255,6 +252,7 @@ export type EventOption = {
   details: string
   fields: EventFields
   description: string
+  registrationUrl: string // Prefills the request's "Link to include".
   postedBy: string
 }
 export type Cash = {
@@ -391,8 +389,7 @@ function parseEventFields(
     kind: text(v.kind, "Kind of event", false, 150),
     time: text(v.time, "Date and time", false, 300),
     leader: text(v.leader, "Speaker or host", false, 1000),
-    howTo: text(v.howTo, "How to join", false, 2000),
-    registrationUrl: url(v.registrationUrl, "Registration link")
+    howTo: text(v.howTo, "How to join", false, 2000)
   }
   return hasEventFields(fields)
     ? { eventDetails: eventFieldsText(fields), eventFields: fields }
@@ -455,13 +452,24 @@ export function parseMedia(value: unknown): MediaBrief {
     throw new WorkflowError(
       "Choose at least one media format, or Media to advise."
     )
-  const destinationUrl = url(v.destinationUrl, "Link to include")
-  const linkPlacement = text(
-    v.linkPlacement,
-    "Where to include the link",
-    Boolean(destinationUrl),
-    1000
-  )
+  // Early drafts kept an event registration link with the event fields; the
+  // request's "Link to include" is now the only link.
+  const draftRegistration =
+    type === "event" && v.eventFields && typeof v.eventFields === "object"
+      ? url(
+          (v.eventFields as Record<string, unknown>).registrationUrl,
+          "Registration link"
+        )
+      : ""
+  const destinationUrl =
+    url(v.destinationUrl, "Link to include") || draftRegistration
+  const linkPlacement =
+    text(
+      v.linkPlacement,
+      "Where to include the link",
+      Boolean(destinationUrl) && !draftRegistration,
+      1000
+    ) || (draftRegistration ? "Event registration link" : "")
   if (linkPlacement && !destinationUrl)
     throw new WorkflowError(
       "Add the destination URL for the link instructions."

@@ -257,10 +257,7 @@ function eventOption(e: {
     kind: plain(e.kind),
     time: eventTime(e.startsAt, e.endsAt, e.timezone),
     leader: plain(e.leader),
-    howTo: [...new Set(e.howTo.map(plain).filter(Boolean))].join(" · "),
-    registrationUrl: /^https:\/\//i.test(plain(e.registrationUrl))
-      ? plain(e.registrationUrl)
-      : ""
+    howTo: [...new Set(e.howTo.map(plain).filter(Boolean))].join(" · ")
   }
   const description = [
     ...new Set(e.description.map(plain).filter(Boolean))
@@ -271,6 +268,9 @@ function eventOption(e: {
     details: eventFieldsText(fields),
     fields,
     description,
+    registrationUrl: /^https:\/\//i.test(plain(e.registrationUrl))
+      ? plain(e.registrationUrl)
+      : "",
     postedBy: e.startsAt.slice(0, 10)
   }
 }

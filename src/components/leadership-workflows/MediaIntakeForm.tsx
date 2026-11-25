@@ -21,11 +21,10 @@ const eventFieldHints: Record<keyof EventFields, string> = {
   kind: "For example: IPN Labs, Webinar, Workshop or Meetup.",
   time: "Date, start and end time, and time zone.",
   leader: "Who is leading it, speaking or hosting.",
-  howTo: "Where it happens, or how people join online.",
-  registrationUrl: "Where people sign up. Must start with https://."
+  howTo: "Where it happens, or how people join online."
 }
 const eventFieldMax: Record<keyof EventFields, number> = {
-  name: 300, kind: 150, time: 300, leader: 1000, howTo: 2000, registrationUrl: 2000
+  name: 300, kind: 150, time: 300, leader: 1000, howTo: 2000
 }
 const types = [
   ["event", "Event", "Promote something on the calendar"],
@@ -110,8 +109,7 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
         field = "brief"; text(media.brief, isEvent ? "Event description" : "A brief description", true)
         if (isEvent) for (const [key, label] of EVENT_FIELD_LABELS) {
           field = `event-${key}`
-          if (key === "registrationUrl") url(eventFields[key], label)
-          else text(eventFields[key], label, false, eventFieldMax[key])
+          text(eventFields[key], label, false, eventFieldMax[key])
         }
       }
       if (index === 1) {
@@ -236,11 +234,12 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
               </label>)}
             </div>
           </fieldset>
-          {isEvent && <Field label="Existing event" hint="Select an event to prefill the fields below, then check and update them.">
+          {isEvent && <Field label="Existing event" hint="Select an event to prefill the fields below, then check and update them. Its registration link becomes the link for readers on the Copy and files step.">
             <select value={media.eventId} onChange={(event) => {
               const selected = data.events.find((item) => item.id === event.target.value)
-              patch({ eventId: selected?.id || "", eventDetails: "", eventFields: selected ? { ...selected.fields } : emptyEventFields(), brief: selected?.description || "", postedBy: selected?.postedBy || "", postedByTbd: false })
+              patch({ eventId: selected?.id || "", eventDetails: "", eventFields: selected ? { ...selected.fields } : emptyEventFields(), brief: selected?.description || "", ...(selected?.registrationUrl ? { destinationUrl: selected.registrationUrl } : {}), postedBy: selected?.postedBy || "", postedByTbd: false })
               setTitle(selected?.title || "")
+              if (selected?.registrationUrl) setShowLink(true)
             }}>
               <option value="">Write an event brief from scratch</option>
               {data.events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
@@ -253,10 +252,9 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
           {isEvent && <fieldset>
             <legend>Event details</legend>
             <div className={styles.columns}>
-              {EVENT_FIELD_LABELS.map(([key, label]) => <div key={key} className={key === "name" || key === "leader" ? styles.wide : undefined}>
+              {EVENT_FIELD_LABELS.map(([key, label]) => <div key={key} className={key === "kind" || key === "time" ? undefined : styles.wide}>
                 <Field label={label} hint={eventFieldHints[key]}>
-                  <input {...fieldProps(`event-${key}`)} type={key === "registrationUrl" ? "url" : "text"} maxLength={eventFieldMax[key]}
-                    placeholder={key === "registrationUrl" ? "https://…" : undefined} value={eventFields[key]}
+                  <input {...fieldProps(`event-${key}`)} maxLength={eventFieldMax[key]} value={eventFields[key]}
                     onChange={(e) => patch({ eventFields: { ...eventFields, [key]: e.target.value } })} />
                 </Field>
               </div>)}

@@ -87,9 +87,9 @@ test("signed-in workflow bootstrap loads an empty queue and existing event/confe
       kind: "IPN Labs",
       time: "Sun, Jan 10, 6:00 PM - 7:00 PM UTC",
       leader: "Dr. Example",
-      howTo: "Online · Zoom",
-      registrationUrl: "https://example.test/register"
+      howTo: "Online · Zoom"
     })
+    assert.equal(result.data.events[0].registrationUrl, "https://example.test/register")
     assert.equal(result.data.events[0].description, "Event brief\n\nLonger event description")
     assert.equal(result.data.events[1].fields.howTo, "Conference lobby")
     assert.deepEqual(result.data.integrations, { slack: false, sheets: false, pending: 0 })
