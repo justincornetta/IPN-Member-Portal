@@ -38,6 +38,7 @@ import {
 } from "@/lib/leadership-workflows/domain"
 
 import MediaCalendar from "./MediaCalendar"
+import MediaDrafts from "./MediaDrafts"
 import MediaIntakeForm from "./MediaIntakeForm"
 import MediaList, {
   MEDIA_COLUMNS,
@@ -169,6 +170,7 @@ export default function WorkflowWorkspace({
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState(""),
     [creating, setCreating] = useState(false),
+    [editingDraft, setEditingDraft] = useState<WorkflowRequest | null>(null),
     [filter, setFilter] = useState(""),
     [search, setSearch] = useState(""),
     [demoUser, setDemoUser] = useState("approver"),
@@ -248,10 +250,41 @@ export default function WorkflowWorkspace({
           )
       }
       setCreating(false)
+      setEditingDraft(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save.")
       throw e
+    } finally {
+      setBusy(false)
+    }
+  }
+  // Saving a draft keeps the person in the wizard and never navigates away.
+  async function saveDraft(body: Record<string, unknown>) {
+    const response = await fetch("/api/admin/workflows", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(body)
+    })
+    const result = await response.json()
+    if (!result.ok) throw new Error(result.error)
+    await load()
+    return result.data as WorkflowRequest
+  }
+  async function deleteDraft(draft: WorkflowRequest) {
+    setBusy(true)
+    setError("")
+    try {
+      const response = await fetch(`/api/admin/workflows/${draft.id}`, {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({ action: "delete", revision: draft.revision })
+      })
+      const result = await response.json()
+      if (!result.ok) throw new Error(result.error)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to delete the draft.")
     } finally {
       setBusy(false)
     }
@@ -371,6 +404,7 @@ export default function WorkflowWorkspace({
           disabled={!data || busy || (kind === "media" && creating)}
           onClick={() => {
             setCreating(true)
+            setEditingDraft(null)
             setSelected("")
             setError("")
           }}
@@ -477,7 +511,11 @@ export default function WorkflowWorkspace({
         >
           {[
             { id: "queue", label: "Request queue" },
-            { id: "calendar", label: "Media calendar" }
+            { id: "calendar", label: "Media calendar" },
+            {
+              id: "drafts",
+              label: `My drafts${data.drafts?.length ? ` (${data.drafts.length})` : ""}`
+            }
           ].map((view) => (
             <button
               key={view.id}
@@ -497,12 +535,17 @@ export default function WorkflowWorkspace({
       )}
       {creating && data ? (
         <RequestForm
-          key={`new-${kind}`}
+          key={`new-${kind}-${editingDraft?.id ?? ""}`}
           kind={kind}
           data={data}
           busy={busy}
           save={save}
-          close={() => setCreating(false)}
+          saveDraft={saveDraft}
+          draft={editingDraft ?? undefined}
+          close={() => {
+            setCreating(false)
+            setEditingDraft(null)
+          }}
         />
       ) : current && data ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6">
@@ -536,6 +579,17 @@ export default function WorkflowWorkspace({
             save={save}
           />
         </section>
+      ) : kind === "media" && mediaView === "drafts" && data ? (
+        <MediaDrafts
+          drafts={data.drafts ?? []}
+          busy={busy}
+          open={(draft) => {
+            setEditingDraft(draft)
+            setCreating(true)
+            setError("")
+          }}
+          remove={deleteDraft}
+        />
       ) : (
         <section aria-label="Request queue" className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -790,6 +844,8 @@ function RequestForm({
   data,
   busy,
   save,
+  saveDraft,
+  draft,
   close,
   record
 }: {
@@ -797,6 +853,8 @@ function RequestForm({
   data: Bootstrap
   busy: boolean
   save: Save
+  saveDraft?: (body: Record<string, unknown>) => Promise<WorkflowRequest>
+  draft?: WorkflowRequest
   close: () => void
   record?: WorkflowRequest
 }) {
@@ -865,7 +923,7 @@ function RequestForm({
     } catch {}
   }
   if (kind === "media" && !record) {
-    return <MediaIntakeForm data={data} initialMedia={media} busy={busy} save={save} close={close} />
+    return <MediaIntakeForm data={data} initialMedia={draft?.media ?? media} draft={draft} busy={busy} save={save} saveDraft={saveDraft!} close={close} />
   }
   return (
     <form

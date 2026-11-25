@@ -4,7 +4,7 @@ import { cloneElement, useEffect, useId, useRef, useState, type FormEvent, type 
 import {
   MEDIA_FORMATS, mediaFormats, mediaDateLabel, mediaPlatformChoices, toggleMediaPlatform, text, date, url,
   EVENT_FIELD_LABELS, emptyEventFields, eventFieldsText, hasEventFields,
-  type Bootstrap, type EventFields, type MediaBrief
+  type Bootstrap, type EventFields, type MediaBrief, type WorkflowRequest
 } from "@/lib/leadership-workflows/domain"
 import styles from "./MediaIntakeForm.module.css"
 
@@ -57,27 +57,39 @@ function Field({ label, children, hint }: {
   </div>
 }
 
-export default function MediaIntakeForm({ data, initialMedia, busy, save, close }: {
+export default function MediaIntakeForm({ data, initialMedia, draft, busy, save, saveDraft, close }: {
   data: Bootstrap
   initialMedia: MediaBrief
+  draft?: WorkflowRequest
   busy: boolean
   save: (body: Record<string, unknown>) => Promise<void>
+  saveDraft: (body: Record<string, unknown>) => Promise<WorkflowRequest>
   close: () => void
 }) {
-  const [id] = useState(() => crypto.randomUUID())
+  const [id] = useState(() => draft?.id || crypto.randomUUID())
   const [step, setStep] = useState(0)
-  const [furthest, setFurthest] = useState(0)
-  const [title, setTitle] = useState("")
+  // A reopened draft can jump to any step; Send request still checks them all.
+  const [furthest, setFurthest] = useState(draft ? 3 : 0)
+  const [title, setTitle] = useState(draft?.title || "")
   const [media, setMedia] = useState(initialMedia)
-  const [copyChoice, setCopyChoice] = useState("")
-  const [links, setLinks] = useState("")
-  const [showLink, setShowLink] = useState(false)
+  const [copyChoice, setCopyChoice] = useState(
+    draft?.media ? (draft.media.needsCopyHelp ? "help" : draft.media.caption ? "self" : "") : ""
+  )
+  const [links, setLinks] = useState(draft?.media?.links.map((link) => link.url).join("\n") || "")
+  const [showLink, setShowLink] = useState(Boolean(draft?.media?.destinationUrl || draft?.media?.linkPlacement))
+  const [draftRevision, setDraftRevision] = useState(draft?.revision || 0)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [draftNote, setDraftNote] = useState<{ ok: boolean; message: string } | null>(null)
+  const [confirmLeave, setConfirmLeave] = useState(false)
   const [error, setError] = useState<{ field: string; message: string } | null>(null)
   const form = useRef<HTMLFormElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const submitting = useRef(false)
   const prefix = useId()
   const patch = (values: Partial<MediaBrief>) => setMedia((previous) => ({ ...previous, ...values }))
+  const snapshot = JSON.stringify([title, media, copyChoice, links])
+  const [savedSnapshot, setSavedSnapshot] = useState(snapshot)
+  const unsaved = snapshot !== savedSnapshot
   const supportingLinks = links.split(/\n/).map((value) => value.trim()).filter(Boolean)
   const dateLabel = mediaDateLabel(media)
   const assetOnly = Boolean(media.assetOnly)
@@ -156,21 +168,58 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
     setFurthest((previous) => Math.max(previous, next))
   }
 
+  // A reopened draft can jump straight to any step; Send request checks them all.
+  function jumpTo(next: number) {
+    if (busy) return
+    setError(null)
+    setStep(next)
+  }
+
+  function requestBody() {
+    return { id, kind: "media", title, media: {
+      ...media,
+      eventDetails: "",
+      eventFields: isEvent ? eventFields : undefined,
+      needsCopyHelp: copyChoice === "help",
+      links: supportingLinks.map((link) => ({ label: "Supporting material", url: link }))
+    } }
+  }
+
+  // Saves whatever is filled in. Required-field checks wait for Send request.
+  async function saveDraftNow() {
+    if (busy || submitting.current || savingDraft) return false
+    setSavingDraft(true)
+    setDraftNote(null)
+    const body = { ...requestBody(), action: "save_draft", ...(draftRevision ? { revision: draftRevision } : {}) }
+    try {
+      const saved = await saveDraft(body)
+      setDraftRevision(saved.revision)
+      setSavedSnapshot(snapshot)
+      setDraftNote({ ok: true, message: `Draft saved at ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}. Find it under My drafts.` })
+      return true
+    } catch (cause) {
+      setDraftNote({ ok: false, message: cause instanceof Error ? cause.message : "Unable to save the draft. Please try again." })
+      return false
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
+  function cancel() {
+    if (unsaved) setConfirmLeave(true)
+    else close()
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy || submitting.current) return
+    if (busy || submitting.current || savingDraft) return
     if (step < 3) { goTo(step + 1); return }
     for (let index = 0; index < 4; index++) if (!validate(index)) return
     submitting.current = true
     setError(null)
+    setDraftNote(null)
     try {
-      await save({ id, kind: "media", title, media: {
-        ...media,
-        eventDetails: "",
-        eventFields: isEvent ? eventFields : undefined,
-        needsCopyHelp: copyChoice === "help",
-        links: supportingLinks.map((link) => ({ label: "Supporting material", url: link }))
-      } })
+      await save(requestBody())
     } catch (cause) {
       setError({ field: "review", message: cause instanceof Error ? cause.message : "Unable to send. Please try again." })
     } finally {
@@ -203,14 +252,14 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
 
   return <form ref={form} onSubmit={submit} noValidate className={styles.form} aria-label="New media request" aria-busy={busy}>
     <header>
-      <h2>New media request</h2>
-      <p className={styles.hint}>About 3 minutes · you can go back anytime</p>
+      <h2>{draft ? "Continue your draft" : "New media request"}</h2>
+      <p className={styles.hint}>About 3 minutes · you can go back anytime · save a draft whenever you like</p>
     </header>
     <nav aria-label="Request steps">
       <ol className={styles.steps}>
         {steps.map((label, index) => <li key={label}>
           <button type="button" aria-label={`Step ${index + 1}: ${label}`} aria-current={step === index ? "step" : undefined}
-            disabled={busy || index > furthest} onClick={() => goTo(index)}>
+            disabled={busy || index > furthest} onClick={() => draft ? jumpTo(index) : goTo(index)}>
             <span>{index + 1}</span><span>{label}</span>
           </button>
         </li>)}
@@ -344,10 +393,20 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
         </>}
       </fieldset>
     </section>
+    {draftNote && <p role={draftNote.ok ? "status" : "alert"} className={draftNote.ok ? styles.saved : `${styles.error} ${styles.below}`}>{draftNote.message}</p>}
+    {confirmLeave && <div role="alertdialog" aria-label="Unsaved changes" className={styles.leave}>
+      <p>You have changes that aren&apos;t saved yet.</p>
+      <div>
+        <button type="button" className={styles.secondary} onClick={async () => { if (await saveDraftNow()) close(); else setConfirmLeave(false) }}>Save draft and close</button>
+        <button type="button" className={styles.textButton} onClick={close}>Discard changes</button>
+        <button type="button" className={styles.textButton} onClick={() => setConfirmLeave(false)}>Keep editing</button>
+      </div>
+    </div>}
     <footer className={styles.footer}>
-      <button type="button" disabled={busy} className={styles.textButton} onClick={close}>Cancel</button>
+      <button type="button" disabled={busy} className={styles.textButton} onClick={cancel}>Cancel</button>
       <div>
         {step > 0 && <button type="button" disabled={busy} className={styles.textButton} onClick={() => goTo(step - 1)}>Back</button>}
+        <button type="button" disabled={busy} aria-disabled={savingDraft || undefined} className={styles.secondary} onClick={() => void saveDraftNow()}>{savingDraft ? "Saving…" : "Save draft"}</button>
         <button type="submit" disabled={busy} className={styles.primary}>{busy ? "Sending…" : step === 3 ? "Send request" : "Continue"}</button>
       </div>
     </footer>

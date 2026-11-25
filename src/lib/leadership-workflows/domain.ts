@@ -19,9 +19,16 @@ export const EXPENSE_STATUSES = [
   "reimbursed",
   "cancelled"
 ] as const
+// A media request that was saved but not sent. It is private to its creator and
+// is not one of the queue stages: sending it makes it "submitted".
+export const DRAFT_STATUS = "draft"
 export type Status =
-  (typeof MEDIA_STATUSES)[number] | (typeof EXPENSE_STATUSES)[number] | "in_production" // Legacy stage.
+  | (typeof MEDIA_STATUSES)[number]
+  | (typeof EXPENSE_STATUSES)[number]
+  | "in_production" // Legacy stage.
+  | typeof DRAFT_STATUS
 export const STATUS_LABELS: Record<Status, string> = {
+  draft: "Draft",
   submitted: "Submitted",
   needs_information: "Needs information",
   accepted: "Accepted",
@@ -278,6 +285,7 @@ export type Bootstrap = {
   people: Person[]
   events: EventOption[]
   requests: WorkflowRequest[]
+  drafts: WorkflowRequest[] // The signed-in user's own unsent media drafts.
   activity: Activity[]
   bankEntries: BankEntry[]
   cash: Cash | null
@@ -532,6 +540,8 @@ export function parseExpense(value: unknown): Expense {
     receiptUrl: ""
   }
 }
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 export function createRequest(
   input: unknown,
   actor: Person,
@@ -568,14 +578,164 @@ export function createRequest(
       : { expense: parseExpense(v.expense) })
   }
 }
+export const isDraft = (r: Pick<WorkflowRequest, "status">) =>
+  r.status === DRAFT_STATUS
 export function canRead(
   r: WorkflowRequest,
   actorId: string,
   approverId: string
 ) {
+  // Drafts are private to their creator, including from the approver.
+  if (isDraft(r)) return r.requesterId === actorId
   return (
     r.kind === "media" || r.requesterId === actorId || actorId === approverId
   )
+}
+// What the queue, calendar and every list built from them may show.
+export const isQueueRequest = (r: WorkflowRequest) =>
+  !r.deletedAt && !isDraft(r)
+// A person's own unsent drafts, most recently saved first.
+export function ownDrafts(rows: WorkflowRequest[], actorId: string) {
+  return rows
+    .filter(
+      (r) =>
+        r.kind === "media" &&
+        isDraft(r) &&
+        !r.deletedAt &&
+        r.requesterId === actorId
+    )
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+// Lenient version of parseMedia for "Save draft": keeps whatever is filled in,
+// checks only types and sizes, and never invents a date. Sending the draft runs
+// the strict parseMedia.
+export function parseMediaDraft(value: unknown): MediaBrief {
+  const v = object(value)
+  const typeText = text(v.type, "Request type", false, 40)
+  const type = (
+    ["event", "announcement", "campaign", "educational"].includes(typeText)
+      ? typeText
+      : "announcement"
+  ) as MediaBrief["type"]
+  const assetOnly = v.assetOnly === true
+  const postedByTbd = v.postedByTbd === true
+  const list = (raw: unknown, label: string) => {
+    if (raw == null) return []
+    if (!Array.isArray(raw) || raw.length > 10)
+      throw new WorkflowError(`${label} has too many choices.`)
+    return raw.map((item) => text(item, label, true, 100))
+  }
+  const platforms = list(v.platforms, "Platforms")
+  const formats = [...new Set(list(v.formats, "Formats"))]
+  const links = Array.isArray(v.links) ? v.links : []
+  if (links.length > 20)
+    throw new WorkflowError("Use at most 20 supporting links.")
+  const destinationUrl = text(v.destinationUrl, "Link to include", false, 2000)
+  return {
+    type,
+    team: text(v.team, "Team / project", false, 150),
+    brief: text(v.brief, "Idea / brief"),
+    postedBy: postedByTbd ? "" : text(v.postedBy, "Date", false, 10),
+    postedByTbd,
+    assetOnly,
+    placeholder: v.placeholder === true,
+    urgent: v.urgent === true,
+    platforms: platforms.length ? platforms : [mediaPlatformChoices(assetOnly)[0]],
+    formats: formats.length ? formats : ["Media to advise"],
+    format: (formats.length ? formats : ["Media to advise"]).join(", "),
+    destinationUrl,
+    linkPlacement: text(v.linkPlacement, "Where to include the link", false, 1000),
+    needsCopyHelp: v.needsCopyHelp === true,
+    headline: "",
+    caption: text(v.caption, "Post caption", false, 21004),
+    usageNotes: text(v.usageNotes, "Usage notes", false, 10000),
+    additionalDetails: text(v.additionalDetails, "Additional details", false, 10000),
+    links: links.map((l) => {
+      const x = object(l)
+      return {
+        label: text(x.label, "Link label", false, 150) || "Supporting material",
+        url: text(x.url, "Supporting material", false, 2000)
+      }
+    }).filter((l) => l.url),
+    eventId: text(v.eventId, "Event", false, 200),
+    ...parseEventFields(type, v.eventFields, v.eventDetails),
+    productionOwnerId: "",
+    publisherId: "",
+    deliverables: []
+  }
+}
+// Create a draft, or update the creator's existing draft. No required-field
+// checks, no Slack jobs: the strict checks run when the draft is sent.
+export function saveDraft(
+  existing: WorkflowRequest | undefined,
+  input: unknown,
+  actor: Person,
+  now = new Date()
+): { record: WorkflowRequest; event: string } {
+  const v = object(input)
+  const title = text(v.title, "Idea name", false, 180)
+  const media = parseMediaDraft(v.media ?? {})
+  if (!existing) {
+    const id = text(v.id, "Request ID", true, 36)
+    if (!UUID.test(id)) throw new WorkflowError("Invalid request ID.")
+    return {
+      event: "draft_saved",
+      record: {
+        id,
+        kind: "media",
+        requesterId: actor.id,
+        requesterName: actor.name,
+        requesterEmail: actor.email,
+        title,
+        status: DRAFT_STATUS,
+        revision: 1,
+        submittedAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        media
+      }
+    }
+  }
+  if (!isDraft(existing) || existing.kind !== "media" || existing.deletedAt)
+    throw new WorkflowError("This request has already been sent.", 409)
+  if (existing.requesterId !== actor.id)
+    throw new WorkflowError("Request not found.", 404)
+  if (v.revision !== existing.revision)
+    throw new WorkflowError(
+      "This draft changed in another window. Reload it before saving.",
+      409
+    )
+  return {
+    event: "draft_saved",
+    record: {
+      ...existing,
+      title,
+      media,
+      requesterName: actor.name,
+      requesterEmail: actor.email,
+      revision: existing.revision + 1,
+      updatedAt: now.toISOString()
+    }
+  }
+}
+// Send a saved draft through the normal submission checks.
+export function sendDraft(
+  existing: WorkflowRequest,
+  input: unknown,
+  actor: Person,
+  now = new Date()
+): WorkflowRequest {
+  if (!isDraft(existing) || existing.deletedAt)
+    throw new WorkflowError("This request has already been sent.", 409)
+  if (existing.requesterId !== actor.id)
+    throw new WorkflowError("Request not found.", 404)
+  const sent = createRequest(input, actor, now)
+  if (sent.kind !== "media" || sent.id !== existing.id)
+    throw new WorkflowError("Invalid request ID.")
+  return {
+    ...sent,
+    revision: existing.revision + 1,
+    submittedAt: now.toISOString()
+  }
 }
 // Show every stage; validate its prerequisites when saving rather than hide it.
 // Asset-only requests end at Delivered; posted requests end at Published.
@@ -650,6 +810,9 @@ export function applyChange(
   if (current.deletedAt)
     throw new WorkflowError("Request not found.", 404)
   const v = object(input)
+  // Drafts are edited and sent from My drafts; here the creator can only delete.
+  if (isDraft(current) && v.action !== "delete")
+    throw new WorkflowError("Open this draft from My drafts to edit or send it.")
   if (v.revision !== current.revision)
     throw new WorkflowError(
       "This request has changed. Reload it before saving.",
