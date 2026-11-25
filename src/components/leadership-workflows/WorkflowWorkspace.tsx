@@ -1249,8 +1249,8 @@ function RequestForm({
                         hint="Text partners can post with the asset."
                       >
                         <textarea
-                          className={input}
-                          rows={5}
+                          className={`${input} resize-y`}
+                          rows={14}
                           value={media.caption}
                           onChange={(e) => m({ caption: e.target.value })}
                         />
@@ -1289,8 +1289,8 @@ function RequestForm({
                         hint="The full text for the post: main message, key details, call to action and any useful links."
                       >
                         <textarea
-                          className={input}
-                          rows={5}
+                          className={`${input} resize-y`}
+                          rows={14}
                           value={media.caption}
                           onChange={(e) => m({ caption: e.target.value })}
                         />
