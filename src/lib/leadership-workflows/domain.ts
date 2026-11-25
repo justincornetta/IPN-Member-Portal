@@ -181,6 +181,15 @@ export type MediaSlackChange = {
   note: string
   publishedUrl: string
   assetOnly?: boolean
+  editedBy?: string
+  edits?: MediaEdit[]
+}
+// One changed request field, for the Slack thread reply after an edit.
+export type MediaEdit = {
+  label: string
+  from?: string // Short fields show old → new.
+  to?: string
+  text?: string // Long fields show the new text.
 }
 export type WorkflowRequest = {
   id: string
@@ -597,24 +606,16 @@ export function missingPublicationFields(
   const has = (key: PublicationField) =>
     typeof details[key] === "string" && Boolean((details[key] as string).trim())
   const needed = new Set<PublicationField>()
-  if (["ready_to_post", "delivered", "posted"].includes(desired))
+  if (desired === "ready_to_post" || desired === "delivered")
     needed.add("assetUrl")
-  const publishing =
+  // Any stage can move to Published once the live link and date are recorded.
+  if (
     !assetOnly &&
     (desired === "posted" || has("publishedUrl") || has("postedDate"))
-  if (publishing) {
-    needed.add("assetUrl")
+  ) {
     needed.add("publishedUrl")
     needed.add("postedDate")
   }
-  // Publication is recorded only after final review (Approved: Ready to Publish).
-  if (publishing && current !== "ready_to_post")
-    return {
-      fields: has("assetUrl") ? [] : ["assetUrl"],
-      message: `Complete final review first: move the request to ${STATUS_LABELS.ready_to_post}${
-        has("assetUrl") ? "" : ", which needs the Final asset link,"
-      } and save. Then add the Published link and Actual posting date.`
-    }
   const fields = (["assetUrl", "publishedUrl", "postedDate"] as const).filter(
     (key) => needed.has(key) && !has(key)
   )
@@ -702,6 +703,14 @@ export function applyChange(
         )
         if (missing) throw new WorkflowError(missing.message)
       }
+      const publication = (v.publication || {}) as Record<string, unknown>
+      if (
+        !v.ownerId &&
+        !m.assetOnly &&
+        (desiredStatus === "posted" ||
+          (publication.publishedUrl && publication.postedDate))
+      )
+        throw new WorkflowError("Select a media owner before recording publication.")
       // Validate the whole form in memory, then persist one revision and audit event.
       let result = applyChange(
         current,
@@ -760,7 +769,12 @@ export function applyChange(
         delete record.media.linkConfirmedAt
         delete record.media.linkConfirmedBy
       }
+      const changed =
+        record.title !== current.title ||
+        JSON.stringify(record.media) !== JSON.stringify(m)
+      // Saving the form without changes leaves in-progress work where it is.
       if (
+        changed &&
         !["submitted", "needs_information", "cancelled"].includes(record.status)
       ) {
         record.status = "director_review"
@@ -846,7 +860,7 @@ export function applyChange(
           throw new WorkflowError(
             "Posted deliverables retain their final record."
           )
-        if (["ready", "posted"].includes(status) && !result.assetUrl)
+        if (status === "ready" && !result.assetUrl)
           throw new WorkflowError(
             "Add a final asset link before marking a deliverable ready."
           )
@@ -856,14 +870,6 @@ export function applyChange(
         )
           throw new WorkflowError(
             "Record the publisher, posted date, and published link."
-          )
-        if (
-          status === "posted" &&
-          !["ready_to_post", "posted"].includes(record.status) &&
-          old?.status !== "posted"
-        )
-          throw new WorkflowError(
-            "Complete final review before recording publication."
           )
         return result
       })
@@ -901,13 +907,7 @@ export function applyChange(
         delete m.reviewedAt
         delete m.reviewedBy
       }
-      if (publicationPosted) {
-        if (record.status !== "ready_to_post")
-          throw new WorkflowError(
-            "Complete final review of the final asset before recording publication."
-          )
-        record.status = "posted"
-      }
+      if (publicationPosted) record.status = "posted"
     } else if (action === "status") {
       const status = text(v.status, "Status", true) as Status
       if (!mediaNextStatuses(record.status, m.assetOnly).includes(status))

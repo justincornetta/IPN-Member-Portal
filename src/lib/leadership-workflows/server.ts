@@ -468,7 +468,7 @@ async function save(
   note: string,
   previous?: WorkflowRequest
 ) {
-  r = withMediaSlackChange(r, event, previous, note)
+  r = withMediaSlackChange(r, event, previous, note, c.user.name)
   if (c.demo)
     return demoWrite((s) => {
       const index = s.requests.findIndex((x) => x.id === r.id)

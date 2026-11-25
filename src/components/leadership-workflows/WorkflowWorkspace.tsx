@@ -1793,7 +1793,16 @@ function Production({
           const form = event.currentTarget
           const missing = legacyMultiple
             ? null
-            : missingPublicationFields(r.status, status, assetOnly, details)
+            : missingPublicationFields(r.status, status, assetOnly, details) ||
+              (!owner &&
+              !assetOnly &&
+              (status === "posted" ||
+                (details.publishedUrl.trim() && details.postedDate))
+                ? {
+                    message: "Select a media owner before recording publication.",
+                    fields: []
+                  }
+                : null)
           setProblem(missing)
           if (missing) {
             const first = missing.fields[0]
@@ -1879,7 +1888,7 @@ function Production({
                   <Field label="Published link" hint="Add the live post, video or sent campaign link after publication.">
                     <input type="url" data-field="publishedUrl" aria-invalid={invalid("publishedUrl")} className={fieldClass("publishedUrl")} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
                   </Field>
-                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Published.">
+                  <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the request Published.">
                     <input type="date" data-field="postedDate" aria-invalid={invalid("postedDate")} className={fieldClass("postedDate")} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
                   </Field>
                 </div>}

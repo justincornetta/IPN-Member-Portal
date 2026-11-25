@@ -495,7 +495,7 @@ test("one media owner handles production and publication, with per-deliverable o
   assert.equal(delegated.media.deliverables[0].publisherId, other.id)
 })
 
-test("request publication keeps one record, requires review and records Published atomically", () => {
+test("request publication keeps one record and records Published atomically from any stage", () => {
   let r = createRequest(
     {
       id: randomUUID(),
@@ -524,17 +524,17 @@ test("request publication keeps one record, requires review and records Publishe
   const id = r.media.deliverables[0].id
   assert.equal(r.media.deliverables.length, 1)
   assert.equal(r.media.deliverables[0].platform, "Instagram, LinkedIn")
-  assert.throws(
-    () =>
-      change(r, "publication", member, {
-        ownerId: member.id,
-        publication: {
-          ...publication,
-          publishedUrl: "https://www.instagram.com/p/example/",
-          postedDate: "2026-10-05"
-        }
-      }),
-    /final review/
+  // Publication can be recorded from any stage; final review is not required.
+  assert.equal(
+    change(r, "publication", member, {
+      ownerId: member.id,
+      publication: {
+        ...publication,
+        publishedUrl: "https://www.instagram.com/p/example/",
+        postedDate: "2026-10-05"
+      }
+    }).status,
+    "posted"
   )
   assert.throws(
     () =>
@@ -559,16 +559,15 @@ test("request publication keeps one record, requires review and records Publishe
     publishedUrl: "https://www.instagram.com/p/example/",
     postedDate: "2026-10-05"
   }
-  assert.throws(
-    () =>
-      change(r, "publication", member, {
-        ownerId: member.id,
-        publication: {
-          ...published,
-          assetUrl: "https://www.canva.com/design/revised/edit"
-        }
-      }),
-    /final review/
+  assert.equal(
+    change(r, "publication", member, {
+      ownerId: member.id,
+      publication: {
+        ...published,
+        assetUrl: "https://www.canva.com/design/revised/edit"
+      }
+    }).status,
+    "posted"
   )
   const posted = change(r, "publication", member, {
     ownerId: member.id,
@@ -626,7 +625,8 @@ test("one media save validates owner, status and publication before advancing on
   assert.equal(legacySaved.revision, legacy.revision + 1)
   const complete = { ...final, publishedUrl: "https://example.com/published", postedDate: "2026-10-20" }
   assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "cancelled", publication: complete }), /Clear the publication record/)
-  assert.throws(() => change(r, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...complete, assetUrl: "https://www.canva.com/design/revised/edit" } }), /final review/)
+  assert.equal(change(reviewed, "media_save", member, { ownerId: other.id, status: "posted", publication: { ...publication, publishedUrl: complete.publishedUrl, postedDate: complete.postedDate } }).status, "posted")
+  assert.throws(() => change(reviewed, "media_save", member, { ownerId: "", status: "posted", publication: complete }), /media owner before recording publication/)
   const pendingReview = change(r, "media_save", member, { ownerId: other.id, status: r.status, publication: { ...final, assetUrl: "https://www.canva.com/design/revised/edit" } })
   assert.equal(pendingReview.status, "director_review")
   assert.equal(pendingReview.media.reviewedBy, undefined)
@@ -802,26 +802,18 @@ test("media saves name the publication fields that are still missing", () => {
   const empty = { assetUrl: "", publishedUrl: "", postedDate: "" }
   const asset = "https://www.canva.com/design/example/edit"
   assert.deepEqual(missingPublicationFields("assigned", "posted", false, empty), {
-    fields: ["assetUrl"],
-    message: "Complete final review first: move the request to Approved: Ready to Publish, which needs the Final asset link, and save. Then add the Published link and Actual posting date."
-  })
-  assert.deepEqual(missingPublicationFields("ready_to_post", "posted", false, empty), {
-    fields: ["assetUrl", "publishedUrl", "postedDate"],
-    message: "To move this to Published, add the Final asset link, Published link and Actual posting date."
-  })
-  assert.deepEqual(missingPublicationFields("ready_to_post", "posted", false, { ...empty, assetUrl: asset }), {
     fields: ["publishedUrl", "postedDate"],
     message: "To move this to Published, add the Published link and Actual posting date."
+  })
+  assert.deepEqual(missingPublicationFields("assigned", "ready_to_post", false, empty), {
+    fields: ["assetUrl"],
+    message: "To move this to Approved: Ready to Publish, add the Final asset link."
   })
   assert.deepEqual(missingPublicationFields("ready_to_post", "ready_to_post", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "" }), {
     fields: ["postedDate"],
     message: "Add the Actual posting date to record publication."
   })
-  assert.match(
-    missingPublicationFields("assigned", "posted", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "2026-11-20" }).message,
-    /Complete final review first/
-  )
-  assert.equal(missingPublicationFields("ready_to_post", "posted", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "2026-11-20" }), null)
+  assert.equal(missingPublicationFields("assigned", "posted", false, { ...empty, publishedUrl: "https://example.com/p", postedDate: "2026-11-20" }), null)
   assert.equal(missingPublicationFields("assigned", "director_review", false, empty), null)
   assert.deepEqual(missingPublicationFields("assigned", "delivered", true, empty).fields, ["assetUrl"])
 })
