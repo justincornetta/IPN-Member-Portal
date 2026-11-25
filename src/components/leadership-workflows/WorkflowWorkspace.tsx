@@ -18,6 +18,7 @@ import {
   mediaPlatformChoices,
   mediaPostCaption,
   mediaStages,
+  missingPublicationFields,
   emptyEventFields,
   hasEventFields,
   toggleMediaPlatform,
@@ -31,6 +32,7 @@ import {
   type EventFields,
   type Kind,
   type MediaBrief,
+  type PublicationField,
   type Person,
   type WorkflowRequest
 } from "@/lib/leadership-workflows/domain"
@@ -1772,8 +1774,22 @@ function Production({
   const locked = r.status === "posted"
   const assetOnly = Boolean(r.media!.assetOnly)
   const legacyMultiple = r.media!.deliverables.length > 1
-  const update = (patch: Partial<typeof details>) =>
+  const [problem, setProblem] = useState<{
+    message: string
+    fields: PublicationField[]
+  } | null>(null)
+  const update = (patch: Partial<typeof details>) => {
     setDetails({ ...details, ...patch })
+    if (problem)
+      setProblem({
+        ...problem,
+        fields: problem.fields.filter((field) => !(field in patch))
+      })
+  }
+  const invalid = (field: PublicationField) =>
+    problem?.fields.includes(field) || undefined
+  const fieldClass = (field: PublicationField) =>
+    invalid(field) ? `${input} border-red-500 ring-2 ring-red-500/15` : input
   const name = (id?: string) =>
     people.find((person) => person.id === id)?.name || "Unassigned"
   return (
@@ -1785,13 +1801,31 @@ function Production({
       <form
         onSubmit={(event) => {
           event.preventDefault()
+          const form = event.currentTarget
+          const missing = legacyMultiple
+            ? null
+            : missingPublicationFields(r.status, status, assetOnly, details)
+          setProblem(missing)
+          if (missing) {
+            const first = missing.fields[0]
+            if (first)
+              form
+                .querySelector<HTMLInputElement>(`[data-field="${first}"]`)
+                ?.focus()
+            return
+          }
           void save({
             action: "media_save",
             ownerId: owner,
             status,
             note: reviewNote,
             publication: details
-          }).catch(() => {})
+          }).catch((e) =>
+            setProblem({
+              message: e instanceof Error ? e.message : "Unable to save.",
+              fields: []
+            })
+          )
         }}
       >
         <fieldset disabled={busy || locked} className="mt-4 flex flex-col gap-4">
@@ -1846,7 +1880,7 @@ function Production({
               <>
                 <div className="grid gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2">
                   <Field label="Final asset link (Drive / Canva)" hint="Link to the finished content or a folder containing its assets. Required before Approved: Ready to Publish.">
-                    <input type="url" className={input} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
+                    <input type="url" data-field="assetUrl" aria-invalid={invalid("assetUrl")} className={fieldClass("assetUrl")} value={details.assetUrl} onChange={(e) => update({ assetUrl: e.target.value })} />
                   </Field>
                   <Field label={assetOnly ? "Planned delivery date" : "Scheduled posting date"} hint={assetOnly ? "When the Media team plans to have the asset ready." : "The planned posting date, shown in the media calendar. Leave blank until scheduled."}>
                     <input type="date" className={input} value={details.scheduledDate} onChange={(e) => update({ scheduledDate: e.target.value })} />
@@ -1854,15 +1888,20 @@ function Production({
                 </div>
                 {!assetOnly && <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Published link" hint="Add the live post, video or sent campaign link after publication.">
-                    <input type="url" className={input} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
+                    <input type="url" data-field="publishedUrl" aria-invalid={invalid("publishedUrl")} className={fieldClass("publishedUrl")} value={details.publishedUrl} onChange={(e) => update({ publishedUrl: e.target.value })} />
                   </Field>
                   <Field label="Actual posting date" hint="Add with the published link after posting. Saving both marks the reviewed request Published.">
-                    <input type="date" className={input} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
+                    <input type="date" data-field="postedDate" aria-invalid={invalid("postedDate")} className={fieldClass("postedDate")} value={details.postedDate} onChange={(e) => update({ postedDate: e.target.value })} />
                   </Field>
                 </div>}
               </>
             )}
           </MediaSection>
+          {problem && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {problem.message}
+            </p>
+          )}
           {!locked && <button className={`${primary} self-start`}>{busy ? "Saving…" : "Save"}</button>}
         </fieldset>
       </form>

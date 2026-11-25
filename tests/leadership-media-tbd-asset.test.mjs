@@ -113,7 +113,7 @@ test("C1: asset-only requests end at Delivered, never Published", () => {
   assert.equal(STATUS_LABELS.delivered, "Delivered: Ready for partner use")
   const publication = { scheduledDate: "2026-12-14", assetUrl: "", publishedUrl: "", postedDate: "" }
   assert.throws(() => change(r, "media_save", { ownerId: "", status: "delivered", publication }), /media owner/)
-  assert.throws(() => change(r, "media_save", { ownerId: owner.id, status: "delivered", publication }), /final Drive or Canva link before marking the asset delivered/)
+  assert.throws(() => change(r, "media_save", { ownerId: owner.id, status: "delivered", publication }), /To move this to Delivered: Ready for partner use, add the Final asset link\./)
   assert.throws(() => change(r, "media_save", { ownerId: owner.id, status: "posted", publication: { ...publication, assetUrl: asset } }), /not available|Delivered instead/)
   r = change(r, "media_save", { ownerId: owner.id, status: "ready_to_post", publication: { ...publication, assetUrl: asset } })
   assert.throws(() => change(r, "media_save", { ownerId: owner.id, status: r.status, publication: { ...publication, assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "2026-12-15" } }), /Delivered instead/)

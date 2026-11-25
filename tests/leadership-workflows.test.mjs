@@ -12,6 +12,7 @@ import {
   url,
   parseMedia,
   mediaPostCaption,
+  missingPublicationFields,
   cents,
   mediaFormats
 } from "../src/lib/leadership-workflows/domain.ts"
@@ -612,7 +613,7 @@ test("one media save validates owner, status and publication before advancing on
   for (const status of ["assigned", "director_review"])
     r = change(r, "media_save", member, { ownerId: other.id, status, publication })
   const reviewed = structuredClone(r)
-  assert.throws(() => change(r, "media_save", member, { ownerId: member.id, status: "ready_to_post", publication }), /final Drive or Canva/)
+  assert.throws(() => change(r, "media_save", member, { ownerId: member.id, status: "ready_to_post", publication }), /To move this to Approved: Ready to Publish, add the Final asset link\./)
   assert.deepEqual(r, reviewed)
   const final = { ...publication, assetUrl: "https://www.canva.com/design/example/edit" }
   r = change(r, "media_save", member, { ownerId: other.id, status: "ready_to_post", publication: final })
@@ -786,4 +787,32 @@ test("headline folds into the post caption and is no longer stored separately", 
   assert.equal(parseMedia({ ...media, headline: "Join us", caption: "Join us" }).caption, "Join us")
   assert.throws(() => parseMedia(media), /copywriting help/)
   assert.equal(mediaPostCaption({ headline: "Title", body: "Body", caption: "Caption" }), "Title\n\nBody\n\nCaption")
+})
+
+test("media saves name the publication fields that are still missing", () => {
+  const empty = { assetUrl: "", publishedUrl: "", postedDate: "" }
+  const asset = "https://www.canva.com/design/example/edit"
+  assert.deepEqual(missingPublicationFields("assigned", "posted", false, empty), {
+    fields: ["assetUrl"],
+    message: "Complete final review first: move the request to Approved: Ready to Publish, which needs the Final asset link, and save. Then add the Published link and Actual posting date."
+  })
+  assert.deepEqual(missingPublicationFields("ready_to_post", "posted", false, empty), {
+    fields: ["assetUrl", "publishedUrl", "postedDate"],
+    message: "To move this to Published, add the Final asset link, Published link and Actual posting date."
+  })
+  assert.deepEqual(missingPublicationFields("ready_to_post", "posted", false, { ...empty, assetUrl: asset }), {
+    fields: ["publishedUrl", "postedDate"],
+    message: "To move this to Published, add the Published link and Actual posting date."
+  })
+  assert.deepEqual(missingPublicationFields("ready_to_post", "ready_to_post", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "" }), {
+    fields: ["postedDate"],
+    message: "Add the Actual posting date to record publication."
+  })
+  assert.match(
+    missingPublicationFields("assigned", "posted", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "2026-11-20" }).message,
+    /Complete final review first/
+  )
+  assert.equal(missingPublicationFields("ready_to_post", "posted", false, { assetUrl: asset, publishedUrl: "https://example.com/p", postedDate: "2026-11-20" }), null)
+  assert.equal(missingPublicationFields("assigned", "director_review", false, empty), null)
+  assert.deepEqual(missingPublicationFields("assigned", "delivered", true, empty).fields, ["assetUrl"])
 })

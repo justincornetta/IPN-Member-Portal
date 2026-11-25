@@ -567,6 +567,62 @@ export function mediaStages(assetOnly?: boolean): Status[] {
     assetOnly ? stage !== "posted" : stage !== "delivered"
   )
 }
+export type PublicationField = "assetUrl" | "publishedUrl" | "postedDate"
+export const PUBLICATION_FIELD_LABELS: Record<PublicationField, string> = {
+  assetUrl: "Final asset link",
+  publishedUrl: "Published link",
+  postedDate: "Actual posting date"
+}
+function listLabels(labels: string[]) {
+  return labels.length < 2
+    ? labels.join("")
+    : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`
+}
+// Name the publication fields a media save still needs, so the form can
+// point at them instead of failing with a general message.
+export function missingPublicationFields(
+  current: Status,
+  desired: Status,
+  assetOnly: boolean | undefined,
+  details: Partial<Record<PublicationField, unknown>>
+): { fields: PublicationField[]; message: string } | null {
+  const has = (key: PublicationField) =>
+    typeof details[key] === "string" && Boolean((details[key] as string).trim())
+  const needed = new Set<PublicationField>()
+  if (["ready_to_post", "delivered", "posted"].includes(desired))
+    needed.add("assetUrl")
+  const publishing =
+    !assetOnly &&
+    (desired === "posted" || has("publishedUrl") || has("postedDate"))
+  if (publishing) {
+    needed.add("assetUrl")
+    needed.add("publishedUrl")
+    needed.add("postedDate")
+  }
+  // Publication is recorded only after final review (Approved: Ready to Publish).
+  if (publishing && current !== "ready_to_post")
+    return {
+      fields: has("assetUrl") ? [] : ["assetUrl"],
+      message: `Complete final review first: move the request to ${STATUS_LABELS.ready_to_post}${
+        has("assetUrl") ? "" : ", which needs the Final asset link,"
+      } and save. Then add the Published link and Actual posting date.`
+    }
+  const fields = (["assetUrl", "publishedUrl", "postedDate"] as const).filter(
+    (key) => needed.has(key) && !has(key)
+  )
+  if (fields.length) {
+    const names = listLabels(fields.map((key) => PUBLICATION_FIELD_LABELS[key]))
+    return {
+      fields,
+      message:
+        desired !== current &&
+        ["ready_to_post", "delivered", "posted"].includes(desired)
+          ? `To move this to ${STATUS_LABELS[desired]}, add the ${names}.`
+          : `Add the ${names} to record publication.`
+    }
+  }
+  return null
+}
 export function mediaNextStatuses(status: Status, assetOnly?: boolean): Status[] {
   return status === "posted"
     ? []
@@ -625,6 +681,19 @@ export function applyChange(
         throw new WorkflowError(
           "That status change is not available from the current stage."
         )
+      const ownerMissing =
+        !v.ownerId &&
+        ["assigned", "in_production", "director_review", "ready_to_post", "delivered"].includes(desiredStatus)
+      // An unassigned owner is reported first by the status change below.
+      if (m.deliverables.length <= 1 && !ownerMissing) {
+        const missing = missingPublicationFields(
+          current.status,
+          desiredStatus,
+          m.assetOnly,
+          v.publication ? object(v.publication) : {}
+        )
+        if (missing) throw new WorkflowError(missing.message)
+      }
       // Validate the whole form in memory, then persist one revision and audit event.
       let result = applyChange(
         current,
