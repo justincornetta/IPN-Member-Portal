@@ -1,4 +1,5 @@
 import {
+  EVENT_FIELD_LABELS,
   STATUS_LABELS,
   mediaFormats,
   type MediaSlackChange,
@@ -234,6 +235,12 @@ function parentLines(
     }`
   )
   lines.push(`*Where:* ${displayField(m.linkPlacement)}`)
+  if (m.eventFields) {
+    lines.push("")
+    for (const [key, label] of EVENT_FIELD_LABELS)
+      if (m.eventFields[key])
+        lines.push(`*${label}:* ${escapeSlack(m.eventFields[key])}`)
+  }
   lines.push("")
   lines.push(displayField(m.brief?.slice(0, 1800)))
   return lines

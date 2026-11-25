@@ -3,7 +3,8 @@
 import { cloneElement, useEffect, useId, useRef, useState, type FormEvent, type ReactElement } from "react"
 import {
   MEDIA_FORMATS, mediaFormats, mediaDateLabel, mediaPlatformChoices, toggleMediaPlatform, text, date, url,
-  type Bootstrap, type MediaBrief
+  EVENT_FIELD_LABELS, emptyEventFields, eventFieldsText, hasEventFields,
+  type Bootstrap, type EventFields, type MediaBrief
 } from "@/lib/leadership-workflows/domain"
 import styles from "./MediaIntakeForm.module.css"
 
@@ -15,6 +16,17 @@ const introductions = [
   "Write it yourself or hand it off — either works.",
   "Give it a once-over, then send it off."
 ]
+const eventFieldHints: Record<keyof EventFields, string> = {
+  name: "The event's public title.",
+  kind: "For example: IPN Labs, Webinar, Workshop or Meetup.",
+  time: "Date, start and end time, and time zone.",
+  leader: "Who is leading it, speaking or hosting.",
+  howTo: "Where it happens, or how people join online.",
+  registrationUrl: "Where people sign up. Must start with https://."
+}
+const eventFieldMax: Record<keyof EventFields, number> = {
+  name: 300, kind: 150, time: 300, leader: 1000, howTo: 2000, registrationUrl: 2000
+}
 const types = [
   ["event", "Event", "Promote something on the calendar"],
   ["announcement", "Announcement", "Share news with the network"],
@@ -70,6 +82,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
   const supportingLinks = links.split(/\n/).map((value) => value.trim()).filter(Boolean)
   const dateLabel = mediaDateLabel(media)
   const assetOnly = Boolean(media.assetOnly)
+  const isEvent = media.type === "event"
+  const eventFields = media.eventFields ?? emptyEventFields()
 
   useEffect(() => {
     const target = error
@@ -93,8 +107,12 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
       if (index === 0) {
         text(title, "Give your idea a name", true, 180)
         field = "team"; text(media.team, "Team or project", true, 150)
-        field = "brief"; text(media.brief, "A brief description", true)
-        field = "eventDetails"; text(media.eventDetails, "Event details")
+        field = "brief"; text(media.brief, isEvent ? "Event description" : "A brief description", true)
+        if (isEvent) for (const [key, label] of EVENT_FIELD_LABELS) {
+          field = `event-${key}`
+          if (key === "registrationUrl") url(eventFields[key], label)
+          else text(eventFields[key], label, false, eventFieldMax[key])
+        }
       }
       if (index === 1) {
         field = "postedBy"
@@ -152,6 +170,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
     try {
       await save({ id, kind: "media", title, media: {
         ...media,
+        eventDetails: "",
+        eventFields: isEvent ? eventFields : undefined,
         needsCopyHelp: copyChoice === "help",
         links: supportingLinks.map((link) => ({ label: "Supporting material", url: link }))
       } })
@@ -165,8 +185,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
   const review: { label: string; value: string; step: number }[] = [
     { label: "Idea", value: `${title} · ${types.find(([value]) => value === media.type)?.[1]}`, step: 0 },
     { label: "Team", value: media.team, step: 0 },
-    { label: "Brief", value: media.brief, step: 0 },
-    ...(media.eventDetails ? [{ label: "Event details", value: media.eventDetails, step: 0 }] : []),
+    ...(isEvent && hasEventFields(eventFields) ? [{ label: "Event", value: eventFieldsText(eventFields), step: 0 }] : []),
+    { label: isEvent ? "Description" : "Brief", value: media.brief, step: 0 },
     ...(assetOnly ? [{ label: "Use", value: "Asset for partner/internal use, not posted by IPN", step: 1 }] : []),
     { label: dateLabel, value: media.postedByTbd ? "TBD" : media.postedBy ? new Date(`${media.postedBy}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "", step: 1 },
     { label: "Where", value: media.platforms.join(", "), step: 1 },
@@ -208,15 +228,15 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
             <div className={styles.cards}>
               {types.map(([value, label, hint]) => <label key={value} className={styles.card}>
                 <input type="radio" name={`${prefix}-type`} value={value} checked={media.type === value}
-                  onChange={() => patch({ type: value, eventId: "", eventDetails: "" })} />
+                  onChange={() => patch({ type: value, eventId: "", eventDetails: "", eventFields: undefined })} />
                 <span><strong>{label}</strong><span className={styles.hint}>{hint}</span></span>
               </label>)}
             </div>
           </fieldset>
-          {media.type === "event" && <Field label="Existing event">
+          {isEvent && <Field label="Existing event" hint="Select an event to prefill the fields below, then check and update them.">
             <select value={media.eventId} onChange={(event) => {
               const selected = data.events.find((item) => item.id === event.target.value)
-              patch({ eventId: selected?.id || "", eventDetails: selected?.details || "", brief: selected?.details || "", postedBy: selected?.postedBy || "", postedByTbd: false })
+              patch({ eventId: selected?.id || "", eventDetails: "", eventFields: selected ? { ...selected.fields } : emptyEventFields(), brief: selected?.description || "", postedBy: selected?.postedBy || "", postedByTbd: false })
               setTitle(selected?.title || "")
             }}>
               <option value="">Write an event brief from scratch</option>
@@ -227,10 +247,21 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
             <Field label="Give it a name"><input {...fieldProps("title")} value={title} required maxLength={180} onChange={(e) => setTitle(e.target.value)} /></Field>
             <Field label="Team or project"><input {...fieldProps("team")} value={media.team} required maxLength={150} onChange={(e) => patch({ team: e.target.value })} /></Field>
           </div>
-          {media.type === "event" && <Field label="Event details" hint="Date, time, timezone, location, speakers and registration link.">
-            <textarea {...fieldProps("eventDetails")} rows={3} maxLength={8000} value={media.eventDetails} onChange={(e) => patch({ eventDetails: e.target.value })} />
-          </Field>}
-          <Field label="What's it about?"><textarea {...fieldProps("brief")} rows={4} required maxLength={8000} value={media.brief} onChange={(e) => patch({ brief: e.target.value })} /></Field>
+          {isEvent && <fieldset>
+            <legend>Event details</legend>
+            <div className={styles.columns}>
+              {EVENT_FIELD_LABELS.map(([key, label]) => <div key={key} className={key === "name" || key === "leader" ? styles.wide : undefined}>
+                <Field label={label} hint={eventFieldHints[key]}>
+                  <input {...fieldProps(`event-${key}`)} type={key === "registrationUrl" ? "url" : "text"} maxLength={eventFieldMax[key]}
+                    placeholder={key === "registrationUrl" ? "https://…" : undefined} value={eventFields[key]}
+                    onChange={(e) => patch({ eventFields: { ...eventFields, [key]: e.target.value } })} />
+                </Field>
+              </div>)}
+            </div>
+          </fieldset>}
+          <Field label={isEvent ? "Event description" : "What's it about?"} hint={isEvent ? "What the event is about, who it's for, and what people should do." : undefined}>
+            <textarea {...fieldProps("brief")} rows={isEvent ? 6 : 4} required maxLength={8000} value={media.brief} onChange={(e) => patch({ brief: e.target.value })} />
+          </Field>
         </>}
         {step === 1 && <>
           <label className={styles.card}>

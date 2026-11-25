@@ -141,7 +141,8 @@ export type MediaBrief = {
   linkConfirmedAt?: string
   linkConfirmedBy?: string
   eventId: string
-  eventDetails: string
+  eventDetails: string // Legacy free text; derived from eventFields for new requests.
+  eventFields?: EventFields
   deliverables: Deliverable[]
   productionOwnerId: string
   publisherId: string
@@ -216,10 +217,44 @@ export type BankEntry = {
   account: string
   requestId?: string
 }
+export type EventFields = {
+  name: string
+  kind: string
+  time: string
+  leader: string
+  howTo: string
+  registrationUrl: string
+}
+export const EVENT_FIELD_LABELS: [keyof EventFields, string][] = [
+  ["name", "Event name"],
+  ["kind", "Kind of event"],
+  ["time", "Date and time"],
+  ["leader", "Speaker or host"],
+  ["howTo", "How to join"],
+  ["registrationUrl", "Registration link"]
+]
+export const emptyEventFields = (): EventFields => ({
+  name: "",
+  kind: "",
+  time: "",
+  leader: "",
+  howTo: "",
+  registrationUrl: ""
+})
+export function hasEventFields(fields?: Partial<EventFields>) {
+  return EVENT_FIELD_LABELS.some(([key]) => fields?.[key]?.trim())
+}
+export function eventFieldsText(fields: EventFields) {
+  return EVENT_FIELD_LABELS.filter(([key]) => fields[key])
+    .map(([key, label]) => `${label}: ${fields[key]}`)
+    .join("\n")
+}
 export type EventOption = {
   id: string
   title: string
   details: string
+  fields: EventFields
+  description: string
   postedBy: string
 }
 export type Cash = {
@@ -333,6 +368,26 @@ export function mediaPostCaption(media: { body?: string; caption?: string }) {
   return [...new Set([media.body?.trim(), media.caption?.trim()].filter(Boolean))]
     .join("\n\n")
 }
+function parseEventFields(
+  type: string,
+  value: unknown,
+  legacyDetails: unknown
+): Pick<MediaBrief, "eventDetails" | "eventFields"> {
+  if (type !== "event" || value == null)
+    return { eventDetails: text(legacyDetails, "Event details") }
+  const v = object(value)
+  const fields: EventFields = {
+    name: text(v.name, "Event name", false, 300),
+    kind: text(v.kind, "Kind of event", false, 150),
+    time: text(v.time, "Date and time", false, 300),
+    leader: text(v.leader, "Speaker or host", false, 1000),
+    howTo: text(v.howTo, "How to join", false, 2000),
+    registrationUrl: url(v.registrationUrl, "Registration link")
+  }
+  return hasEventFields(fields)
+    ? { eventDetails: eventFieldsText(fields), eventFields: fields }
+    : { eventDetails: "" }
+}
 export function parseMedia(value: unknown): MediaBrief {
   const v = object(value)
   const type = text(v.type, "Request type", true)
@@ -407,7 +462,7 @@ export function parseMedia(value: unknown): MediaBrief {
   return {
     type: type as MediaBrief["type"],
     team: text(v.team, "Team / project", true, 150),
-    brief: text(v.brief, "Idea / brief", true),
+    brief: text(v.brief, type === "event" ? "Event description" : "Idea / brief", true),
     postedBy: postedByTbd ? "" : date(v.postedBy, dateLabel),
     postedByTbd,
     assetOnly,
@@ -434,7 +489,7 @@ export function parseMedia(value: unknown): MediaBrief {
       })
       .filter((l) => l.url),
     eventId: text(v.eventId, "Event", false, 200),
-    eventDetails: text(v.eventDetails, "Event details"),
+    ...parseEventFields(type, v.eventFields, v.eventDetails),
     productionOwnerId: "",
     publisherId: "",
     deliverables: []

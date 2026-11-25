@@ -737,3 +737,39 @@ test("legacy production requests can enter the combined stage and backward chang
   const returned = change(combined, "status", member, { status: "assigned" })
   assert.equal(returned.media.reviewedAt, undefined)
 })
+
+test("event media briefs store separate event fields and keep legacy event details", () => {
+  const brief = {
+    type: "event",
+    team: "Media",
+    brief: "Monthly office hours with IPN leadership",
+    postedBy: "2026-12-01",
+    platforms: ["Instagram"],
+    needsCopyHelp: true
+  }
+  const fields = {
+    name: "IPN Member Office Hours",
+    kind: "Office hours",
+    time: "Thu, Dec 3, 7:00 PM EST",
+    leader: "IPN directors",
+    howTo: "Online · Zoom",
+    registrationUrl: "https://members.intercollegiatepsychedelics.net/events/office-hours"
+  }
+  const parsed = parseMedia({ ...brief, eventFields: fields, eventDetails: "ignored" })
+  assert.deepEqual(parsed.eventFields, fields)
+  assert.match(parsed.eventDetails, /^Event name: IPN Member Office Hours\nKind of event: Office hours/)
+  assert.match(parsed.eventDetails, /Registration link: https:\/\/members/)
+  assert.throws(
+    () => parseMedia({ ...brief, eventFields: { ...fields, registrationUrl: "javascript:alert(1)" } }),
+    /Registration link/
+  )
+  const legacy = parseMedia({ ...brief, eventDetails: "Old free-text details" })
+  assert.equal(legacy.eventDetails, "Old free-text details")
+  assert.equal(legacy.eventFields, undefined)
+  const blank = parseMedia({ ...brief, eventFields: { name: " " } })
+  assert.equal(blank.eventFields, undefined)
+  assert.equal(blank.eventDetails, "")
+  const campaign = parseMedia({ ...brief, type: "campaign", eventFields: fields })
+  assert.equal(campaign.eventFields, undefined)
+  assert.throws(() => parseMedia({ ...brief, brief: "" }), /Event description is required/)
+})

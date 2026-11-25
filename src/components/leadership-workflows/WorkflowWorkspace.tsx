@@ -18,13 +18,17 @@ import {
   mediaPlatformChoices,
   mediaPostCaption,
   mediaStages,
+  emptyEventFields,
+  hasEventFields,
   toggleMediaPlatform,
+  EVENT_FIELD_LABELS,
   EXPENSE_STATUSES,
   MEDIA_STATUSES,
   STATUS_LABELS,
   usd,
   unpaidCents,
   type Bootstrap,
+  type EventFields,
   type Kind,
   type MediaBrief,
   type Person,
@@ -66,6 +70,42 @@ const emptyMedia: MediaBrief = {
   deliverables: [],
   productionOwnerId: "",
   publisherId: ""
+}
+const eventFieldHints: Record<keyof EventFields, string> = {
+  name: "The event's public title.",
+  kind: "For example: IPN Labs, Webinar, Workshop or Meetup.",
+  time: "Date, start and end time, and time zone.",
+  leader: "Who is leading it, speaking or hosting.",
+  howTo: "Where it happens, or how people join online.",
+  registrationUrl: "Where people sign up. Must start with https://."
+}
+function EventFieldInputs({
+  fields,
+  onChange
+}: {
+  fields: EventFields
+  onChange: (patch: Partial<EventFields>) => void
+}) {
+  return (
+    <>
+      {EVENT_FIELD_LABELS.map(([key, label]) => (
+        <div
+          key={key}
+          className={key === "name" || key === "leader" ? "sm:col-span-2" : undefined}
+        >
+          <Field label={label} hint={eventFieldHints[key]}>
+            <input
+              className={input}
+              type={key === "registrationUrl" ? "url" : "text"}
+              value={fields[key]}
+              onChange={(e) => onChange({ [key]: e.target.value })}
+              placeholder={key === "registrationUrl" ? "https://…" : undefined}
+            />
+          </Field>
+        </div>
+      ))}
+    </>
+  )
 }
 function Field({
   label,
@@ -787,6 +827,10 @@ function RequestForm({
     )
   const m = (patch: Partial<MediaBrief>) =>
     setMedia((previous) => ({ ...previous, ...patch }))
+  const eventFields = media.eventFields ?? emptyEventFields()
+  // Older requests kept event details as one block of text.
+  const legacyEventDetails =
+    !media.eventFields && Boolean(media.eventDetails.trim())
   async function submit(e: FormEvent) {
     e.preventDefault()
     try {
@@ -799,6 +843,10 @@ function RequestForm({
           ? {
               media: {
                 ...media,
+                eventFields:
+                  media.type === "event" && !legacyEventDetails
+                    ? eventFields
+                    : undefined,
                 links: links
                   .split(/\n/)
                   .map((url) => ({
@@ -911,7 +959,8 @@ function RequestForm({
                   m({
                     type: e.target.value as MediaBrief["type"],
                     eventId: "",
-                    eventDetails: ""
+                    eventDetails: "",
+                    eventFields: undefined
                   })
                 }
               >
@@ -937,7 +986,7 @@ function RequestForm({
                 <div className="sm:col-span-2">
                   <Field
                     label="Existing event"
-                    hint="Select an event to prefill its details, then check and update the brief."
+                    hint="Select an event to prefill the fields below, then check and update them."
                   >
                     <select
                       className={input}
@@ -948,8 +997,11 @@ function RequestForm({
                         )
                         m({
                           eventId: ev?.id || "",
-                          eventDetails: ev?.details || "",
-                          brief: ev?.details || "",
+                          eventDetails: "",
+                          eventFields: ev
+                            ? { ...ev.fields }
+                            : emptyEventFields(),
+                          brief: ev?.description || "",
                           postedBy: ev?.postedBy || "",
                           postedByTbd: false
                         })
@@ -967,30 +1019,42 @@ function RequestForm({
                     </select>
                   </Field>
                 </div>
-                <div className="sm:col-span-2">
-                  <Field
-                    label="Event details"
-                    hint="Include date, time, timezone, location, speakers and the registration link."
-                  >
-                    <textarea
-                      className={input}
-                      rows={3}
-                      value={media.eventDetails}
-                      onChange={(e) => m({ eventDetails: e.target.value })}
-                      placeholder="Date, time, timezone, location, speaker, and registration link"
-                    />
-                  </Field>
-                </div>
+                {legacyEventDetails ? (
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Event details"
+                      hint="Written before events had separate fields. Select an event above to switch to the new fields."
+                    >
+                      <textarea
+                        className={`${input} resize-y`}
+                        rows={4}
+                        value={media.eventDetails}
+                        onChange={(e) => m({ eventDetails: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                ) : (
+                  <EventFieldInputs
+                    fields={eventFields}
+                    onChange={(patch) =>
+                      m({ eventFields: { ...eventFields, ...patch } })
+                    }
+                  />
+                )}
               </>
             )}
             <div className="sm:col-span-2">
               <Field
-                label="Idea / brief"
-                hint="Who is this for, what should they know, and what should they do?"
+                label={media.type === "event" ? "Event description" : "Idea / brief"}
+                hint={
+                  media.type === "event"
+                    ? "What the event is about, who it's for, and what people should do."
+                    : "Who is this for, what should they know, and what should they do?"
+                }
               >
                 <textarea
-                  className={input}
-                  rows={4}
+                  className={`${input} resize-y`}
+                  rows={media.type === "event" ? 6 : 4}
                   value={media.brief}
                   onChange={(e) => m({ brief: e.target.value })}
                   required
@@ -1358,6 +1422,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
   const media = r.media!
   const caption = mediaPostCaption(media)
   const eventDetails = media.eventDetails.trim()
+  const eventFields = hasEventFields(media.eventFields) ? media.eventFields : undefined
   const brief = media.brief.trim()
   const requestType = {
     event: "Event",
@@ -1403,12 +1468,45 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
           )}
         </dl>
       </MediaSection>
+      {eventFields && (
+        <MediaSection title="Event details">
+          <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+            {EVENT_FIELD_LABELS.filter(([key]) => eventFields[key]).map(
+              ([key, label]) => (
+                <div key={key} className="min-w-0">
+                  <dt className="font-semibold text-zinc-600">{label}</dt>
+                  <dd className="mt-1 whitespace-pre-wrap break-words text-zinc-900">
+                    {key === "registrationUrl" ? (
+                      <a
+                        href={eventFields[key]}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-ipn underline"
+                      >
+                        {eventFields[key]}
+                      </a>
+                    ) : (
+                      eventFields[key]
+                    )}
+                  </dd>
+                </div>
+              )
+            )}
+          </dl>
+        </MediaSection>
+      )}
       <MediaSection
-        title={eventDetails ? "Brief and event details" : "Request brief"}
+        title={
+          eventFields
+            ? "Event description"
+            : eventDetails
+              ? "Brief and event details"
+              : "Request brief"
+        }
       >
         {brief !== eventDetails && (
           <div>
-            {eventDetails && (
+            {eventDetails && !eventFields && (
               <h4 className="mb-2 text-sm font-semibold">Idea / brief</h4>
             )}
             <p className="whitespace-pre-wrap break-words text-sm leading-7">
@@ -1416,7 +1514,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
             </p>
           </div>
         )}
-        {eventDetails && (
+        {eventDetails && !eventFields && (
           <div>
             <h4 className="mb-2 text-sm font-semibold">Event details</h4>
             <p className="whitespace-pre-wrap break-words text-sm leading-7">

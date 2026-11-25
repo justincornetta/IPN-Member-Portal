@@ -4,10 +4,12 @@ import { dirname, join } from "node:path"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { LEADERSHIP_TEAMS } from "@/lib/admin/leadership"
+import { formatEventDateTime } from "@/lib/events/calendar"
 import {
   applyChange,
   canRead,
   createRequest,
+  eventFieldsText,
   object,
   text,
   date,
@@ -16,6 +18,8 @@ import {
   type BankEntry,
   type Bootstrap,
   type Cash,
+  type EventFields,
+  type EventOption,
   type Person,
   type WorkflowRequest
 } from "./domain"
@@ -219,6 +223,57 @@ async function people(c: Context): Promise<Person[]> {
       team: p.team
     }))
 }
+const siteUrl = () =>
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://members.intercollegiatepsychedelics.net"
+const plain = (value: unknown) =>
+  typeof value === "string" ? value.trim() : ""
+function eventTime(startsAt: string, endsAt: unknown, timezone: unknown) {
+  try {
+    return formatEventDateTime(
+      startsAt,
+      plain(endsAt) || null,
+      plain(timezone) || "America/New_York"
+    )
+  } catch {
+    return startsAt
+  }
+}
+// Shape an event or conference meetup for the media intake prefill.
+function eventOption(e: {
+  id: string
+  title: string
+  kind?: unknown
+  startsAt: string
+  endsAt?: unknown
+  timezone?: unknown
+  leader?: unknown
+  howTo: unknown[]
+  registrationUrl?: unknown
+  description: unknown[]
+}): EventOption {
+  const fields: EventFields = {
+    name: e.title,
+    kind: plain(e.kind),
+    time: eventTime(e.startsAt, e.endsAt, e.timezone),
+    leader: plain(e.leader),
+    howTo: [...new Set(e.howTo.map(plain).filter(Boolean))].join(" · "),
+    registrationUrl: /^https:\/\//i.test(plain(e.registrationUrl))
+      ? plain(e.registrationUrl)
+      : ""
+  }
+  const description = [
+    ...new Set(e.description.map(plain).filter(Boolean))
+  ].join("\n\n")
+  return {
+    id: e.id,
+    title: e.title,
+    details: eventFieldsText(fields),
+    fields,
+    description,
+    postedBy: e.startsAt.slice(0, 10)
+  }
+}
 export async function bootstrap(c: Context): Promise<Bootstrap> {
   const requests = await readRequests(c)
   const roster = await people(c)
@@ -234,13 +289,19 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
     )
     bankEntries = c.user.id === c.approverId ? s.bank : []
     events = [
-      {
+      eventOption({
         id: "demo-event",
         title: "IPN Labs research seminar",
-        details:
-          "IPN Labs research seminar · October 20, 2026 · 6:00 PM America/New_York · Online",
-        postedBy: "2026-10-20"
-      }
+        kind: "IPN Labs",
+        startsAt: "2026-10-20T22:00:00Z",
+        timezone: "America/New_York",
+        leader: "IPN Labs research team",
+        howTo: ["Online", "Zoom link sent after registration"],
+        registrationUrl: `${siteUrl()}/events/ipn-labs-research-seminar`,
+        description: [
+          "A walkthrough of current IPN Labs research and how members can get involved."
+        ]
+      })
     ]
     cash =
       c.user.id === c.approverId
@@ -274,7 +335,7 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
       c
         .db!.from("events")
         .select(
-          "id,title,starts_at,timezone,summary,location_label,registration_url"
+          "id,slug,title,event_type,starts_at,ends_at,timezone,summary,description,speakers,location_label,location_details,registration_url"
         )
         .eq("status", "published")
         .gte("starts_at", new Date().toISOString())
@@ -314,21 +375,22 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
     ])
     if (eventRows.error || conferences.error)
       throw new Error("Unable to load events for media intake.")
-    events = (eventRows.data ?? []).map((e) => ({
-      id: e.id,
-      title: e.title,
-      details: [
-        e.title,
-        e.starts_at,
-        e.timezone,
-        e.location_label,
-        e.summary,
-        e.registration_url
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      postedBy: e.starts_at.slice(0, 10)
-    }))
+    events = (eventRows.data ?? []).map((e) =>
+      eventOption({
+        id: e.id,
+        title: e.title,
+        kind: e.event_type,
+        startsAt: e.starts_at,
+        endsAt: e.ends_at,
+        timezone: e.timezone,
+        leader: e.speakers,
+        howTo: [e.location_label, e.location_details],
+        registrationUrl:
+          e.registration_url ||
+          (e.slug ? `${siteUrl()}/events/${encodeURIComponent(e.slug)}` : ""),
+        description: [e.summary, e.description]
+      })
+    )
     for (const conf of conferences.data ?? [])
       for (const raw of Array.isArray(conf.meetups) ? conf.meetups : []) {
         const m = raw as Record<string, unknown>
@@ -338,20 +400,19 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
           typeof m.startsAt === "string" &&
           m.startsAt >= new Date().toISOString()
         )
-          events.push({
-            id: `conference:${conf.id}:${m.id}`,
-            title: m.title,
-            details: [
-              m.title,
-              m.startsAt,
-              conf.timezone,
-              m.location,
-              m.description
-            ]
-              .filter(Boolean)
-              .join("\n"),
-            postedBy: m.startsAt.slice(0, 10)
-          })
+          events.push(
+            eventOption({
+              id: `conference:${conf.id}:${m.id}`,
+              title: m.title,
+              kind: m.type,
+              startsAt: m.startsAt,
+              endsAt: m.endsAt,
+              timezone: conf.timezone,
+              howTo: [m.location],
+              registrationUrl: m.registrationUrl,
+              description: [m.description]
+            })
+          )
       }
     activity = (history.data ?? []).map((a) => ({
       id: a.id,

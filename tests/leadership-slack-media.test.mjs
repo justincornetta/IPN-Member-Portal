@@ -452,3 +452,20 @@ test("withMediaSlackChange stores a snapshot only when Slack should post", () =>
   )
   assert.equal(noop.slackChange, undefined)
 })
+
+test("parent message lists separate event fields before the event description", () => {
+  const r = submitted()
+  r.media.type = "event"
+  r.media.brief = "Monthly office hours"
+  r.media.eventFields = {
+    name: "IPN Member Office Hours",
+    kind: "Office hours",
+    time: "Thu, Dec 3 at 7:00 PM EST",
+    leader: "IPN directors",
+    howTo: "Online · Zoom",
+    registrationUrl: "https://members.intercollegiatepsychedelics.net/events/office-hours"
+  }
+  const text = renderMediaParentText(r)
+  assert.match(text, /\*Event name:\* IPN Member Office Hours\n\*Kind of event:\* Office hours\n\*Date and time:\* Thu, Dec 3 at 7:00 PM EST/)
+  assert.match(text, /\*Registration link:\* https:\/\/members\.intercollegiatepsychedelics\.net\/events\/office-hours\n\nMonthly office hours/)
+})
