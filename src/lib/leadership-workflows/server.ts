@@ -9,6 +9,11 @@ import {
   applyChange,
   canRead,
   createRequest,
+  isDraft,
+  isQueueRequest,
+  ownDrafts,
+  saveDraft,
+  sendDraft,
   eventFieldsText,
   object,
   text,
@@ -165,7 +170,7 @@ export async function context(request: Request): Promise<Context> {
 export async function readRequests(c: Context): Promise<WorkflowRequest[]> {
   if (c.demo)
     return (await demoState()).requests.filter((r) =>
-      !r.deletedAt && canRead(r, c.user.id, c.approverId)
+      isQueueRequest(r) && canRead(r, c.user.id, c.approverId)
     )
   let q = c
     .db!.from("leadership_requests")
@@ -178,7 +183,25 @@ export async function readRequests(c: Context): Promise<WorkflowRequest[]> {
   if (error) throw new Error("Unable to load requests.")
   return (data ?? [])
     .map((row) => row.data as WorkflowRequest)
-    .filter((r) => !r.deletedAt && !isExcludedRequest(r.id))
+    // Drafts stay out of the queue, calendar and every list built from it.
+    .filter((r) => isQueueRequest(r) && !isExcludedRequest(r.id))
+}
+// The signed-in user's own unsent media drafts, newest first.
+export async function readDrafts(c: Context): Promise<WorkflowRequest[]> {
+  let rows: WorkflowRequest[]
+  if (c.demo) rows = (await demoState()).requests
+  else {
+    const { data, error } = await c
+      .db!.from("leadership_requests")
+      .select("data")
+      .eq("kind", "media")
+      .eq("requester_id", c.user.id)
+      .order("updated_at", { ascending: false })
+      .limit(500)
+    if (error) throw new Error("Unable to load drafts.")
+    rows = (data ?? []).map((row) => row.data as WorkflowRequest)
+  }
+  return ownDrafts(rows, c.user.id)
 }
 export async function readRequest(
   c: Context,
@@ -276,6 +299,7 @@ function eventOption(e: {
 }
 export async function bootstrap(c: Context): Promise<Bootstrap> {
   const requests = await readRequests(c)
+  const drafts = await readDrafts(c)
   const roster = await people(c)
   let events: Bootstrap["events"] = [],
     activity: Activity[] = [],
@@ -414,14 +438,17 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
             })
           )
       }
-    activity = (history.data ?? []).map((a) => ({
+    activity = (history.data ?? [])
+      // Draft autosaves are not part of a sent request's history.
+      .filter((a) => !String(a.event).startsWith("draft_"))
+      .map((a) => ({
       id: a.id,
       requestId: a.request_id,
       actorName: a.actor_name,
       event: a.event,
       note: a.note,
       createdAt: a.created_at
-    }))
+      }))
     bankEntries = (bank.data ?? []).map((b) => b.data as BankEntry)
     pending = jobs.count ?? 0
     if (c.user.id === c.approverId) cash = await readCash().catch(() => null)
@@ -432,6 +459,7 @@ export async function bootstrap(c: Context): Promise<Bootstrap> {
     people: roster,
     events,
     requests,
+    drafts,
     activity,
     bankEntries,
     cash,
@@ -506,7 +534,30 @@ async function save(
   await drainJobs(c.db!, r.id)
   return r
 }
+async function existingRequest(c: Context, id: string) {
+  try {
+    return await readRequest(c, id)
+  } catch (e) {
+    if (e instanceof WorkflowError && e.status === 404) return undefined
+    throw e
+  }
+}
+// Save whatever is filled in. No required-field checks and no Slack jobs.
+export async function saveMediaDraft(c: Context, value: unknown) {
+  const v = object(value)
+  if (v.kind !== "media")
+    throw new WorkflowError("Only media requests can be saved as drafts.")
+  const existing = await existingRequest(c, text(v.id, "Request ID", true, 36))
+  const { record, event } = saveDraft(existing, value, c.user)
+  return save(c, record, existing ? existing.revision : 0, event, "")
+}
 export async function submit(c: Context, value: unknown) {
+  const v = object(value)
+  const existing =
+    typeof v.id === "string" && v.id ? await existingRequest(c, v.id) : undefined
+  // Sending a saved draft runs the same checks and Slack post as a new request.
+  if (existing && isDraft(existing))
+    return save(c, sendDraft(existing, value, c.user), existing.revision, "submitted", "", existing)
   const r = createRequest(value, c.user)
   return save(c, r, 0, "submitted", "")
 }

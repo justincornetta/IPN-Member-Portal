@@ -3,6 +3,7 @@ import {
   bootstrap,
   readJson,
   submit,
+  saveMediaDraft,
   retry,
   resetDemo,
   importBank
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
       return { saved: true }
     }
     if (body.action === "import_bank") return importBank(c, body)
+    if (body.action === "save_draft") return saveMediaDraft(c, body)
     if (body.action && body.action !== "submit")
       throw new WorkflowError("Unknown workflow action.")
     return submit(c, body)

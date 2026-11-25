@@ -52,6 +52,8 @@ for (const width of [1440, 1280, 390]) {
     await page.screenshot({ path: `docs/media-guided-intake/screenshots/footer-${width}.png` })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
     await form.getByRole("button", { name: "Cancel", exact: true }).click()
+    // Unsaved work is never dropped silently: choose to discard it.
+    await page.getByRole("button", { name: "Discard changes", exact: true }).click()
     await expect(form).toHaveCount(0)
     expect(submissions).toBe(0)
     expect(errors).toEqual([])

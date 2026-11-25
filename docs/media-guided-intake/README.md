@@ -80,3 +80,19 @@ Requested by Rosie (IPN assistant) with Justin's approval (Nov 25, 9:57 AM ET: "
 No database migration: the request body is JSON and the new fields are optional, so existing requests are unchanged.
 
 Verification: `tests/leadership-media-tbd-asset.test.mjs` (domain and Slack formatting for A, B and C) and `qa/leadership/media-tbd-asset.spec.ts` (local browser flow at 1440 and 390 px). Screenshots are in [screenshots/tbd-asset](screenshots/tbd-asset/).
+
+## Save as draft (November 25, 2026)
+
+Requested by Rosie (IPN assistant) from Justin (Nov 25, 12:09 PM ET). Built from `main` after #86 and #87, because the PR number Justin mentioned (#88) did not exist on GitHub when work began.
+
+**Where it shows up.** Every step of the new request wizard (Idea, When and where, Copy and files, Review) has a **Save draft** button next to Continue or Send request. It saves whatever is filled in, including empty required fields, and stays on the same step with "Draft saved at …". Required-field checks run on Continue (per step, as before) and on **Send request**, never on Save draft. Leaving with unsaved changes asks whether to save the draft, discard the changes, or keep editing.
+
+**My drafts.** A third view on the Media Requests page, next to Request queue and Media calendar, lists the signed-in person's own drafts (newest first). **Continue editing** reopens the draft in the same wizard with every step reachable; save it again or send it from Review. **Delete** asks first and soft-deletes the draft.
+
+**What a draft is.** A normal request record with status `draft` and no schema change. It has no fake date: an unset date stays empty, "Date is TBD" stays a real choice. It is private to its creator (not even the approver can open it), is left out of the queue, calendar, status filter, Slack, DMs and request history, and counts toward nothing in analytics. Saves are checked for type and size only (for example, text over a field's limit is refused); links are not validated until the request is sent.
+
+**Sending.** Send request on a draft runs today's submit path: full validation, then the #media-space parent post tagging the Media director. The request keeps its id, moves to Submitted and its submitted date becomes the send time. It cannot be saved as a draft again.
+
+**Kept from #86.** Date is TBD, the asset-only toggle (Needed by, N/A or partner platforms), the placeholder checkbox and the Delivered status all work in drafts and after sending.
+
+Verification: `tests/leadership-media-drafts.test.mjs` (domain, Slack job and privacy rules) and `qa/leadership/media-drafts.spec.ts` (local browser flow at 1440 and 390 px, no Slack). Screenshots are in [screenshots/drafts](screenshots/drafts/). The cancel prompt changed the existing cancellation test in `qa/leadership/media-intake.spec.ts` to choose Discard changes.

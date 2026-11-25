@@ -224,6 +224,8 @@ export function mediaJobsFor(
   note = ""
 ): MediaJobSpec[] {
   if (r.kind !== "media" || r.deletedAt) return []
+  // Drafts never reach Slack. Sending one is a normal "submitted" event.
+  if (r.status === "draft" || event === "draft_saved") return []
   if (event === "comment") return []
   const change =
     event === "submitted"
@@ -250,7 +252,7 @@ export function withMediaSlackChange(
 ): WorkflowRequest {
   if (r.kind !== "media") return r
   const next = { ...r }
-  if (event === "submitted" || !previous) {
+  if (r.status === "draft" || event === "submitted" || !previous) {
     delete next.slackChange
     return next
   }
