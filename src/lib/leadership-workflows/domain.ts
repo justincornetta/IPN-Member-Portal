@@ -130,7 +130,7 @@ export type MediaBrief = {
   format: string
   needsCopyHelp: boolean
   formats?: string[]
-  headline: string
+  headline: string // Legacy; new requests keep the headline in caption.
   body?: string // Legacy requests; new copy is stored in caption.
   caption: string
   usageNotes?: string // Asset-only: how partners may use the asset.
@@ -364,9 +364,19 @@ function strings(value: unknown): string[] {
     throw new WorkflowError("Choose the requested platforms.")
   return value.map((v) => text(v, "Platform", true, 80))
 }
-export function mediaPostCaption(media: { body?: string; caption?: string }) {
-  return [...new Set([media.body?.trim(), media.caption?.trim()].filter(Boolean))]
-    .join("\n\n")
+// Headline and legacy body copy now live in the post caption.
+export function mediaPostCaption(media: {
+  headline?: string
+  body?: string
+  caption?: string
+}) {
+  return [
+    ...new Set(
+      [media.headline?.trim(), media.body?.trim(), media.caption?.trim()].filter(
+        Boolean
+      )
+    )
+  ].join("\n\n")
 }
 function parseEventFields(
   type: string,
@@ -396,19 +406,19 @@ export function parseMedia(value: unknown): MediaBrief {
   const links = Array.isArray(v.links) ? v.links : []
   if (links.length > 20)
     throw new WorkflowError("Use at most 20 supporting links.")
-  const headline = text(v.headline, "Headline", false, 1000)
   const caption = text(
     mediaPostCaption({
+      headline: text(v.headline, "Headline", false, 1000),
       body: text(v.body, "Legacy body"),
       caption: text(v.caption, "Post caption", false, 20002)
     }),
     "Post caption",
     false,
-    20002
+    21004
   )
   const assetOnly = v.assetOnly === true
   // Asset-only requests may skip copy: partner captions are optional.
-  if (!assetOnly && v.needsCopyHelp !== true && !headline && !caption)
+  if (!assetOnly && v.needsCopyHelp !== true && !caption)
     throw new WorkflowError("Choose copywriting help or provide draft copy.")
   const postedByTbd = v.postedByTbd === true
   const dateLabel = assetOnly ? "Needed-by date" : "Posted-by date"
@@ -474,7 +484,7 @@ export function parseMedia(value: unknown): MediaBrief {
     destinationUrl,
     linkPlacement,
     needsCopyHelp: v.needsCopyHelp === true,
-    headline,
+    headline: "",
     caption,
     usageNotes: text(v.usageNotes, "Usage notes", false, 10000),
     additionalDetails: text(v.additionalDetails, "Additional details", false, 10000),

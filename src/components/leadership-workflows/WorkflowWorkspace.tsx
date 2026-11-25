@@ -805,7 +805,12 @@ function RequestForm({
     [title, setTitle] = useState(record?.title || ""),
     [media, setMedia] = useState<MediaBrief>(
       record?.media
-        ? { ...record.media, body: undefined, caption: mediaPostCaption(record.media) }
+        ? {
+            ...record.media,
+            headline: "",
+            body: undefined,
+            caption: mediaPostCaption(record.media)
+          }
         : { ...emptyMedia, team: data.user.team || "" }
     ),
     [links, setLinks] = useState(
@@ -820,7 +825,7 @@ function RequestForm({
       record?.media
         ? record.media.needsCopyHelp
           ? "help"
-          : record.media.headline || mediaPostCaption(record.media)
+          : mediaPostCaption(record.media)
             ? "self"
             : ""
         : ""
@@ -1279,7 +1284,7 @@ function RequestForm({
                     hint={
                       media.assetOnly
                         ? "Optional. Choose copywriting help, or add captions partners can post."
-                        : "Choose copywriting help, or supply a headline or post caption yourself."
+                        : "Choose copywriting help, or write the post caption yourself."
                     }
                   >
                     <select
@@ -1335,22 +1340,8 @@ function RequestForm({
                   ) : copyChoice && (
                     <>
                       <Field
-                        label="Headline"
-                        hint="A short opening line or title for the content."
-                      >
-                        <input
-                          className={input}
-                          value={media.headline}
-                          required={
-                            copyChoice === "self" &&
-                            !media.caption.trim()
-                          }
-                          onChange={(e) => m({ headline: e.target.value })}
-                        />
-                      </Field>
-                      <Field
                         label="Post caption"
-                        hint="The full text for the post: main message, key details, call to action and any useful links."
+                        hint="The full text for the post: headline or opening line, main message, key details, call to action and any useful links."
                       >
                         <textarea
                           className={`${input} resize-y`}
@@ -1523,7 +1514,7 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
           </div>
         )}
       </MediaSection>
-      {(media.needsCopyHelp || media.headline || caption || media.usageNotes) && (
+      {(media.needsCopyHelp || caption || media.usageNotes) && (
         <MediaSection title={media.assetOnly ? "Partner captions and usage notes" : "Draft copy"}>
           {media.needsCopyHelp && (
             <p className="rounded-lg bg-ipn-light/50 px-3 py-2 text-sm text-ipn-dark">
@@ -1531,7 +1522,6 @@ function MediaRequestSummary({ record: r }: { record: WorkflowRequest }) {
             </p>
           )}
           {[
-            ["Headline", media.headline],
             [media.assetOnly ? "Partner captions" : "Post caption", caption],
             ["Usage notes", media.usageNotes || ""]
           ].map(([label, value]) => value ? (

@@ -773,3 +773,17 @@ test("event media briefs store separate event fields and keep legacy event detai
   assert.equal(campaign.eventFields, undefined)
   assert.throws(() => parseMedia({ ...brief, brief: "" }), /Event description is required/)
 })
+
+test("headline folds into the post caption and is no longer stored separately", () => {
+  const media = {
+    type: "announcement", team: "Media", brief: "Upcoming meetup",
+    postedBy: "2026-10-20", needsCopyHelp: false
+  }
+  const parsed = parseMedia({ ...media, headline: "Meet us in Denver", caption: "Join us" })
+  assert.equal(parsed.headline, "")
+  assert.equal(parsed.caption, "Meet us in Denver\n\nJoin us")
+  assert.equal(parseMedia({ ...media, headline: "Only a headline" }).caption, "Only a headline")
+  assert.equal(parseMedia({ ...media, headline: "Join us", caption: "Join us" }).caption, "Join us")
+  assert.throws(() => parseMedia(media), /copywriting help/)
+  assert.equal(mediaPostCaption({ headline: "Title", body: "Body", caption: "Caption" }), "Title\n\nBody\n\nCaption")
+})

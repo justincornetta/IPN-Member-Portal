@@ -124,10 +124,8 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
       if (index === 2) {
         field = "copyChoice"
         if (!copyChoice && !media.assetOnly) throw new Error("Choose who will write the copy.")
-        field = "headline"
-        text(media.headline, "Headline", false, 1000)
-        if (!media.assetOnly && copyChoice === "self" && !media.headline.trim() && !media.caption.trim()) {
-          throw new Error("Add a headline or post caption, or choose copywriting help.")
+        if (!media.assetOnly && copyChoice === "self" && !media.caption.trim()) {
+          throw new Error("Add a post caption, or choose copywriting help.")
         }
         field = "caption"; text(media.caption, media.assetOnly ? "Partner captions" : "Post caption", false, 20002)
         field = "usageNotes"; text(media.usageNotes, "Usage notes", false, 10000)
@@ -195,7 +193,7 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
     ...(media.placeholder ? [{ label: "Placeholder", value: "Not ready for production", step: 1 }] : []),
     assetOnly
       ? { label: "Captions", value: [copyChoice === "help" ? "Media team to draft" : copyChoice === "self" ? "I'll provide them" : "", media.caption, media.usageNotes ? `Usage notes: ${media.usageNotes}` : ""].filter(Boolean).join("\n\n") || "None", step: 2 }
-      : { label: "Copy", value: [copyChoice === "help" ? "Media team to draft" : "I'll provide the copy", media.headline, media.caption].filter(Boolean).join("\n\n"), step: 2 },
+      : { label: "Copy", value: [copyChoice === "help" ? "Media team to draft" : "I'll provide the copy", media.caption].filter(Boolean).join("\n\n"), step: 2 },
     { label: "Files", value: supportingLinks.join("\n") || "None", step: 2 },
     ...(media.destinationUrl ? [{ label: "Link for readers", value: `${media.destinationUrl}\n${media.linkPlacement}`, step: 2 }] : [])
   ]
@@ -308,7 +306,7 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
             <div className={styles.cards}>
               {(assetOnly
                 ? [["self", "I'll write them", "I have captions ready"], ["help", "Help me write them", "The Media team drafts from my brief"]]
-                : [["self", "I'll write it", "I have a headline or caption ready"], ["help", "Help me write it", "The Media team drafts from my brief"]]
+                : [["self", "I'll write it", "I have a caption ready"], ["help", "Help me write it", "The Media team drafts from my brief"]]
               ).map(([value, label, hint]) => <label key={value} className={styles.card}>
                 <input type="radio" name={`${prefix}-copy`} checked={copyChoice === value} onChange={() => { setCopyChoice(value); patch({ needsCopyHelp: value === "help" }) }} />
                 <span><strong>{label}</strong><span className={styles.hint}>{hint}</span></span>
@@ -316,11 +314,10 @@ export default function MediaIntakeForm({ data, initialMedia, busy, save, close 
             </div>
           </fieldset>
           {assetOnly ? <>
-            <Field label="Partner captions (optional)" hint="Text partners can post with the asset."><textarea {...fieldProps("caption")} rows={5} maxLength={20002} value={media.caption} onChange={(e) => patch({ caption: e.target.value })} /></Field>
+            <Field label="Partner captions (optional)" hint="Text partners can post with the asset."><textarea {...fieldProps("caption")} rows={14} maxLength={20002} value={media.caption} onChange={(e) => patch({ caption: e.target.value })} /></Field>
             <Field label="Usage notes (optional)" hint="Who may use it, where, and any rules, such as tagging IPN."><textarea {...fieldProps("usageNotes")} rows={3} maxLength={10000} value={media.usageNotes || ""} onChange={(e) => patch({ usageNotes: e.target.value })} /></Field>
-          </> : (copyChoice === "self" || media.headline || media.caption) && <>
-            <Field label="Headline"><input {...fieldProps("headline")} maxLength={1000} value={media.headline} onChange={(e) => patch({ headline: e.target.value })} /></Field>
-            <Field label="Post caption"><textarea {...fieldProps("caption")} rows={5} maxLength={20002} value={media.caption} onChange={(e) => patch({ caption: e.target.value })} /></Field>
+          </> : (copyChoice === "self" || media.caption) && <>
+            <Field label="Post caption" hint="The full text for the post: headline or opening line, main message, key details, call to action and any useful links."><textarea {...fieldProps("caption")} rows={14} maxLength={20002} value={media.caption} onChange={(e) => patch({ caption: e.target.value })} /></Field>
           </>}
           <Field label="Files in Drive or Canva (optional)" hint="One link per line. Make sure the Media team has access.">
             <textarea {...fieldProps("links")} rows={3} value={links} onChange={(e) => setLinks(e.target.value)} />
